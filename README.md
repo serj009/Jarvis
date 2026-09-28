@@ -1,4 +1,6 @@
 # Jarvis
+> **This project is based on [ndunl075/Jarvis](https://github.com/ndunl075/Jarvis) (MIT).**  
+> Significant modifications will be documented as the project develops (multilingual STT/TTS, long-term memory, VRAM manager, barge-in, etc.).
 
 A fully local, no-subscription AI voice assistant for Windows. Wake word, speech-to-text, Ollama LLM, and tools — all on your PC.
 
