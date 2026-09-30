@@ -52,6 +52,20 @@ log = logging.getLogger(__name__)
 
 DEFAULT_ENDPOINT: str = "http://localhost:11434"
 
+# Context window requested from Ollama. Ollama's VRAM-based default on a
+# 12 GB card is 4096 tokens, and Jarvis' system prompt + ~45 tool schemas
+# already take ~4000 of them: every turn hit "slot context shift" (half the
+# context discarded, instructions and tool descriptions included) and the
+# prompt cache never helped. 8192 costs ~0.6 GB more KV cache on qwen3:8b.
+# MUST be the same on every request (warm-up included): a different num_ctx
+# makes Ollama reload the model.
+DEFAULT_NUM_CTX: int = 8192
+
+# qwen3 "thinks" (writes hidden reasoning) before answering unless told not
+# to. Jarvis never shows that text, so it is pure latency for a voice
+# assistant. False = answer directly.
+DEFAULT_THINK: bool = False
+
 
 class OllamaError(RuntimeError):
     """Base for Ollama client errors."""
@@ -94,6 +108,8 @@ class OllamaClient:
         system_prompt: str = "",
         keep_alive_seconds: int = 300,
         endpoint: str = DEFAULT_ENDPOINT,
+        num_ctx: int = DEFAULT_NUM_CTX,
+        think: bool = DEFAULT_THINK,
     ) -> None:
         self.model = model
         self.temperature = temperature
@@ -101,6 +117,8 @@ class OllamaClient:
         self.system_prompt = system_prompt
         self.keep_alive_seconds = keep_alive_seconds
         self.endpoint = endpoint.rstrip("/")
+        self.num_ctx = num_ctx
+        self.think = think
         self._client: httpx.AsyncClient | None = None
         self.is_loaded: bool = False
 
@@ -132,8 +150,9 @@ class OllamaClient:
             "model": self.model,
             "messages": [{"role": "user", "content": "ready"}],
             "stream": False,
+            "think": self.think,
             "keep_alive": f"{self.keep_alive_seconds}s",
-            "options": {"num_predict": 1},
+            "options": {"num_predict": 1, "num_ctx": self.num_ctx},
         }
         try:
             response = await client.post("/api/chat", json=body)
@@ -203,10 +222,12 @@ class OllamaClient:
             "model": self.model,
             "messages": self._with_system_prompt(messages),
             "stream": True,
+            "think": self.think,
             "keep_alive": f"{self.keep_alive_seconds}s",
             "options": {
                 "temperature": self.temperature,
                 "num_predict": self.max_tokens,
+                "num_ctx": self.num_ctx,
             },
         }
         if tools:

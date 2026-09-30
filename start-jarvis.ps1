@@ -31,6 +31,10 @@ param(
     [string]$ConfigPath  = (Join-Path $env:APPDATA 'Jarvis\config.json'),
     # Used only if config.json is missing/unreadable or has no llm.model.
     [string]$FallbackModel = 'qwen3:8b',
+    # Must match DEFAULT_NUM_CTX in jarvis/llm/ollama_client.py: a warm-up
+    # with a different context size makes Ollama reload the model on
+    # Jarvis' first real request.
+    [int]   $NumCtx = 8192,
     [int]   $ReadyTimeoutSec = 30
 )
 
@@ -154,7 +158,13 @@ Write-Log 'Ollama API is ready.'
 # --- Step 3: warm up the model ---------------------------------------------
 Write-Log ("Warming up model '{0}'..." -f $Model)
 try {
-    $body = @{ model = $Model; prompt = 'ping'; stream = $false } | ConvertTo-Json
+    $body = @{
+        model   = $Model
+        prompt  = 'ping'
+        stream  = $false
+        think   = $false
+        options = @{ num_ctx = $NumCtx; num_predict = 1 }
+    } | ConvertTo-Json
     $null = Invoke-RestMethod -Uri ("{0}/api/generate" -f $OllamaApi) `
                               -Method Post -Body $body -ContentType 'application/json' `
                               -TimeoutSec 120 -ErrorAction Stop
