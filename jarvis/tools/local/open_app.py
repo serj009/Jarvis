@@ -93,12 +93,19 @@ class OpenAppArgs(BaseModel):
 class OpenAppTool:
     name: str = "open_app"
     description: str = (
-        "Launches a desktop application. Always call this when the user "
-        "asks to open, launch, or start an app — do not only describe the "
-        "action in text. Resolves installed apps via fuzzy matching."
+        "Launches an installed desktop application (Notepad, Calculator, "
+        "Steam, a browser program itself, etc.). Always call this when the "
+        "user asks, in any language, to open, launch or start a program "
+        "— do not only describe the action in text. Resolves installed "
+        "apps via fuzzy matching. NOT for websites or web searches: use "
+        "open_url for those."
     )
     args_schema = OpenAppArgs
     requires_confirmation: bool = False
+    # One-shot action: after a successful launch the router ends the turn.
+    # A FAILED launch does not end it, so the model can still fall back to
+    # open_url (see the hint in the error message below).
+    ends_turn_on_success: bool = True
     # PRIORITY_CATCH_ALL: the most permissive pattern in the table and
     # therefore the LAST one tried. Every specific "open ..." phrase —
     # "open my notes", "open the dashboard", "open logs", "open my
@@ -199,5 +206,10 @@ class OpenAppTool:
         return ToolResult(
             success=False,
             error=f"could not launch {token!r}"
-            + (f": {last_error}" if last_error else ""),
+            + (f": {last_error}" if last_error else "")
+            # The model sees this error in the tool-feedback loop; the hint
+            # lets it recover when a name like "Telegram" or "GitHub" meant
+            # the website rather than an installed program.
+            + ". It is not an installed program. If the user meant a website "
+            "or online service, call open_url with its https address instead.",
         )

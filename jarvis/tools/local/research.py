@@ -42,8 +42,12 @@ class ResearchTool:
     description: str = (
         "Searches the web and shows a research panel with a summary and sources. "
         "Uses local Ollama to summarize DuckDuckGo results — no cloud LLM API key. "
-        "Call when the user says 'research [topic]', 'look up [topic]', or asks "
-        "you to find information about something. "
+        "Call ONLY when the user explicitly asks you to research a topic or to "
+        "give a summary of what is known about it ('research [topic]', "
+        "'look up [topic]'). For a plain web search, or when the user asks, in "
+        "any language, to find / search / google something on the internet, "
+        "use open_url with a Google search URL instead, so it opens in the "
+        "browser. "
         "The result is shown visually AND the first two sentences are spoken back."
     )
     args_schema = ResearchArgs

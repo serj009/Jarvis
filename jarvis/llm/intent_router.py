@@ -413,10 +413,26 @@ class IntentRouter:
             # Execute first, record second. Every await lives in
             # _run_tools, so a cancel lands before the round trip is
             # written rather than halfway through it.
-            exchanges, spoken = await self._run_tools(intents)
+            exchanges, spoken, ends_turn = await self._run_tools(intents)
             messages = self._conv.add_tool_round_trip(
                 content="".join(text_parts), exchanges=exchanges
             )
+
+            if ends_turn:
+                # Every tool in this round is a one-shot action (open a
+                # site / an app) and it succeeded. Asking the model again
+                # only lets a small local model re-fire the same action
+                # (three browser tabs for one "open YouTube") and costs a
+                # full inference. Speak the result and end the turn, like
+                # the bound path does. Failures still loop, so the model
+                # can recover (e.g. open_app failed -> try open_url).
+                log.info(
+                    "[router] %s succeeded; ending turn without another model round",
+                    ", ".join(i.tool_name for i in intents),
+                )
+                if spoken:
+                    yield SpeakIntent(text=spoken)
+                return
 
             if iteration >= self._max_tool_iterations:
                 # Bound reached. Degrade by speaking the results we
@@ -519,10 +535,15 @@ class IntentRouter:
 
     async def _run_tools(
         self, intents: list[ToolIntent]
-    ) -> tuple[list[ToolExchange], str]:
+    ) -> tuple[list[ToolExchange], str, bool]:
         """Execute each ToolIntent; return the exchanges to record and
         the spoken form of the results (used only if the loop then hits
-        its iteration bound).
+        its iteration bound or the turn ends early).
+
+        The third value is True when EVERY executed tool declares
+        `ends_turn_on_success = True` and succeeded: the caller then ends
+        the turn instead of re-invoking the model. Tools without the
+        attribute never end the turn, so default behaviour is unchanged.
 
         Writes nothing to conversation history — the caller appends the
         whole round trip atomically once every tool has finished, so a
@@ -534,8 +555,13 @@ class IntentRouter:
         assert registry is not None  # guarded by _feedback_enabled()
         exchanges: list[ToolExchange] = []
         spoken: list[str] = []
+        ends_turn = bool(intents)
         for intent in intents:
             result = await registry.execute(intent.tool_name, intent.args)
+            tool = registry.get(intent.tool_name)
+            ends_turn = ends_turn and result.success and bool(
+                getattr(tool, "ends_turn_on_success", False)
+            )
             exchanges.append(
                 ToolExchange(
                     call_id=self._next_call_id(),
@@ -545,7 +571,7 @@ class IntentRouter:
                 )
             )
             spoken.append(_result_for_speech(result))
-        return exchanges, "".join(spoken)
+        return exchanges, "".join(spoken), ends_turn
 
     def _try_pattern(self, transcription: str) -> Intent | None:
         normalized = _normalize(transcription)

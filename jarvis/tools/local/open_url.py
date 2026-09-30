@@ -77,14 +77,26 @@ class OpenUrlArgs(BaseModel):
 
 class OpenUrlTool:
     name: str = "open_url"
+    # Language-neutral on purpose: the user may speak Russian, Ukrainian or
+    # English, so the model must decide from MEANING, not from English
+    # trigger words. Websites and web searches go here; installed desktop
+    # programs go to open_app.
     description: str = (
-        "Opens a URL in the default browser, or performs a web search. "
-        "Only use when the user explicitly says 'open <url>', "
-        "'search <query>', or 'google <query>'. Do NOT use for playing "
-        "music — use play_youtube_music instead (it opens the video directly)."
+        "Opens a website in the default browser, or runs a web search. "
+        "Use it when the user asks, in ANY language, to open a website, a "
+        "web page or an online service (YouTube, Google, Wikipedia, GitHub, "
+        "any domain like example.com), or to search / google something on "
+        "the internet. Build a full https URL yourself, e.g. "
+        "'https://www.youtube.com'. For a web search use "
+        "'https://www.google.com/search?q=<query>'. Do NOT use for installed "
+        "desktop programs (use open_app) or for playing music (use "
+        "play_youtube_music, it opens the video directly)."
     )
     args_schema = OpenUrlArgs
     requires_confirmation: bool = False
+    # One-shot action: after a successful open the router ends the turn
+    # instead of asking the model again (which re-opened the same tab).
+    ends_turn_on_success: bool = True
     # 500: "search <q>" / "google <q>". The `(?:up|for)\s+` sits inside
     # the optional group WITH a trailing \s+ so a query starting with
     # "forty" is not shaved to "ty". quote_plus (not quote) — Google's

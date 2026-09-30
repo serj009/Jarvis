@@ -756,3 +756,38 @@ async def test_duplicate_calls_in_one_round_execute_once():
 
     assert tool.calls == 1
     assert len(_by_role(llm.seen_messages[1], "tool")) == 1
+
+
+# --- one-shot actions (ends_turn_on_success) ---------------------------
+
+
+async def test_successful_one_shot_action_ends_the_turn():
+    """"Open YouTube" opened three tabs: the model re-fired open_url after
+    every success. A tool marked ends_turn_on_success runs once and the
+    turn ends without another model round."""
+    tool = _ScriptedTool("open_thing", ToolResult(success=True, output="Opening it, sir."))
+    tool.ends_turn_on_success = True  # type: ignore[attr-defined]
+    # Only one round scripted: a model that would call the tool forever.
+    llm = ScriptedOllama([[_calls(("open_thing", {}))]])
+    router, _ = _router(llm, _registry(tool), max_tool_iterations=3)
+
+    intents = await _collect(router.route("open the thing"))
+
+    assert tool.calls == 1
+    assert llm.stream_calls == 1
+    assert "Opening it, sir." in _spoken(intents)
+
+
+async def test_failed_one_shot_action_lets_the_model_recover():
+    tool = _ScriptedTool("open_thing", ToolResult(success=False, error="not installed"))
+    tool.ends_turn_on_success = True  # type: ignore[attr-defined]
+    llm = ScriptedOllama([
+        [_calls(("open_thing", {}))],
+        [_text("Opening the website instead, sir.", done=True)],
+    ])
+    router, _ = _router(llm, _registry(tool))
+
+    intents = await _collect(router.route("open the thing"))
+
+    assert llm.stream_calls == 2
+    assert _spoken(intents) == "Opening the website instead, sir."
