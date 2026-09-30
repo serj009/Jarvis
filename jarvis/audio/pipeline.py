@@ -75,6 +75,7 @@ from jarvis.core.events import (
     TranscriptionReady,
     WakeWordDetected,
 )
+from jarvis.core.request_context import correlation_id, new_correlation_id
 from jarvis.core.state_machine import ConversationalState, Mode, StateMachine
 
 log = logging.getLogger(__name__)
@@ -391,6 +392,14 @@ class AudioPipeline:
     # -- response chain --
 
     async def _run_response_chain(self, audio: bytes) -> None:
+        # T1.2: one correlation id per voice turn. This coroutine runs in its
+        # own task (see _handle_endpoint), so the id lives only in this turn's
+        # context and is inherited by STT threads, the LLM call, tools and TTS.
+        cid_token = correlation_id.set(new_correlation_id())
+        log.info(
+            "[turn] start: %d ms of audio",
+            (len(audio) // 2) * 1000 // SAMPLE_RATE,
+        )
         try:
             text = await self._stt.transcribe(audio)
             duration_ms = (len(audio) // 2) * 1000 // SAMPLE_RATE
@@ -451,6 +460,8 @@ class AudioPipeline:
                 log.exception("recovery to IDLE failed")
         finally:
             self._tts_started_at = None
+            log.info("[turn] end")
+            correlation_id.reset(cid_token)
 
     async def _cancel_response_chain(self) -> None:
         # Order per design note: TTS first (user-perceptible), then drain

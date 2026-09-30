@@ -79,7 +79,10 @@ from jarvis.core.events import (
 )
 from jarvis.core.lifecycle import LifecycleManager
 from jarvis.core.mode_coordinator import ModeCoordinator
-from jarvis.core.request_context import current_user_transcription
+from jarvis.core.request_context import (
+    CorrelationIdFilter,
+    current_user_transcription,
+)
 from jarvis.core.resource_monitor import ResourceMonitor
 from jarvis.core.state_machine import Mode, StateMachine
 from jarvis.llm.conversation import Conversation
@@ -119,13 +122,29 @@ def _voices_dir() -> Path:
     return default_voices_dir()
 
 
+# Unified log line (roadmap T1.2): time, level, correlation id, module, text.
+# The id is "-" outside a voice turn; see jarvis/core/request_context.py.
+LOG_FORMAT = "%(asctime)s [%(levelname)s] [%(correlation_id)s] %(name)s: %(message)s"
+LOG_DATEFMT = "%H:%M:%S"
+
+
 def _setup_logging(level_name: str = "INFO") -> None:
     level = getattr(logging, level_name.upper(), logging.INFO)
     logging.basicConfig(
         level=level,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%H:%M:%S",
+        format=LOG_FORMAT,
+        datefmt=LOG_DATEFMT,
     )
+    # basicConfig() does nothing if a handler already exists (the frozen
+    # launcher installs a file handler first), so apply the unified format
+    # and the correlation-id filter to every root handler explicitly.
+    # The filter must sit on the handler: it guarantees the attribute the
+    # formatter needs, for records from any logger.
+    formatter = logging.Formatter(LOG_FORMAT, datefmt=LOG_DATEFMT)
+    for handler in logging.getLogger().handlers:
+        if not any(isinstance(f, CorrelationIdFilter) for f in handler.filters):
+            handler.addFilter(CorrelationIdFilter())
+        handler.setFormatter(formatter)
     # basicConfig() is a no-op once the root logger already has a handler,
     # and the frozen launcher (jarvis/__main__.py) installs a file handler
     # at INFO before run() is reached. Set the level explicitly so the
