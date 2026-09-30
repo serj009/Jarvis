@@ -59,9 +59,12 @@ from jarvis.audio.tts import PiperTTS
 from jarvis.audio.vad import SileroVAD
 from jarvis.audio.wake_word import OpenWakeWord
 from jarvis.core.config import (
+    CONFIG_LOAD_ERRORS,
     JarvisConfig,
     LifecycleConfig,
     MCPServerConfig,
+    default_config_path,
+    format_config_error,
     load_config,
 )
 from jarvis.core.events import (
@@ -645,7 +648,20 @@ class JarvisApp:
 
     def _load_config(self) -> None:
         """Load config and install logging before anything else runs."""
-        self.cfg = load_config()
+        config_path = default_config_path()
+        try:
+            self.cfg = load_config(config_path)
+        except CONFIG_LOAD_ERRORS as exc:
+            # T1.1: a broken config.json must produce a clear message, not a
+            # traceback. Jarvis runs windowless (pythonw) at logon, so a log
+            # line alone would be invisible -- also show a message box.
+            _setup_logging("INFO")
+            message = format_config_error(exc, config_path)
+            log.error("%s", message)
+            _show_startup_error(message)
+            # SystemExit bypasses __main__'s crash handler (it catches
+            # Exception only), so no traceback is written. Exit code 2.
+            raise SystemExit(2) from None
         _setup_logging(self.cfg.general.log_level)
         from jarvis.paths import bundled_asset_report, is_frozen
 
@@ -1338,6 +1354,21 @@ class JarvisApp:
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
+
+
+def _show_startup_error(message: str) -> None:
+    """Best-effort blocking error dialog (Windows only; no Qt needed)."""
+    if sys.platform != "win32":
+        return
+    try:
+        import ctypes
+
+        MB_ICONERROR = 0x10
+        ctypes.windll.user32.MessageBoxW(  # type: ignore[attr-defined]
+            None, message, "Jarvis", MB_ICONERROR,
+        )
+    except Exception:
+        pass
 
 
 def run() -> int:

@@ -39,7 +39,7 @@ from os import environ
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
@@ -1017,3 +1017,71 @@ def save_config(config: JarvisConfig, path: Path | None = None) -> None:
     with tmp.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
     tmp.replace(p)
+
+
+# ---------------------------------------------------------------------------
+# Human-readable load errors (roadmap T1.1: "an invalid config gives a clear
+# error, not a stack trace"). load_config() keeps raising its original
+# exception types (tests rely on them); callers that face the user catch
+# CONFIG_LOAD_ERRORS and show format_config_error() instead of a traceback.
+# ---------------------------------------------------------------------------
+
+CONFIG_LOAD_ERRORS: tuple[type[BaseException], ...] = (
+    json.JSONDecodeError,
+    UnicodeDecodeError,
+    ValidationError,
+    ConfigMigrationError,
+)
+
+_MAX_REPORTED_ERRORS = 10
+_MAX_INPUT_REPR = 60
+
+
+def _short_repr(value: object) -> str:
+    text = repr(value)
+    if len(text) > _MAX_INPUT_REPR:
+        text = text[: _MAX_INPUT_REPR - 3] + "..."
+    return text
+
+
+def _format_validation_item(err: dict) -> str:
+    loc_parts = [str(part) for part in err.get("loc", ())]
+    loc = ".".join(loc_parts) or "<root>"
+    err_type = err.get("type", "")
+    if err_type == "extra_forbidden":
+        return f"- {loc}: unknown key (typo, or a setting from another version?)"
+    msg = err.get("msg", "invalid value")
+    # Never echo values of secret-looking fields back to the user/log.
+    is_secret = any("key" in p.lower() or "token" in p.lower() for p in loc_parts)
+    if err_type == "missing" or is_secret or "input" not in err:
+        return f"- {loc}: {msg}"
+    return f"- {loc}: {msg} (got {_short_repr(err['input'])})"
+
+
+def format_config_error(exc: BaseException, path: Path) -> str:
+    """Turn a load_config() failure into a short message a user can act on."""
+    if isinstance(exc, json.JSONDecodeError):
+        details = [
+            f"- JSON syntax error at line {exc.lineno}, column {exc.colno}: {exc.msg}"
+        ]
+    elif isinstance(exc, UnicodeDecodeError):
+        details = ["- the file is not valid UTF-8 text"]
+    elif isinstance(exc, ValidationError):
+        errors = exc.errors()
+        details = [_format_validation_item(e) for e in errors[:_MAX_REPORTED_ERRORS]]
+        if len(errors) > _MAX_REPORTED_ERRORS:
+            details.append(f"- ...and {len(errors) - _MAX_REPORTED_ERRORS} more")
+    elif isinstance(exc, ConfigMigrationError):
+        details = [f"- {exc}"]
+    else:
+        details = [f"- {type(exc).__name__}: {exc}"]
+    return "\n".join(
+        [
+            "Jarvis cannot start: the config file is invalid.",
+            f"File: {path}",
+            "",
+            *details,
+            "",
+            "Fix the file (or restore it from backup) and start Jarvis again.",
+        ]
+    )
