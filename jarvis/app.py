@@ -1364,11 +1364,21 @@ def _show_startup_error(message: str) -> None:
         import ctypes
 
         MB_ICONERROR = 0x10
-        ctypes.windll.user32.MessageBoxW(  # type: ignore[attr-defined]
-            None, message, "Jarvis", MB_ICONERROR,
+        MB_TOPMOST = 0x40000         # stay above other windows
+        MB_SETFOREGROUND = 0x10000   # ask Windows to bring it to front
+        result = ctypes.windll.user32.MessageBoxW(  # type: ignore[attr-defined]
+            None, message, "Jarvis", MB_ICONERROR | MB_TOPMOST | MB_SETFOREGROUND,
         )
+        # 0 means the dialog was NOT shown; log why instead of failing silently.
+        if result == 0:
+            log.warning(
+                "startup error dialog not shown (MessageBoxW returned 0, GetLastError=%s)",
+                ctypes.GetLastError(),  # type: ignore[attr-defined]
+            )
+        else:
+            log.info("startup error dialog closed (result=%s)", result)
     except Exception:
-        pass
+        log.warning("startup error dialog failed", exc_info=True)
 
 
 def run() -> int:
