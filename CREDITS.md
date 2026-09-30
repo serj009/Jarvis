@@ -1,0 +1,4 @@
+This project is a fork and further development of:
+ndunl075/Jarvis
+https://github.com/ndunl075/Jarvis
+Licensed under the MIT License.
