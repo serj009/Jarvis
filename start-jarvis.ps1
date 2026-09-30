@@ -7,7 +7,7 @@
     Boot sequence:
       1. Ensure the Ollama server is up (start it if the API is not answering).
       2. Wait for the Ollama API to become ready (up to 30 s).
-      3. Warm up the model (qwen3:8b) so the first real request is fast.
+      3. Warm up the model from Jarvis config.json (llm.model) so the first real request is fast.
       4. Activate the project virtualenv.
       5. Launch Jarvis (python -m jarvis) in wake-word standby.
 
@@ -25,7 +25,12 @@ param(
     [string]$ProjectDir  = 'C:\Users\serj\Jarvis',
     [string]$OllamaApp   = 'C:\Users\serj\AppData\Local\Programs\Ollama\ollama app.exe',
     [string]$OllamaApi   = 'http://127.0.0.1:11434',
-    [string]$Model       = 'qwen3:8b',
+    # Empty = read llm.model from Jarvis config.json (single source of truth).
+    # Pass -Model explicitly only to override for a one-off run.
+    [string]$Model       = '',
+    [string]$ConfigPath  = (Join-Path $env:APPDATA 'Jarvis\config.json'),
+    # Used only if config.json is missing/unreadable or has no llm.model.
+    [string]$FallbackModel = 'qwen3:8b',
     [int]   $ReadyTimeoutSec = 30
 )
 
@@ -61,6 +66,25 @@ function Fail {
 Write-Log ("=== Jarvis autostart {0} ===" -f $Stamp)
 Write-Log ("ProjectDir = {0}" -f $ProjectDir)
 Write-Log ("OllamaApi  = {0}" -f $OllamaApi)
+
+# --- Resolve model: -Model param > config.json llm.model > fallback -------
+if ($Model) {
+    Write-Log ("Model from -Model parameter: {0}" -f $Model)
+} else {
+    try {
+        $cfg = Get-Content -Path $ConfigPath -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json
+        $Model = [string]$cfg.llm.model
+        if ($Model) {
+            Write-Log ("Model from config: {0}" -f $ConfigPath)
+        } else {
+            $Model = $FallbackModel
+            Write-Log ("config.json has no llm.model; using fallback '{0}'." -f $Model) 'WARN'
+        }
+    } catch {
+        $Model = $FallbackModel
+        Write-Log ("Cannot read {0} ({1}); using fallback '{2}'." -f $ConfigPath, $_.Exception.Message, $Model) 'WARN'
+    }
+}
 Write-Log ("Model      = {0}" -f $Model)
 
 # --- Sanity checks ---------------------------------------------------------
