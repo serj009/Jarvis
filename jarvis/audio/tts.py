@@ -95,6 +95,7 @@ from scipy import signal as _scipy_signal
 
 from jarvis.audio.protocols import OUTPUT_BUFFER_MS
 from jarvis.core.events import EventBus, NonFatalError
+from jarvis.core.request_context import ms_since_turn_start
 
 log = logging.getLogger(__name__)
 
@@ -471,6 +472,9 @@ class PiperTTS:
         LLM-token-streaming case where the producer yields tokens too
         small to synthesize individually."""
         buffer = ""
+        # T1.2: log the moment the first audio block of this reply is queued
+        # for playback ("time to first audio"). Reset once per reply.
+        self._first_audio_pending = True
         aiter = text_chunks.__aiter__()
         producer_done = False
 
@@ -896,6 +900,12 @@ class PiperTTS:
         """Push one accumulated block onto the audio queue and clear the
         drained event so _sync_speak's drain wait doesn't see a stale set
         value from the last sentence."""
+        if getattr(self, "_first_audio_pending", False):
+            self._first_audio_pending = False
+            # Runs in the to_thread worker, which inherits the turn context.
+            elapsed = ms_since_turn_start()
+            if elapsed is not None:
+                log.info("[tts] first audio queued at +%d ms", elapsed)
         self._drained_event.clear()
         self._audio_queue.put(data)
 

@@ -75,7 +75,12 @@ from jarvis.core.events import (
     TranscriptionReady,
     WakeWordDetected,
 )
-from jarvis.core.request_context import correlation_id, new_correlation_id
+from jarvis.core.request_context import (
+    correlation_id,
+    ms_since_turn_start,
+    new_correlation_id,
+    turn_started_at,
+)
 from jarvis.core.state_machine import ConversationalState, Mode, StateMachine
 
 log = logging.getLogger(__name__)
@@ -396,12 +401,17 @@ class AudioPipeline:
         # own task (see _handle_endpoint), so the id lives only in this turn's
         # context and is inherited by STT threads, the LLM call, tools and TTS.
         cid_token = correlation_id.set(new_correlation_id())
+        start_token = turn_started_at.set(time.monotonic())
         log.info(
             "[turn] start: %d ms of audio",
             (len(audio) // 2) * 1000 // SAMPLE_RATE,
         )
         try:
             text = await self._stt.transcribe(audio)
+            # Character count only: the transcription is user speech.
+            log.info(
+                "[stt] done at +%s ms: %d chars", ms_since_turn_start(), len(text)
+            )
             duration_ms = (len(audio) // 2) * 1000 // SAMPLE_RATE
             self._bus.publish(TranscriptionReady(text=text, duration_ms=duration_ms))
 
@@ -428,6 +438,9 @@ class AudioPipeline:
                 nonlocal first_chunk_seen
                 async for chunk in self._response_producer(text):
                     if not first_chunk_seen:
+                        log.info(
+                            "[llm] first chunk at +%s ms", ms_since_turn_start()
+                        )
                         self._sm.set_conversational_state(
                             ConversationalState.SPEAKING
                         )
@@ -460,7 +473,8 @@ class AudioPipeline:
                 log.exception("recovery to IDLE failed")
         finally:
             self._tts_started_at = None
-            log.info("[turn] end")
+            log.info("[turn] end: total %s ms", ms_since_turn_start())
+            turn_started_at.reset(start_token)
             correlation_id.reset(cid_token)
 
     async def _cancel_response_chain(self) -> None:

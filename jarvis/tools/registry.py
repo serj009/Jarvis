@@ -64,6 +64,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Protocol, TypeVar, runtime_checkable
@@ -464,8 +465,9 @@ class ToolRegistry:
                     success=False,
                     error=f"tool {name!r} did not run: {refusal}",
                 )
+        started = time.monotonic()
         try:
-            return await tool.execute(args)
+            result = await tool.execute(args)
         except asyncio.CancelledError:
             # Cancellation propagates — the caller (router) needs to see
             # it to unwind its own coroutine, not get a synthesised
@@ -476,3 +478,12 @@ class ToolRegistry:
             return ToolResult(
                 success=False, error=f"tool {name!r} crashed: {e}"
             )
+        # T1.2: tool stage in the turn log. Name and outcome only -- the
+        # arguments may contain user text, so they are not logged.
+        log.info(
+            "[tool] %s %s in %d ms",
+            name,
+            "ok" if result.success else "failed",
+            int((time.monotonic() - started) * 1000),
+        )
+        return result

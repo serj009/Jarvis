@@ -14,6 +14,7 @@ Outside a turn the id is "-".
 from __future__ import annotations
 
 import logging
+import time
 import uuid
 from contextvars import ContextVar
 
@@ -28,6 +29,23 @@ correlation_id: ContextVar[str] = ContextVar(
     "correlation_id",
     default=NO_CORRELATION_ID,
 )
+
+
+# Monotonic start time of the current voice turn (None outside a turn).
+# Lets any stage (STT, LLM, TTS thread) log "+N ms since the turn started"
+# without passing timestamps through every call signature.
+turn_started_at: ContextVar[float | None] = ContextVar(
+    "turn_started_at",
+    default=None,
+)
+
+
+def ms_since_turn_start() -> int | None:
+    """Milliseconds since the current turn started, or None outside a turn."""
+    started = turn_started_at.get()
+    if started is None:
+        return None
+    return int((time.monotonic() - started) * 1000)
 
 
 def new_correlation_id() -> str:
