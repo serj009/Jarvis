@@ -251,6 +251,37 @@ async def test_transcribe_passes_configured_language(mock_whisper_class):
     assert kwargs["language"] == "es"
 
 
+# --- vocabulary hint (hotwords) -------------------------------------
+
+
+async def test_transcribe_passes_default_hotwords(mock_whisper_class):
+    """Brand names (GitHub, Telegram...) are hinted so Whisper does not
+    spell them phonetically in Russian ("гип-хаб")."""
+    s = FasterWhisperSTT(language="ru")
+    await s.load()
+    _set_segments(_instance(mock_whisper_class), _segment("Открой GitHub"))
+    await s.transcribe(b"\x00" * 1000)
+    _, kwargs = _instance(mock_whisper_class).transcribe.call_args
+    assert "GitHub" in kwargs["hotwords"]
+
+
+async def test_hotwords_can_be_disabled(mock_whisper_class):
+    s = FasterWhisperSTT(hotwords=None)
+    await s.load()
+    _set_segments(_instance(mock_whisper_class), _segment("hi"))
+    await s.transcribe(b"\x00" * 1000)
+    _, kwargs = _instance(mock_whisper_class).transcribe.call_args
+    assert "hotwords" not in kwargs
+
+
+async def test_echoed_hotwords_are_treated_as_silence(mock_whisper_class):
+    s = FasterWhisperSTT(hotwords="YouTube, GitHub")
+    await s.load()
+    _set_segments(_instance(mock_whisper_class), _segment(" YouTube, GitHub."))
+    result = await s.transcribe(b"\x00" * 1000)
+    assert result == ""
+
+
 # --- threading: must not block the loop ----------------------------
 
 

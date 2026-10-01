@@ -63,6 +63,21 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
+# Vocabulary hint for Whisper (faster-whisper `hotwords`). Whisper with a
+# non-English language set tends to spell Latin brand names phonetically
+# ("Открой гип-хаб" for "open GitHub"), and the LLM then builds a URL for a
+# site that does not exist. Listing the names nudges decoding toward the
+# right spelling in any language. Kept short on purpose: it is prepended to
+# Whisper's decoder prompt, which has a small token budget.
+DEFAULT_HOTWORDS: str = (
+    "YouTube, GitHub, Telegram, Google, Gmail, Wikipedia, Discord, Steam, "
+    "Spotify, Reddit, Twitch, Netflix, ChatGPT, Jarvis"
+)
+
+
+def _normalize_for_echo_check(text: str) -> str:
+    return " ".join(text.lower().replace(",", " ").replace(".", " ").split())
+
 
 class STTLoadError(RuntimeError):  # noqa: N818
     """Raised when the whisper model cannot be loaded."""
@@ -90,12 +105,15 @@ class FasterWhisperSTT:
         compute_type: str = "int8",
         download_root: Path | None = None,
         device: str = "cpu",
+        # None or "" disables the hint.
+        hotwords: str | None = DEFAULT_HOTWORDS,
     ) -> None:
         self.model_size = model_size
         self.language = language
         self.compute_type = compute_type
         self._download_root = download_root
         self._device = device
+        self.hotwords = hotwords
         self._model = None
         self.is_loaded: bool = False
 
@@ -159,7 +177,18 @@ class FasterWhisperSTT:
             return ""
         # faster-whisper sometimes emits leading/trailing whitespace;
         # strip so the pipeline's empty-text check works correctly.
-        return text.strip()
+        text = text.strip()
+        # Known Whisper failure mode with a prompt: on near-silence it can
+        # "transcribe" the prompt itself. A result that is just the hint
+        # list is not something the user said.
+        if (
+            text
+            and self.hotwords
+            and _normalize_for_echo_check(text) == _normalize_for_echo_check(self.hotwords)
+        ):
+            log.info("whisper echoed the hotwords hint; treating as silence")
+            return ""
+        return text
 
     # -- internal --
 
@@ -175,12 +204,14 @@ class FasterWhisperSTT:
         # win even though the pipeline already runs VAD upstream -- they
         # operate on different signal shapes (live frames vs. captured
         # utterance).
-        segments, _info = self._model.transcribe(
-            audio,
-            language=self.language,
-            beam_size=5,
-            vad_filter=True,
-        )
+        kwargs: dict = {
+            "language": self.language,
+            "beam_size": 5,
+            "vad_filter": True,
+        }
+        if self.hotwords:
+            kwargs["hotwords"] = self.hotwords
+        segments, _info = self._model.transcribe(audio, **kwargs)
         # Materialize the segment generator INSIDE this thread; iterating
         # the generator IS the inference work. Returning an unconsumed
         # generator across the to_thread boundary would defer that work
