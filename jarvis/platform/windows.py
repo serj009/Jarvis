@@ -13,14 +13,19 @@ ToolResult error on Linux/macOS dev machines."""
 from __future__ import annotations
 
 import ctypes
+import logging
 import ntpath
 import os
 import subprocess
 import sys
+import threading
+import time
 import webbrowser
 from ctypes import wintypes
 from pathlib import Path
 from typing import Any
+
+log = logging.getLogger(__name__)
 
 # -- platform check -----------------------------------------------------
 
@@ -50,9 +55,193 @@ def _windll() -> Any:
 
 
 def open_url(url: str) -> None:
-    """Open `url` in the default browser. Wraps webbrowser.open so tests
-    can patch this single seam instead of monkey-patching stdlib."""
-    webbrowser.open(url)
+    """Open `url` in the user's DEFAULT browser (Settings -> Apps ->
+    Default apps). Single seam so tests can patch it.
+
+    On Windows this calls os.startfile -> ShellExecuteW, which always
+    resolves the http(s) handler registered as the default browser.
+    webbrowser.open is NOT used there on purpose: it honours the BROWSER
+    environment variable and its own browser search order, so it could
+    pick a different browser than the one the user chose.
+    Callers must pass an http(s) URL (OpenUrlTool validates the scheme);
+    anything else would be handed to whatever program owns that scheme.
+    """
+    if sys.platform == "win32":
+        os.startfile(url)  # type: ignore[attr-defined]  # Windows-only
+        # The browser opens the tab in its last window, which stays
+        # minimised / behind other windows. Raise it in the background so
+        # the tool (and Jarvis' spoken reply) is not delayed.
+        _start_browser_focus()
+    else:
+        webbrowser.open(url)
+
+
+# --- bring the default browser to the foreground ---------------------------
+#
+# Windows "focus stealing prevention": a background process (Jarvis runs
+# windowless) cannot simply call SetForegroundWindow on another program's
+# window. The usual workaround is to briefly attach to the input queue of
+# the thread that owns the current foreground window, which makes the call
+# legitimate. Every step is best-effort: a failure is logged, never raised.
+
+_FOCUS_TIMEOUT_S = 4.0
+_FOCUS_POLL_S = 0.2
+_SW_RESTORE = 9
+_GW_OWNER = 4
+
+
+def _exe_from_open_command(command: str) -> str | None:
+    """Executable file name from a shell open command, lower-case.
+
+    '"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" -- "%1"'
+    -> 'chrome.exe'. Returns None when no .exe can be identified."""
+    command = command.strip()
+    if not command:
+        return None
+    if command.startswith('"'):
+        end = command.find('"', 1)
+        path = command[1:end] if end > 0 else command[1:]
+    else:
+        idx = command.lower().find(".exe")
+        path = command[: idx + 4] if idx >= 0 else command.split()[0]
+    name = ntpath.basename(path).lower()
+    return name if name.endswith(".exe") else None
+
+
+def default_browser_exe() -> str | None:
+    """Executable of the browser chosen in Settings -> Default apps
+    (the https handler), e.g. 'chrome.exe'. None if it cannot be read."""
+    if sys.platform != "win32":
+        return None
+    import winreg
+
+    prog_id = None
+    for scheme in ("https", "http"):
+        key_path = (
+            r"Software\Microsoft\Windows\Shell\Associations\UrlAssociations"
+            rf"\{scheme}\UserChoice"
+        )
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path) as key:
+                prog_id, _ = winreg.QueryValueEx(key, "ProgId")
+            break
+        except OSError:
+            continue
+    if not prog_id:
+        return None
+    try:
+        with winreg.OpenKey(
+            winreg.HKEY_CLASSES_ROOT, rf"{prog_id}\shell\open\command"
+        ) as key:
+            command, _ = winreg.QueryValueEx(key, "")
+    except OSError:
+        return None
+    return _exe_from_open_command(str(command))
+
+
+def _user32() -> Any:
+    """Private user32 instance with explicit prototypes (64-bit safe
+    handles), so ctypes.windll.user32 used elsewhere is not affected."""
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    user32.EnumWindows.argtypes = [ctypes.c_void_p, wintypes.LPARAM]
+    user32.IsWindowVisible.argtypes = [wintypes.HWND]
+    user32.IsIconic.argtypes = [wintypes.HWND]
+    user32.GetWindow.argtypes = [wintypes.HWND, wintypes.UINT]
+    user32.GetWindow.restype = wintypes.HWND
+    user32.GetWindowTextLengthW.argtypes = [wintypes.HWND]
+    user32.GetWindowThreadProcessId.argtypes = [
+        wintypes.HWND, ctypes.POINTER(wintypes.DWORD),
+    ]
+    user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+    user32.GetForegroundWindow.restype = wintypes.HWND
+    user32.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
+    user32.BringWindowToTop.argtypes = [wintypes.HWND]
+    user32.SetForegroundWindow.argtypes = [wintypes.HWND]
+    user32.AttachThreadInput.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]
+    return user32
+
+
+def _top_window_of(exe_name: str, user32: Any) -> int | None:
+    """Top-most visible main window of a process named `exe_name`.
+
+    EnumWindows walks the Z-order from the top, so the first match is the
+    browser window used most recently -- the one the new tab went to."""
+    import psutil
+
+    names: dict[int, str] = {}
+    found: list[int] = []
+    callback_type = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+
+    def on_window(hwnd: int, _lparam: int) -> bool:
+        if not hwnd or not user32.IsWindowVisible(hwnd):
+            return True
+        if user32.GetWindow(hwnd, _GW_OWNER) or not user32.GetWindowTextLengthW(hwnd):
+            return True
+        pid = wintypes.DWORD()
+        user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+        name = names.get(pid.value)
+        if name is None:
+            try:
+                name = psutil.Process(pid.value).name().lower()
+            except psutil.Error:
+                name = ""
+            names[pid.value] = name
+        if name == exe_name:
+            found.append(hwnd)
+            return False  # stop enumerating
+        return True
+
+    callback = callback_type(on_window)
+    user32.EnumWindows(callback, 0)
+    return found[0] if found else None
+
+
+def _raise_window(hwnd: int, user32: Any) -> bool:
+    """Restore if minimised and make foreground. True on success."""
+    if user32.IsIconic(hwnd):
+        user32.ShowWindow(hwnd, _SW_RESTORE)
+    foreground = user32.GetForegroundWindow()
+    if foreground == hwnd:
+        return True
+    our_thread = ctypes.windll.kernel32.GetCurrentThreadId()
+    fg_thread = user32.GetWindowThreadProcessId(foreground, None) if foreground else 0
+    attached = bool(
+        fg_thread and fg_thread != our_thread
+        and user32.AttachThreadInput(our_thread, fg_thread, True)
+    )
+    try:
+        user32.BringWindowToTop(hwnd)
+        user32.SetForegroundWindow(hwnd)
+    finally:
+        if attached:
+            user32.AttachThreadInput(our_thread, fg_thread, False)
+    return user32.GetForegroundWindow() == hwnd
+
+
+def _focus_default_browser() -> None:
+    try:
+        exe = default_browser_exe()
+        if not exe:
+            log.info("[browser] default browser not found in registry; not raising it")
+            return
+        user32 = _user32()
+        deadline = time.monotonic() + _FOCUS_TIMEOUT_S
+        time.sleep(_FOCUS_POLL_S)  # let the browser take the URL first
+        while time.monotonic() < deadline:
+            hwnd = _top_window_of(exe, user32)
+            if hwnd and _raise_window(hwnd, user32):
+                log.info("[browser] %s brought to the foreground", exe)
+                return
+            time.sleep(_FOCUS_POLL_S)
+        log.info("[browser] could not bring %s to the foreground (Windows focus lock)", exe)
+    except Exception:
+        log.warning("[browser] bringing the browser to the foreground failed", exc_info=True)
+
+
+def _start_browser_focus() -> None:
+    threading.Thread(
+        target=_focus_default_browser, name="focus-browser", daemon=True
+    ).start()
 
 
 # Windows has no argv: subprocess joins the list back into one command
