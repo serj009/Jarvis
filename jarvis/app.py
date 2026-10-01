@@ -807,6 +807,9 @@ class JarvisApp:
             conversation=self.conversation,
             registry=self.registry,
             max_tool_iterations=self.cfg.llm.max_tool_iterations,
+            # "открой ютуб" / "відкрий стім": app if installed, else the
+            # website -- decided in code, before the LLM.
+            open_target_planner=_open_target_planner(),
         )
 
         self.lm = LifecycleManager(
@@ -1439,6 +1442,17 @@ def _show_startup_error(message: str) -> None:
             log.info("startup error dialog closed (result=%s)", result)
     except Exception:
         log.warning("startup error dialog failed", exc_info=True)
+
+
+def _open_target_planner():
+    """Fast path for known open targets; Windows only (installed-apps
+    index). None disables it, leaving routing exactly as before."""
+    if sys.platform != "win32":
+        return None
+    from jarvis.platform.windows_apps import build_installed_app_index
+    from jarvis.tools.local.open_targets import make_installed_app_planner
+
+    return make_installed_app_planner(build_installed_app_index)
 
 
 def run() -> int:

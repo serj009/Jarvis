@@ -102,7 +102,7 @@ import datetime
 import json
 import logging
 import re
-from collections.abc import AsyncGenerator, AsyncIterator, Callable
+from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -317,6 +317,12 @@ class IntentRouter:
         registry: ToolRegistry | None = None,
         time_provider: Callable[[], datetime.datetime] = datetime.datetime.now,
         max_tool_iterations: int = DEFAULT_MAX_TOOL_ITERATIONS,
+        # Optional fast path for "open <known site/app>" in any language.
+        # Called before the pattern table and the LLM; returns a ToolIntent
+        # (open_app / open_url) or None to fall through. None = disabled,
+        # which keeps the router's behaviour unchanged (and tests free of
+        # this PC's installed-apps index).
+        open_target_planner: Callable[[str], Awaitable[ToolIntent | None]] | None = None,
     ) -> None:
         # `registry` is the live source of the tool schemas — querying it
         # fresh on every route() call means a settings-driven enable/disable
@@ -333,6 +339,7 @@ class IntentRouter:
         self._static_tools = tools or []
         self._patterns = _build_patterns(time_provider)
         self._max_tool_iterations = max(1, int(max_tool_iterations))
+        self._open_target_planner = open_target_planner
         # Ollama does not attach ids to the tool calls it emits, so the
         # router mints them. Monotonic over the router's lifetime rather
         # than per-turn: conversation history outlives a turn, and two
@@ -372,6 +379,14 @@ class IntentRouter:
         without calling a tool. When the loop is disabled (no registry,
         or max_tool_iterations == 1) tool calls are yielded as
         ToolIntents for the caller to execute instead."""
+        # Known open targets are decided in code: the local model picked
+        # open_app vs open_url inconsistently for the same phrase. Unknown
+        # names return None here and continue down the usual path.
+        target_intent = await self._try_open_target(transcription)
+        if target_intent is not None:
+            yield target_intent
+            return
+
         pattern_intent = self._try_pattern(transcription)
         if pattern_intent is not None:
             yield pattern_intent
@@ -572,6 +587,27 @@ class IntentRouter:
             )
             spoken.append(_result_for_speech(result))
         return exchanges, "".join(spoken), ends_turn
+
+    async def _try_open_target(self, transcription: str) -> ToolIntent | None:
+        planner = self._open_target_planner
+        if planner is None:
+            return None
+        try:
+            intent = await planner(transcription)
+        except Exception:
+            # Never lose a turn to the fast path: fall back to patterns/LLM.
+            log.warning("[router] open-target planner failed; using the LLM", exc_info=True)
+            return None
+        if intent is None:
+            return None
+        if self._registry is not None and self._registry.get(intent.tool_name) is None:
+            log.info(
+                "[router] open target needs tool %r, which is not registered; "
+                "falling through",
+                intent.tool_name,
+            )
+            return None
+        return intent
 
     def _try_pattern(self, transcription: str) -> Intent | None:
         normalized = _normalize(transcription)

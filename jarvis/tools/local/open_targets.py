@@ -19,10 +19,17 @@ the LLM, exactly as before.
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import re
-from collections.abc import Callable, Iterable
+from collections.abc import Awaitable, Callable, Iterable, Mapping
 from dataclasses import dataclass
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from jarvis.llm.intent_router import ToolIntent
+
+log = logging.getLogger(__name__)
 
 Mode = Literal["auto", "web", "app"]
 
@@ -190,3 +197,45 @@ def plan_open(
     if target.url:
         return OpenPlan(target, "url", target.url, mode)
     return None
+
+
+def make_installed_app_planner(
+    index_provider: Callable[[], Mapping[str, object]],
+    targets: Iterable[OpenTarget] = DEFAULT_TARGETS,
+) -> Callable[[str], Awaitable[ToolIntent | None]]:
+    """Planner for IntentRouter(open_target_planner=...).
+
+    `index_provider` returns the installed-apps index (keys are app names
+    in normalize_query form). It may scan the PC when its cache is stale,
+    so it runs in a worker thread -- and only for utterances that already
+    parsed as "<verb> <known target>", so other turns pay nothing.
+    A failing provider counts as "no apps installed": websites still open.
+    """
+    from jarvis.llm.intent_router import ToolIntent
+
+    targets = tuple(targets)
+
+    def plan_with_index(text: str) -> OpenPlan | None:
+        try:
+            index = index_provider()
+        except Exception:
+            log.warning("[open] installed-apps index unavailable", exc_info=True)
+            index = {}
+        return plan_open(text, lambda key: key in index, targets)
+
+    async def planner(text: str) -> ToolIntent | None:
+        if parse_open_command(text, targets) is None:
+            return None
+        plan = await asyncio.to_thread(plan_with_index, text)
+        if plan is None:
+            return None
+        log.info(
+            "[open] %s -> %s %s (mode=%s)",
+            plan.target.key, plan.kind, plan.value, plan.mode,
+        )
+        if plan.kind == "url":
+            return ToolIntent("open_url", {"url": plan.value})
+        # Exact index key: open_app resolves it to that very app.
+        return ToolIntent("open_app", {"name": plan.value})
+
+    return planner
