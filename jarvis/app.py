@@ -45,6 +45,7 @@ import asyncio
 import logging
 import sys
 import threading
+import time
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import cast
@@ -623,6 +624,10 @@ class JarvisApp:
         """
         self._load_config()
 
+        # 0b. Installed-apps index: load the saved copy, rescan in the
+        # background (does not delay startup; see _start_app_index_refresh).
+        self._start_app_index_refresh()
+
         # 1-7. Audio loop, core layer, audio modules, LLM stack, pipeline.
         self._build_audio_stack()
 
@@ -687,6 +692,42 @@ class JarvisApp:
         if is_frozen():
             log.info("bundled assets: %s", bundled_asset_report())
         self.voices_dir = _voices_dir()
+
+    def _start_app_index_refresh(self) -> None:
+        """Know which programs are installed before the first "open X".
+
+        The saved copy (%APPDATA%\\Jarvis\\installed_apps.json) is loaded
+        synchronously -- a small JSON read -- and a full rescan runs in a
+        daemon thread that updates both the in-memory index and the file.
+        Every failure is logged and ignored: open_app still works, it just
+        scans on first use as before."""
+        if sys.platform != "win32":
+            return
+        from jarvis.platform.windows_apps import (
+            load_installed_app_index,
+            prime_installed_app_index,
+            refresh_installed_app_index,
+        )
+
+        path = default_config_path().parent / "installed_apps.json"
+        cached = load_installed_app_index(path)
+        if cached:
+            prime_installed_app_index(cached)
+            log.info("[apps] %d installed apps loaded from %s", len(cached), path)
+
+        def scan() -> None:
+            started = time.monotonic()
+            try:
+                count = refresh_installed_app_index(path)
+            except Exception:
+                log.warning("[apps] installed-apps scan failed", exc_info=True)
+                return
+            log.info(
+                "[apps] scan done: %d installed apps in %d ms, saved to %s",
+                count, int((time.monotonic() - started) * 1000), path,
+            )
+
+        threading.Thread(target=scan, name="app-index-scan", daemon=True).start()
 
     def _build_audio_stack(self) -> None:
         """Steps 1-7: everything the audio thread will own.

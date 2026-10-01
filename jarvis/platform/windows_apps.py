@@ -14,6 +14,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from types import ModuleType
 
@@ -303,6 +304,74 @@ def resolve_installed_app(
         index = build_installed_app_index()
     hit = fuzzy_resolve(query, index)
     return hit[1] if hit else None
+
+
+# --- persisted copy of the index ----------------------------------------
+#
+# Jarvis rescans installed apps in the background at every start and keeps
+# the result on disk, so the first "open X" after a restart does not wait
+# for a full scan (Get-StartApps alone can take several seconds). The path
+# is always injected: callers pass %APPDATA%\Jarvis\installed_apps.json,
+# tests pass a temporary directory.
+
+_INDEX_FILE_VERSION = 1
+
+
+def save_installed_app_index(index: dict[str, InstalledApp], path: Path) -> None:
+    """Write the index atomically (tmp + replace) as readable JSON."""
+    data = {
+        "version": _INDEX_FILE_VERSION,
+        "scanned_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "apps": [
+            {"key": key, "name": app.display_name, "launch": app.launch_command}
+            for key, app in sorted(index.items())
+        ],
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp.replace(path)
+
+
+def load_installed_app_index(path: Path) -> dict[str, InstalledApp] | None:
+    """Read a saved index. None if missing, unreadable or another version;
+    malformed entries are skipped."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or data.get("version") != _INDEX_FILE_VERSION:
+        return None
+    apps: dict[str, InstalledApp] = {}
+    entries = data.get("apps")
+    for entry in entries if isinstance(entries, list) else []:
+        if not isinstance(entry, dict):
+            continue
+        key = str(entry.get("key") or "").strip()
+        launch = str(entry.get("launch") or "").strip()
+        if not key or not launch:
+            continue
+        apps[key] = InstalledApp(
+            display_name=str(entry.get("name") or key),
+            launch_command=launch,
+        )
+    return apps
+
+
+def prime_installed_app_index(index: dict[str, InstalledApp]) -> None:
+    """Seed the in-memory cache (e.g. with the copy loaded from disk), so
+    lookups do not trigger a scan until it expires or is refreshed."""
+    global _installed_index_cache, _installed_index_cached_at
+    _installed_index_cache = dict(index)
+    _installed_index_cached_at = time.monotonic()
+
+
+def refresh_installed_app_index(path: Path) -> int:
+    """Rescan installed apps, update the in-memory cache and the saved copy.
+    Returns the number of apps found."""
+    index = build_installed_app_index(force_refresh=True)
+    save_installed_app_index(index, path)
+    return len(index)
 
 
 def resolve_steam_game(

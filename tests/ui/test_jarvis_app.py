@@ -267,6 +267,8 @@ def test_start_builds_the_confirmer_before_booting_the_audio_stack():
 
     with (
         patch.object(JarvisApp, "_load_config", rec("load_config")),
+        # Real method would read %APPDATA% and scan this PC in a thread.
+        patch.object(JarvisApp, "_start_app_index_refresh", rec("app_index")),
         patch.object(JarvisApp, "_build_audio_stack", rec("build_audio_stack")),
         patch.object(JarvisApp, "_create_qt_app", rec("create_qt_app")),
         patch.object(JarvisApp, "_build_confirmer", rec("build_confirmer")),
