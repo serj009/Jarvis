@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import opening_phrase
 from jarvis.core.request_context import current_user_transcription
 from jarvis.platform import windows as winplat
 from jarvis.platform.app_discovery import normalize_open_query
@@ -193,7 +194,7 @@ class OpenAppTool:
             seen.add(command)
             try:
                 await self._try_launch(command)
-                return ToolResult(success=True, output=f"Opening {display}, sir.")
+                return ToolResult(success=True, output=opening_phrase(display))
             except NotImplementedError as e:
                 return ToolResult(success=False, error=str(e))
             except (OSError, ValueError) as e:

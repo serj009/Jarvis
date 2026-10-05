@@ -106,6 +106,7 @@ from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from jarvis.core.phrases import reply_language, say
 from jarvis.llm.conversation import ToolExchange
 
 if TYPE_CHECKING:
@@ -670,12 +671,35 @@ class IntentRouter:
 
 
 # Spoken fallback when a tool succeeds but returns no human-facing
-# output. Kept short and in-persona.
+# output. Kept short and in-persona. English form; the spoken one comes
+# from _generic_ok() in the request's language.
 _GENERIC_OK = "Done, sir."
 # Spoken fallback when a tool returns no error string either. Most
 # tools do populate .error; this guards the rare "False and silent" case
 # rather than spitting an empty string at the user.
 _GENERIC_FAIL = "I couldn't do that, sir."
+
+
+def _generic_ok() -> str:
+    return say("done")
+
+
+def _generic_fail() -> str:
+    return say("generic_fail")
+
+
+def _spoken_error(result: ToolResult) -> str:
+    """What to SAY when a tool failed.
+
+    Tool errors are English and often technical (they are written for the
+    model and the log). English requests keep hearing them as before; for
+    ru/uk requests the voice says a short phrase in that language instead
+    of reading English it would mispronounce. The full error is still in
+    the log ([tool] ... failed) and in the model's tool message."""
+    if reply_language() == "en":
+        return result.error or _generic_fail()
+    return _generic_fail()
+
 
 # Characters that PiperTTS's sentence-boundary regex treats as terminators.
 # Without one of these the speak_stream buffer waits up to max_wait_seconds
@@ -750,13 +774,13 @@ def _result_for_speech(result: ToolResult) -> str:
     ToolIntent branch. Used only on the bound-exhausted path, where
     there is no further model round to summarise the result."""
     if not result.success:
-        return _ensure_sentence_terminator(result.error or _GENERIC_FAIL)
+        return _ensure_sentence_terminator(_spoken_error(result))
     if isinstance(result.output, str) and result.output:
         return _ensure_sentence_terminator(result.output)
     # Terminated (unlike execute_intent's bare _GENERIC_OK) because the
     # bound-exhausted path may concatenate several results into one
     # SpeakIntent and PiperTTS segments on sentence boundaries.
-    return _ensure_sentence_terminator(_GENERIC_OK)
+    return _ensure_sentence_terminator(_generic_ok())
 
 
 async def execute_intent(
@@ -787,7 +811,7 @@ async def execute_intent(
                 _scrub_for_speech(intent.spoken_response)
             )
         if registry is None:
-            yield _GENERIC_FAIL
+            yield _generic_fail()
             log.error("execute_intent: no registry wired for ToolIntent")
             return
         result = await registry.execute(intent.tool_name, intent.args)
@@ -797,14 +821,14 @@ async def execute_intent(
                     _scrub_for_speech(result.output)
                 )
             elif result.output is None:
-                yield _GENERIC_OK
+                yield _generic_ok()
             else:
                 # dict output: the LLM/UI consumes structured data; spoken
                 # layer just confirms the action happened.
-                yield _GENERIC_OK
+                yield _generic_ok()
         else:
             yield _ensure_sentence_terminator(
-                _scrub_for_speech(result.error or _GENERIC_FAIL)
+                _scrub_for_speech(_spoken_error(result))
             )
         return
     if isinstance(intent, CompoundIntent):

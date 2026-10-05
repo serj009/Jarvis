@@ -7,6 +7,7 @@ import logging
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import say
 from jarvis.core.request_context import current_user_transcription
 from jarvis.platform import windows as winplat
 from jarvis.tools.local.youtube import (
@@ -87,5 +88,5 @@ class PlayYoutubeMusicTool:
         log.info("play_youtube_music: opened %s for query %r", watch_url, search_q)
         return ToolResult(
             success=True,
-            output=f"Playing {search_q} on YouTube, sir.",
+            output=say("playing_on_youtube", query=search_q),
         )

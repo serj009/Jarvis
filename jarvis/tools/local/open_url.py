@@ -17,6 +17,7 @@ from urllib.parse import parse_qs, quote_plus, urlparse
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import opening_phrase, say
 from jarvis.platform import windows as winplat
 from jarvis.tools.local.youtube import youtube_watch_url_from_url
 from jarvis.tools.registry import ToolResult, VoicePattern
@@ -61,14 +62,14 @@ def _friendly_name(netloc: str) -> str:
 
 def _spoken_response_for(url: str) -> str:
     """Compose the TTS line for a successfully opened URL. Hides the URL
-    entirely; reads as natural English."""
+    entirely; spoken in the language of the request (jarvis.core.phrases)."""
     parsed = urlparse(url)
     domain = _registered_domain(parsed.netloc)
     if domain.startswith("google.") and parsed.path == "/search":
         q = parse_qs(parsed.query).get("q", [""])[0]
         if q:
-            return f"Searching the web for {q}, sir."
-    return f"Opening {_friendly_name(parsed.netloc)}, sir."
+            return say("searching_web", query=q)
+    return opening_phrase(_friendly_name(parsed.netloc))
 
 
 class OpenUrlArgs(BaseModel):
@@ -128,8 +129,8 @@ class OpenUrlTool:
             open_target = watch
             q = parse_qs(urlparse(args.url).query).get("search_query", [""])[0]
             if q:
-                spoken = f"Playing {q}, sir."
+                spoken = say("playing", query=q)
             else:
-                spoken = "Playing that on YouTube, sir."
+                spoken = say("playing_unnamed")
         await asyncio.to_thread(winplat.open_url, open_target)
         return ToolResult(success=True, output=spoken)
