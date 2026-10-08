@@ -153,3 +153,80 @@ logging.root.addHandler(handler)
 - ✅ SystemStatsTool() without args = same behavior as before
 - ✅ All existing 91 tests should pass unchanged
 
+
+
+---
+
+## 2026-10-07 — Phase 2 Integration (T2.1 / T2.2 / T2.3 / T2.4)
+
+### Summary
+Implemented multilingual STT with confidence scoring. JARVIS can now understand
+Ukrainian, Russian, and English speech, auto-detect the language, and filter out
+low-confidence transcriptions (hallucinations, noise).
+
+### Modified Files (5)
+
+#### `jarvis/audio/stt.py` — T2.1/T2.2/T2.3/T2.4 Multilingual STT
+- **TranscriptionResult** return type (replaces bare `str`)
+- **Language auto-detect**: `language="auto"` omits the language kwarg so Whisper detects
+- **Hotwords per language** (T2.3): `HOTWORDS_EN`, `HOTWORDS_RU`, `HOTWORDS_UK`, `HOTWORDS_AUTO`
+  with Cyrillic spellings (Ютуб, ГітХаб, Телеграм, Джарвіс, etc.)
+- **Auto-select hotwords** by language in constructor (no explicit hotwords → pick by language)
+- **Confidence scoring** (T2.4): `_compute_confidence()` from avg_logprob + no_speech_prob,
+  `_confidence_action()` maps to "proceed"/"clarify"/"ignore"
+- **_sync_transcribe** now collects segment metadata and returns `TranscriptionResult`
+
+#### `jarvis/audio/protocols.py` — TranscriptionResult + confidence types
+- **TranscriptionResult** frozen dataclass: text, confidence (0-1), detected_language,
+  language_probability, action ("proceed"/"clarify"/"ignore"), is_empty property
+- **ConfidenceAction** literal type + default thresholds (0.70 proceed, 0.30 clarify)
+- **SpeechToText protocol** updated: `transcribe() -> TranscriptionResult`
+
+#### `jarvis/audio/pipeline.py` — Confidence routing in voice loop
+- Imports `TranscriptionResult`
+- Transcribe result unpacked: logs confidence, action, detected language
+- **T2.4 routing**: action=="ignore" → drop silently; action=="clarify" → speak "error_stt" phrase → IDLE
+- Uses `say("error_stt")` from phrases (i18n: "Could you repeat?" in RU/UK/EN)
+
+#### `jarvis/core/config.py` — STTConfig expanded
+- **model_size**: added "medium", "medium.en" options
+- **language**: documented "auto" for auto-detect
+- **New fields**: `confidence_proceed` (0.70), `confidence_clarify` (0.30), `max_clarify_retries` (3)
+
+#### `jarvis/app.py` — Wired new STTConfig fields
+- `FasterWhisperSTT()` now receives `confidence_proceed`, `confidence_clarify`, `max_clarify_retries`
+
+### New Files (1)
+
+#### `tests/audio/test_stt_phase2.py` — 22 tests
+- TranscriptionResult (str, is_empty, frozen, defaults)
+- Confidence scoring (empty, high, low, no_speech, weighted)
+- Confidence action (proceed/clarify/ignore, custom thresholds)
+- Hotwords per language (RU/UK/EN/auto, Cyrillic, override, disable)
+- Multilingual model resolution (auto/ru/uk use base, en uses .en)
+- Constructor defaults and custom thresholds
+
+### Updated Test Files (1)
+
+#### `tests/audio/test_stt.py` — Updated for TranscriptionResult
+- All `assert result == "..."` → `assert result.text == "..."`
+- Mock `_segment()` now includes `avg_logprob` and `no_speech_prob`
+- Mock `_make_info()` helper with language attributes
+- `hotwords=None` → `hotwords=""` for disable test (None now means auto-select)
+
+### Backward Compatibility
+- ✅ TranscriptionResult has `__str__()` → `str(result)` returns the text
+- ✅ All existing pipeline logic that checked `text.strip()` now uses `result.is_empty`
+- ✅ Default config unchanged (tiny.en, language=en) — existing users not affected
+- ✅ No new dependencies
+
+### How to Enable Multilingual Mode
+In `config.json` (Settings → Models):
+```json
+{
+  "stt": {
+    "model_size": "small",
+    "language": "auto"
+  }
+}
+```

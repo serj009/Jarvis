@@ -60,6 +60,7 @@ from jarvis.audio.protocols import (
     TTS_BARGE_IN_GRACE_SECONDS,
     AudioFrame,
     AudioSource,
+    TranscriptionResult,
     ResponseProducer,
     SpeechToText,
     TextToSpeech,
@@ -407,15 +408,43 @@ class AudioPipeline:
             (len(audio) // 2) * 1000 // SAMPLE_RATE,
         )
         try:
-            text = await self._stt.transcribe(audio)
-            # Character count only: the transcription is user speech.
+            result = await self._stt.transcribe(audio)
+            text = result.text
+            # T2.4: Log confidence and detected language.
             log.info(
-                "[stt] done at +%s ms: %d chars", ms_since_turn_start(), len(text)
+                "[stt] done at +%s ms: %d chars, confidence=%.2f, action=%s, lang=%s",
+                ms_since_turn_start(),
+                len(text),
+                result.confidence,
+                result.action,
+                result.detected_language or "?",
             )
             duration_ms = (len(audio) // 2) * 1000 // SAMPLE_RATE
             self._bus.publish(TranscriptionReady(text=text, duration_ms=duration_ms))
 
-            if not text.strip():
+            if result.is_empty:
+                # No speech; abort cleanly back to IDLE.
+                self._sm.set_conversational_state(ConversationalState.IDLE)
+                return
+
+            # T2.4: Confidence-based action routing.
+            if result.action == "ignore":
+                log.info(
+                    "[stt] confidence %.2f below ignore threshold; dropping",
+                    result.confidence,
+                )
+                self._sm.set_conversational_state(ConversationalState.IDLE)
+                return
+
+            if result.action == "clarify":
+                log.info(
+                    "[stt] confidence %.2f in clarify range; asking to repeat",
+                    result.confidence,
+                )
+                # Speak a clarification phrase and return to IDLE.
+                # The user will re-trigger via wake word.
+                from jarvis.core.phrases import say
+                await self._tts.speak(say("error_stt"))
                 # No speech; abort cleanly back to IDLE.
                 self._sm.set_conversational_state(ConversationalState.IDLE)
                 return

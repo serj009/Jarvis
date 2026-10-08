@@ -174,14 +174,28 @@ class WakeWordConfig(_Base):
 
 
 class STTConfig(_Base):
-    # tiny.en is the default: 2-3x faster than base.en on CPU with modest
-    # accuracy loss for English speech. Users who notice transcription errors
-    # or who have a GPU can switch to base.en (or base/small) in
-    # Settings → Models. The .en suffix restricts the model to English only,
-    # which shaves another ~10% vs the multilingual variant.
-    model_size: Literal["tiny", "tiny.en", "base", "base.en", "small", "small.en"] = "tiny.en"
+    # Phase 2 (T2.1): "small" recommended for multilingual (UA/RU/EN).
+    # "tiny.en" remains the default for new installs (fast, English-only).
+    # For multilingual, set language="auto" and model_size="small".
+    # The .en suffix restricts the model to English only, which is faster.
+    # "medium" is available but much larger (~1.5 GB); not recommended on
+    # CPU unless the user has patience.
+    model_size: Literal[
+        "tiny", "tiny.en", "base", "base.en",
+        "small", "small.en", "medium", "medium.en",
+    ] = "tiny.en"
+    # T2.1: "auto" enables Whisper language auto-detection.
+    # Fixed codes: "en", "ru", "uk", or any ISO 639-1 code Whisper supports.
     language: str = "en"
     compute_type: Literal["int8", "float16", "float32"] = "int8"
+    # T2.4: Confidence thresholds.
+    # confidence >= proceed → send to LLM as-is.
+    # clarify <= confidence < proceed → ask user to repeat.
+    # confidence < clarify → silently ignore (noise / hallucination).
+    confidence_proceed: float = Field(default=0.70, ge=0.0, le=1.0)
+    confidence_clarify: float = Field(default=0.30, ge=0.0, le=1.0)
+    # Max times JARVIS asks "could you repeat?" before giving up.
+    max_clarify_retries: int = Field(default=3, ge=1, le=10)
 
 
 class TTSConfig(_Base):

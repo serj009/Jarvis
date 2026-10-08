@@ -15,7 +15,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Protocol, runtime_checkable
+from typing import Literal, Protocol, runtime_checkable
 
 # --- frame format ---------------------------------------------------------
 
@@ -110,6 +110,48 @@ class VADEvent(Enum):
     ENDPOINT = "endpoint"
 
 
+# --- transcription result (T2.4) -----------------------------------------
+
+# Confidence action thresholds (T2.4 STT Confidence).
+# These are defaults; runtime values come from STTConfig.
+CONFIDENCE_PROCEED: float = 0.70
+CONFIDENCE_CLARIFY: float = 0.30
+
+ConfidenceAction = Literal["proceed", "clarify", "ignore"]
+
+
+@dataclass(frozen=True, slots=True)
+class TranscriptionResult:
+    """Rich transcription output from STT (roadmap T2.4).
+
+    Replaces the bare ``str`` that ``transcribe()`` returned before Phase 2.
+    The ``text`` field is the same string; additional fields carry metadata
+    that the pipeline uses for confidence gating and language routing.
+
+    Attributes:
+        text:                Transcribed text (may be empty on silence).
+        confidence:          0.0-1.0 overall confidence score. Derived from
+                             faster-whisper segment avg_logprob and no_speech_prob.
+        detected_language:   ISO 639-1 code detected by Whisper ("en", "ru", "uk", etc.)
+                             or None when language was explicitly set (not auto-detect).
+        language_probability: 0.0-1.0 confidence in the detected language.
+        action:              "proceed" / "clarify" / "ignore" based on confidence thresholds.
+    """
+
+    text: str
+    confidence: float = 1.0
+    detected_language: str | None = None
+    language_probability: float = 1.0
+    action: ConfidenceAction = "proceed"
+
+    @property
+    def is_empty(self) -> bool:
+        return not self.text.strip()
+
+    def __str__(self) -> str:
+        return self.text
+
+
 # --- stage protocols ------------------------------------------------------
 
 
@@ -146,9 +188,14 @@ class VoiceActivityDetector(Protocol):
 @runtime_checkable
 class SpeechToText(Protocol):
     """Request/response transcription of a captured utterance. The argument
-    is a contiguous run of int16 PCM at SAMPLE_RATE."""
+    is a contiguous run of int16 PCM at SAMPLE_RATE.
 
-    async def transcribe(self, audio: bytes) -> str: ...
+    Returns a TranscriptionResult with text, confidence, detected language,
+    and a confidence action ("proceed"/"clarify"/"ignore").  Legacy callers
+    that only need the text can use ``str(result)`` or ``result.text``.
+    """
+
+    async def transcribe(self, audio: bytes) -> TranscriptionResult: ...
 
 
 @runtime_checkable

@@ -796,6 +796,9 @@ class JarvisApp:
             language=self.cfg.stt.language,
             compute_type=self.cfg.stt.compute_type,
             download_root=default_whisper_download_root(),
+            confidence_proceed=self.cfg.stt.confidence_proceed,
+            confidence_clarify=self.cfg.stt.confidence_clarify,
+            max_clarify_retries=self.cfg.stt.max_clarify_retries,
         )
         self.tts = PiperTTS(
             voice_name=self.cfg.tts.voice or _PIPER_VOICE_NAME,

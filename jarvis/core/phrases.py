@@ -103,6 +103,37 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Боюсь, что-то пошло не так.",
         "uk": "На жаль, щось пішло не так.",
     },
+    # T1.5 / T2.4: Error phrases for the ErrorHandler and confidence routing.
+    "error_generic": {
+        "en": "Something went wrong, sir. I'll try again.",
+        "ru": "Что-то пошло не так, сэр. Сейчас попробую ещё раз.",
+        "uk": "Щось пішло не так, сер. Зараз спробую ще раз.",
+    },
+    "error_stt": {
+        "en": "I couldn't understand what you said, sir. Could you repeat?",
+        "ru": "Не удалось распознать речь, сэр. Повторите, пожалуйста.",
+        "uk": "Не вдалося розпізнати мовлення, сер. Повторіть, будь ласка.",
+    },
+    "error_tts": {
+        "en": "Voice synthesis failed, sir. Switching to fallback.",
+        "ru": "Синтез голоса не удался, сэр. Переключаюсь на резервный.",
+        "uk": "Синтез голосу не вдався, сер. Перемикаюсь на резервний.",
+    },
+    "error_vram": {
+        "en": "Not enough GPU memory, sir. Freeing resources.",
+        "ru": "Недостаточно видеопамяти, сэр. Освобождаю ресурсы.",
+        "uk": "Недостатньо відеопам'яті, сер. Звільняю ресурси.",
+    },
+    "error_ollama": {
+        "en": "The language model is not responding, sir. I'll retry shortly.",
+        "ru": "Языковая модель не отвечает, сэр. Скоро попробую снова.",
+        "uk": "Мовна модель не відповідає, сер. Скоро спробую знову.",
+    },
+    "error_degraded": {
+        "en": "Multiple errors in a row, sir. Some features may be limited.",
+        "ru": "Несколько ошибок подряд, сэр. Некоторые функции могут быть ограничены.",
+        "uk": "Кілька помилок поспіль, сер. Деякі функції можуть бути обмежені.",
+    },
 }
 
 

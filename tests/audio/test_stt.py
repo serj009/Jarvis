@@ -21,7 +21,7 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from jarvis.audio.protocols import SAMPLE_RATE, SpeechToText
+from jarvis.audio.protocols import SAMPLE_RATE, SpeechToText, TranscriptionResult
 from jarvis.audio.stt import FasterWhisperSTT, STTLoadError, _resolve_model_id
 from jarvis.core.lifecycle import Loadable
 
@@ -71,14 +71,23 @@ def _instance(cls):
     return cls.return_value
 
 
-def _segment(text: str):
+def _make_info(language="en", language_probability=0.95):
+    info = MagicMock()
+    info.language = language
+    info.language_probability = language_probability
+    return info
+
+
+def _segment(text: str, avg_logprob: float = -0.3, no_speech_prob: float = 0.05):
     seg = MagicMock()
     seg.text = text
+    seg.avg_logprob = avg_logprob
+    seg.no_speech_prob = no_speech_prob
     return seg
 
 
-def _set_segments(instance, *segments):
-    instance.transcribe.return_value = (iter(segments), MagicMock())
+def _set_segments(instance, *segments, language="en"):
+    instance.transcribe.return_value = (iter(segments), _make_info(language))
 
 
 # --- load / unload ----------------------------------------------------
@@ -158,7 +167,7 @@ async def test_transcribe_empty_bytes_short_circuits(mock_whisper_class):
     s = FasterWhisperSTT()
     await s.load()
     result = await s.transcribe(b"")
-    assert result == ""
+    assert result.text == ""
     _instance(mock_whisper_class).transcribe.assert_not_called()
 
 
@@ -166,7 +175,7 @@ async def test_transcribe_before_load_returns_empty(caplog: pytest.LogCaptureFix
     s = FasterWhisperSTT()
     with caplog.at_level(logging.WARNING, logger="jarvis.audio.stt"):
         result = await s.transcribe(b"\x00" * 1000)
-    assert result == ""
+    assert result.text == ""
     assert any("before load" in r.message for r in caplog.records)
 
 
@@ -178,7 +187,7 @@ async def test_transcribe_concatenates_segments(mock_whisper_class):
     await s.load()
     _set_segments(_instance(mock_whisper_class), _segment("hello "), _segment("world"))
     result = await s.transcribe(b"\x00" * 1000)
-    assert result == "hello world"
+    assert result.text == "hello world"
 
 
 async def test_transcribe_strips_whitespace(mock_whisper_class):
@@ -186,7 +195,7 @@ async def test_transcribe_strips_whitespace(mock_whisper_class):
     await s.load()
     _set_segments(_instance(mock_whisper_class), _segment("  leading and trailing   "))
     result = await s.transcribe(b"\x00" * 1000)
-    assert result == "leading and trailing"
+    assert result.text == "leading and trailing"
 
 
 async def test_transcribe_strips_whitespace_only_to_empty(mock_whisper_class):
@@ -196,7 +205,7 @@ async def test_transcribe_strips_whitespace_only_to_empty(mock_whisper_class):
     await s.load()
     _set_segments(_instance(mock_whisper_class), _segment("   "))
     result = await s.transcribe(b"\x00" * 1000)
-    assert result == ""
+    assert result.text == ""
 
 
 async def test_transcribe_converts_int16_bytes_to_float32_normalized(
@@ -227,7 +236,7 @@ async def test_transcribe_isolates_inference_exception(
     )
     with caplog.at_level(logging.ERROR, logger="jarvis.audio.stt"):
         result = await s.transcribe(b"\x00" * 1000)
-    assert result == ""
+    assert result.text == ""
     assert any("whisper transcribe raised" in r.message for r in caplog.records)
 
 
@@ -266,7 +275,7 @@ async def test_transcribe_passes_default_hotwords(mock_whisper_class):
 
 
 async def test_hotwords_can_be_disabled(mock_whisper_class):
-    s = FasterWhisperSTT(hotwords=None)
+    s = FasterWhisperSTT(hotwords="")
     await s.load()
     _set_segments(_instance(mock_whisper_class), _segment("hi"))
     await s.transcribe(b"\x00" * 1000)
@@ -279,7 +288,7 @@ async def test_echoed_hotwords_are_treated_as_silence(mock_whisper_class):
     await s.load()
     _set_segments(_instance(mock_whisper_class), _segment(" YouTube, GitHub."))
     result = await s.transcribe(b"\x00" * 1000)
-    assert result == ""
+    assert result.text == ""
 
 
 # --- threading: must not block the loop ----------------------------
@@ -375,7 +384,7 @@ async def test_segment_generator_consumed_in_executor_thread(mock_whisper_class)
         TrackingSegments(), MagicMock()
     )
     result = await s.transcribe(b"\x00" * 1000)
-    assert result == "hi there"
+    assert result.text == "hi there"
     assert consume_threads, "generator was never iterated"
     assert all(t is not loop_thread for t in consume_threads), (
         "segment generator was iterated on the loop thread"
@@ -405,7 +414,8 @@ async def test_real_whisper_transcribes_clip():
         pytest.skip("whisper model unavailable; first-run download or no network")
     try:
         audio = _read_wav_int16_mono_16k(SPEECH_FIXTURE)
-        text = await s.transcribe(audio)
+        result = await s.transcribe(audio)
+        text = result.text
         assert text, "expected non-empty transcription"
         # Whisper may capitalize/punctuate; lowercase comparison.
         lowered = text.lower()
