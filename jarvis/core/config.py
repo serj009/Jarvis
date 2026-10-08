@@ -189,9 +189,9 @@ class STTConfig(_Base):
     language: str = "en"
     compute_type: Literal["int8", "float16", "float32"] = "int8"
     # T2.4: Confidence thresholds.
-    # confidence >= proceed → send to LLM as-is.
-    # clarify <= confidence < proceed → ask user to repeat.
-    # confidence < clarify → silently ignore (noise / hallucination).
+    # confidence >= proceed -> send to LLM as-is.
+    # clarify <= confidence < proceed -> ask user to repeat.
+    # confidence < clarify -> silently ignore (noise / hallucination).
     confidence_proceed: float = Field(default=0.70, ge=0.0, le=1.0)
     confidence_clarify: float = Field(default=0.30, ge=0.0, le=1.0)
     # Max times JARVIS asks "could you repeat?" before giving up.
@@ -311,6 +311,31 @@ class LifecycleConfig(_Base):
     # Reserved for future rules — no-op in Task 2.
     auto_sleep_on_low_battery: bool = False
     auto_sleep_on_user_idle: bool = False
+
+
+class PipelineConfig(_Base):
+    """Phase 3 pipeline runner settings (T3.3 / T3.4)."""
+
+    # T3.4: Per-stage timeouts (seconds). If a stage exceeds its timeout,
+    # the pipeline aborts the turn and returns to IDLE with a spoken error.
+    # 0 = no timeout (not recommended for production).
+    stt_timeout_s: float = Field(default=10.0, ge=0.0)
+    llm_timeout_s: float = Field(default=20.0, ge=0.0)
+    tts_timeout_s: float = Field(default=15.0, ge=0.0)
+
+    # T3.4: Thinking phrases -- JARVIS speaks a short phrase via Piper (CPU)
+    # immediately after STT, before the LLM starts generating. The user
+    # never hears silence > 1-2 seconds. Disable if latency is already low.
+    thinking_phrases_enabled: bool = True
+
+    # T3.3: Half-duplex mode -- mute the microphone input while JARVIS is
+    # SPEAKING. Prevents speaker-to-mic feedback from triggering false VAD
+    # events without requiring AEC. Recommended for desktop speakers.
+    # Disable for headphones (where barge-in is more useful).
+    half_duplex: bool = True
+
+    # T3.4: Max consecutive auto-recovery attempts before giving up.
+    max_recovery_attempts: int = Field(default=3, ge=1, le=10)
 
 
 class DebugConfig(_Base):
@@ -449,6 +474,7 @@ class JarvisConfig(_Base):
     hotkeys: HotkeysConfig = Field(default_factory=HotkeysConfig)
     lifecycle: LifecycleConfig = Field(default_factory=LifecycleConfig)
     debug: DebugConfig = Field(default_factory=DebugConfig)
+    pipeline: PipelineConfig = Field(default_factory=PipelineConfig)
     ui: UIConfig = Field(default_factory=UIConfig)
     research: ResearchConfig = Field(default_factory=ResearchConfig)
     workspace: WorkspaceConfig = Field(default_factory=WorkspaceConfig)

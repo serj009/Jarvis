@@ -47,6 +47,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import random
 import time
 from collections.abc import Callable
 
@@ -117,6 +118,12 @@ class AudioPipeline:
         barge_in_enabled: bool = BARGE_IN_ENABLED,
         on_wake: Callable[[], None] | None = None,
         log_wake_during_speaking: bool = False,
+        # T3.3/T3.4 Phase 3 settings
+        thinking_phrases_enabled: bool = True,
+        half_duplex: bool = True,
+        stt_timeout_s: float = 10.0,
+        llm_timeout_s: float = 20.0,
+        tts_timeout_s: float = 15.0,
     ) -> None:
         self._source = source
         self._wake_word = wake_word
@@ -139,6 +146,12 @@ class AudioPipeline:
         self._on_wake = on_wake
         self._log_wake_during_speaking = log_wake_during_speaking
         self._speaking_debug_frame_count: int = 0
+        # T3.3/T3.4 Phase 3 state
+        self._thinking_phrases_enabled = thinking_phrases_enabled
+        self._half_duplex = half_duplex
+        self._stt_timeout_s = stt_timeout_s
+        self._llm_timeout_s = llm_timeout_s
+        self._tts_timeout_s = tts_timeout_s
 
         self._q_frames: asyncio.Queue[AudioFrame] = asyncio.Queue(
             maxsize=frame_queue_maxsize
@@ -300,6 +313,12 @@ class AudioPipeline:
         # spend VAD CPU on SPEAKING-state frames at all. The VAD's internal
         # state will be reset on the next wake detection, so skipping doesn't
         # leave it in a confused state.
+        # T3.3: Half-duplex mode — drop ALL audio frames during SPEAKING to
+        # prevent speaker→mic feedback from triggering false VAD events.
+        # Wake-word detection still runs (in _frame_loop before this method)
+        # so "Hey Jarvis" interrupt works even in half-duplex mode.
+        if self._half_duplex:
+            return
         if not self._barge_in_enabled:
             return
         event = await self._vad.feed(frame)
@@ -408,7 +427,20 @@ class AudioPipeline:
             (len(audio) // 2) * 1000 // SAMPLE_RATE,
         )
         try:
-            result = await self._stt.transcribe(audio)
+            # T3.4: STT with timeout — if transcription takes too long, abort.
+            try:
+                if self._stt_timeout_s > 0:
+                    result = await asyncio.wait_for(
+                        self._stt.transcribe(audio), timeout=self._stt_timeout_s
+                    )
+                else:
+                    result = await self._stt.transcribe(audio)
+            except asyncio.TimeoutError:
+                log.warning("[stt] timeout after %.1f s", self._stt_timeout_s)
+                from jarvis.core.phrases import say
+                await self._tts.speak(say("error_stt_timeout"))
+                self._sm.set_conversational_state(ConversationalState.IDLE)
+                return
             text = result.text
             # T2.4: Log confidence and detected language.
             log.info(
@@ -448,6 +480,18 @@ class AudioPipeline:
                 # No speech; abort cleanly back to IDLE.
                 self._sm.set_conversational_state(ConversationalState.IDLE)
                 return
+
+            # T3.4: Thinking phrase — speak a short filler via Piper (CPU)
+            # so the user doesn't hear silence while the LLM thinks.
+            if self._thinking_phrases_enabled:
+                from jarvis.core.phrases import say
+                _THINKING_KEYS = [
+                    "thinking_general_1", "thinking_general_2", "thinking_general_3",
+                    "thinking_check_1", "thinking_check_2",
+                ]
+                phrase_key = random.choice(_THINKING_KEYS)
+                await self._tts.speak(say(phrase_key))
+                log.debug("[thinking] spoke phrase %r", phrase_key)
 
             # Tee the producer into speak_stream. Each chunk yielded by
             # the producer is recorded for LLMResponseChunk emission and

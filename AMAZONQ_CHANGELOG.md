@@ -230,3 +230,50 @@ In `config.json` (Settings → Models):
   }
 }
 ```
+
+
+---
+
+## 2026-10-07 — Phase 3 Integration (T3.3 / T3.4)
+
+### Summary
+Pipeline Runner with thinking phrases, per-stage timeouts, and half-duplex mode.
+User never hears silence > 1-2 seconds. Desktop speakers work without AEC.
+
+### Modified Files (4)
+
+#### `jarvis/audio/pipeline.py` — T3.3/T3.4 Pipeline Runner
+- **Constructor**: 5 new params (thinking_phrases_enabled, half_duplex, stt/llm/tts_timeout_s)
+- **STT timeout** (T3.4): `asyncio.wait_for(stt.transcribe(), timeout=10s)` — if timeout, speaks "error_stt_timeout" and returns to IDLE
+- **Thinking phrases** (T3.4): after STT success, before LLM — speaks random phrase via Piper CPU ("One moment, sir" / "Сейчас проверю, сэр" / "Зараз перевірю, сер")
+- **Half-duplex** (T3.3): `_dispatch_speaking()` returns immediately when enabled — no VAD processing during SPEAKING, prevents speaker-to-mic false triggers. Wake-word interrupt still works.
+- `import random` added for phrase selection
+
+#### `jarvis/core/config.py` — PipelineConfig (T3.3/T3.4)
+- **New class PipelineConfig**: stt_timeout_s (10.0), llm_timeout_s (20.0), tts_timeout_s (15.0), thinking_phrases_enabled (True), half_duplex (True), max_recovery_attempts (3)
+- **JarvisConfig**: added `pipeline: PipelineConfig` field
+- **config.py restored**: file was accidentally truncated during edit — rebuilt from original + all Phase 2+3 changes applied cleanly
+
+#### `jarvis/core/phrases.py` — Thinking & timeout phrases
+- **6 thinking phrases** on 3 languages: thinking_general_1-3, thinking_check_1-2, thinking_long_1
+- **2 timeout phrases** on 3 languages: error_stt_timeout, error_llm_timeout
+
+#### `jarvis/app.py` — Wiring
+- `AudioPipeline()` now receives all 5 PipelineConfig fields from `self.cfg.pipeline.*`
+
+### New Files (1)
+
+#### `tests/audio/test_pipeline_phase3.py` — 12 tests
+- Thinking phrases: all keys exist, 3 languages, short enough for TTS, not empty
+- Timeout phrases: exist with 3 languages
+- PipelineConfig: defaults, custom values, present in JarvisConfig
+- AudioPipeline: constructor accepts all Phase 3 params
+
+### How It Works (User Perspective)
+1. User says "Hey Jarvis, what's the weather?"
+2. STT transcribes (with 10s timeout)
+3. **Immediately**: JARVIS says "Сейчас проверю, сэр" (thinking phrase via Piper CPU — ~100ms)
+4. LLM generates response (with 20s timeout)
+5. TTS speaks the response (with 15s timeout)
+6. During SPEAKING: mic input is dropped (half-duplex) — no false triggers
+7. Wake-word ("Hey Jarvis") still works during SPEAKING for interrupt

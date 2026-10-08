@@ -886,6 +886,12 @@ class JarvisApp:
                 self.cfg.llm.conversation_continuity_seconds
             ),
             log_wake_during_speaking=self.cfg.debug.log_wake_during_speaking,
+            # T3.3/T3.4 Phase 3: pipeline runner settings
+            thinking_phrases_enabled=self.cfg.pipeline.thinking_phrases_enabled,
+            half_duplex=self.cfg.pipeline.half_duplex,
+            stt_timeout_s=self.cfg.pipeline.stt_timeout_s,
+            llm_timeout_s=self.cfg.pipeline.llm_timeout_s,
+            tts_timeout_s=self.cfg.pipeline.tts_timeout_s,
         )
 
         # ------------------------------------------------------------------

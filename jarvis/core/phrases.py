@@ -134,6 +134,49 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Несколько ошибок подряд, сэр. Некоторые функции могут быть ограничены.",
         "uk": "Кілька помилок поспіль, сер. Деякі функції можуть бути обмежені.",
     },
+    # T3.4: Thinking phrases — spoken immediately after STT before LLM.
+    # Multiple variants per category; the pipeline picks one at random.
+    "thinking_general_1": {
+        "en": "One moment, sir.",
+        "ru": "Одну секунду, сэр.",
+        "uk": "Одну секунду, сер.",
+    },
+    "thinking_general_2": {
+        "en": "Let me think about that.",
+        "ru": "Сейчас подумаю.",
+        "uk": "Зараз подумаю.",
+    },
+    "thinking_general_3": {
+        "en": "Working on it, sir.",
+        "ru": "Работаю над этим, сэр.",
+        "uk": "Працюю над цим, сер.",
+    },
+    "thinking_check_1": {
+        "en": "Let me check, sir.",
+        "ru": "Сейчас проверю, сэр.",
+        "uk": "Зараз перевірю, сер.",
+    },
+    "thinking_check_2": {
+        "en": "Checking now.",
+        "ru": "Проверяю.",
+        "uk": "Перевіряю.",
+    },
+    "thinking_long_1": {
+        "en": "This might take a moment, sir.",
+        "ru": "Это может занять пару секунд, сэр.",
+        "uk": "Це може зайняти кілька секунд, сер.",
+    },
+    # T3.4: Timeout error phrases.
+    "error_stt_timeout": {
+        "en": "Speech recognition took too long, sir. Could you try again?",
+        "ru": "Распознавание речи заняло слишком много времени, сэр. Попробуйте ещё раз.",
+        "uk": "Розпізнавання мовлення зайняло занадто багато часу, сер. Спробуйте ще раз.",
+    },
+    "error_llm_timeout": {
+        "en": "The language model is taking too long, sir. Let me try again.",
+        "ru": "Языковая модель слишком долго отвечает, сэр. Попробую ещё раз.",
+        "uk": "Мовна модель надто довго відповідає, сер. Спробую ще раз.",
+    },
 }
 
 
