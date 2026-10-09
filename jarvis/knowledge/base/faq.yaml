@@ -1,0 +1,582 @@
+# FAQ — повний довідник J.A.R.V.I.S. (54 питання, 3 мови)
+# Для GitHub — доступно всім користувачам
+# Категорії: начало, голос, программы, память, производительность,
+#            безопасность, настройка, игры, проблемы
+
+faq:
+
+  # ════════════════════════════════════════════════════
+  # 🚀 НАЧАЛО РАБОТЫ
+  # ════════════════════════════════════════════════════
+
+  - question:
+      en: "What can you do? / List of commands"
+      ru: "Что ты умеешь? / Список команд"
+      uk: "Що ти вмієш? / Список команд"
+    answer:
+      en: "I can open programs and websites, search the web, remember facts, set timers, tell you system status, and have a conversation. Say 'status' for system info, 'remember [fact]' to save, 'what do you know about [topic]' to search memory. I speak English, Russian and Ukrainian."
+      ru: "Я могу открывать программы и сайты, искать в интернете, запоминать факты, ставить таймеры, показывать статус системы и просто разговаривать. Скажите 'статус' для информации о системе, 'запомни [факт]' для сохранения, 'что ты знаешь о [тема]' для поиска в памяти."
+      uk: "Я можу відкривати програми та сайти, шукати в інтернеті, запам'ятовувати факти, ставити таймери, показувати стан системи та просто розмовляти. Скажіть 'стан' для інформації, 'запам'ятай [факт]' для збереження, 'що ти знаєш про [тема]' для пошуку."
+    tags: ["basics", "commands"]
+
+  - question:
+      en: "How do I call / activate JARVIS?"
+      ru: "Как тебя позвать / активировать?"
+      uk: "Як тебе покликати / активувати?"
+    answer:
+      en: "Just start speaking — JARVIS listens continuously using voice activity detection (VAD). When it detects speech, it processes your command. No wake word needed by default, though one can be configured."
+      ru: "Просто начните говорить — JARVIS слушает постоянно через детектор голосовой активности (VAD). Когда он обнаруживает речь, обрабатывает команду. Кодовое слово по умолчанию не нужно, но его можно настроить."
+      uk: "Просто почніть говорити — JARVIS слухає постійно через детектор голосової активності (VAD). Коли він виявляє мовлення, обробляє команду. Кодове слово за замовчуванням не потрібне, але його можна налаштувати."
+    tags: ["basics", "activation"]
+
+  - question:
+      en: "How do I turn off JARVIS?"
+      ru: "Как выключить JARVIS?"
+      uk: "Як вимкнути JARVIS?"
+    answer:
+      en: "Say 'shut down' or 'turn off'. JARVIS will save the current session, backup memory, and say goodbye. You can also close the terminal window or press Ctrl+C."
+      ru: "Скажите 'выключись' или 'заверши работу'. JARVIS сохранит текущую сессию, сделает бэкап памяти и попрощается. Также можно закрыть окно терминала или нажать Ctrl+C."
+      uk: "Скажіть 'вимкнись' або 'заверши роботу'. JARVIS збереже поточну сесію, зробить бекап пам'яті та попрощається. Також можна закрити вікно терміналу або натиснути Ctrl+C."
+    tags: ["basics", "shutdown"]
+
+  - question:
+      en: "How do I restart JARVIS?"
+      ru: "Как перезапустить JARVIS?"
+      uk: "Як перезапустити JARVIS?"
+    answer:
+      en: "Say 'restart' or close and reopen. All memory is preserved — nothing is lost on restart. If JARVIS is frozen, use Ctrl+C in the terminal, then start again."
+      ru: "Скажите 'перезапуск' или закройте и откройте снова. Вся память сохраняется — ничего не теряется при перезапуске. Если JARVIS завис — нажмите Ctrl+C в терминале и запустите снова."
+      uk: "Скажіть 'перезапуск' або закрийте та відкрийте знову. Вся пам'ять зберігається — нічого не втрачається. Якщо JARVIS завис — натисніть Ctrl+C в терміналі та запустіть знову."
+    tags: ["basics", "restart"]
+
+  - question:
+      en: "First launch — what should I do?"
+      ru: "Первый запуск — что делать?"
+      uk: "Перший запуск — що робити?"
+    answer:
+      en: "JARVIS will greet you and suggest saying 'status' to check the system. That's it — just start talking. JARVIS learns your preferences over time. No setup wizard needed."
+      ru: "JARVIS поприветствует вас и предложит сказать 'статус' для проверки системы. Это всё — просто начните говорить. JARVIS учится вашим предпочтениям со временем. Никакой настройки не нужно."
+      uk: "JARVIS привітає вас і запропонує сказати 'стан' для перевірки системи. Це все — просто почніть говорити. JARVIS вчиться вашим уподобанням з часом. Жодних налаштувань не потрібно."
+    tags: ["basics", "onboarding"]
+
+  # ════════════════════════════════════════════════════
+  # 🗣️ ГОЛОС И ЯЗЫК
+  # ════════════════════════════════════════════════════
+
+  - question:
+      en: "How do I change the language?"
+      ru: "Как сменить язык?"
+      uk: "Як змінити мову?"
+    answer:
+      en: "Say 'Speak English', 'Говори по-русски' or 'Говори українською'. JARVIS switches and remembers until you change again. Say 'auto' for automatic detection."
+      ru: "Скажите 'Speak English', 'Говори по-русски' или 'Говори українською'. JARVIS переключится и запомнит. Скажите 'авто' для возврата к автоопределению."
+      uk: "Скажіть 'Speak English', 'Говори по-русски' або 'Говори українською'. JARVIS переключиться і запам'ятає. Скажіть 'авто' для автовизначення."
+    tags: ["language", "basics"]
+
+  - question:
+      en: "Why does JARVIS confuse Ukrainian and Russian?"
+      ru: "Почему JARVIS путает украинский и русский?"
+      uk: "Чому JARVIS плутає українську та російську?"
+    answer:
+      en: "Use STT model 'small' for better UA/RU distinction. If confusion persists, manually switch: 'Говори українською'. This locks the language until changed."
+      ru: "Используйте STT модель 'small' для лучшего различения. Если путает — переключите вручную: 'Говори українською'. Язык зафиксируется."
+      uk: "Використовуйте STT модель 'small' для кращого розрізнення. Якщо плутає — переключіть вручну: 'Говори українською'. Мова зафіксується."
+    tags: ["language", "troubleshooting"]
+
+  - question:
+      en: "How do I change JARVIS voice?"
+      ru: "Как сменить голос JARVIS?"
+      uk: "Як змінити голос JARVIS?"
+    answer:
+      en: "Edit voice_config.yaml — change the Piper model name for each language. Download new voices from HuggingFace (rhasspy/piper-voices). Restart JARVIS to apply."
+      ru: "Измените voice_config.yaml — замените имя Piper-модели для каждого языка. Скачайте новые голоса с HuggingFace (rhasspy/piper-voices). Перезапустите JARVIS."
+      uk: "Змініть voice_config.yaml — замініть ім'я Piper-моделі для кожної мови. Завантажте нові голоси з HuggingFace (rhasspy/piper-voices). Перезапустіть JARVIS."
+    tags: ["voice", "config"]
+
+  - question:
+      en: "JARVIS doesn't hear me"
+      ru: "JARVIS не слышит меня"
+      uk: "JARVIS не чує мене"
+    answer:
+      en: "Check: 1) Microphone is set as default in Windows Sound settings. 2) Microphone access is allowed for Desktop apps (Settings → Privacy → Microphone). 3) VAD threshold may be too high — lower it in voice_config.yaml. 4) Try speaking louder or closer to the mic."
+      ru: "Проверьте: 1) Микрофон установлен по умолчанию в настройках звука Windows. 2) Доступ к микрофону разрешён для Desktop-приложений (Параметры → Конфиденциальность → Микрофон). 3) Порог VAD может быть слишком высоким — понизьте в voice_config.yaml. 4) Попробуйте говорить громче или ближе."
+      uk: "Перевірте: 1) Мікрофон встановлено за замовчуванням в налаштуваннях звуку Windows. 2) Доступ до мікрофону дозволено для Desktop-додатків (Параметри → Конфіденційність → Мікрофон). 3) Поріг VAD може бути зависоким — знизьте в voice_config.yaml. 4) Спробуйте говорити голосніше або ближче."
+    tags: ["voice", "troubleshooting", "microphone"]
+
+  - question:
+      en: "JARVIS recognizes words incorrectly"
+      ru: "JARVIS неправильно распознаёт слова"
+      uk: "JARVIS неправильно розпізнає слова"
+    answer:
+      en: "Whisper STT sometimes misrecognizes names (e.g. 'GitHub' → 'BitHub'). Solutions: 1) Add common misrecognitions to a correction list. 2) Speak clearly, avoid background noise. 3) Try model 'small' instead of 'base'. 4) For app names, JARVIS uses fuzzy matching from the apps list."
+      ru: "Whisper STT иногда неправильно распознаёт названия (например 'гитхаб' → 'BitHub'). Решения: 1) Добавить частые ошибки в список коррекций. 2) Говорите чётко, избегайте фонового шума. 3) Попробуйте модель 'small' вместо 'base'. 4) Для программ JARVIS использует нечёткий поиск по списку."
+      uk: "Whisper STT іноді неправильно розпізнає назви (наприклад 'гітхаб' → 'BitHub'). Рішення: 1) Додати часті помилки до списку корекцій. 2) Говоріть чітко, уникайте фонового шуму. 3) Спробуйте модель 'small' замість 'base'. 4) Для програм JARVIS використовує нечіткий пошук по списку."
+    tags: ["voice", "stt", "troubleshooting"]
+
+  - question:
+      en: "How do I set up the microphone?"
+      ru: "Как настроить микрофон?"
+      uk: "Як налаштувати мікрофон?"
+    answer:
+      en: "Windows Settings → Sound → Input → choose your microphone as default. Then Settings → Privacy → Microphone → allow Desktop apps. For best results use a headset — it prevents JARVIS from hearing its own voice through speakers."
+      ru: "Параметры Windows → Звук → Ввод → выберите микрофон по умолчанию. Затем Параметры → Конфиденциальность → Микрофон → разрешить Desktop-приложениям. Для лучших результатов используйте гарнитуру — она не даёт JARVIS слышать свой голос через динамики."
+      uk: "Параметри Windows → Звук → Ввід → оберіть мікрофон за замовчуванням. Потім Параметри → Конфіденційність → Мікрофон → дозволити Desktop-додаткам. Для кращих результатів використовуйте гарнітуру — вона не дає JARVIS чути свій голос через динаміки."
+    tags: ["voice", "microphone", "setup"]
+
+  - question:
+      en: "Can I use JARVIS in text-only mode?"
+      ru: "Можно ли отключить голос? (только текст)"
+      uk: "Чи можна вимкнути голос? (тільки текст)"
+    answer:
+      en: "Not yet in the current version. JARVIS is voice-first by design. Text mode is planned for a future update."
+      ru: "Пока нет в текущей версии. JARVIS создан как голосовой ассистент. Текстовый режим запланирован в будущем обновлении."
+      uk: "Поки ні в поточній версії. JARVIS створений як голосовий асистент. Текстовий режим заплановано в майбутньому оновленні."
+    tags: ["voice", "feature"]
+
+  - question:
+      en: "Why does JARVIS interrupt itself?"
+      ru: "Почему JARVIS перебивает сам себя?"
+      uk: "Чому JARVIS перебиває сам себе?"
+    answer:
+      en: "The microphone picks up JARVIS voice from speakers and STT processes it as a new command. Solutions: 1) Use headphones (best). 2) Half-duplex mode mutes mic during speech (default). 3) AEC (echo cancellation) can be enabled in config."
+      ru: "Микрофон ловит голос JARVIS из динамиков и STT обрабатывает его как новую команду. Решения: 1) Используйте наушники (лучший вариант). 2) Half-duplex режим глушит микрофон во время речи (по умолчанию). 3) AEC (эхоподавление) можно включить в конфиге."
+      uk: "Мікрофон ловить голос JARVIS з динаміків і STT обробляє його як нову команду. Рішення: 1) Використовуйте навушники (найкращий варіант). 2) Half-duplex режим глушить мікрофон під час мовлення (за замовчуванням). 3) AEC (ехопридушення) можна увімкнути в конфізі."
+    tags: ["voice", "aec", "troubleshooting"]
+
+  - question:
+      en: "How do I interrupt JARVIS while it's speaking?"
+      ru: "Как перебить JARVIS когда он говорит?"
+      uk: "Як перебити JARVIS коли він говорить?"
+    answer:
+      en: "In half-duplex mode: wait for JARVIS to finish, then speak. In AEC/headphone mode: just start talking — JARVIS detects barge-in and stops. Barge-in support depends on your audio setup."
+      ru: "В half-duplex режиме: дождитесь пока JARVIS закончит, потом говорите. В AEC/наушниках: просто начните говорить — JARVIS определит перебивание и остановится. Поддержка barge-in зависит от вашей аудио-настройки."
+      uk: "В half-duplex режимі: зачекайте поки JARVIS закінчить, потім говоріть. В AEC/навушниках: просто почніть говорити — JARVIS визначить переривання і зупиниться. Підтримка barge-in залежить від вашого аудіо-налаштування."
+    tags: ["voice", "barge-in"]
+
+  # ════════════════════════════════════════════════════
+  # 💻 ПРОГРАММЫ И САЙТЫ
+  # ════════════════════════════════════════════════════
+
+  - question:
+      en: "How do I open a program or website?"
+      ru: "Как открыть программу или сайт?"
+      uk: "Як відкрити програму або сайт?"
+    answer:
+      en: "Say 'Open [name]' — for example 'Open YouTube', 'Open Steam', 'Open Telegram'. JARVIS knows common apps and sites in all three languages. Say 'відкрий ютуб' or 'открой стим' — it works."
+      ru: "Скажите 'Открой [название]' — например 'Открой YouTube', 'Открой Стим', 'Открой Телеграм'. JARVIS знает популярные программы и сайты на всех трёх языках."
+      uk: "Скажіть 'Відкрий [назва]' — наприклад 'Відкрий YouTube', 'Відкрий Стім', 'Відкрий Телеграм'. JARVIS знає популярні програми та сайти трьома мовами."
+    tags: ["programs", "basics"]
+
+  - question:
+      en: "How do I add a new program for JARVIS to open?"
+      ru: "Как добавить новую программу?"
+      uk: "Як додати нову програму?"
+    answer:
+      en: "Add it to knowledge/base/apps_and_sites.yaml with aliases in all three languages. JARVIS will recognize it on next restart."
+      ru: "Добавьте в knowledge/base/apps_and_sites.yaml с алиасами на трёх языках. JARVIS распознает после перезапуска."
+      uk: "Додайте в knowledge/base/apps_and_sites.yaml з аліасами трьома мовами. JARVIS розпізнає після перезапуску."
+    tags: ["programs", "config"]
+
+  - question:
+      en: "A program won't open"
+      ru: "Программа не открывается"
+      uk: "Програма не відкривається"
+    answer:
+      en: "Check: 1) The program is installed. 2) The exe name in apps_and_sites.yaml is correct. 3) Antivirus may be blocking. 4) The program may need admin rights — JARVIS runs without elevation and cannot open elevated apps."
+      ru: "Проверьте: 1) Программа установлена. 2) Имя exe в apps_and_sites.yaml правильное. 3) Антивирус может блокировать. 4) Программа может требовать права админа — JARVIS работает без повышения прав и не может открыть такие программы."
+      uk: "Перевірте: 1) Програма встановлена. 2) Ім'я exe в apps_and_sites.yaml правильне. 3) Антивірус може блокувати. 4) Програма може потребувати прав адміна — JARVIS працює без підвищення прав і не може відкрити такі програми."
+    tags: ["programs", "troubleshooting"]
+
+  - question:
+      en: "How do I close a program?"
+      ru: "Как закрыть программу?"
+      uk: "Як закрити програму?"
+    answer:
+      en: "Say 'Close [name]' — for example 'Close Chrome'. JARVIS will attempt to close it gracefully. Note: some programs may not close if they have unsaved data or run with admin rights."
+      ru: "Скажите 'Закрой [название]' — например 'Закрой Chrome'. JARVIS попробует закрыть корректно. Некоторые программы могут не закрыться если есть несохранённые данные или запущены от админа."
+      uk: "Скажіть 'Закрий [назва]' — наприклад 'Закрий Chrome'. JARVIS спробує закрити коректно. Деякі програми можуть не закритися якщо є незбережені дані або запущені від адміна."
+    tags: ["programs", "basics"]
+
+  - question:
+      en: "How do I play music?"
+      ru: "Как включить музыку?"
+      uk: "Як увімкнути музику?"
+    answer:
+      en: "Say 'Play [song/artist] on YouTube' or 'Play [query]'. JARVIS will open YouTube/YouTube Music with your query. Spotify support depends on whether the app is installed."
+      ru: "Скажите 'Включи [песня/артист] на YouTube' или 'Включи [запрос]'. JARVIS откроет YouTube/YouTube Music с вашим запросом. Поддержка Spotify зависит от того, установлено ли приложение."
+      uk: "Скажіть 'Увімкни [пісня/артист] на YouTube' або 'Увімкни [запит]'. JARVIS відкриє YouTube/YouTube Music з вашим запитом. Підтримка Spotify залежить від того, чи встановлено додаток."
+    tags: ["programs", "music", "entertainment"]
+
+  - question:
+      en: "How do I search the web?"
+      ru: "Как искать в интернете?"
+      uk: "Як шукати в інтернеті?"
+    answer:
+      en: "Say 'Search for [query]', 'Google [query]', or 'Find [query] on the web'. JARVIS will open a browser with search results. Requires internet connection."
+      ru: "Скажите 'Найди в интернете [запрос]', 'Загугли [запрос]' или 'Поищи [запрос]'. JARVIS откроет браузер с результатами поиска. Требуется интернет."
+      uk: "Скажіть 'Знайди в інтернеті [запит]', 'Загугли [запит]' або 'Пошукай [запит]'. JARVIS відкриє браузер з результатами пошуку. Потрібен інтернет."
+    tags: ["programs", "search", "web"]
+
+  # ════════════════════════════════════════════════════
+  # 🧠 ПАМЯТЬ
+  # ════════════════════════════════════════════════════
+
+  - question:
+      en: "How does JARVIS memory work?"
+      ru: "Как работает память JARVIS?"
+      uk: "Як працює пам'ять JARVIS?"
+    answer:
+      en: "JARVIS has three memory levels: 1) Knowledge (shared, comes with JARVIS) — FAQ, commands, game guides. 2) Personal memory (private, only on your PC) — your facts, preferences, projects. 3) Conversation history — all dialogues, searchable. Everything is in local SQLite databases."
+      ru: "У JARVIS три уровня памяти: 1) Знания (общие, идут с JARVIS) — FAQ, команды, гайды. 2) Личная память (приватная, только на вашем ПК) — ваши факты, предпочтения, проекты. 3) История диалогов — все разговоры, с поиском. Всё хранится в локальных SQLite базах."
+      uk: "У JARVIS три рівні пам'яті: 1) Знання (спільні, йдуть з JARVIS) — FAQ, команди, гайди. 2) Особиста пам'ять (приватна, тільки на вашому ПК) — ваші факти, уподобання, проекти. 3) Історія діалогів — всі розмови, з пошуком. Все зберігається в локальних SQLite базах."
+    tags: ["memory", "basics"]
+
+  - question:
+      en: "How do I save a fact?"
+      ru: "Как запомнить факт?"
+      uk: "Як запам'ятати факт?"
+    answer:
+      en: "Say 'Remember: [fact]' — for example 'Remember: the Explorer achievement requires visiting all locations'. JARVIS auto-tags and categorizes it."
+      ru: "Скажите 'Запомни: [факт]' — например 'Запомни: для ачивки Исследователь нужно посетить все локации'. JARVIS автоматически проставит теги и категорию."
+      uk: "Скажіть 'Запам'ятай: [факт]' — наприклад 'Запам'ятай: для ачівки Дослідник потрібно відвідати всі локації'. JARVIS автоматично проставить теги та категорію."
+    tags: ["memory", "basics"]
+
+  - question:
+      en: "How do I find what JARVIS remembers?"
+      ru: "Как найти что JARVIS запомнил?"
+      uk: "Як знайти що JARVIS запам'ятав?"
+    answer:
+      en: "Say 'What do you know about [topic]?' — JARVIS searches across all memory levels using keywords and semantic similarity."
+      ru: "Скажите 'Что ты знаешь о [тема]?' — JARVIS ищет по всем уровням памяти по ключевым словам и смысловому сходству."
+      uk: "Скажіть 'Що ти знаєш про [тема]?' — JARVIS шукає по всіх рівнях пам'яті за ключовими словами та смисловою схожістю."
+    tags: ["memory", "search"]
+
+  - question:
+      en: "How do I delete a fact from memory?"
+      ru: "Как удалить факт из памяти?"
+      uk: "Як видалити факт з пам'яті?"
+    answer:
+      en: "Say 'Forget about [topic]' or 'Delete from memory: [fact]'. JARVIS will ask for confirmation before deleting. Permanent facts require explicit override."
+      ru: "Скажите 'Забудь о [тема]' или 'Удали из памяти: [факт]'. JARVIS попросит подтверждение перед удалением. Постоянные факты требуют явного подтверждения."
+      uk: "Скажіть 'Забудь про [тема]' або 'Видали з пам'яті: [факт]'. JARVIS попросить підтвердження перед видаленням. Постійні факти потребують явного підтвердження."
+    tags: ["memory", "delete"]
+
+  - question:
+      en: "Where is my data stored?"
+      ru: "Где хранятся мои данные?"
+      uk: "Де зберігаються мої дані?"
+    answer:
+      en: "All data is stored locally on your PC in the memory/ folder. Personal facts in memory/stores/*.db, conversations in memory/conversations/. Nothing is sent to the internet. The memory/ folder is in .gitignore — it won't be uploaded to GitHub."
+      ru: "Все данные хранятся локально на вашем ПК в папке memory/. Личные факты в memory/stores/*.db, диалоги в memory/conversations/. Ничего не отправляется в интернет. Папка memory/ в .gitignore — не попадёт на GitHub."
+      uk: "Всі дані зберігаються локально на вашому ПК в папці memory/. Особисті факти в memory/stores/*.db, діалоги в memory/conversations/. Нічого не надсилається в інтернет. Папка memory/ в .gitignore — не потрапить на GitHub."
+    tags: ["memory", "privacy", "storage"]
+
+  - question:
+      en: "How do I backup memory?"
+      ru: "Как сделать бэкап памяти?"
+      uk: "Як зробити бекап пам'яті?"
+    answer:
+      en: "JARVIS auto-backups personal.db on shutdown. Manual backup: say 'backup memory' or copy the memory/ folder. Restore: replace memory/ with backup copy and restart."
+      ru: "JARVIS автоматически бэкапит personal.db при выключении. Ручной бэкап: скажите 'бэкап памяти' или скопируйте папку memory/. Восстановление: замените memory/ копией и перезапустите."
+      uk: "JARVIS автоматично бекапить personal.db при вимкненні. Ручний бекап: скажіть 'бекап пам'яті' або скопіюйте папку memory/. Відновлення: замініть memory/ копією та перезапустіть."
+    tags: ["memory", "backup"]
+
+  - question:
+      en: "Does memory affect performance?"
+      ru: "Память влияет на скорость?"
+      uk: "Пам'ять впливає на швидкість?"
+    answer:
+      en: "No, with our architecture. Memory is split into shards (separate databases per topic). Search is fast even with 100K facts (~50ms). Caching makes repeated queries instant. Only very large databases (1M+ facts) might slow down, but auto-cleanup prevents this."
+      ru: "Нет, с нашей архитектурой. Память разделена на шарды (отдельные базы по темам). Поиск быстрый даже при 100K фактов (~50мс). Кэширование делает повторные запросы мгновенными. Только очень большие базы (1М+ фактов) могут замедлить, но автоочистка предотвращает это."
+      uk: "Ні, з нашою архітектурою. Пам'ять розділена на шарди (окремі бази по темах). Пошук швидкий навіть при 100K фактів (~50мс). Кешування робить повторні запити миттєвими. Тільки дуже великі бази (1М+ фактів) можуть сповільнити, але автоочистка запобігає цьому."
+    tags: ["memory", "performance"]
+
+  # ════════════════════════════════════════════════════
+  # ⚡ ПРОИЗВОДИТЕЛЬНОСТЬ
+  # ════════════════════════════════════════════════════
+
+  - question:
+      en: "Why is JARVIS slow to respond?"
+      ru: "Почему JARVIS медленно отвечает?"
+      uk: "Чому JARVIS повільно відповідає?"
+    answer:
+      en: "Likely LLM cold start (~3-5 sec after 30 min idle). You'll hear 'One moment, sir' while loading. To reduce: increase OLLAMA_KEEP_ALIVE or use a smaller model."
+      ru: "Скорее всего холодный старт LLM (~3-5 сек после 30 мин неактивности). Вы услышите 'Секунду, сэр' пока грузится. Для ускорения: увеличьте OLLAMA_KEEP_ALIVE или используйте меньшую модель."
+      uk: "Скоріше за все холодний старт LLM (~3-5 сек після 30 хв неактивності). Ви почуєте 'Секунду, сер' поки вантажиться. Для прискорення: збільшіть OLLAMA_KEEP_ALIVE або використовуйте меншу модель."
+    tags: ["performance", "troubleshooting"]
+
+  - question:
+      en: "Can I use JARVIS while gaming?"
+      ru: "Можно ли играть + JARVIS?"
+      uk: "Чи можна грати + JARVIS?"
+    answer:
+      en: "Yes! Gaming mode: LLM on CPU, TTS on CPU, GPU 100% for game. Response up to 20 sec but you hear 'Checking now' immediately. Activates automatically when a game is detected."
+      ru: "Да! Игровой режим: LLM на CPU, TTS на CPU, GPU на 100% для игры. Ответ до 20 сек, но сразу услышите 'Сейчас проверю'. Активируется автоматически при обнаружении игры."
+      uk: "Так! Ігровий режим: LLM на CPU, TTS на CPU, GPU на 100% для гри. Відповідь до 20 сек, але одразу почуєте 'Зараз перевірю'. Активується автоматично при виявленні гри."
+    tags: ["gaming", "performance"]
+
+  - question:
+      en: "How do I speed up JARVIS?"
+      ru: "Как ускорить JARVIS?"
+      uk: "Як прискорити JARVIS?"
+    answer:
+      en: "Options: 1) Increase OLLAMA_KEEP_ALIVE (keep model in GPU longer). 2) Use Qwen3-4B instead of 8B (faster, less quality). 3) Close background apps to free VRAM. 4) Use headphones (skip AEC processing). 5) Response cache auto-speeds repeated commands."
+      ru: "Варианты: 1) Увеличить OLLAMA_KEEP_ALIVE (держать модель в GPU дольше). 2) Использовать Qwen3-4B вместо 8B (быстрее, чуть хуже качество). 3) Закрыть фоновые приложения для освобождения VRAM. 4) Наушники (пропустить AEC). 5) Кэш ответов автоматически ускоряет повторные команды."
+      uk: "Варіанти: 1) Збільшити OLLAMA_KEEP_ALIVE (тримати модель в GPU довше). 2) Використовувати Qwen3-4B замість 8B (швидше, трохи гірша якість). 3) Закрити фонові програми для звільнення VRAM. 4) Навушники (пропустити AEC). 5) Кеш відповідей автоматично прискорює повторні команди."
+    tags: ["performance", "optimization"]
+
+  - question:
+      en: "How much VRAM does JARVIS use?"
+      ru: "Сколько VRAM использует JARVIS?"
+      uk: "Скільки VRAM використовує JARVIS?"
+    answer:
+      en: "LLM (Qwen3-8B Q4): ~5-8 GB. Whisper STT: 0 (CPU). Piper TTS: 0 (CPU). Total active: ~5-8 GB. Check real usage: say 'status' or run nvidia-smi."
+      ru: "LLM (Qwen3-8B Q4): ~5-8 ГБ. Whisper STT: 0 (CPU). Piper TTS: 0 (CPU). Итого: ~5-8 ГБ. Проверить реальное: скажите 'статус' или запустите nvidia-smi."
+      uk: "LLM (Qwen3-8B Q4): ~5-8 ГБ. Whisper STT: 0 (CPU). Piper TTS: 0 (CPU). Разом: ~5-8 ГБ. Перевірити реальне: скажіть 'стан' або запустіть nvidia-smi."
+    tags: ["performance", "vram"]
+
+  - question:
+      en: "Can I run JARVIS on a weaker PC?"
+      ru: "Можно ли на слабом ПК?"
+      uk: "Чи можна на слабкому ПК?"
+    answer:
+      en: "Minimum: NVIDIA GPU with 6+ GB VRAM, 16 GB RAM. For 4-6 GB VRAM use Qwen3-4B instead of 8B. Without GPU: everything on CPU (very slow, 10-30 sec per response, but works). Piper TTS and Whisper STT work fine on CPU."
+      ru: "Минимум: NVIDIA GPU с 6+ ГБ VRAM, 16 ГБ RAM. Для 4-6 ГБ VRAM используйте Qwen3-4B вместо 8B. Без GPU: всё на CPU (очень медленно, 10-30 сек на ответ, но работает). Piper TTS и Whisper STT нормально работают на CPU."
+      uk: "Мінімум: NVIDIA GPU з 6+ ГБ VRAM, 16 ГБ RAM. Для 4-6 ГБ VRAM використовуйте Qwen3-4B замість 8B. Без GPU: все на CPU (дуже повільно, 10-30 сек на відповідь, але працює). Piper TTS і Whisper STT нормально працюють на CPU."
+    tags: ["performance", "hardware"]
+
+  - question:
+      en: "JARVIS freezes / hangs"
+      ru: "JARVIS тормозит / зависает"
+      uk: "JARVIS гальмує / зависає"
+    answer:
+      en: "1) Check VRAM: say 'status' or run nvidia-smi. 2) Close GPU-heavy apps. 3) If completely frozen: Ctrl+C in terminal, restart. 4) Check logs/ folder for errors. 5) If happens often: reduce model size or increase VRAM budget."
+      ru: "1) Проверьте VRAM: скажите 'статус' или запустите nvidia-smi. 2) Закройте GPU-тяжёлые приложения. 3) Если полностью завис: Ctrl+C в терминале, перезапустите. 4) Проверьте папку logs/ на ошибки. 5) Если часто: уменьшите модель или увеличьте VRAM бюджет."
+      uk: "1) Перевірте VRAM: скажіть 'стан' або запустіть nvidia-smi. 2) Закрийте GPU-важкі програми. 3) Якщо повністю завис: Ctrl+C в терміналі, перезапустіть. 4) Перевірте папку logs/ на помилки. 5) Якщо часто: зменшіть модель або збільшіть VRAM бюджет."
+    tags: ["performance", "troubleshooting"]
+
+  # ════════════════════════════════════════════════════
+  # 🔒 БЕЗОПАСНОСТЬ И ПРИВАТНОСТЬ
+  # ════════════════════════════════════════════════════
+
+  - question:
+      en: "Is JARVIS safe?"
+      ru: "JARVIS безопасен?"
+      uk: "JARVIS безпечний?"
+    answer:
+      en: "Yes. JARVIS asks confirmation before dangerous actions, limits file access to whitelisted folders, and logs everything. It runs without admin rights and cannot access elevated windows."
+      ru: "Да. JARVIS спрашивает подтверждение перед опасными действиями, ограничивает файловый доступ белым списком папок, логирует всё. Работает без прав админа и не может трогать окна с повышенными правами."
+      uk: "Так. JARVIS запитує підтвердження перед небезпечними діями, обмежує файловий доступ білим списком папок, логує все. Працює без прав адміна і не може чіпати вікна з підвищеними правами."
+    tags: ["safety", "basics"]
+
+  - question:
+      en: "Where does my data go?"
+      ru: "Куда уходят мои данные?"
+      uk: "Куди йдуть мої дані?"
+    answer:
+      en: "Nowhere. Everything stays on your PC. JARVIS is 100% local — no cloud, no telemetry, no analytics. Your conversations and facts are in SQLite files in the memory/ folder. Only web search sends queries to the internet (when you explicitly ask to search)."
+      ru: "Никуда. Всё остаётся на вашем ПК. JARVIS полностью локальный — без облака, телеметрии, аналитики. Ваши диалоги и факты в SQLite файлах в папке memory/. Только веб-поиск отправляет запросы в интернет (когда вы явно просите искать)."
+      uk: "Нікуди. Все залишається на вашому ПК. JARVIS повністю локальний — без хмари, телеметрії, аналітики. Ваші діалоги та факти в SQLite файлах в папці memory/. Тільки веб-пошук надсилає запити в інтернет (коли ви явно просите шукати)."
+    tags: ["privacy", "data"]
+
+  - question:
+      en: "Does JARVIS work without internet?"
+      ru: "Работает ли без интернета?"
+      uk: "Чи працює без інтернету?"
+    answer:
+      en: "Yes, core functions work fully offline: voice commands, opening programs, memory, status. Web search and browser features require internet. JARVIS tells you when a feature needs connectivity."
+      ru: "Да, основные функции полностью офлайн: голосовые команды, открытие программ, память, статус. Веб-поиск и браузер требуют интернета. JARVIS скажет если функция требует подключения."
+      uk: "Так, основні функції повністю офлайн: голосові команди, відкриття програм, пам'ять, статус. Веб-пошук і браузер потребують інтернету. JARVIS скаже якщо функція потребує підключення."
+    tags: ["offline", "basics"]
+
+  - question:
+      en: "How do I delete all my data?"
+      ru: "Как удалить все данные?"
+      uk: "Як видалити всі дані?"
+    answer:
+      en: "Delete the memory/ folder. This removes all personal facts, preferences, and conversation history. Knowledge (knowledge/ folder) is shared and doesn't contain personal data."
+      ru: "Удалите папку memory/. Это удалит все личные факты, предпочтения и историю диалогов. Знания (папка knowledge/) — общие и не содержат личных данных."
+      uk: "Видаліть папку memory/. Це видалить всі особисті факти, уподобання та історію діалогів. Знання (папка knowledge/) — спільні і не містять особистих даних."
+    tags: ["privacy", "data", "delete"]
+
+  - question:
+      en: "Antivirus blocks JARVIS"
+      ru: "Антивирус блокирует JARVIS"
+      uk: "Антивірус блокує JARVIS"
+    answer:
+      en: "Add the JARVIS project folder to Windows Defender exclusions. Do NOT exclude python.exe globally — only the project folder. In PowerShell (admin): Add-MpPreference -ExclusionPath 'C:\\path\\to\\Jarvis'"
+      ru: "Добавьте папку проекта JARVIS в исключения Windows Defender. НЕ исключайте python.exe глобально — только папку проекта. В PowerShell (админ): Add-MpPreference -ExclusionPath 'C:\\путь\\к\\Jarvis'"
+      uk: "Додайте папку проекту JARVIS до виключень Windows Defender. НЕ виключайте python.exe глобально — тільки папку проекту. В PowerShell (адмін): Add-MpPreference -ExclusionPath 'C:\\шлях\\до\\Jarvis'"
+    tags: ["safety", "antivirus", "troubleshooting"]
+
+  # ════════════════════════════════════════════════════
+  # ⚙️ НАСТРОЙКА
+  # ════════════════════════════════════════════════════
+
+  - question:
+      en: "How do I change how JARVIS addresses me?"
+      ru: "Как изменить обращение (сэр/сер)?"
+      uk: "Як змінити звертання (сер/сэр)?"
+    answer:
+      en: "Say 'Call me [name]' or edit preferences: set_preference('address', 'boss'). Default is 'sir' / 'сэр' / 'сер'."
+      ru: "Скажите 'Обращайся ко мне [обращение]' или измените в настройках: set_preference('address', 'шеф'). По умолчанию 'сэр'."
+      uk: "Скажіть 'Звертайся до мене [звертання]' або змініть в налаштуваннях: set_preference('address', 'шефе'). За замовчуванням 'сер'."
+    tags: ["config", "personalization"]
+
+  - question:
+      en: "How do I change the time format?"
+      ru: "Как изменить формат времени?"
+      uk: "Як змінити формат часу?"
+    answer:
+      en: "Default: 24h for RU/UK, 12h for EN. To change: edit voice_config.yaml → time_format. Or say 'Use 24-hour time' / 'Use 12-hour time'."
+      ru: "По умолчанию: 24ч для RU/UK, 12ч для EN. Изменить: voice_config.yaml → time_format. Или скажите 'Используй 24-часовой формат'."
+      uk: "За замовчуванням: 24г для RU/UK, 12г для EN. Змінити: voice_config.yaml → time_format. Або скажіть 'Використовуй 24-годинний формат'."
+    tags: ["config", "time"]
+
+  - question:
+      en: "How do I add my game to the knowledge base?"
+      ru: "Как добавить свою игру в базу знаний?"
+      uk: "Як додати свою гру в базу знань?"
+    answer:
+      en: "Copy knowledge/templates/game_template.yaml, rename to your game (e.g. stalker2.yaml), fill in achievements/tips/locations, put in knowledge/shared/. JARVIS loads it on restart."
+      ru: "Скопируйте knowledge/templates/game_template.yaml, переименуйте (например stalker2.yaml), заполните ачивки/советы/локации, положите в knowledge/shared/. JARVIS загрузит при перезапуске."
+      uk: "Скопіюйте knowledge/templates/game_template.yaml, перейменуйте (наприклад stalker2.yaml), заповніть ачівки/поради/локації, покладіть в knowledge/shared/. JARVIS завантажить при перезапуску."
+    tags: ["config", "games", "knowledge"]
+
+  - question:
+      en: "How do I configure gaming mode?"
+      ru: "Как настроить игровой режим?"
+      uk: "Як налаштувати ігровий режим?"
+    answer:
+      en: "In voice_config.yaml → modes.gaming → detect_by_process: add your game's exe name. Or say 'Gaming mode on' to activate manually, 'Gaming mode off' to deactivate."
+      ru: "В voice_config.yaml → modes.gaming → detect_by_process: добавьте имя exe вашей игры. Или скажите 'Игровой режим включить' для ручной активации, 'Игровой режим выключить' для деактивации."
+      uk: "В voice_config.yaml → modes.gaming → detect_by_process: додайте ім'я exe вашої гри. Або скажіть 'Ігровий режим увімкнути' для ручної активації, 'Ігровий режим вимкнути' для деактивації."
+    tags: ["config", "gaming"]
+
+  - question:
+      en: "How do I update JARVIS?"
+      ru: "Как обновить JARVIS?"
+      uk: "Як оновити JARVIS?"
+    answer:
+      en: "Run 'git pull' in the project folder. Your personal memory (memory/) is not affected — it's in .gitignore. After pull: check logs for errors, run smoke-test, restart JARVIS."
+      ru: "Выполните 'git pull' в папке проекта. Ваша личная память (memory/) не затрагивается — она в .gitignore. После pull: проверьте логи, запустите smoke-test, перезапустите JARVIS."
+      uk: "Виконайте 'git pull' в папці проекту. Ваша особиста пам'ять (memory/) не зачіпається — вона в .gitignore. Після pull: перевірте логи, запустіть smoke-test, перезапустіть JARVIS."
+    tags: ["config", "update"]
+
+  - question:
+      en: "Where is the config file?"
+      ru: "Где конфиг файл?"
+      uk: "Де конфіг файл?"
+    answer:
+      en: "Main config: config/voice_config.yaml. System prompt: config/system_prompt.yaml. Apps list: knowledge/base/apps_and_sites.yaml. All are YAML text files — edit with any text editor."
+      ru: "Основной конфиг: config/voice_config.yaml. Системный промпт: config/system_prompt.yaml. Список программ: knowledge/base/apps_and_sites.yaml. Все файлы YAML — редактируйте любым текстовым редактором."
+      uk: "Основний конфіг: config/voice_config.yaml. Системний промпт: config/system_prompt.yaml. Список програм: knowledge/base/apps_and_sites.yaml. Всі файли YAML — редагуйте будь-яким текстовим редактором."
+    tags: ["config", "files"]
+
+  # ════════════════════════════════════════════════════
+  # 🎮 ИГРЫ
+  # ════════════════════════════════════════════════════
+
+  - question:
+      en: "How do I use JARVIS for gaming?"
+      ru: "Как использовать JARVIS для игр?"
+      uk: "Як використовувати JARVIS для ігор?"
+    answer:
+      en: "JARVIS can remember achievements, tips, locations for any game. Add a game database (knowledge/shared/), then ask 'How do I get the Explorer achievement?' while playing. Gaming mode frees GPU for the game."
+      ru: "JARVIS может запоминать ачивки, советы, локации для любой игры. Добавьте базу игры (knowledge/shared/), потом спрашивайте 'Как получить ачивку Исследователь?' во время игры. Игровой режим освобождает GPU для игры."
+      uk: "JARVIS може запам'ятовувати ачівки, поради, локації для будь-якої гри. Додайте базу гри (knowledge/shared/), потім запитуйте 'Як отримати ачівку Дослідник?' під час гри. Ігровий режим звільняє GPU для гри."
+    tags: ["gaming", "basics"]
+
+  - question:
+      en: "How do I add game achievements?"
+      ru: "Как добавить ачивки игры?"
+      uk: "Як додати ачівки гри?"
+    answer:
+      en: "1) Copy knowledge/templates/game_template.yaml. 2) Rename (e.g. stalker2.yaml). 3) Fill achievements section. 4) Put in knowledge/shared/. Or say 'Remember: for Explorer achievement visit all locations in Stalker 2' — JARVIS auto-categorizes to games."
+      ru: "1) Скопируйте knowledge/templates/game_template.yaml. 2) Переименуйте (например stalker2.yaml). 3) Заполните секцию achievements. 4) Положите в knowledge/shared/. Или скажите 'Запомни: для ачивки Исследователь посетить все локации в Stalker 2' — JARVIS автоматически отнесёт к играм."
+      uk: "1) Скопіюйте knowledge/templates/game_template.yaml. 2) Перейменуйте (наприклад stalker2.yaml). 3) Заповніть секцію achievements. 4) Покладіть в knowledge/shared/. Або скажіть 'Запам'ятай: для ачівки Дослідник відвідати всі локації в Stalker 2' — JARVIS автоматично віднесе до ігор."
+    tags: ["gaming", "achievements", "memory"]
+
+  - question:
+      en: "JARVIS doesn't know my game"
+      ru: "JARVIS не знает мою игру"
+      uk: "JARVIS не знає мою гру"
+    answer:
+      en: "JARVIS auto-classifies unknown entities via LLM. If it fails: say 'Wukong is a game' and JARVIS will remember. Or add the game to knowledge/shared/ for structured data."
+      ru: "JARVIS автоматически классифицирует неизвестные сущности через LLM. Если не сработало: скажите 'Wukong — это игра' и JARVIS запомнит. Или добавьте игру в knowledge/shared/ для структурированных данных."
+      uk: "JARVIS автоматично класифікує невідомі сутності через LLM. Якщо не спрацювало: скажіть 'Wukong — це гра' і JARVIS запам'ятає. Або додайте гру в knowledge/shared/ для структурованих даних."
+    tags: ["gaming", "classifier", "memory"]
+
+  - question:
+      en: "How do I enable gaming mode manually?"
+      ru: "Как включить игровой режим вручную?"
+      uk: "Як увімкнути ігровий режим вручну?"
+    answer:
+      en: "Say 'Gaming mode on'. JARVIS switches LLM to CPU, TTS to Piper, frees GPU. Say 'Gaming mode off' to return to normal. Auto-detection also works via process names in config."
+      ru: "Скажите 'Игровой режим включить'. JARVIS переключит LLM на CPU, TTS на Piper, освободит GPU. 'Игровой режим выключить' — обратно. Автоопределение тоже работает по именам процессов в конфиге."
+      uk: "Скажіть 'Ігровий режим увімкнути'. JARVIS переключить LLM на CPU, TTS на Piper, звільнить GPU. 'Ігровий режим вимкнути' — назад. Автовизначення теж працює по іменах процесів в конфізі."
+    tags: ["gaming", "modes"]
+
+  # ════════════════════════════════════════════════════
+  # 🔧 ПРОБЛЕМЫ
+  # ════════════════════════════════════════════════════
+
+  - question:
+      en: "JARVIS won't start"
+      ru: "JARVIS не запускается"
+      uk: "JARVIS не запускається"
+    answer:
+      en: "Check: 1) Ollama is running (ollama serve). 2) Model is downloaded (ollama list). 3) Python venv is activated. 4) Run smoke_test.py to diagnose. 5) Check logs/ for errors."
+      ru: "Проверьте: 1) Ollama запущена (ollama serve). 2) Модель скачана (ollama list). 3) Python venv активирован. 4) Запустите smoke_test.py для диагностики. 5) Проверьте logs/ на ошибки."
+      uk: "Перевірте: 1) Ollama запущена (ollama serve). 2) Модель завантажена (ollama list). 3) Python venv активовано. 4) Запустіть smoke_test.py для діагностики. 5) Перевірте logs/ на помилки."
+    tags: ["troubleshooting", "startup"]
+
+  - question:
+      en: "JARVIS is frozen, what do I do?"
+      ru: "JARVIS завис, что делать?"
+      uk: "JARVIS завис, що робити?"
+    answer:
+      en: "1) Press Ctrl+C in terminal. 2) If no response — close terminal window. 3) Check nvidia-smi for GPU state. 4) Restart: python jarvis.py. 5) All memory is safe — nothing lost on crash."
+      ru: "1) Нажмите Ctrl+C в терминале. 2) Если не реагирует — закройте окно терминала. 3) Проверьте nvidia-smi состояние GPU. 4) Перезапустите: python jarvis.py. 5) Вся память в безопасности — ничего не теряется при падении."
+      uk: "1) Натисніть Ctrl+C в терміналі. 2) Якщо не реагує — закрийте вікно терміналу. 3) Перевірте nvidia-smi стан GPU. 4) Перезапустіть: python jarvis.py. 5) Вся пам'ять в безпеці — нічого не втрачається при падінні."
+    tags: ["troubleshooting", "crash"]
+
+  - question:
+      en: "CUDA / GPU error"
+      ru: "Ошибка CUDA / GPU"
+      uk: "Помилка CUDA / GPU"
+    answer:
+      en: "Common causes: 1) Out of VRAM — close GPU-heavy apps, reduce model size. 2) CUDA version mismatch — reinstall PyTorch matching your CUDA. 3) Driver needs update — download latest from nvidia.com. 4) GPU overheating — check temperature in nvidia-smi."
+      ru: "Частые причины: 1) Нехватка VRAM — закройте GPU-тяжёлые приложения, уменьшите модель. 2) Несовпадение версии CUDA — переустановите PyTorch под вашу CUDA. 3) Драйвер устарел — скачайте последний с nvidia.com. 4) Перегрев GPU — проверьте температуру в nvidia-smi."
+      uk: "Часті причини: 1) Нестача VRAM — закрийте GPU-важкі програми, зменшіть модель. 2) Невідповідність версії CUDA — перевстановіть PyTorch під вашу CUDA. 3) Драйвер застарів — завантажте останній з nvidia.com. 4) Перегрів GPU — перевірте температуру в nvidia-smi."
+    tags: ["troubleshooting", "gpu", "cuda"]
+
+  - question:
+      en: "Ollama not responding"
+      ru: "Ollama не отвечает"
+      uk: "Ollama не відповідає"
+    answer:
+      en: "1) Check if running: curl http://127.0.0.1:11434/api/tags. 2) Restart: ollama serve. 3) Check if model is downloaded: ollama list. 4) Port conflict: another app may use 11434. 5) Firewall may block — add exception."
+      ru: "1) Проверить запущена ли: curl http://127.0.0.1:11434/api/tags. 2) Перезапустить: ollama serve. 3) Проверить модель: ollama list. 4) Конфликт порта: другое приложение может использовать 11434. 5) Файрвол может блокировать — добавьте исключение."
+      uk: "1) Перевірити чи запущена: curl http://127.0.0.1:11434/api/tags. 2) Перезапустити: ollama serve. 3) Перевірити модель: ollama list. 4) Конфлікт порту: інша програма може використовувати 11434. 5) Файрвол може блокувати — додайте виключення."
+    tags: ["troubleshooting", "ollama"]
+
+  - question:
+      en: "No sound / can't hear JARVIS"
+      ru: "Нет звука / не слышу JARVIS"
+      uk: "Немає звуку / не чую JARVIS"
+    answer:
+      en: "Check: 1) Windows volume is not muted. 2) Correct audio output device selected. 3) Piper TTS models are downloaded (check models/piper/). 4) Run test: python -c 'from piper import PiperVoice; print(\"OK\")'. 5) Check logs for TTS errors."
+      ru: "Проверьте: 1) Громкость Windows не на нуле. 2) Правильное устройство вывода выбрано. 3) Модели Piper TTS скачаны (проверьте models/piper/). 4) Тест: python -c 'from piper import PiperVoice; print(\"OK\")'. 5) Проверьте логи на ошибки TTS."
+      uk: "Перевірте: 1) Гучність Windows не на нулі. 2) Правильний пристрій виводу обрано. 3) Моделі Piper TTS завантажені (перевірте models/piper/). 4) Тест: python -c 'from piper import PiperVoice; print(\"OK\")'. 5) Перевірте логи на помилки TTS."
+    tags: ["troubleshooting", "audio", "tts"]
+
+  - question:
+      en: "Whisper recognizes garbage / noise"
+      ru: "Whisper распознаёт мусор"
+      uk: "Whisper розпізнає сміття"
+    answer:
+      en: "1) Increase VAD threshold in voice_config.yaml (default 0.5, try 0.6-0.7). 2) Reduce background noise. 3) Check mic isn't picking up fans/AC. 4) STT confidence checker auto-ignores low-confidence results. 5) Use a directional mic or headset."
+      ru: "1) Увеличьте порог VAD в voice_config.yaml (по умолчанию 0.5, попробуйте 0.6-0.7). 2) Уберите фоновый шум. 3) Проверьте что микрофон не ловит вентиляторы/кондиционер. 4) Проверка уверенности STT автоматически игнорирует мусор. 5) Используйте направленный микрофон или гарнитуру."
+      uk: "1) Збільшіть поріг VAD в voice_config.yaml (за замовчуванням 0.5, спробуйте 0.6-0.7). 2) Приберіть фоновий шум. 3) Перевірте що мікрофон не ловить вентилятори/кондиціонер. 4) Перевірка впевненості STT автоматично ігнорує сміття. 5) Використовуйте спрямований мікрофон або гарнітуру."
+    tags: ["troubleshooting", "stt", "noise"]

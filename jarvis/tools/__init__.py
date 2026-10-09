@@ -39,6 +39,9 @@ def setup_local_tools(
     *,
     ollama_client: object = None,
     vram_manager: object = None,
+    memory_store: object = None,
+    stt: object = None,
+    tts_manager: object = None,
 ) -> None:
     """Register every built-in local tool into `registry`.
 
@@ -66,6 +69,7 @@ def setup_local_tools(
     from jarvis.tools.local.open_url import OpenUrlTool
     from jarvis.tools.local.play_youtube_music import PlayYoutubeMusicTool
     from jarvis.tools.local.screenshot import ScreenshotTool
+    from jarvis.tools.local.switch_language import SwitchLanguageTool
     from jarvis.tools.local.see_screen import SeeScreenTool
     from jarvis.tools.local.system_stats import SystemStatsTool
     from jarvis.tools.local.type_into_active_window import TypeIntoActiveWindowTool
@@ -118,6 +122,7 @@ def setup_local_tools(
         ScreenshotTool(),
         SystemStatsTool(vram_manager=vram_manager),
         TypeIntoActiveWindowTool(),
+        SwitchLanguageTool(stt=stt, tts_manager=tts_manager),
         VolumeTool(),
         WeatherTool(weather_config=weather_cfg, save_fn=weather_save_fn),
     ]
@@ -130,6 +135,17 @@ def setup_local_tools(
         )
     for tool in base_tools:
         registry.register(tool)
+
+    # T4.1: Memory tools — remember, recall, forget, status.
+    if memory_store is not None:
+        from jarvis.memory.tools import (
+            ForgetTool,
+            MemoryStatusTool,
+            RecallTool,
+            RememberTool,
+        )
+        for tool in [RememberTool, RecallTool, ForgetTool, MemoryStatusTool]:
+            registry.register(tool(memory_store=memory_store))
 
 
 __all__ = [

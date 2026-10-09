@@ -43,7 +43,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
-CURRENT_SCHEMA_VERSION = 22
+CURRENT_SCHEMA_VERSION = 23
 
 # Prompts from prior schema versions — used by migrations to detect and
 # replace the old default without overwriting user-customised prompts.
@@ -200,6 +200,16 @@ class STTConfig(_Base):
 
 class TTSConfig(_Base):
     voice: str = "en_GB-alan-medium"
+    # Per-language voice assignments. When detected language changes,
+    # TTS switches to the appropriate voice automatically.
+    # To use a custom trained voice, just change the value:
+    #   voices_ru: "ru_RU-baranov-custom"
+    voices_en: str = "en_GB-alan-medium"
+    voices_ru: str = "ru_RU-dmitri-medium"
+    voices_uk: str = "uk_UA-mykyta-medium"
+    # Backend for future Qwen3-TTS: "piper" (CPU) or "qwen3_tts" (GPU)
+    # When "auto", uses Qwen3 if available, falls back to Piper
+    backend: str = "piper"
     speed: float = Field(default=1.0, gt=0.0, le=4.0)
     volume: float = Field(default=1.0, ge=0.0, le=1.0)
 
@@ -334,6 +344,14 @@ class PipelineConfig(_Base):
     # Disable for headphones (where barge-in is more useful).
     half_duplex: bool = True
 
+    # T3.3: Barge-in / echo cancellation mode. Controls how JARVIS handles
+    # mic input while speaking. Values: "half_duplex" (mute mic, default),
+    # "aec" (WebRTC echo cancellation, requires pywebrtc-audio or echoff),
+    # "headphones" (no processing, headphones prevent echo).
+    # When "aec" is selected but no library is installed, falls back to
+    # half_duplex automatically with a warning.
+    barge_in_mode: str = "half_duplex"
+
     # T3.4: Max consecutive auto-recovery attempts before giving up.
     max_recovery_attempts: int = Field(default=3, ge=1, le=10)
 
@@ -450,6 +468,23 @@ class VisionConfig(_Base):
     temperature: float = Field(default=0.2, ge=0.0, le=2.0)
 
 
+class MemoryConfig(_Base):
+    """Settings for the memory subsystem embedding search (T4.1/T4.2).
+
+    When ``embeddings_enabled`` is True and sentence-transformers is
+    installed, JARVIS builds a FAISS index for semantic search across
+    stored facts. The model is downloaded once (~420 MB) and cached
+    locally for offline use.
+    """
+
+    embeddings_enabled: bool = True
+    embeddings_model: str = (
+        "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    )
+    embeddings_device: str = "cpu"
+    embeddings_top_k: int = 20
+
+
 class WeatherConfig(_Base):
     # No hard-coded default coordinates: the weather tool auto-detects the
     # user's approximate location via ipapi.co on first use when both
@@ -481,6 +516,7 @@ class JarvisConfig(_Base):
     weather: WeatherConfig = Field(default_factory=WeatherConfig)
     vision: VisionConfig = Field(default_factory=VisionConfig)
     mcp_servers: list[MCPServerConfig] = Field(default_factory=_default_mcp_servers)
+    memory: MemoryConfig = Field(default_factory=MemoryConfig)
 
 
 # --- secrets at rest -------------------------------------------------------
@@ -941,6 +977,23 @@ def _migrate_v21_to_v22(data: dict) -> dict:
     return data
 
 
+def _migrate_v22_to_v23(data: dict) -> dict:
+    """Schema v23: memory.embeddings_* settings for FAISS semantic search.
+
+    Adds the ``memory`` config section with embedding defaults. Existing
+    configs get embeddings_enabled=True so semantic search activates
+    automatically once sentence-transformers is installed.
+    """
+    mem = data.setdefault("memory", {})
+    mem.setdefault("embeddings_enabled", True)
+    mem.setdefault("embeddings_model",
+                   "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+    mem.setdefault("embeddings_device", "cpu")
+    mem.setdefault("embeddings_top_k", 20)
+    data["schema_version"] = 23
+    return data
+
+
 MIGRATIONS: dict[int, Migration] = {
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
@@ -963,6 +1016,7 @@ MIGRATIONS: dict[int, Migration] = {
     19: _migrate_v19_to_v20,
     20: _migrate_v20_to_v21,
     21: _migrate_v21_to_v22,
+    22: _migrate_v22_to_v23,
 }
 
 

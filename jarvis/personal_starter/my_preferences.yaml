@@ -1,0 +1,130 @@
+# Стартовая личная память Serhii
+# Импортировать в personal.db при первом запуске
+# Файл НЕ для GitHub — .gitignore!
+#
+# python personal_starter/import_starter.py
+
+# ════════════════════════════════════════════════════
+# ⚙️ НАСТРОЙКИ
+# ════════════════════════════════════════════════════
+
+preferences:
+  language: "auto"              # Автоопределение UA/RU/EN
+  response_style: "concise"     # Краткие ответы
+  address: "sir"                # Обращение "сэр" / "сер" / "sir"
+  time_format_ru: "24h"
+  time_format_uk: "24h"
+  time_format_en: "12h"
+  gaming_mode: "auto"           # Автоопределение по процессу
+  announce_actions: true        # Говорить "Открываю X"
+  tts_volume: "loud"            # Громкость TTS: quiet / normal / loud
+  browser: "chrome"             # Основной браузер — Google Chrome
+
+# ════════════════════════════════════════════════════
+# 👤 ФАКТЫ О ПОЛЬЗОВАТЕЛЕ
+# ════════════════════════════════════════════════════
+
+facts:
+  # ── Личное ──
+  - content: "Имя пользователя — Сергій (Serhii)"
+    category: "personal/identity"
+    tags: ["name"]
+    is_permanent: true
+
+  - content: "Родом из Украины, город Сумы. Живёт в Зелёна Гура (Zielona Góra), Польша"
+    category: "personal/identity"
+    tags: ["location", "ukraine", "poland"]
+    is_permanent: true
+
+  - content: "Часовой пояс: Europe/Warsaw (CET/CEST, UTC+1/+2)"
+    category: "personal/identity"
+    tags: ["timezone"]
+    is_permanent: true
+
+  - content: "Три рабочих языка: украинский, русский, английский. Родной — украинский."
+    category: "personal/preferences"
+    tags: ["language"]
+    is_permanent: true
+
+  # ── Работа ──
+  - content: "Работает по сменному графику: месяц дневные, месяц ночные. 4 дня в неделю, обычно среда-суббота, по 10.5 часов. Полтора часа в дороге в одну сторону."
+    category: "personal/work"
+    tags: ["schedule", "work"]
+    is_permanent: false  # Может меняться
+
+  - content: "Рабочие инструменты: VS Code, PyCharm, Stable Diffusion"
+    category: "personal/work"
+    tags: ["tools", "developer"]
+    is_permanent: true
+
+  - content: "Пользователь — разработчик, пишет скрипты для работы и личных проектов"
+    category: "personal/work"
+    tags: ["developer", "scripts"]
+    is_permanent: true
+
+  # ── Интересы ──
+  - content: "Увлекается видеоиграми. Цель — проходить игры на 100% (все ачивки). В библиотеке Steam ~1000 игр. Нет одной любимой — играет в разные."
+    category: "personal/interests"
+    tags: ["games", "steam", "completionist"]
+    is_permanent: true
+
+  - content: "Смотрит аниме, читает мангу и ранобе"
+    category: "personal/interests"
+    tags: ["anime", "manga", "ranobe"]
+    is_permanent: true
+
+  - content: "Пишет скрипты (UserScript, Tampermonkey) для автоматизации рабочих процессов"
+    category: "personal/interests"
+    tags: ["scripting", "automation", "tampermonkey"]
+    is_permanent: true
+
+  # ── Техника ──
+  - content: "Домашний ПК: RTX 3060 12GB, Ryzen 7 5700X, 32GB RAM, Windows"
+    category: "tech/hardware"
+    tags: ["hardware", "jarvis"]
+    is_permanent: true
+
+  - content: "Ollama настроена на максимум 8 ГБ VRAM"
+    category: "tech/jarvis/config"
+    tags: ["config", "vram", "ollama"]
+    is_permanent: true
+
+  - content: "Основной браузер — Google Chrome"
+    category: "personal/preferences"
+    tags: ["browser", "chrome"]
+    is_permanent: true
+
+# ════════════════════════════════════════════════════
+# 📋 ПРОЕКТЫ
+# ════════════════════════════════════════════════════
+
+projects:
+  - name: "JARVIS"
+    description: "Локальний AI-асистент на базі Qwen3-8B + Ollama + Piper TTS"
+    status: "active"
+
+  - name: "Steam 100% completionist"
+    description: "Проходження ігор зі Steam на 100% (всі ачівки)"
+    status: "active"
+
+# ════════════════════════════════════════════════════
+# 📅 РАБОЧИЙ ГРАФИК (шаблон)
+# ════════════════════════════════════════════════════
+# JARVIS может учитывать это для:
+# - Не будить голосом когда спит после ночной
+# - Знать когда пользователь дома / на работе
+# - Переключать режимы (low_power когда на работе)
+
+work_schedule:
+  type: "shift"                   # Сменный график
+  rotation: "monthly"             # Чередование каждый месяц
+  shifts:
+    day:
+      days: ["wed", "thu", "fri", "sat"]  # Обычно ср-сб, может меняться
+      hours: "10.5h"
+      commute: "1.5h one way"
+    night:
+      days: ["wed", "thu", "fri", "sat"]
+      hours: "10.5h"
+      commute: "1.5h one way"
+  note: "График может меняться — обновлять ежемесячно"

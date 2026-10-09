@@ -30,10 +30,13 @@ fire.
 Workaround: use headphones. With headphones the mic captures only the user's
 voice, and interrupt works as designed.
 
-Phase 6 backlog: integrate webrtc-audio-processing (or a comparable AEC
-library) before the wake-word stage. AEC subtracts the speaker reference from
-the mic signal so the classifier receives a clean "hey jarvis" even while TTS
-is playing. Until that lands, wake-word interrupt is a headphone-only feature.
+AEC integration (T3.3)
+----------------------
+An optional BargeInManager (see audio/aec.py) can be passed to the pipeline.
+When configured in AEC mode (with pywebrtc-audio or echoff installed), it
+subtracts the speaker reference from the mic signal so VAD and the wake-word
+classifier receive a clean input even while TTS is playing. Without the AEC
+library, the manager falls back to half-duplex mode automatically.
 
 VAD-based barge-in is a separate mechanism and remains disabled by default
 (`BARGE_IN_ENABLED = False`): without AEC, desktop speakers feeding back into
@@ -51,6 +54,7 @@ import random
 import time
 from collections.abc import Callable
 
+from jarvis.audio.aec import BargeInManager, BargeInMode
 from jarvis.audio.protocols import (
     FRAME_BYTES,
     FRAME_DURATION_MS,
@@ -111,6 +115,7 @@ class AudioPipeline:
         bus: EventBus,
         sm: StateMachine,
         *,
+        tts_manager: object | None = None,
         listening_timeout_seconds: float = LISTENING_TIMEOUT_DEFAULT,
         frame_queue_maxsize: int = _FRAME_QUEUE_DEFAULT,
         post_wake_blackout_ms: int = POST_WAKE_BLACKOUT_MS,
@@ -124,7 +129,9 @@ class AudioPipeline:
         stt_timeout_s: float = 10.0,
         llm_timeout_s: float = 20.0,
         tts_timeout_s: float = 15.0,
+        barge_in_manager: BargeInManager | None = None,
     ) -> None:
+        # T3.3: AEC / barge-in manager (optional — backwards compatible).
         self._source = source
         self._wake_word = wake_word
         self._vad = vad
@@ -133,6 +140,7 @@ class AudioPipeline:
         self._response_producer = response_producer
         self._bus = bus
         self._sm = sm
+        self._tts_manager = tts_manager  # Phase 3: multilingual voice switching
         self._listening_timeout_seconds = listening_timeout_seconds
         self._post_wake_blackout_ms = post_wake_blackout_ms
         self._min_utterance_ms = min_utterance_ms
@@ -149,6 +157,14 @@ class AudioPipeline:
         # T3.3/T3.4 Phase 3 state
         self._thinking_phrases_enabled = thinking_phrases_enabled
         self._half_duplex = half_duplex
+        # T3.3: BargeInManager — when provided, replaces the boolean
+        # half_duplex flag with mode-aware echo management. If AEC is
+        # available via the manager, override barge_in and half_duplex
+        # so the pipeline uses the manager instead of the legacy flag.
+        self._barge_in_manager = barge_in_manager
+        if barge_in_manager is not None and barge_in_manager.mode is BargeInMode.AEC:
+            self._barge_in_enabled = True
+            self._half_duplex = False
         self._stt_timeout_s = stt_timeout_s
         self._llm_timeout_s = llm_timeout_s
         self._tts_timeout_s = tts_timeout_s
@@ -319,6 +335,20 @@ class AudioPipeline:
         # so "Hey Jarvis" interrupt works even in half-duplex mode.
         if self._half_duplex:
             return
+        # T3.3: AEC-aware path — if a BargeInManager with AEC is active,
+        # run echo cancellation on the frame before feeding VAD / barge-in.
+        if self._barge_in_manager is not None:
+            processed = self._barge_in_manager.process_audio(frame)
+            if self._barge_in_manager.check_barge_in(processed):
+                await self._handle_barge_in()
+                return
+            # Even with AEC, if barge_in_enabled is False we don't feed VAD.
+            if not self._barge_in_enabled:
+                return
+            event = await self._vad.feed(processed)
+            if event is VADEvent.SPEECH_STARTED:
+                await self._handle_barge_in()
+            return
         if not self._barge_in_enabled:
             return
         event = await self._vad.feed(frame)
@@ -481,6 +511,15 @@ class AudioPipeline:
                 self._sm.set_conversational_state(ConversationalState.IDLE)
                 return
 
+            # Phase 3: Switch TTS voice to match detected language.
+            # This must happen BEFORE thinking phrase or response speak,
+            # so JARVIS replies in the same language the user spoke.
+            if self._tts_manager is not None and result.detected_language:
+                try:
+                    await self._tts_manager.set_language(result.detected_language)
+                except Exception:
+                    log.warning("tts_manager.set_language failed", exc_info=True)
+
             # T3.4: Thinking phrase — speak a short filler via Piper (CPU)
             # so the user doesn't hear silence while the LLM thinks.
             if self._thinking_phrases_enabled:
@@ -518,6 +557,9 @@ class AudioPipeline:
                             ConversationalState.SPEAKING
                         )
                         self._tts_started_at = time.monotonic()
+                        # T3.3: notify barge-in manager that TTS is active.
+                        if self._barge_in_manager is not None:
+                            self._barge_in_manager.on_tts_start()
                         first_chunk_seen = True
                     full_text_parts.append(chunk)
                     self._bus.publish(LLMResponseChunk(text=chunk))
@@ -546,6 +588,9 @@ class AudioPipeline:
                 log.exception("recovery to IDLE failed")
         finally:
             self._tts_started_at = None
+            # T3.3: notify barge-in manager that TTS is done.
+            if self._barge_in_manager is not None:
+                self._barge_in_manager.on_tts_end()
             log.info("[turn] end: total %s ms", ms_since_turn_start())
             turn_started_at.reset(start_token)
             correlation_id.reset(cid_token)
