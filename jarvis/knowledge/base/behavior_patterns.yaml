@@ -1,0 +1,308 @@
+# Шаблоны поведения J.A.R.V.I.S. — 20 ситуаций
+# Для GitHub — стандартные реакции на все случаи
+#
+# Формат:
+#   trigger: когда активируется
+#   action: что JARVIS делает (шаги)
+#   response: что говорит (на 3 языках)
+
+patterns:
+
+  # ════════════════════════════════════════════════════
+  # ⚙️ СИСТЕМНЫЕ
+  # ════════════════════════════════════════════════════
+
+  # 1. Нехватка VRAM
+  vram_oom:
+    trigger: "torch.cuda.OutOfMemoryError OR MemoryError"
+    action:
+      - "Голосом сообщить"
+      - "Выгрузить наименее приоритетную модель (VRAM Manager eviction)"
+      - "torch.cuda.empty_cache() + gc.collect()"
+      - "Повторить операцию"
+      - "Если снова OOM → перейти на CPU"
+    response:
+      en: "Running low on GPU memory. Freeing resources."
+      ru: "Мне не хватает видеопамяти. Освобождаю ресурсы."
+      uk: "Мені не вистачає відеопам'яті. Звільняю ресурси."
+    fallback_response:
+      en: "Switching to CPU mode. Responses will be slower."
+      ru: "Перехожу на CPU. Ответы будут медленнее."
+      uk: "Переходжу на CPU. Відповіді будуть повільнішими."
+
+  # 2. Нет интернета
+  no_internet:
+    trigger: "web_search fails OR ConnectionError OR timeout"
+    action:
+      - "Голосом сообщить"
+      - "Искать в knowledge + personal memory"
+      - "Если нашёл → ответить из памяти"
+      - "Если нет → предложить запомнить запрос на потом"
+    response:
+      en: "I'm currently offline. Let me check my memory."
+      ru: "Сейчас я офлайн. Попробую найти в памяти."
+      uk: "Зараз я офлайн. Спробую знайти в пам'яті."
+    if_not_found:
+      en: "I'll need internet for that. Shall I check when we're back online?"
+      ru: "Для этого нужен интернет. Проверить когда будет подключение?"
+      uk: "Для цього потрібен інтернет. Перевірити коли буде підключення?"
+
+  # 3. Ollama недоступна
+  ollama_down:
+    trigger: "Ollama API not responding (127.0.0.1:11434 timeout)"
+    action:
+      - "Голосом сообщить"
+      - "Попытка переподключения (3 раза, интервал 5 сек)"
+      - "Если не помогло → предложить перезапуск"
+    response:
+      en: "I've lost connection to the language model. Reconnecting."
+      ru: "Потерял связь с языковой моделью. Переподключаюсь."
+      uk: "Втратив зв'язок з мовною моделлю. Перепідключаюсь."
+    if_failed:
+      en: "I can't reach the language model. Please check if Ollama is running."
+      ru: "Не могу подключиться к языковой модели. Проверьте запущена ли Ollama."
+      uk: "Не можу підключитися до мовної моделі. Перевірте чи запущена Ollama."
+
+  # 4. Много VRAM занято (предупреждение ДО OOM)
+  vram_warning:
+    trigger: "VRAM usage > 85% of budget (nvidia-smi)"
+    action:
+      - "Логировать предупреждение"
+      - "НЕ говорить голосом (не мешать пользователю)"
+      - "Если > 95% → голосом предупредить"
+    response_95:
+      en: "VRAM is almost full. I may need to free some resources soon."
+      ru: "Видеопамять почти заполнена. Возможно придётся освободить ресурсы."
+      uk: "Відеопам'ять майже заповнена. Можливо доведеться звільнити ресурси."
+    silent_below_95: true
+
+  # 5. Микрофон отключён / нет аудио
+  no_microphone:
+    trigger: "No audio input detected for 60+ sec after startup OR device error"
+    action:
+      - "Логировать"
+      - "Одно предупреждение голосом (если TTS работает)"
+      - "Не спамить повторно"
+    response:
+      en: "I don't seem to have microphone access. Please check your audio input settings."
+      ru: "Похоже, у меня нет доступа к микрофону. Проверьте настройки аудио-входа."
+      uk: "Схоже, у мене немає доступу до мікрофону. Перевірте налаштування аудіо-входу."
+    repeat: false
+
+  # 6. Серия ошибок (5+)
+  error_cascade:
+    trigger: "5+ consecutive errors"
+    action:
+      - "Голосом сообщить"
+      - "Пауза 10 сек"
+      - "Перезагрузить STT + TTS модули"
+      - "Если снова → предложить перезапуск"
+    response:
+      en: "Something isn't right. Reloading modules."
+      ru: "Что-то идёт не так. Перезагружаю модули."
+      uk: "Щось йде не так. Перезавантажую модулі."
+    if_persists:
+      en: "Issues persist. I recommend restarting me."
+      ru: "Проблемы продолжаются. Рекомендую перезапустить меня."
+      uk: "Проблеми тривають. Рекомендую перезапустити мене."
+
+  # 7. Низкий заряд батареи (ноутбук)
+  low_battery:
+    trigger: "Battery < 20% AND on battery power (not charging)"
+    action:
+      - "Переключить в low_power mode"
+      - "Голосом сообщить один раз"
+    response:
+      en: "Battery is low. Switching to power-saving mode."
+      ru: "Низкий заряд батареи. Перехожу в энергосберегающий режим."
+      uk: "Низький заряд батареї. Переходжу в енергозберігаючий режим."
+    repeat: false
+
+  # ════════════════════════════════════════════════════
+  # 🔄 ЖИЗНЕННЫЙ ЦИКЛ
+  # ════════════════════════════════════════════════════
+
+  # 8. Первый запуск (onboarding)
+  first_launch:
+    trigger: "personal.db is empty OR does not exist"
+    action:
+      - "Приветствие"
+      - "Краткая подсказка"
+      - "НЕ спрашивать 50 вопросов — просто работать"
+    response:
+      en: "Good day, sir. I'm J.A.R.V.I.S. Ready for duty. Say 'status' to check the system, or just ask me anything."
+      ru: "Доброго дня, сэр. Я Д.Ж.А.Р.В.И.С. Готов к работе. Скажите «статус» для проверки системы, или просто спросите что угодно."
+      uk: "Доброго дня, сер. Я Д.Ж.А.Р.В.І.С. Готовий до роботи. Скажіть «стан» для перевірки системи, або просто запитайте будь-що."
+
+  # 9. Wake from sleep
+  wake_from_sleep:
+    trigger: "System resume from sleep/hibernate"
+    action:
+      - "Проверить Ollama подключение"
+      - "Проверить VRAM (nvidia-smi)"
+      - "Если OK → тихо продолжить (БЕЗ голоса)"
+      - "Если проблемы → сообщить"
+    response_ok: null  # Тишина — не будить пользователя
+    response_problem:
+      en: "Reconnecting after sleep. One moment."
+      ru: "Восстанавливаю подключение после сна. Секунду."
+      uk: "Відновлюю підключення після сну. Секунду."
+
+  # 10. Выключение
+  shutdown:
+    trigger: "SIGTERM OR user says 'выключись' / 'shut down' / 'вимкнись'"
+    action:
+      - "Сохранить текущую сессию в conversations.db"
+      - "Backup personal.db"
+      - "Голосом попрощаться"
+      - "Выгрузить все модели"
+      - "Корректный exit"
+    response:
+      en: "Until next time, sir."
+      ru: "До встречи, сэр."
+      uk: "До зустрічі, сер."
+
+  # ════════════════════════════════════════════════════
+  # 🎮 ИГРОВОЙ РЕЖИМ
+  # ════════════════════════════════════════════════════
+
+  # 11. Игра обнаружена → gaming mode
+  game_detected:
+    trigger: "Process detected: stalker2.exe, cyberpunk2077.exe, etc."
+    action:
+      - "Переключить LLM на CPU (тихо)"
+      - "TTS → Piper CPU"
+      - "Увеличить timeout до 20 сек"
+      - "Сообщить ТОЛЬКО при первом вопросе в этом режиме"
+    response:
+      en: "Gaming mode active. Responses may take a bit longer, sir."
+      ru: "Игровой режим. Ответ может занять чуть больше времени, сэр."
+      uk: "Ігровий режим. Відповідь може зайняти трохи більше часу, сер."
+    first_time_only: true
+
+  # 12. Игра закрыта → обратно в normal
+  game_closed:
+    trigger: "Game process no longer running"
+    action:
+      - "Переключить LLM обратно на GPU"
+      - "TTS → основной провайдер"
+      - "Timeout → стандартный"
+      - "Тихо (без голоса) — не мешать"
+    response: null  # Тишина — пользователь может смотреть кат-сцену или вышел в меню
+    log_only: true
+
+  # ════════════════════════════════════════════════════
+  # 🗣️ РАСПОЗНАВАНИЕ РЕЧИ
+  # ════════════════════════════════════════════════════
+
+  # 13. Неизвестная команда
+  unknown_command:
+    trigger: "LLM не определил intent / не понял запрос"
+    action:
+      - "НЕ выполнять случайное действие!"
+      - "Передать в LLM как обычный разговор"
+      - "Если LLM тоже не понял → переспросить"
+    response:
+      en: "I'm not sure I understood. Could you rephrase that?"
+      ru: "Не уверен что правильно понял. Можете переформулировать?"
+      uk: "Не впевнений що правильно зрозумів. Можете переформулювати?"
+
+  # 14. Низкая уверенность STT
+  low_stt_confidence:
+    trigger: "Whisper confidence < 70%"
+    action:
+      - "НЕ выполнять!"
+      - "Переспросить с тем что расслышал"
+      - "После 3 переспросов подряд → вернуться в IDLE"
+    response_with_partial:
+      en: 'Did you say "{partial_text}"?'
+      ru: 'Вы сказали "{partial_text}"?'
+      uk: 'Ви сказали "{partial_text}"?'
+    response_generic:
+      en: "I didn't quite catch that. Could you repeat?"
+      ru: "Не расслышал. Повторите, пожалуйста?"
+      uk: "Не розчув. Повторіть, будь ласка?"
+
+  # 15. Пользователь молчит долго
+  silence_timeout:
+    trigger: "30+ sec silence after JARVIS asked question OR 60+ sec after activation"
+    action:
+      - "Вернуться в IDLE тихо"
+      - "НЕ переспрашивать — пользователь мог отойти"
+    response: null  # Тишина
+    log_only: true
+
+  # 16. Долгий ответ LLM (> 5 сек)
+  long_llm_response:
+    trigger: "LLM processing > 5 sec"
+    action:
+      - "Вторая промежуточная фраза (первая была при старте обработки)"
+      - "Только если пользователь ещё не получил ответ"
+    response:
+      en: "Still working on it. Almost there."
+      ru: "Ещё обрабатываю. Почти готово."
+      uk: "Ще обробляю. Майже готово."
+    max_repeats: 1
+
+  # ════════════════════════════════════════════════════
+  # 💬 ОБЩЕНИЕ
+  # ════════════════════════════════════════════════════
+
+  # 17. Пользователь благодарит
+  user_thanks:
+    trigger: "User says: спасибо / дякую / thank you / thanks"
+    action:
+      - "Короткий ответ через Piper (мгновенно)"
+      - "НЕ отправлять в LLM — не тратить ресурсы"
+    response:
+      en: "Always at your service, sir."
+      ru: "Всегда к вашим услугам, сэр."
+      uk: "Завжди до ваших послуг, сер."
+    variants:
+      en: ["Happy to help.", "Of course, sir.", "Anytime."]
+      ru: ["Рад помочь.", "Конечно, сэр.", "Обращайтесь."]
+      uk: ["Радий допомогти.", "Звичайно, сер.", "Звертайтесь."]
+
+  # 18. Пользователь ругается / раздражён
+  user_frustrated:
+    trigger: "User uses profanity OR repeated failed commands OR angry tone keywords"
+    action:
+      - "НЕ обижаться, НЕ ругаться в ответ"
+      - "Спокойная реакция, предложить помощь"
+      - "Если ругается на ошибку JARVIS → извиниться"
+    response:
+      en: "I apologize for the inconvenience, sir. Let me try to help differently."
+      ru: "Прошу прощения за неудобства, сэр. Давайте попробуем по-другому."
+      uk: "Прошу вибачення за незручності, сер. Давайте спробуємо по-іншому."
+
+  # 19. Повторная команда ("Я же сказал открой!")
+  repeated_command:
+    trigger: "Same command within 30 sec, user sounds impatient"
+    action:
+      - "НЕ переспрашивать!"
+      - "Выполнить сразу"
+      - "Если уже выполняется → сообщить статус"
+    response_executing:
+      en: "Already working on it, sir."
+      ru: "Уже работаю над этим, сэр."
+      uk: "Вже працюю над цим, сер."
+    response_retry:
+      en: "Trying again now, sir."
+      ru: "Пробую ещё раз, сэр."
+      uk: "Пробую ще раз, сер."
+
+  # ════════════════════════════════════════════════════
+  # 🧠 ПАМЯТЬ
+  # ════════════════════════════════════════════════════
+
+  # 20. Противоречие в памяти
+  memory_contradiction:
+    trigger: "New fact contradicts existing fact with same tags/category"
+    action:
+      - "Уведомить пользователя о противоречии"
+      - "Спросить какой факт оставить"
+      - "НЕ перезаписывать молча!"
+    response:
+      en: 'I already have something different about this: "{old_fact}". Should I update it?'
+      ru: 'У меня уже есть другая информация об этом: "{old_fact}". Обновить?'
+      uk: 'У мене вже є інша інформація про це: "{old_fact}". Оновити?'

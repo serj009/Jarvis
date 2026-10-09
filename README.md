@@ -204,6 +204,49 @@ gh release create v0.0.1 dist\Jarvis-0.0.1-windows-x64.zip `
 
 ---
 
+## Quick Setup (development)
+
+The fastest way to get a working development environment from a fresh clone:
+
+```powershell
+python setup_jarvis.py
+```
+
+This single script handles the entire bootstrap:
+
+1. Checks Python version (≥ 3.10)
+2. Creates a `.venv/` virtual environment
+3. Installs all dependencies from `pyproject.toml`
+4. Downloads **6 Piper TTS voices** (EN/RU/UK × male + alternative)
+5. Downloads the **faster-whisper** STT model
+6. Verifies **Silero VAD** presence
+7. Downloads **openWakeWord** models
+8. Checks **Ollama** availability and installed models
+9. Runs a smoke test
+
+**Idempotent** — safe to run repeatedly; skips already-downloaded assets.
+**Offline** — works without internet when everything is cached.
+
+### Options
+
+```powershell
+# Use a different Whisper model (default: base)
+python setup_jarvis.py --whisper-model small
+
+# Skip the smoke test at the end
+python setup_jarvis.py --skip-smoke-test
+```
+
+### Optional: AEC support
+
+For echo cancellation (full-duplex barge-in with desktop speakers):
+
+```powershell
+.venv\Scripts\pip install -e ".[aec]"
+```
+
+---
+
 ## Build from source
 
 ```powershell

@@ -56,9 +56,24 @@ dependencies = [
 dev = [
   "pytest>=8,<9",
   "pytest-asyncio>=0.23,<1",
+  # T4.2: Semantic memory search. sentence-transformers pulls torch and
+  # transformers; faiss-cpu provides the vector index. Both are optional
+  # at runtime — jarvis gracefully falls back to keyword search when they
+  # are absent. Placed under [dev] so CI and dev installs get them.
+  "sentence-transformers>=2.6,<4",
+  "faiss-cpu>=1.7,<2",
   "ruff>=0.5,<1",
   "pyright>=1.1,<2",
   "pyinstaller>=6,<7",
+]
+aec = [
+  "pywebrtc-audio",
+]
+# T4.2: Semantic memory search — optional heavy dependencies.
+# Install via: pip install -e ".[embeddings]"
+embeddings = [
+  "sentence-transformers>=2.6,<4",
+  "faiss-cpu>=1.7,<2",
 ]
 
 [project.scripts]
@@ -76,8 +91,9 @@ asyncio_mode = "auto"
 # run with `pytest -m manual` to opt in.
 markers = [
   "manual: operator-run verification (RSS drop, Ollama eviction); skipped by default",
+  "slow: tests requiring heavy ML model downloads (embedding model); skipped by default",
 ]
-addopts = "-m 'not manual'"
+addopts = "-m 'not manual and not slow'"
 
 [tool.ruff]
 line-length = 100

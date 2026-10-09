@@ -34,8 +34,13 @@ Output/
 *.gguf
 models/
 
+# Voices (downloaded by setup_jarvis.py, ~60 MB each)
+voices/
+packaging/bundle/
+
 # Logs
 *.log
+*.log.jsonl
 logs/
 
 # IDE / OS
@@ -57,5 +62,11 @@ Thumbs.db
 /*-err.txt
 _overlay_*.py
 _overlay_*.txt
+
+# User data (memory DB)
+data/
+*.db
+*.db-shm
+*.db-wal
 
 external/

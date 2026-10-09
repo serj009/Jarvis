@@ -1,0 +1,50 @@
+# Команди J.A.R.V.I.S.
+# Список команд які JARVIS розуміє
+
+status:
+  aliases:
+    en: ["status", "how are you", "system status"]
+    ru: ["статус", "как дела", "состояние системы"]
+    uk: ["стан", "статус", "як справи"]
+  handler: "status_dashboard"
+  description: "Показати стан системи"
+
+remember:
+  aliases:
+    en: ["remember", "save", "note"]
+    ru: ["запомни", "сохрани", "заметка"]
+    uk: ["запам\'ятай", "збережи", "нотатка"]
+  handler: "memory_store.remember"
+  description: "Зберегти факт в пам'ять"
+
+recall:
+  aliases:
+    en: ["what do you know about", "recall", "search memory"]
+    ru: ["что ты знаешь о", "вспомни", "найди в памяти"]
+    uk: ["що ти знаєш про", "згадай", "знайди в пам\'яті"]
+  handler: "memory_store.search"
+  description: "Знайти в пам'яті"
+
+timer:
+  aliases:
+    en: ["set timer", "timer", "remind me in"]
+    ru: ["поставь таймер", "таймер", "напомни через"]
+    uk: ["постав таймер", "таймер", "нагадай через"]
+  handler: "tools.timer"
+  description: "Встановити таймер"
+
+open:
+  aliases:
+    en: ["open", "launch", "start"]
+    ru: ["открой", "запусти"]
+    uk: ["відкрий", "запусти"]
+  handler: "tools.open_app"
+  description: "Відкрити програму або сайт"
+
+language_switch:
+  aliases:
+    en: ["speak english", "switch to english"]
+    ru: ["говори по-русски", "переключи на русский"]
+    uk: ["говори українською", "переключи на українську"]
+  handler: "language_detector.switch"
+  description: "Змінити мову"
