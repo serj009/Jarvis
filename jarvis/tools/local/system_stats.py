@@ -10,12 +10,12 @@ Enhanced from the original CPU/RAM-only version to include:
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 from pydantic import BaseModel
 
 from jarvis.core.phrases import reply_language
-from jarvis.tools.registry import EmptyArgs, ToolResult
+from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 if TYPE_CHECKING:
     from jarvis.core.vram_manager import VRAMManager
@@ -76,6 +76,37 @@ class SystemStatsTool:
     )
     args_schema: type[BaseModel] = EmptyArgs
     requires_confirmation: bool = False
+
+    # Voice patterns for deterministic dispatch — skip LLM for system stats.
+    #
+    # Priority 85: high priority, no parameters, exact match.
+    # "system stats" / "статистика системы" is unambiguous.
+    voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        # EN: "system stats", "system status", "cpu usage"
+        VoicePattern(
+            regex=(
+                r"^(?:show\s+)?(?:system\s+(?:stats|status|info)"
+                r"|cpu\s+usage|memory\s+usage|ram\s+usage)$"
+            ),
+            priority=85,
+        ),
+        # RU: "статистика системы", "загрузка системы", "состояние пк"
+        VoicePattern(
+            regex=(
+                r"^(?:покажи\s+)?(?:статистик[уа]|загрузк[уа]|состояние)"
+                r"\s+(?:систем[ыу]|пк|компьютер[аы])$"
+            ),
+            priority=85,
+        ),
+        # UK: "статистика системи", "завантаження системи"
+        VoicePattern(
+            regex=(
+                r"^(?:покажи\s+)?(?:статистик[уа]|завантаження)"
+                r"\s+(?:систем[иі]|пк|комп'?ютер[аі])$"
+            ),
+            priority=85,
+        ),
+    )
 
     def __init__(self, *, vram_manager: VRAMManager | None = None) -> None:
         self._vram = vram_manager

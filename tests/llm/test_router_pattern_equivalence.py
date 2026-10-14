@@ -284,6 +284,23 @@ CORPUS: tuple[str, ...] = (
     "open",
     "stop the music",
     "cancel that download",
+    # -- new voice patterns: music, games, close, weather, stats, clipboard
+    "play hotel california on youtube",
+    "put on some classical",
+    "listen to metallica",
+    "launch elden ring on steam",
+    "play cyberpunk on steam",
+    "quit notepad",
+    "exit discord",
+    "kill firefox",
+    "weather",
+    "how's the weather",
+    "how is the weather",
+    "system stats",
+    "cpu usage",
+    "memory usage",
+    "clipboard",
+    "what is in my clipboard",
 )
 
 
@@ -397,6 +414,28 @@ def test_generic_open_catch_all_stays_last(utterance: str, tool: str):
     'open my notes' would launch an app called 'my notes'."""
     intent = _router_without_registry()._try_pattern(utterance)
     assert isinstance(intent, ToolIntent)
+    assert intent.tool_name == tool
+
+
+@pytest.mark.parametrize(
+    ("utterance", "tool"),
+    [
+        ("play pink floyd", "play_youtube_music"),
+        ("play cyberpunk on steam", "launch_steam_game"),
+        ("close chrome", "close_app"),
+        ("quit spotify", "close_app"),
+        ("weather", "get_weather"),
+        ("what's the weather", "get_weather"),
+        ("clipboard", "clipboard"),
+    ],
+)
+def test_new_voice_patterns_route_correctly(utterance: str, tool: str):
+    """New patterns for music, games, close, weather, clipboard dispatch
+    to the correct tool at their priority level."""
+    intent = _router_without_registry()._try_pattern(utterance)
+    assert isinstance(intent, ToolIntent), (
+        f"{utterance!r} should match a tool pattern, got {intent!r}"
+    )
     assert intent.tool_name == tool
 
 

@@ -18,13 +18,14 @@ import os
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
 from jarvis.core.request_context import current_user_transcription
 from jarvis.platform.app_discovery import fuzzy_resolve, normalize_open_query, normalize_query
 from jarvis.tools.local.open_app import _APP_ALIASES
-from jarvis.tools.registry import ToolResult
+from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
 
@@ -111,6 +112,32 @@ class CloseAppTool:
     )
     args_schema = CloseAppArgs
     requires_confirmation: bool = False
+
+    # Voice patterns for deterministic dispatch — skip LLM for close/quit.
+    #
+    # Priority 110: below weather (90), music (100), steam games (105/108)
+    # but above open_app (PRIORITY_CATCH_ALL). "close X" is unambiguous —
+    # there is no overlap with music or game patterns.
+    voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        # EN: "close chrome", "quit spotify", "exit notepad", "kill discord"
+        VoicePattern(
+            regex=r"^(?:close|quit|exit|kill)\s+(.+)$",
+            priority=110,
+            args=lambda m: {"name": m.group(1)},
+        ),
+        # RU: "закрой хром", "выключи спотифай", "убей дискорд"
+        VoicePattern(
+            regex=r"^(?:закрой|выключи|убей|заверши)\s+(.+)$",
+            priority=110,
+            args=lambda m: {"name": m.group(1)},
+        ),
+        # UK: "закрий хром", "вимкни спотіфай", "заверши дискорд"
+        VoicePattern(
+            regex=r"^(?:закрий|вимкни|заверши)\s+(.+)$",
+            priority=110,
+            args=lambda m: {"name": m.group(1)},
+        ),
+    )
 
     def __init__(
         self,

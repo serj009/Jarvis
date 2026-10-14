@@ -14,6 +14,13 @@ loses settings.
 
 ### Added
 
+- **`get_time` tool — tell the current time and date by voice.**
+  New local tool (`jarvis/tools/local/get_time.py`) answers "what time is it?",
+  "сколько времени?", "котра година?" and similar queries in EN/RU/UK.
+  Deterministic voice patterns (priority 80) skip the LLM entirely.
+  Risk level: READ. Test suite: `tests/tools/local/test_get_time.py`.
+
+
 - **Multilingual app-alias dictionary (`app_aliases.py`).** Extended the
   open_app alias table from ~20 English-only entries to ~200 aliases across
   Russian, Ukrainian, and English, covering 71 programs (browsers,

@@ -106,6 +106,7 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     # -- read-only tools (no confirmation, no audit) -----------------------
     "clipboard": RiskLevel.READ,
     "list_directory": RiskLevel.READ,
+    "get_time": RiskLevel.READ,
     "get_weather": RiskLevel.READ,
     "report_cpu_and_memory_percentages": RiskLevel.READ,
     "screenshot": RiskLevel.READ,
