@@ -61,7 +61,7 @@ def test_repeated_close_show_cycles(qapp):
         assert not win.isVisible()
 
 
-def test_main_window_has_six_tabs_in_order(qapp):
+def test_main_window_has_seven_tabs_in_order(qapp):
     cfg = _cfg()
     on_change = MagicMock()
     with patch("jarvis.ui.settings.tabs.about.AboutTab._refresh_status"):
@@ -69,7 +69,13 @@ def test_main_window_has_six_tabs_in_order(qapp):
     try:
         labels = [win._tabs.tabText(i) for i in range(win._tabs.count())]
         assert labels == [
-            "General", "Voice", "Models", "Tools", "Hotkeys", "Help", "About",
+            "\u2699\ufe0f  General",
+            "\U0001f3a4  Voice",
+            "\U0001f9e0  AI Models",
+            "\U0001f527  Tools",
+            "\u2328\ufe0f  Hotkeys",
+            "\u2753  Help",
+            "\u2139\ufe0f  About",
         ]
     finally:
         win.close()
@@ -85,7 +91,7 @@ def test_save_indicator_appears_on_change(qapp):
         # Trigger the wrapped on_change by calling it directly through the
         # GeneralTab's internal callback (same wrapper all tabs share).
         win.general._on_change()
-        assert win._status_bar.currentMessage() == "✓ Saved"
+        assert win._status_bar.currentMessage() == "\u2713 Saved"
         outer_called.assert_called()
     finally:
         win.close()
@@ -258,12 +264,35 @@ def test_models_tab_populates_from_config(qapp):
         return_value=["qwen2.5:7b-instruct", "llama3"],
     ):
         tab = ModelsTab(config=cfg, on_change=lambda: None)
-    assert tab.stt_size.currentText() == "small"
+    # stt_size uses display text + data pattern; check the data value.
+    assert tab.stt_size.currentData() == "small"
     assert tab.llm_temperature.value() == 42
     assert tab.llm_max_tokens.value() == 2048
     assert "qwen2.5:7b-instruct" in [
         tab.llm_model.itemText(i) for i in range(tab.llm_model.count())
     ]
+
+
+def test_models_tab_has_stt_device_and_compute_combos(qapp):
+    """Verify the new STT device combo and expanded compute combo exist
+    and are populated with 'auto' as the default."""
+    cfg = _cfg()
+    with patch(
+        "jarvis.ui.settings.tabs.models._ollama_list_models",
+        return_value=[],
+    ):
+        tab = ModelsTab(config=cfg, on_change=lambda: None)
+    # Device combo should exist and default to "auto".
+    assert tab.stt_device.currentData() == "auto"
+    # Compute combo should include "auto" and default to it.
+    assert tab.stt_compute.currentData() == "auto"
+    compute_values = [
+        tab.stt_compute.itemData(i)
+        for i in range(tab.stt_compute.count())
+    ]
+    assert "auto" in compute_values
+    assert "int8" in compute_values
+    assert "float16" in compute_values
 
 
 def test_models_tab_temperature_slider_writes_back(qapp):
@@ -281,6 +310,23 @@ def test_models_tab_temperature_slider_writes_back(qapp):
     save.assert_called()
     on_change.assert_called()
 
+
+def test_models_tab_stt_device_writes_back(qapp):
+    """Changing the device combo updates config.stt.device."""
+    cfg = _cfg()
+    on_change = MagicMock()
+    with patch(
+        "jarvis.ui.settings.tabs.models._ollama_list_models",
+        return_value=[],
+    ), patch(
+        "jarvis.ui.settings.tabs.models.save_config"
+    ) as save:
+        tab = ModelsTab(config=cfg, on_change=on_change)
+        # Select "CPU" (index 2: auto=0, cuda=1, cpu=2).
+        tab.stt_device.setCurrentIndex(2)
+    assert cfg.stt.device == "cpu"
+    save.assert_called()
+    on_change.assert_called()
 
 
 # --- ToolsTab ----------------------------------------------------------
@@ -361,6 +407,18 @@ def test_tools_tab_lists_existing_mcp_servers(qapp):
     rows = [tab.mcp_list.item(i).text() for i in range(tab.mcp_list.count())]
     assert any("fs" in r for r in rows)
     assert any("mail" in r for r in rows)
+
+
+def test_tools_tab_checkboxes_have_friendly_names(qapp):
+    """Tool checkboxes use human-readable display names, not raw tool ids."""
+    from jarvis.ui.settings.tabs.tools import TOOL_DISPLAY_NAMES
+
+    cfg = _cfg()
+    tab = ToolsTab(config=cfg, on_change=lambda: None)
+    # Spot-check a few well-known tools.
+    assert "\U0001f4f8" in tab._checkboxes["screenshot"].text()  # 📸
+    assert "\U0001f441" in tab._checkboxes["see_screen"].text()  # 👁
+    assert "\U0001f310" in tab._checkboxes["open_url"].text()    # 🌐
 
 
 # --- HotkeysTab --------------------------------------------------------

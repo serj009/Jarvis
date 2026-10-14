@@ -1,4 +1,5 @@
-"""Models tab: STT model size + compute, LLM model + sampling + keep-alive.
+"""Models tab: STT model size + device + compute, LLM model + sampling +
+keep-alive, Vision model + settings.
 
 System prompt is intentionally hidden from the UI — it is power-user
 territory and editing it can break Jarvis's persona/tool-calling
@@ -14,12 +15,11 @@ from collections.abc import Callable
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QComboBox,
-    QFormLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
+    QScrollArea,
     QSlider,
     QSpinBox,
     QVBoxLayout,
@@ -27,11 +27,34 @@ from PySide6.QtWidgets import (
 )
 
 from jarvis.core.config import JarvisConfig, save_config
+from jarvis.ui.settings._widgets import SectionCard, slider_with_label
 
 log = logging.getLogger(__name__)
 
-_STT_SIZES: tuple[str, ...] = ("tiny", "base", "small")
-_STT_COMPUTES: tuple[str, ...] = ("int8", "float16", "float32")
+# ── STT value ↔ display-name mappings ──────────────────────────────────
+
+_STT_SIZE_ITEMS: tuple[tuple[str, str], ...] = (
+    ("tiny", "Tiny (fast, low accuracy)"),
+    ("base", "Base (balanced)"),
+    ("small", "Small (recommended)"),
+    ("medium", "Medium (best accuracy, slow)"),
+)
+_STT_SIZE_VALUES: tuple[str, ...] = tuple(v for v, _ in _STT_SIZE_ITEMS)
+
+_STT_COMPUTE_ITEMS: tuple[tuple[str, str], ...] = (
+    ("auto", "Auto (recommended)"),
+    ("int8", "INT8 (CPU-friendly)"),
+    ("float16", "Float16 (GPU)"),
+    ("float32", "Float32 (highest precision)"),
+)
+_STT_COMPUTE_VALUES: tuple[str, ...] = tuple(v for v, _ in _STT_COMPUTE_ITEMS)
+
+_STT_DEVICE_ITEMS: tuple[tuple[str, str], ...] = (
+    ("auto", "Auto (recommended)"),
+    ("cuda", "GPU (CUDA)"),
+    ("cpu", "CPU"),
+)
+_STT_DEVICE_VALUES: tuple[str, ...] = tuple(v for v, _ in _STT_DEVICE_ITEMS)
 
 
 def _ollama_list_models() -> list[str]:
@@ -71,72 +94,140 @@ class ModelsTab(QWidget):
         self._config = config
         self._on_change = on_change
 
-        # STT.
+        # ── Speech Recognition section ─────────────────────────────────
+        stt_card = SectionCard()
+        stt_card.add_header(
+            "\U0001f3a4", "Speech Recognition",
+            "How Jarvis hears and transcribes your voice",
+        )
+
+        # STT model size.
         self.stt_size = QComboBox()
-        self.stt_size.addItems(_STT_SIZES)
-        self.stt_size.setCurrentText(config.stt.model_size)
+        for value, display in _STT_SIZE_ITEMS:
+            self.stt_size.addItem(display, value)
+        idx = self.stt_size.findData(config.stt.model_size)
+        if idx >= 0:
+            self.stt_size.setCurrentIndex(idx)
+        stt_card.add_setting(
+            "Recognition Model",
+            "Larger = more accurate. 'Small' recommended for multilingual",
+            self.stt_size,
+        )
+
+        # STT language.
         self.stt_language = QLineEdit(config.stt.language)
+        self.stt_language.setPlaceholderText("auto = detect automatically")
+        stt_card.add_setting(
+            "Language",
+            "auto = detect automatically (recommended for RU/UK/EN)",
+            self.stt_language,
+        )
+
+        # STT device (NEW — config.stt.device).
+        self.stt_device = QComboBox()
+        for value, display in _STT_DEVICE_ITEMS:
+            self.stt_device.addItem(display, value)
+        idx = self.stt_device.findData(config.stt.device)
+        if idx >= 0:
+            self.stt_device.setCurrentIndex(idx)
+        stt_card.add_setting(
+            "Device",
+            "Auto = GPU if available, CPU otherwise",
+            self.stt_device,
+        )
+
+        # STT compute type (added "auto" to choices).
         self.stt_compute = QComboBox()
-        self.stt_compute.addItems(_STT_COMPUTES)
-        self.stt_compute.setCurrentText(config.stt.compute_type)
+        for value, display in _STT_COMPUTE_ITEMS:
+            self.stt_compute.addItem(display, value)
+        idx = self.stt_compute.findData(config.stt.compute_type)
+        if idx >= 0:
+            self.stt_compute.setCurrentIndex(idx)
+        stt_card.add_setting(
+            "Processing",
+            "auto = GPU-optimized float16 if available, INT8 on CPU",
+            self.stt_compute,
+        )
+
+        # ── AI Brain section ───────────────────────────────────────────
+        llm_card = SectionCard()
+        llm_card.add_header(
+            "\U0001f9e0", "AI Brain",
+            "The language model that thinks and responds. Runs on Ollama",
+        )
 
         # LLM model dropdown + refresh.
         self.llm_model = QComboBox()
         self.llm_model.setEditable(True)
         refresh_models = QPushButton("Refresh")
         refresh_models.clicked.connect(self._refresh_models)
-        model_row = QHBoxLayout()
-        model_row.addWidget(self.llm_model, 1)
-        model_row.addWidget(refresh_models)
+        model_row = QWidget()
+        mrl = QHBoxLayout(model_row)
+        mrl.setContentsMargins(0, 0, 0, 0)
+        mrl.addWidget(self.llm_model, 1)
+        mrl.addWidget(refresh_models)
         self._populate_models()
+        llm_card.add_setting(
+            "AI Model",
+            "The language model that thinks and responds. "
+            "Runs on Ollama",
+            model_row,
+        )
 
-        # LLM sampling.
+        # LLM temperature.
         self.llm_temperature = QSlider(Qt.Orientation.Horizontal)
         self.llm_temperature.setRange(0, 200)  # 0.00..2.00
         self.llm_temperature.setValue(int(round(config.llm.temperature * 100)))
         self.llm_temperature_label = QLabel(f"{config.llm.temperature:.2f}")
-        temp_row = QHBoxLayout()
-        temp_row.addWidget(self.llm_temperature)
-        temp_row.addWidget(self.llm_temperature_label)
+        temp_row = slider_with_label(
+            self.llm_temperature, self.llm_temperature_label,
+        )
+        llm_card.add_setting(
+            "Creativity",
+            "0 = precise and focused, 1+ = creative and varied",
+            temp_row,
+        )
 
+        # LLM max tokens.
         self.llm_max_tokens = QSpinBox()
         self.llm_max_tokens.setRange(64, 8192)
         self.llm_max_tokens.setSingleStep(64)
         self.llm_max_tokens.setValue(config.llm.max_tokens)
+        llm_card.add_setting(
+            "Max Response Length",
+            "Maximum words in a single response",
+            self.llm_max_tokens,
+        )
 
+        # LLM keep alive.
         self.llm_keep_alive = QSpinBox()
         self.llm_keep_alive.setRange(60, 86400)
         self.llm_keep_alive.setSingleStep(60)
         self.llm_keep_alive.setValue(config.llm.keep_alive_seconds)
         self.llm_keep_alive.setSuffix(" s")
-
-        form = QFormLayout()
-        form.addRow("STT model size:", self.stt_size)
-        form.addRow("STT language:", self.stt_language)
-        form.addRow("STT compute:", self.stt_compute)
-        form.addRow("LLM model:", model_row)
-        form.addRow("LLM temperature:", temp_row)
-        form.addRow("LLM max tokens:", self.llm_max_tokens)
-        form.addRow("LLM keep-alive:", self.llm_keep_alive)
-
-        # Vision: separate group because the model is unrelated to the
-        # conversational LLM above (vision-capable models are pulled
-        # separately and most users won't have one by default).
-        vision_box = QGroupBox("Vision (see-screen tool)")
-        vision_form = QFormLayout(vision_box)
-        vision_hint = QLabel(
-            "Used when you say \"see my screen\" / \"what's on my screen\". "
-            "Requires a multimodal Ollama model — pull one with "
-            "<code>ollama pull llava:7b</code>. Leave blank to disable."
+        llm_card.add_setting(
+            "Keep Model Loaded",
+            "How long the model stays in memory after last use",
+            self.llm_keep_alive,
         )
-        vision_hint.setWordWrap(True)
-        vision_hint.setTextFormat(Qt.TextFormat.RichText)
-        vision_hint.setStyleSheet("color: #808080; font-size: 9pt;")
-        vision_form.addRow(vision_hint)
+
+        # ── Vision section ─────────────────────────────────────────────
+        vision_card = SectionCard()
+        vision_card.add_header(
+            "\U0001f441\ufe0f", "Vision",
+            "Used for \"see my screen\". Requires a multimodal Ollama model "
+            "(pull one with: ollama pull llava:7b)",
+        )
 
         self.vision_model = QLineEdit(config.vision.model)
-        self.vision_model.setPlaceholderText("e.g. llava:7b, moondream, minicpm-v")
-        vision_form.addRow("Vision model:", self.vision_model)
+        self.vision_model.setPlaceholderText(
+            "e.g. llava:7b, moondream, minicpm-v"
+        )
+        vision_card.add_setting(
+            "Vision Model",
+            "Used for 'see my screen'. Requires multimodal model",
+            self.vision_model,
+        )
 
         self.vision_max_dim = QSpinBox()
         self.vision_max_dim.setRange(320, 4096)
@@ -147,45 +238,78 @@ class ModelsTab(QWidget):
             "Long-edge pixel cap before the screenshot is sent. "
             "Lower = faster, less detail."
         )
-        vision_form.addRow("Max image dimension:", self.vision_max_dim)
+        vision_card.add_setting(
+            "Image Quality",
+            "Higher = more detail, slower processing",
+            self.vision_max_dim,
+        )
 
         self.vision_max_tokens = QSpinBox()
         self.vision_max_tokens.setRange(64, 4096)
         self.vision_max_tokens.setSingleStep(64)
         self.vision_max_tokens.setValue(config.vision.max_tokens)
-        vision_form.addRow("Vision max tokens:", self.vision_max_tokens)
+        vision_card.add_setting(
+            "Max Description Length",
+            "Maximum tokens for the vision model's response",
+            self.vision_max_tokens,
+        )
 
         self.vision_temperature = QSlider(Qt.Orientation.Horizontal)
         self.vision_temperature.setRange(0, 200)
-        self.vision_temperature.setValue(int(round(config.vision.temperature * 100)))
-        self.vision_temperature_label = QLabel(f"{config.vision.temperature:.2f}")
-        v_temp_row = QHBoxLayout()
-        v_temp_row.addWidget(self.vision_temperature)
-        v_temp_row.addWidget(self.vision_temperature_label)
-        vision_form.addRow("Vision temperature:", v_temp_row)
+        self.vision_temperature.setValue(
+            int(round(config.vision.temperature * 100))
+        )
+        self.vision_temperature_label = QLabel(
+            f"{config.vision.temperature:.2f}"
+        )
+        v_temp_row = slider_with_label(
+            self.vision_temperature, self.vision_temperature_label,
+        )
+        vision_card.add_setting(
+            "Description Creativity",
+            "0 = factual, 1+ = more descriptive",
+            v_temp_row,
+        )
 
-        self.vision_model.editingFinished.connect(self._on_vision_model)
-        self.vision_max_dim.valueChanged.connect(self._on_vision_max_dim)
-        self.vision_max_tokens.valueChanged.connect(self._on_vision_max_tokens)
-        self.vision_temperature.valueChanged.connect(self._on_vision_temperature)
+        # ── Assemble scrollable layout ─────────────────────────────────
+        container = QWidget()
+        vbox = QVBoxLayout(container)
+        vbox.setContentsMargins(0, 0, 0, 0)
+        vbox.setSpacing(20)
+        vbox.addWidget(stt_card)
+        vbox.addWidget(llm_card)
+        vbox.addWidget(vision_card)
+        vbox.addStretch(1)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(container)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
 
         root = QVBoxLayout(self)
-        root.addLayout(form)
-        root.addWidget(vision_box)
-        root.addStretch(1)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.addWidget(scroll)
 
-        self.stt_size.currentTextChanged.connect(self._on_stt_size)
+        # ── Signal connections ─────────────────────────────────────────
+        self.stt_size.currentIndexChanged.connect(self._on_stt_size)
         self.stt_language.editingFinished.connect(self._on_stt_language)
         self._stt_language_timer = QTimer(self)
         self._stt_language_timer.setSingleShot(True)
         self._stt_language_timer.setInterval(400)
         self._stt_language_timer.timeout.connect(self._on_stt_language)
         self.stt_language.textChanged.connect(self._stt_language_timer.start)
-        self.stt_compute.currentTextChanged.connect(self._on_stt_compute)
+        self.stt_device.currentIndexChanged.connect(self._on_stt_device)
+        self.stt_compute.currentIndexChanged.connect(self._on_stt_compute)
         self.llm_model.currentTextChanged.connect(self._on_llm_model)
         self.llm_temperature.valueChanged.connect(self._on_llm_temperature)
         self.llm_max_tokens.valueChanged.connect(self._on_llm_max_tokens)
         self.llm_keep_alive.valueChanged.connect(self._on_llm_keep_alive)
+        self.vision_model.editingFinished.connect(self._on_vision_model)
+        self.vision_max_dim.valueChanged.connect(self._on_vision_max_dim)
+        self.vision_max_tokens.valueChanged.connect(self._on_vision_max_tokens)
+        self.vision_temperature.valueChanged.connect(
+            self._on_vision_temperature
+        )
 
     # -- population ------------------------------------------------------
 
@@ -211,10 +335,11 @@ class ModelsTab(QWidget):
 
     # -- slots -----------------------------------------------------------
 
-    def _on_stt_size(self, text: str) -> None:
-        if text not in _STT_SIZES:
+    def _on_stt_size(self, _index: int) -> None:
+        value = self.stt_size.currentData()
+        if value not in _STT_SIZE_VALUES:
             return
-        self._config.stt.model_size = text  # type: ignore[assignment]
+        self._config.stt.model_size = value  # type: ignore[assignment]
         self._persist()
 
     def _on_stt_language(self) -> None:
@@ -222,10 +347,18 @@ class ModelsTab(QWidget):
         self._config.stt.language = value
         self._persist()
 
-    def _on_stt_compute(self, text: str) -> None:
-        if text not in _STT_COMPUTES:
+    def _on_stt_device(self, _index: int) -> None:
+        value = self.stt_device.currentData()
+        if value not in _STT_DEVICE_VALUES:
             return
-        self._config.stt.compute_type = text  # type: ignore[assignment]
+        self._config.stt.device = value  # type: ignore[assignment]
+        self._persist()
+
+    def _on_stt_compute(self, _index: int) -> None:
+        value = self.stt_compute.currentData()
+        if value not in _STT_COMPUTE_VALUES:
+            return
+        self._config.stt.compute_type = value  # type: ignore[assignment]
         self._persist()
 
     def _on_llm_model(self, text: str) -> None:

@@ -27,12 +27,22 @@ BORDER        = "#1f1f1f"
 INPUT_BG      = "#141414"
 HOVER_BG      = "#181818"
 
+# Section card / setting card tokens
+CARD_BG       = "#111111"
+CARD_RADIUS   = "8px"
+CARD_PADDING  = "16px"
+
+# Hint / description tokens
+HINT_COLOR    = "#606060"
+DESC_COLOR    = "#707070"
+DIVIDER_COLOR = "#1a1a1a"
+
 # ---------------------------------------------------------------------------
 # Stylesheet
 # ---------------------------------------------------------------------------
 
 _QSS = f"""
-/* ── base ─────────────────────────────────────────────────────────────── */
+/* ── base ─────────────────────────────────────────────────────────── */
 
 QMainWindow,
 QDialog,
@@ -44,7 +54,7 @@ QWidget {{
     font-size: 11pt;
 }}
 
-/* ── tabs ──────────────────────────────────────────────────────────────── */
+/* ── tabs ──────────────────────────────────────────────────────────── */
 
 QTabWidget::pane {{
     border: 1px solid {BORDER};
@@ -73,7 +83,7 @@ QTabBar::tab:hover:!selected {{
     background-color: transparent;
 }}
 
-/* ── labels ────────────────────────────────────────────────────────────── */
+/* ── labels ────────────────────────────────────────────────────────── */
 
 QLabel {{
     color: {TEXT_PRIMARY};
@@ -82,7 +92,61 @@ QLabel {{
     background-color: transparent;
 }}
 
-/* ── text inputs ───────────────────────────────────────────────────────── */
+/* ── section cards (objectName=sectionCard) ────────────────────────── */
+
+QWidget#sectionCard {{
+    background-color: {CARD_BG};
+    border-radius: {CARD_RADIUS};
+    padding: {CARD_PADDING};
+}}
+
+/* ── section title (objectName=sectionTitle) ───────────────────────── */
+
+QLabel#sectionTitle {{
+    color: {TEXT_PRIMARY};
+    font-size: 12pt;
+    font-weight: 400;
+    letter-spacing: 1px;
+    background-color: transparent;
+}}
+
+/* ── section description (objectName=sectionDesc) ──────────────────── */
+
+QLabel#sectionDesc {{
+    color: {DESC_COLOR};
+    font-size: 9pt;
+    font-weight: 300;
+    background-color: transparent;
+}}
+
+/* ── setting label (objectName=settingLabel) ────────────────────────── */
+
+QLabel#settingLabel {{
+    color: {TEXT_PRIMARY};
+    font-size: 11pt;
+    font-weight: 400;
+    background-color: transparent;
+}}
+
+/* ── setting hint (objectName=settingHint) ──────────────────────────── */
+
+QLabel#settingHint {{
+    color: {HINT_COLOR};
+    font-size: 8pt;
+    font-weight: 300;
+    background-color: transparent;
+}}
+
+/* ── divider (objectName=divider) ──────────────────────────────────── */
+
+QFrame#divider {{
+    background-color: {DIVIDER_COLOR};
+    max-height: 1px;
+    min-height: 1px;
+    border: none;
+}}
+
+/* ── text inputs ───────────────────────────────────────────────────── */
 
 QLineEdit,
 QPlainTextEdit,
@@ -115,7 +179,7 @@ QDoubleSpinBox::down-button {{
     border: none;
 }}
 
-/* ── combo boxes ───────────────────────────────────────────────────────── */
+/* ── combo boxes ───────────────────────────────────────────────────── */
 
 QComboBox {{
     background-color: {INPUT_BG};
@@ -144,7 +208,7 @@ QComboBox QAbstractItemView {{
     outline: none;
 }}
 
-/* ── checkboxes ────────────────────────────────────────────────────────── */
+/* ── checkboxes ────────────────────────────────────────────────────── */
 
 QCheckBox {{
     color: {TEXT_PRIMARY};
@@ -170,7 +234,7 @@ QCheckBox::indicator:hover {{
     border-color: #808080;
 }}
 
-/* ── sliders ───────────────────────────────────────────────────────────── */
+/* ── sliders ───────────────────────────────────────────────────────── */
 
 QSlider::groove:horizontal {{
     height: 2px;
@@ -195,7 +259,7 @@ QSlider::handle:horizontal:hover {{
     background-color: #e0e0e0;
 }}
 
-/* ── push buttons ──────────────────────────────────────────────────────── */
+/* ── push buttons ──────────────────────────────────────────────────── */
 
 QPushButton {{
     background-color: transparent;
@@ -222,28 +286,29 @@ QPushButton:disabled {{
     border-color: #282828;
 }}
 
-/* ── group boxes ───────────────────────────────────────────────────────── */
+/* ── group boxes ───────────────────────────────────────────────────── */
 
 QGroupBox {{
-    color: {TEXT_SECONDARY};
-    border: 1px solid {BORDER};
+    color: {ACCENT};
+    border: none;
     border-radius: 0;
-    margin-top: 20px;
-    padding-top: 20px;
-    font-size: 9pt;
-    letter-spacing: 3px;
+    margin-top: 24px;
+    padding-top: 24px;
+    font-size: 10pt;
+    letter-spacing: 2px;
     text-transform: uppercase;
-    font-weight: 300;
+    font-weight: 400;
 }}
 
 QGroupBox::title {{
     subcontrol-origin: margin;
     subcontrol-position: top left;
-    left: 12px;
-    padding: 0 6px;
+    left: 4px;
+    padding: 0 4px;
+    color: {ACCENT};
 }}
 
-/* ── scrollbars ─────────────────────────────────────────────────────────  */
+/* ── scrollbars ────────────────────────────────────────────────────── */
 
 QScrollBar:vertical {{
     background: {BG};
@@ -287,7 +352,7 @@ QScrollBar::sub-line:horizontal {{
     width: 0;
 }}
 
-/* ── status bar ────────────────────────────────────────────────────────── */
+/* ── status bar ────────────────────────────────────────────────────── */
 
 QStatusBar {{
     color: {TEXT_SECONDARY};
@@ -301,7 +366,7 @@ QStatusBar::item {{
     border: none;
 }}
 
-/* ── message boxes ─────────────────────────────────────────────────────── */
+/* ── message boxes ─────────────────────────────────────────────────── */
 
 QMessageBox {{
     background-color: {BG};
@@ -312,7 +377,7 @@ QMessageBox QPushButton {{
     min-width: 80px;
 }}
 
-/* ── tooltips ──────────────────────────────────────────────────────────── */
+/* ── tooltips ──────────────────────────────────────────────────────── */
 
 QToolTip {{
     background-color: {INPUT_BG};
@@ -320,6 +385,17 @@ QToolTip {{
     border: 1px solid {BORDER};
     padding: 4px 8px;
     font-size: 9pt;
+}}
+
+/* ── scroll area (transparent background for card containers) ──────── */
+
+QScrollArea {{
+    background-color: {BG};
+    border: none;
+}}
+
+QScrollArea > QWidget > QWidget {{
+    background-color: {BG};
 }}
 """
 

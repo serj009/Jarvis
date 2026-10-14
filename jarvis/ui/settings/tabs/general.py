@@ -21,12 +21,14 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QSpinBox,
     QVBoxLayout,
     QWidget,
 )
 
 from jarvis.core.config import JarvisConfig, WorkspaceAppEntry, save_config
+from jarvis.ui.settings._widgets import SectionCard
 
 log = logging.getLogger(__name__)
 
@@ -51,30 +53,58 @@ class GeneralTab(QWidget):
         self._config = config
         self._on_change = on_change
 
+        # ── Startup & Behavior section ─────────────────────────────────
+        startup_card = SectionCard()
+        startup_card.add_header(
+            "\U0001f680", "Startup & Behavior",
+            "Control how Jarvis launches and behaves",
+        )
+
         self.start_with_windows = QCheckBox("Start with Windows")
         self.start_with_windows.setChecked(config.general.start_with_windows)
+        startup_card.add_widget(self.start_with_windows)
+
         self.minimize_to_tray = QCheckBox("Minimize to tray on close")
         self.minimize_to_tray.setChecked(config.general.minimize_to_tray)
+        startup_card.add_widget(self.minimize_to_tray)
+
         self.show_overlay = QCheckBox("Show overlay orb")
         self.show_overlay.setChecked(config.general.show_overlay)
+        startup_card.add_widget(self.show_overlay)
+
+        startup_card.add_divider()
 
         self.log_level = QComboBox()
         self.log_level.addItems(_LOG_LEVELS)
         self.log_level.setCurrentText(config.general.log_level)
+        startup_card.add_setting(
+            "Log Detail Level",
+            "DEBUG shows everything, ERROR shows only problems",
+            self.log_level,
+        )
 
         self.auto_sleep = QCheckBox("Auto-sleep when idle")
         self.auto_sleep.setChecked(config.lifecycle.auto_sleep_enabled)
+        startup_card.add_widget(self.auto_sleep)
 
         self.idle_timeout = QSpinBox()
         self.idle_timeout.setRange(1, 1440)
         self.idle_timeout.setSuffix(" min")
         self.idle_timeout.setValue(config.lifecycle.idle_timeout_minutes)
+        startup_card.add_setting(
+            "Sleep After Inactivity",
+            "Minutes before Jarvis goes to sleep mode",
+            self.idle_timeout,
+        )
 
-        # Weather location group.
+        # ── Weather section (kept as GroupBox — already decent) ─────────
+        weather_box = QGroupBox("Weather location")
+        weather_form = QFormLayout(weather_box)
+
         self.weather_lat = QDoubleSpinBox()
         self.weather_lat.setRange(-90.0, 90.0)
         self.weather_lat.setDecimals(4)
-        self.weather_lat.setSuffix("°")
+        self.weather_lat.setSuffix("\u00b0")
         self.weather_lat.setValue(
             config.weather.latitude if config.weather.latitude is not None else 0.0
         )
@@ -82,7 +112,7 @@ class GeneralTab(QWidget):
         self.weather_lon = QDoubleSpinBox()
         self.weather_lon.setRange(-180.0, 180.0)
         self.weather_lon.setDecimals(4)
-        self.weather_lon.setSuffix("°")
+        self.weather_lon.setSuffix("\u00b0")
         self.weather_lon.setValue(
             config.weather.longitude if config.weather.longitude is not None else 0.0
         )
@@ -95,13 +125,11 @@ class GeneralTab(QWidget):
         detect_row.addWidget(self.detect_location_btn)
         detect_row.addStretch(1)
 
-        weather_box = QGroupBox("Weather location")
-        weather_form = QFormLayout(weather_box)
         weather_form.addRow("Latitude:", self.weather_lat)
         weather_form.addRow("Longitude:", self.weather_lon)
         weather_form.addRow(detect_row)
 
-        # Workspace apps (voice: "open my workspace").
+        # ── Workspace section (kept as GroupBox — already decent) ───────
         workspace_box = QGroupBox('Workspace ("open my workspace")')
         workspace_layout = QVBoxLayout(workspace_box)
         workspace_hint = QLabel(
@@ -114,8 +142,8 @@ class GeneralTab(QWidget):
         self.workspace_list = QListWidget()
         self._repopulate_workspace_list()
         ws_btn_row = QHBoxLayout()
-        self.workspace_add = QPushButton("Add…")
-        self.workspace_edit = QPushButton("Edit…")
+        self.workspace_add = QPushButton("Add\u2026")
+        self.workspace_edit = QPushButton("Edit\u2026")
         self.workspace_remove = QPushButton("Remove")
         ws_btn_row.addWidget(self.workspace_add)
         ws_btn_row.addWidget(self.workspace_edit)
@@ -124,19 +152,26 @@ class GeneralTab(QWidget):
         workspace_layout.addWidget(self.workspace_list)
         workspace_layout.addLayout(ws_btn_row)
 
-        root = QVBoxLayout(self)
-        general_form = QFormLayout()
-        general_form.addRow(self.start_with_windows)
-        general_form.addRow(self.minimize_to_tray)
-        general_form.addRow(self.show_overlay)
-        general_form.addRow("Log level:", self.log_level)
-        general_form.addRow(self.auto_sleep)
-        general_form.addRow("Idle timeout:", self.idle_timeout)
-        root.addLayout(general_form)
-        root.addWidget(workspace_box)
-        root.addWidget(weather_box)
-        root.addStretch(1)
+        # ── Assemble scrollable layout ─────────────────────────────────
+        container = QWidget()
+        vbox = QVBoxLayout(container)
+        vbox.setContentsMargins(0, 0, 0, 0)
+        vbox.setSpacing(20)
+        vbox.addWidget(startup_card)
+        vbox.addWidget(workspace_box)
+        vbox.addWidget(weather_box)
+        vbox.addStretch(1)
 
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(container)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.addWidget(scroll)
+
+        # ── Signal connections ─────────────────────────────────────────
         self.start_with_windows.toggled.connect(self._on_start_toggled)
         self.minimize_to_tray.toggled.connect(self._on_tray_toggled)
         self.show_overlay.toggled.connect(self._on_overlay_toggled)
@@ -155,7 +190,7 @@ class GeneralTab(QWidget):
     def _repopulate_workspace_list(self) -> None:
         self.workspace_list.clear()
         for entry in self._config.workspace.apps:
-            text = f"{entry.label}  —  {entry.kind}  —  {entry.target}"
+            text = f"{entry.label}  \u2014  {entry.kind}  \u2014  {entry.target}"
             item = QListWidgetItem(text)
             item.setData(Qt.ItemDataRole.UserRole, entry.label)
             self.workspace_list.addItem(item)

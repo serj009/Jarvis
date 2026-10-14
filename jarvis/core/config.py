@@ -1081,25 +1081,20 @@ def _migrate_v24_to_v25(data: dict) -> dict:
 
 
 def _migrate_v25_to_v26(data: dict) -> dict:
-    """Schema v26: GPU-accelerated STT with auto-device + small model.
+    """Schema v26: GPU-accelerated STT with auto-device.
 
-    Upgrades STT from CPU/base/int8 to GPU-auto/small/auto for users
-    who never changed the defaults. Users who explicitly chose a
-    different model_size (e.g. "tiny", "medium") are left untouched —
-    only the exact v25 shipping defaults trigger the upgrade.
+    Adds device="auto" and compute_type="auto" for GPU acceleration.
+    Does NOT change model_size — the "small" model may not be downloaded
+    yet, and switching to a model that isn't on disk would crash the app
+    with local_files_only=True (same bug as the v3 tiny.en incident).
+    Users who want "small" can switch via Settings or setup_jarvis.py.
     """
     stt = data.setdefault("stt", {})
-    # Only upgrade users still on the v25 shipping defaults.
-    # If model_size != "base" the user made a deliberate choice.
-    if stt.get("model_size") == "base" and "device" not in stt:
-        stt["model_size"] = "small"
+    # Add GPU auto-detection and auto compute type for existing configs.
+    # model_size is deliberately left untouched (see docstring).
+    if "device" not in stt:
         stt["device"] = "auto"
         stt["compute_type"] = "auto"
-    else:
-        # Ensure new fields exist even if we don't change model_size.
-        stt.setdefault("device", "auto")
-        if stt.get("compute_type") not in ("auto", "int8", "float16", "float32"):
-            stt.setdefault("compute_type", "auto")
     data["schema_version"] = 26
     return data
 

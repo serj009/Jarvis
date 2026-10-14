@@ -12,16 +12,17 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
-    QFormLayout,
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QScrollArea,
     QSlider,
     QVBoxLayout,
     QWidget,
 )
 
 from jarvis.core.config import JarvisConfig, save_config
+from jarvis.ui.settings._widgets import SectionCard, slider_with_label
 
 log = logging.getLogger(__name__)
 
@@ -86,17 +87,45 @@ class VoiceTab(QWidget):
         self._voices_dir = voices_dir or _default_voices_dir()
         self._on_test_voice = on_test_voice
 
-        # Devices.
+        # ── Audio Devices section ──────────────────────────────────────
+        devices_card = SectionCard()
+        devices_card.add_header(
+            "\U0001f3a7", "Audio Devices",
+            "Select your microphone and speaker for voice interaction",
+        )
+
         self.input_device = QComboBox()
+        devices_card.add_setting(
+            "\U0001f3a4 Microphone",
+            "Select your microphone for voice commands",
+            self.input_device,
+        )
+
         self.output_device = QComboBox()
-        refresh_devices = QPushButton("Refresh")
+        devices_card.add_setting(
+            "\U0001f50a Speaker",
+            "Where Jarvis speaks",
+            self.output_device,
+        )
+
+        refresh_devices = QPushButton("Refresh Devices")
         refresh_devices.clicked.connect(self._refresh_devices)
-        device_row = QHBoxLayout()
-        device_row.addWidget(refresh_devices)
-        device_row.addStretch(1)
+        refresh_row = QWidget()
+        rfl = QHBoxLayout(refresh_row)
+        rfl.setContentsMargins(0, 0, 0, 0)
+        rfl.addWidget(refresh_devices)
+        rfl.addStretch(1)
+        devices_card.add_widget(refresh_row)
+
         self._populate_devices()
 
-        # Wake-word sensitivity.
+        # ── Wake Word section ──────────────────────────────────────────
+        wake_card = SectionCard()
+        wake_card.add_header(
+            "\U0001f442", "Wake Word",
+            "Control how easily Jarvis responds to \"Hey Jarvis\"",
+        )
+
         self.sensitivity = QSlider(Qt.Orientation.Horizontal)
         self.sensitivity.setRange(0, 100)
         self.sensitivity.setValue(
@@ -105,51 +134,85 @@ class VoiceTab(QWidget):
         self.sensitivity_label = QLabel(
             f"{config.wake_word.sensitivity:.2f}"
         )
-        sens_row = QHBoxLayout()
-        sens_row.addWidget(self.sensitivity)
-        sens_row.addWidget(self.sensitivity_label)
+        sens_row = slider_with_label(self.sensitivity, self.sensitivity_label)
 
-        # TTS voice file.
+        wake_card.add_setting(
+            "\U0001f442 Wake Word Sensitivity",
+            "How easily \"Hey Jarvis\" is detected. "
+            "Higher = more sensitive, may trigger on noise",
+            sens_row,
+        )
+
+        # ── Text-to-Speech section ─────────────────────────────────────
+        tts_card = SectionCard()
+        tts_card.add_header(
+            "\U0001f5e3\ufe0f", "Text-to-Speech",
+            "How Jarvis speaks back to you",
+        )
+
         self.voice = QComboBox()
         self._populate_voices()
+        tts_card.add_setting(
+            "\U0001f5e3\ufe0f Voice",
+            "Choose which voice Jarvis speaks with",
+            self.voice,
+        )
 
         # TTS speed (0.5–2.0 in 0.05 steps -> int slider 50..200 / 100).
         self.speed = QSlider(Qt.Orientation.Horizontal)
         self.speed.setRange(50, 200)
         self.speed.setSingleStep(5)
         self.speed.setValue(int(round(config.tts.speed * 100)))
-        self.speed_label = QLabel(f"{config.tts.speed:.2f}×")
-        speed_row = QHBoxLayout()
-        speed_row.addWidget(self.speed)
-        speed_row.addWidget(self.speed_label)
+        self.speed_label = QLabel(f"{config.tts.speed:.2f}\u00d7")
+        speed_row = slider_with_label(self.speed, self.speed_label)
+        tts_card.add_setting(
+            "\u26a1 Speech Speed",
+            "How fast Jarvis speaks",
+            speed_row,
+        )
 
         # TTS volume (0.0–1.0 in 0.01 steps -> int slider 0..100 / 100).
         self.volume = QSlider(Qt.Orientation.Horizontal)
         self.volume.setRange(0, 100)
         self.volume.setValue(int(round(config.tts.volume * 100)))
         self.volume_label = QLabel(f"{config.tts.volume:.2f}")
-        vol_row = QHBoxLayout()
-        vol_row.addWidget(self.volume)
-        vol_row.addWidget(self.volume_label)
+        vol_row = slider_with_label(self.volume, self.volume_label)
+        tts_card.add_setting(
+            "\U0001f509 Speech Volume",
+            "How loud Jarvis speaks",
+            vol_row,
+        )
 
-        # Test voice.
-        self.test_voice_button = QPushButton("Test voice")
+        # Test voice button.
+        self.test_voice_button = QPushButton("Test Voice")
         self.test_voice_button.clicked.connect(self._on_test_voice_clicked)
+        test_row = QWidget()
+        trl = QHBoxLayout(test_row)
+        trl.setContentsMargins(0, 0, 0, 0)
+        trl.addWidget(self.test_voice_button)
+        trl.addStretch(1)
+        tts_card.add_widget(test_row)
 
-        form = QFormLayout()
-        form.addRow("Input device:", self.input_device)
-        form.addRow("Output device:", self.output_device)
-        form.addRow("", device_row)
-        form.addRow("Wake word sensitivity:", sens_row)
-        form.addRow("TTS voice:", self.voice)
-        form.addRow("TTS speed:", speed_row)
-        form.addRow("TTS volume:", vol_row)
-        form.addRow("", self.test_voice_button)
+        # ── Assemble scrollable layout ─────────────────────────────────
+        container = QWidget()
+        vbox = QVBoxLayout(container)
+        vbox.setContentsMargins(0, 0, 0, 0)
+        vbox.setSpacing(20)
+        vbox.addWidget(devices_card)
+        vbox.addWidget(wake_card)
+        vbox.addWidget(tts_card)
+        vbox.addStretch(1)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(container)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
 
         root = QVBoxLayout(self)
-        root.addLayout(form)
-        root.addStretch(1)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.addWidget(scroll)
 
+        # ── Signal connections ─────────────────────────────────────────
         self.input_device.currentIndexChanged.connect(self._on_input_changed)
         self.output_device.currentIndexChanged.connect(self._on_output_changed)
         self.sensitivity.valueChanged.connect(self._on_sensitivity_changed)
@@ -247,7 +310,7 @@ class VoiceTab(QWidget):
     def _on_speed_changed(self, value: int) -> None:
         f = value / 100.0
         self._config.tts.speed = f
-        self.speed_label.setText(f"{f:.2f}×")
+        self.speed_label.setText(f"{f:.2f}\u00d7")
         self._persist()
 
     def _on_volume_changed(self, value: int) -> None:
