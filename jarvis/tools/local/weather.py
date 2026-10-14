@@ -22,11 +22,12 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from typing import ClassVar
 
 import httpx
 from pydantic import BaseModel
 
-from jarvis.tools.registry import ToolResult
+from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
 
@@ -98,6 +99,44 @@ class WeatherTool:
     )
     args_schema: type[BaseModel] = WeatherArgs
     requires_confirmation: bool = False
+
+    # Voice patterns for deterministic dispatch — skip LLM for weather.
+    #
+    # Priority 90: the highest priority among these new tool patterns.
+    # Weather queries are short, exact-matchable, have no parameters,
+    # and are among the most common daily commands.
+    voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        # EN: "weather", "what's the weather", "what is the weather"
+        VoicePattern(
+            regex=r"^(?:what(?:'s|\s+is)\s+the\s+)?weather$",
+            priority=90,
+        ),
+        # EN: "how's the weather", "how is the weather"
+        VoicePattern(
+            regex=r"^how(?:'s|\s+is)\s+the\s+weather$",
+            priority=90,
+        ),
+        # RU: "погода", "какая погода"
+        VoicePattern(
+            regex=r"^(?:какая\s+)?погод[аеу]$",
+            priority=90,
+        ),
+        # RU: "что с погодой", "что там на погоде"
+        VoicePattern(
+            regex=r"^что\s+(?:там\s+)?(?:с|на)\s+погод(?:ой|е)$",
+            priority=90,
+        ),
+        # UK: "погода", "яка погода"
+        VoicePattern(
+            regex=r"^(?:яка\s+)?погод[аі]$",
+            priority=90,
+        ),
+        # UK: "що з погодою", "що там на погоді"
+        VoicePattern(
+            regex=r"^що\s+(?:там\s+)?(?:з|на)\s+погод(?:ою|і)$",
+            priority=90,
+        ),
+    )
 
     def __init__(
         self,

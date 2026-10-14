@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
@@ -14,7 +15,7 @@ from jarvis.tools.local.youtube import (
     normalize_music_search_query,
     youtube_watch_url_for_query,
 )
-from jarvis.tools.registry import ToolResult
+from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
 
@@ -66,6 +67,44 @@ class PlayYoutubeMusicTool:
     )
     args_schema = PlayYoutubeMusicArgs
     requires_confirmation: bool = False
+
+    # Voice patterns for deterministic dispatch — skip LLM for common phrases.
+    #
+    # Priority 100: patterns that require a music keyword ("music"/"музыку"/
+    # "музику"/"песню"/"трек") so they win over open_app (PRIORITY_CATCH_ALL)
+    # but do NOT catch ambiguous "включи хром" (which has no music keyword
+    # and should fall through to open_app).
+    #
+    # "включи джаз" without a music keyword is deliberately NOT matched here
+    # — it goes to the LLM which can disambiguate based on context.
+    voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        # EN: "play pink floyd", "put on some jazz", "listen to bach"
+        VoicePattern(
+            regex=r"^(?:play|put on|listen to)\s+(.+?)(?:\s+on\s+youtube)?$",
+            priority=100,
+            args=lambda m: {"query": m.group(1)},
+        ),
+        # RU: "поставь музыку джаз", "включи музыку рок", "воспроизведи песню"
+        # Requires a music keyword to avoid stealing "включи хром" from open_app.
+        VoicePattern(
+            regex=(
+                r"^(?:поставь|включи|запусти|воспроизведи)\s+"
+                r"(?:музыку|песню|трек)\s+(.+?)(?:\s+на\s+ютубе?)?$"
+            ),
+            priority=100,
+            args=lambda m: {"query": m.group(1)},
+        ),
+        # UK: "постав музику джаз", "увімкни музику рок"
+        # Same music-keyword requirement for disambiguation.
+        VoicePattern(
+            regex=(
+                r"^(?:постав|увімкни|запусти)\s+"
+                r"(?:музику|пісню|трек)\s+(.+?)(?:\s+на\s+ютубі?)?$"
+            ),
+            priority=100,
+            args=lambda m: {"query": m.group(1)},
+        ),
+    )
 
     async def execute(self, args: PlayYoutubeMusicArgs) -> ToolResult:
         search_q = _resolve_search_query(args.query)

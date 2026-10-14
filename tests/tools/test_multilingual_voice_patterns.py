@@ -15,7 +15,7 @@ from urllib.parse import quote_plus
 
 import pytest
 
-from jarvis.tools.registry import VoicePattern
+from jarvis.tools.registry import PRIORITY_CATCH_ALL, VoicePattern
 
 
 # -- helpers ---------------------------------------------------------------
@@ -500,3 +500,439 @@ class TestClipboardHistoryMultilingual:
         from jarvis.tools.local.clipboard_history_tools import CloseClipboardHistoryTool
         patterns = CloseClipboardHistoryTool.voice_patterns
         _assert_pattern_matches(patterns[2], "закрий буфер обміну")
+
+
+# -- play_youtube_music.py -------------------------------------------------
+
+
+class TestPlayYoutubeMusicPatterns:
+    """Voice patterns for play_youtube_music — music dispatch."""
+
+    @pytest.fixture()
+    def patterns(self):
+        from jarvis.tools.local.play_youtube_music import PlayYoutubeMusicTool
+        return PlayYoutubeMusicTool.voice_patterns
+
+    # -- EN patterns -------------------------------------------------------
+
+    @pytest.mark.parametrize(
+        "phrase, expected_query",
+        [
+            ("play pink floyd", "pink floyd"),
+            ("play bohemian rhapsody", "bohemian rhapsody"),
+            ("put on some jazz", "some jazz"),
+            ("listen to bach", "bach"),
+            ("play hotel california on youtube", "hotel california"),
+        ],
+    )
+    def test_en_play_music(self, patterns, phrase, expected_query):
+        m = _assert_pattern_matches(patterns[0], phrase, expected_group=expected_query)
+        assert patterns[0].args(m) == {"query": expected_query}
+
+    # -- RU patterns (with music keyword) ----------------------------------
+
+    @pytest.mark.parametrize(
+        "phrase, expected_query",
+        [
+            ("поставь музыку джаз", "джаз"),
+            ("включи музыку рок", "рок"),
+            ("запусти песню imagine", "imagine"),
+            ("воспроизведи трек believer", "believer"),
+            ("включи музыку шопен на ютубе", "шопен"),
+        ],
+    )
+    def test_ru_play_music_with_keyword(self, patterns, phrase, expected_query):
+        m = _assert_pattern_matches(patterns[1], phrase, expected_group=expected_query)
+        assert patterns[1].args(m) == {"query": expected_query}
+
+    # -- UK patterns (with music keyword) ----------------------------------
+
+    @pytest.mark.parametrize(
+        "phrase, expected_query",
+        [
+            ("постав музику джаз", "джаз"),
+            ("увімкни музику рок", "рок"),
+            ("запусти пісню imagine", "imagine"),
+            ("увімкни трек believer", "believer"),
+            ("постав музику шопен на ютубі", "шопен"),
+        ],
+    )
+    def test_uk_play_music_with_keyword(self, patterns, phrase, expected_query):
+        m = _assert_pattern_matches(patterns[2], phrase, expected_group=expected_query)
+        assert patterns[2].args(m) == {"query": expected_query}
+
+    # -- disambiguation: must NOT match app names --------------------------
+
+    def test_ru_no_match_without_music_keyword(self, patterns):
+        """'включи хром' has no music keyword — must NOT match music patterns."""
+        _assert_no_match(patterns[1], "включи хром")
+        _assert_no_match(patterns[1], "включи джаз")
+        _assert_no_match(patterns[1], "включи стим")
+
+    def test_uk_no_match_without_music_keyword(self, patterns):
+        """'увімкни хром' has no music keyword — must NOT match music patterns."""
+        _assert_no_match(patterns[2], "увімкни хром")
+        _assert_no_match(patterns[2], "увімкни джаз")
+
+
+# -- launch_steam_game.py --------------------------------------------------
+
+
+class TestLaunchSteamGamePatterns:
+    """Voice patterns for launch_steam_game — Steam game dispatch."""
+
+    @pytest.fixture()
+    def patterns(self):
+        from jarvis.tools.local.launch_steam_game import LaunchSteamGameTool
+        return LaunchSteamGameTool.voice_patterns
+
+    # -- EN patterns with "steam" keyword ----------------------------------
+
+    @pytest.mark.parametrize(
+        "phrase, expected_game",
+        [
+            ("launch elden ring on steam", "elden ring"),
+            ("start portal 2 in steam", "portal 2"),
+            ("boot up cyberpunk from steam", "cyberpunk"),
+            ("run dota 2 on steam", "dota 2"),
+        ],
+    )
+    def test_en_launch_game_on_steam(self, patterns, phrase, expected_game):
+        m = _assert_pattern_matches(patterns[0], phrase, expected_group=expected_game)
+        assert patterns[0].args(m) == {"game_name": expected_game}
+
+    @pytest.mark.parametrize(
+        "phrase, expected_game",
+        [
+            ("play cyberpunk on steam", "cyberpunk"),
+            ("play portal 2 in steam", "portal 2"),
+        ],
+    )
+    def test_en_play_game_on_steam(self, patterns, phrase, expected_game):
+        m = _assert_pattern_matches(patterns[1], phrase, expected_group=expected_game)
+        assert patterns[1].args(m) == {"game_name": expected_game}
+
+    # -- RU patterns with "стим" keyword -----------------------------------
+
+    @pytest.mark.parametrize(
+        "phrase, expected_game",
+        [
+            ("запусти сталкер в стиме", "сталкер"),
+            ("включи киберпанк из стима", "киберпанк"),
+            ("загрузи портал на стим", "портал"),
+            ("запусти доту в стим", "доту"),
+        ],
+    )
+    def test_ru_launch_game_in_steam(self, patterns, phrase, expected_game):
+        m = _assert_pattern_matches(patterns[2], phrase, expected_group=expected_game)
+        assert patterns[2].args(m) == {"game_name": expected_game}
+
+    # -- RU patterns with "игру" keyword -----------------------------------
+
+    @pytest.mark.parametrize(
+        "phrase, expected_game",
+        [
+            ("запусти игру сталкер", "сталкер"),
+            ("включи игру портал 2", "портал 2"),
+        ],
+    )
+    def test_ru_launch_game_with_keyword(self, patterns, phrase, expected_game):
+        m = _assert_pattern_matches(patterns[3], phrase, expected_group=expected_game)
+        assert patterns[3].args(m) == {"game_name": expected_game}
+
+    # -- UK patterns with "стім" keyword -----------------------------------
+
+    @pytest.mark.parametrize(
+        "phrase, expected_game",
+        [
+            ("запусти сталкер в стімі", "сталкер"),
+            ("увімкни кіберпанк із стіму", "кіберпанк"),
+            ("завантаж портал в стім", "портал"),
+        ],
+    )
+    def test_uk_launch_game_in_steam(self, patterns, phrase, expected_game):
+        m = _assert_pattern_matches(patterns[4], phrase, expected_group=expected_game)
+        assert patterns[4].args(m) == {"game_name": expected_game}
+
+    # -- UK patterns with "гру" keyword ------------------------------------
+
+    @pytest.mark.parametrize(
+        "phrase, expected_game",
+        [
+            ("запусти гру сталкер", "сталкер"),
+            ("увімкни гру портал 2", "портал 2"),
+        ],
+    )
+    def test_uk_launch_game_with_keyword(self, patterns, phrase, expected_game):
+        m = _assert_pattern_matches(patterns[5], phrase, expected_group=expected_game)
+        assert patterns[5].args(m) == {"game_name": expected_game}
+
+    # -- disambiguation: must NOT match bare app names ---------------------
+
+    def test_en_no_match_without_steam(self, patterns):
+        """'launch chrome' has no steam keyword — must NOT match."""
+        _assert_no_match(patterns[0], "launch chrome")
+        _assert_no_match(patterns[1], "play pink floyd")
+
+    def test_ru_no_match_without_steam(self, patterns):
+        """'запусти хром' has no стим keyword — must NOT match."""
+        _assert_no_match(patterns[2], "запусти хром")
+
+
+# -- close_app.py ----------------------------------------------------------
+
+
+class TestCloseAppPatterns:
+    """Voice patterns for close_app — close/quit/kill apps."""
+
+    @pytest.fixture()
+    def patterns(self):
+        from jarvis.tools.local.close_app import CloseAppTool
+        return CloseAppTool.voice_patterns
+
+    # -- EN patterns -------------------------------------------------------
+
+    @pytest.mark.parametrize(
+        "phrase, expected_name",
+        [
+            ("close chrome", "chrome"),
+            ("quit spotify", "spotify"),
+            ("exit notepad", "notepad"),
+            ("kill discord", "discord"),
+        ],
+    )
+    def test_en_close_app(self, patterns, phrase, expected_name):
+        m = _assert_pattern_matches(patterns[0], phrase, expected_group=expected_name)
+        assert patterns[0].args(m) == {"name": expected_name}
+
+    # -- RU patterns -------------------------------------------------------
+
+    @pytest.mark.parametrize(
+        "phrase, expected_name",
+        [
+            ("закрой хром", "хром"),
+            ("выключи спотифай", "спотифай"),
+            ("убей дискорд", "дискорд"),
+            ("заверши блокнот", "блокнот"),
+        ],
+    )
+    def test_ru_close_app(self, patterns, phrase, expected_name):
+        m = _assert_pattern_matches(patterns[1], phrase, expected_group=expected_name)
+        assert patterns[1].args(m) == {"name": expected_name}
+
+    # -- UK patterns -------------------------------------------------------
+
+    @pytest.mark.parametrize(
+        "phrase, expected_name",
+        [
+            ("закрий хром", "хром"),
+            ("вимкни спотіфай", "спотіфай"),
+            ("заверши блокнот", "блокнот"),
+        ],
+    )
+    def test_uk_close_app(self, patterns, phrase, expected_name):
+        m = _assert_pattern_matches(patterns[2], phrase, expected_group=expected_name)
+        assert patterns[2].args(m) == {"name": expected_name}
+
+
+# -- weather.py ------------------------------------------------------------
+
+
+class TestWeatherPatterns:
+    """Voice patterns for get_weather — weather queries."""
+
+    @pytest.fixture()
+    def patterns(self):
+        from jarvis.tools.local.weather import WeatherTool
+        return WeatherTool.voice_patterns
+
+    # -- EN patterns -------------------------------------------------------
+
+    @pytest.mark.parametrize(
+        "phrase",
+        ["weather", "what's the weather", "what is the weather"],
+    )
+    def test_en_weather(self, patterns, phrase):
+        _assert_pattern_matches(patterns[0], phrase)
+
+    @pytest.mark.parametrize(
+        "phrase",
+        ["how's the weather", "how is the weather"],
+    )
+    def test_en_how_weather(self, patterns, phrase):
+        _assert_pattern_matches(patterns[1], phrase)
+
+    # -- RU patterns -------------------------------------------------------
+
+    @pytest.mark.parametrize("phrase", ["погода", "какая погода", "погоду"])
+    def test_ru_weather(self, patterns, phrase):
+        _assert_pattern_matches(patterns[2], phrase)
+
+    @pytest.mark.parametrize("phrase", ["что с погодой", "что там на погоде"])
+    def test_ru_weather_alt(self, patterns, phrase):
+        _assert_pattern_matches(patterns[3], phrase)
+
+    # -- UK patterns -------------------------------------------------------
+
+    @pytest.mark.parametrize("phrase", ["погода", "яка погода", "погоді"])
+    def test_uk_weather(self, patterns, phrase):
+        _assert_pattern_matches(patterns[4], phrase)
+
+    @pytest.mark.parametrize("phrase", ["що з погодою", "що там на погоді"])
+    def test_uk_weather_alt(self, patterns, phrase):
+        _assert_pattern_matches(patterns[5], phrase)
+
+    # -- no-args check: weather patterns produce empty args -----------------
+
+    def test_weather_no_args(self, patterns):
+        """All weather patterns must produce empty args (no location)."""
+        for p in patterns:
+            compiled = re.compile(p.regex)
+            # pick the simplest phrase that each pattern matches
+            for phrase in ["weather", "погода", "яка погода",
+                           "how's the weather", "что с погодой",
+                           "що з погодою"]:
+                m = compiled.match(phrase)
+                if m is not None:
+                    assert p.args(m) == {}, (
+                        f"weather pattern {p.regex!r} should produce empty args"
+                    )
+                    break
+
+
+# -- system_stats.py -------------------------------------------------------
+
+
+class TestSystemStatsPatterns:
+    """Voice patterns for report_cpu_and_memory_percentages."""
+
+    @pytest.fixture()
+    def patterns(self):
+        from jarvis.tools.local.system_stats import SystemStatsTool
+        return SystemStatsTool.voice_patterns
+
+    @pytest.mark.parametrize(
+        "phrase",
+        ["system stats", "system status", "cpu usage", "memory usage",
+         "show system stats", "show system info", "ram usage"],
+    )
+    def test_en_system_stats(self, patterns, phrase):
+        _assert_pattern_matches(patterns[0], phrase)
+
+    @pytest.mark.parametrize(
+        "phrase",
+        ["статистика системы", "загрузка системы", "состояние пк",
+         "покажи статистику системы", "загрузка компьютера"],
+    )
+    def test_ru_system_stats(self, patterns, phrase):
+        _assert_pattern_matches(patterns[1], phrase)
+
+    @pytest.mark.parametrize(
+        "phrase",
+        ["статистика системи", "завантаження системи",
+         "покажи статистику системи", "завантаження пк"],
+    )
+    def test_uk_system_stats(self, patterns, phrase):
+        _assert_pattern_matches(patterns[2], phrase)
+
+
+# -- clipboard.py ----------------------------------------------------------
+
+
+class TestClipboardPatterns:
+    """Voice patterns for clipboard — read clipboard contents."""
+
+    @pytest.fixture()
+    def patterns(self):
+        from jarvis.tools.local.clipboard import ClipboardTool
+        return ClipboardTool.voice_patterns
+
+    @pytest.mark.parametrize(
+        "phrase",
+        ["clipboard", "what's on my clipboard", "what is in my clipboard",
+         "what's in clipboard"],
+    )
+    def test_en_clipboard(self, patterns, phrase):
+        _assert_pattern_matches(patterns[0], phrase)
+
+    @pytest.mark.parametrize(
+        "phrase",
+        ["что в буфере", "прочитай буфер", "буфер обмена"],
+    )
+    def test_ru_clipboard(self, patterns, phrase):
+        _assert_pattern_matches(patterns[1], phrase)
+
+    @pytest.mark.parametrize(
+        "phrase",
+        ["що в буфері", "прочитай буфер", "буфер обміну"],
+    )
+    def test_uk_clipboard(self, patterns, phrase):
+        _assert_pattern_matches(patterns[2], phrase)
+
+
+# -- disambiguation integration -------------------------------------------
+
+
+class TestDisambiguationPriority:
+    """Verify priority ordering prevents cross-tool match collisions.
+
+    These tests check that the priority values on the patterns produce
+    the correct winner for ambiguous-looking utterances. The catalogue
+    is sorted by priority (lower = checked first), so a match at
+    priority 90 (weather) beats a match at priority 110 (close_app).
+    """
+
+    def test_music_keyword_beats_open_app(self):
+        """'включи музыку джаз' → play_youtube_music, NOT open_app."""
+        from jarvis.tools.local.play_youtube_music import PlayYoutubeMusicTool
+        from jarvis.tools.local.open_app import OpenAppTool
+
+        for mp in PlayYoutubeMusicTool.voice_patterns:
+            assert mp.priority < PRIORITY_CATCH_ALL
+
+    def test_steam_keyword_beats_open_app(self):
+        """'запусти сталкер в стиме' → launch_steam_game, NOT open_app."""
+        from jarvis.tools.local.launch_steam_game import LaunchSteamGameTool
+        from jarvis.tools.local.open_app import OpenAppTool
+
+        for gp in LaunchSteamGameTool.voice_patterns:
+            assert gp.priority < PRIORITY_CATCH_ALL
+
+    def test_close_beats_open_app(self):
+        """close_app patterns must be below music/games but above open_app."""
+        from jarvis.tools.local.close_app import CloseAppTool
+
+        for cp in CloseAppTool.voice_patterns:
+            assert cp.priority < PRIORITY_CATCH_ALL
+            assert cp.priority > 100  # above music (100)
+
+    def test_weather_is_highest(self):
+        """Weather at priority 90 is the highest among these new patterns."""
+        from jarvis.tools.local.weather import WeatherTool
+
+        for wp in WeatherTool.voice_patterns:
+            assert wp.priority == 90
+
+    def test_no_broad_catch_for_ambiguous_verbs(self):
+        """'включи хром' must NOT match music or steam patterns.
+
+        Music patterns require a keyword (музыку/песню/трек).
+        Steam patterns require 'стим' or 'игру'.
+        So 'включи хром' falls through to open_app at PRIORITY_CATCH_ALL.
+        """
+        from jarvis.tools.local.play_youtube_music import PlayYoutubeMusicTool
+        from jarvis.tools.local.launch_steam_game import LaunchSteamGameTool
+
+        for p in PlayYoutubeMusicTool.voice_patterns:
+            _assert_no_match(p, "включи хром")
+        for p in LaunchSteamGameTool.voice_patterns:
+            _assert_no_match(p, "включи хром")
+
+    def test_catalogue_order_is_priority_sorted(self):
+        """The catalogue must return patterns sorted by priority."""
+        from jarvis.tools.catalogue import voice_pattern_catalogue
+
+        priorities = [vp.priority for _, vp in voice_pattern_catalogue()]
+        assert priorities == sorted(priorities), (
+            "voice_pattern_catalogue() must be sorted by priority"
+        )

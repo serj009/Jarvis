@@ -65,6 +65,7 @@ def setup_local_tools(
     from jarvis.core.config import SandboxConfig
     from jarvis.tools.local.close_app import CloseAppTool
     from jarvis.tools.local.files import ListDirectoryTool
+    from jarvis.tools.local.get_time import GetTimeTool
     from jarvis.tools.local.launch_steam_game import LaunchSteamGameTool
     from jarvis.tools.local.launch_workspace import LaunchWorkspaceTool
     from jarvis.tools.local.lock_screen import LockScreenTool
@@ -126,6 +127,7 @@ def setup_local_tools(
     base_tools: list[Tool[Any]] = [
         ClipboardTool(),
         CloseAppTool(),
+        GetTimeTool(),
         ListDirectoryTool(path_validator=path_validator),
         LockScreenTool(),
         OpenAppTool(),

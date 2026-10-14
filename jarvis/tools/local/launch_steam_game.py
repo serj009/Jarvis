@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Callable
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from pydantic import BaseModel, Field
 
 from jarvis.platform import windows as winplat
-from jarvis.tools.registry import ToolResult
+from jarvis.tools.registry import ToolResult, VoicePattern
 
 if TYPE_CHECKING:
     from jarvis.platform.windows_apps import SteamGame
@@ -36,6 +36,52 @@ class LaunchSteamGameTool:
     )
     args_schema = LaunchSteamGameArgs
     requires_confirmation: bool = False
+
+    # Voice patterns for deterministic dispatch — skip LLM for Steam games.
+    #
+    # Priority 105: below play_youtube_music (100) so "play pink floyd" is
+    # music, but above open_app (PRIORITY_CATCH_ALL) so "launch X on steam"
+    # is a game, not an app launch.
+    # Priority 108: "запусти игру X" / "запусти гру X" — slightly lower
+    # since it uses a game keyword instead of a steam keyword.
+    voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        # EN: "launch elden ring on steam", "start portal in steam"
+        VoicePattern(
+            regex=r"^(?:launch|start|boot(?:\s+up)?|run)\s+(.+?)\s+(?:on|in|from)\s+steam$",
+            priority=105,
+            args=lambda m: {"game_name": m.group(1)},
+        ),
+        # EN: "play cyberpunk on steam"
+        VoicePattern(
+            regex=r"^play\s+(.+?)\s+(?:on|in)\s+steam$",
+            priority=105,
+            args=lambda m: {"game_name": m.group(1)},
+        ),
+        # RU: "запусти сталкер в стиме", "включи киберпанк из стима"
+        VoicePattern(
+            regex=r"^(?:запусти|включи|загрузи)\s+(.+?)\s+(?:в|из|на)\s+стим[еуа]?$",
+            priority=105,
+            args=lambda m: {"game_name": m.group(1)},
+        ),
+        # RU: "запусти игру сталкер", "включи игру портал"
+        VoicePattern(
+            regex=r"^(?:запусти|включи)\s+игру\s+(.+)$",
+            priority=108,
+            args=lambda m: {"game_name": m.group(1)},
+        ),
+        # UK: "запусти сталкер в стімі", "увімкни кіберпанк із стіму"
+        VoicePattern(
+            regex=r"^(?:запусти|увімкни|завантаж)\s+(.+?)\s+(?:в|із)\s+стім[іу]?$",
+            priority=105,
+            args=lambda m: {"game_name": m.group(1)},
+        ),
+        # UK: "запусти гру сталкер", "увімкни гру портал"
+        VoicePattern(
+            regex=r"^(?:запусти|увімкни)\s+гру\s+(.+)$",
+            priority=108,
+            args=lambda m: {"game_name": m.group(1)},
+        ),
+    )
 
     def __init__(
         self,
