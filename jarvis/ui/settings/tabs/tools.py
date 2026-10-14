@@ -33,6 +33,62 @@ from jarvis.tools.catalogue import local_tool_names
 
 log = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# Human-readable display names for local tools.
+# Keys that don't appear here fall back to title-cased name.
+# ---------------------------------------------------------------------------
+
+TOOL_DISPLAY_NAMES: dict[str, str] = {
+    "append_to_note": "\U0001f4dd Append to Note",
+    "clear_clipboard_history": "\U0001f4cb Clear Clipboard History",
+    "clipboard": "\U0001f4cb Clipboard",
+    "close_app": "\u274c Close App",
+    "close_clipboard_history": "\U0001f4cb Close Clipboard History",
+    "close_dashboard": "\U0001f4ca Close Dashboard",
+    "close_deep_research": "\U0001f50d Close Deep Research",
+    "close_logs": "\U0001f4c4 Close Logs",
+    "close_notes": "\U0001f4dd Close Notes",
+    "close_research": "\U0001f50d Close Research",
+    "copy_research": "\U0001f4cb Copy Research",
+    "deep_research": "\U0001f50e Deep Research",
+    "delete_all_deep_research": "\U0001f5d1\ufe0f Delete All Deep Research",
+    "delete_deep_research": "\U0001f5d1\ufe0f Delete Deep Research",
+    "delete_note": "\U0001f5d1\ufe0f Delete Note",
+    "disable_deep_research_ultra": "\u26a0\ufe0f Disable Ultra Research",
+    "enable_deep_research_ultra": "\u26a1 Enable Ultra Research",
+    "get_weather": "\u2600\ufe0f Get Weather",
+    "launch_steam_game": "\U0001f3ae Launch Steam Game",
+    "launch_workspace": "\U0001f4bc Launch Workspace",
+    "list_directory": "\U0001f4c2 List Directory",
+    "lock_screen": "\U0001f512 Lock Screen",
+    "open_app": "\U0001f4e6 Open App",
+    "open_help": "\u2753 Open Help",
+    "open_notes": "\U0001f4dd Open Notes",
+    "open_url": "\U0001f310 Open Website",
+    "paste_clipboard_item": "\U0001f4cb Paste Clipboard Item",
+    "pause_deep_research": "\u23f8\ufe0f Pause Deep Research",
+    "play_youtube_music": "\U0001f3b5 Play YouTube Music",
+    "read_more": "\U0001f4d6 Read More",
+    "read_note": "\U0001f4d6 Read Note",
+    "report_cpu_and_memory_percentages": "\U0001f4ca CPU & Memory Usage",
+    "research": "\U0001f50d Research",
+    "resume_deep_research": "\u25b6\ufe0f Resume Deep Research",
+    "screenshot": "\U0001f4f8 Screenshot",
+    "see_screen": "\U0001f441\ufe0f See Screen",
+    "show_clipboard_history": "\U0001f4cb Show Clipboard History",
+    "show_dashboard": "\U0001f4ca Show Dashboard",
+    "show_logs": "\U0001f4c4 Show Logs",
+    "take_note": "\U0001f4dd Take Note",
+    "type_into_active_window": "\u2328\ufe0f Type Into Window",
+    "volume": "\U0001f50a Volume Control",
+}
+
+
+def _display_name(tool_name: str) -> str:
+    """Return the human-readable display name for a tool."""
+    return TOOL_DISPLAY_NAMES.get(tool_name, tool_name.replace("_", " ").title())
+
+
 # The two research group boxes below carry their own explanatory copy, so
 # which tools belong in them is a LAYOUT decision and stays written down
 # here. Everything else is derived, so a new tool gets its checkbox from
@@ -89,7 +145,7 @@ class ToolsTab(QWidget):
         research_form = QFormLayout(research_box)
         hint = QLabel(
             "Summarizes DuckDuckGo results with your Ollama model from "
-            "Settings → Models. Requires Ollama running and internet access."
+            "Settings \u2192 Models. Requires Ollama running and internet access."
         )
         hint.setWordWrap(True)
         hint.setStyleSheet("color: #808080; font-size: 9pt;")
@@ -102,7 +158,7 @@ class ToolsTab(QWidget):
         deep_hint.setStyleSheet("color: #808080; font-size: 9pt;")
         research_form.addRow(deep_hint)
         for name in _RESEARCH_TOOL_NAMES:
-            cb = QCheckBox(name)
+            cb = QCheckBox(_display_name(name))
             cb.setChecked(config.tools.enabled.get(name, True))
             cb.toggled.connect(
                 lambda checked, n=name: self._on_tool_toggled(n, checked)
@@ -110,7 +166,7 @@ class ToolsTab(QWidget):
             research_form.addRow(cb)
             self._checkboxes[name] = cb
         for name in _DEEP_RESEARCH_TOOL_NAMES:
-            cb = QCheckBox(name)
+            cb = QCheckBox(_display_name(name))
             cb.setChecked(config.tools.enabled.get(name, True))
             cb.toggled.connect(
                 lambda checked, n=name: self._on_tool_toggled(n, checked)
@@ -119,7 +175,7 @@ class ToolsTab(QWidget):
             self._checkboxes[name] = cb
 
         # Deep research tuning (planner / worker / depth / breadth / etc.)
-        deep_box = QGroupBox("Deep research — planner + worker")
+        deep_box = QGroupBox("Deep research \u2014 planner + worker")
         deep_form = QFormLayout(deep_box)
         deep_explain = QLabel(
             "Planner model designs the research (sub-questions, query "
@@ -221,7 +277,7 @@ class ToolsTab(QWidget):
         tools_box = QGroupBox("Local tools")
         tools_form = QFormLayout(tools_box)
         for name in tool_names:
-            cb = QCheckBox(name)
+            cb = QCheckBox(_display_name(name))
             cb.setChecked(config.tools.enabled.get(name, True))
             cb.toggled.connect(
                 lambda checked, n=name: self._on_tool_toggled(n, checked)
@@ -235,8 +291,8 @@ class ToolsTab(QWidget):
         self.mcp_list = QListWidget()
         self._repopulate_mcp_list()
         btn_row = QHBoxLayout()
-        self.mcp_add = QPushButton("Add…")
-        self.mcp_edit = QPushButton("Edit…")
+        self.mcp_add = QPushButton("Add\u2026")
+        self.mcp_edit = QPushButton("Edit\u2026")
         self.mcp_remove = QPushButton("Remove")
         btn_row.addWidget(self.mcp_add)
         btn_row.addWidget(self.mcp_edit)
@@ -320,7 +376,7 @@ class ToolsTab(QWidget):
     def _repopulate_mcp_list(self) -> None:
         self.mcp_list.clear()
         for srv in self._config.mcp_servers:
-            text = f"{srv.name}  —  {srv.url}"
+            text = f"{srv.name}  \u2014  {srv.url}"
             if not srv.enabled:
                 text += "  (disabled)"
             item = QListWidgetItem(text)

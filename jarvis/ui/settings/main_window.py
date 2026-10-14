@@ -1,4 +1,4 @@
-"""SettingsWindow — the QMainWindow that hosts the six-tab QTabWidget.
+"""SettingsWindow — the QMainWindow that hosts the seven-tab QTabWidget.
 
 Opens from the tray "Settings…" menu item (and the open_settings
 hotkey). Non-modal: closing it doesn't quit Jarvis. The composition
@@ -34,6 +34,17 @@ from jarvis.ui.settings.theme import apply_theme
 log = logging.getLogger(__name__)
 
 _DEFAULT_SIZE = (780, 560)
+
+# Tab labels with emoji prefixes for quick visual scanning.
+_TAB_LABELS: tuple[tuple[str, str], ...] = (
+    ("general", "\u2699\ufe0f  General"),
+    ("voice", "\U0001f3a4  Voice"),
+    ("models", "\U0001f9e0  AI Models"),
+    ("tools", "\U0001f527  Tools"),
+    ("hotkeys", "\u2328\ufe0f  Hotkeys"),
+    ("help", "\u2753  Help"),
+    ("about", "\u2139\ufe0f  About"),
+)
 
 
 class SettingsWindow(QMainWindow):
@@ -71,7 +82,7 @@ class SettingsWindow(QMainWindow):
         self.setStatusBar(self._status_bar)
 
         def _on_change_with_indicator() -> None:
-            self._status_bar.showMessage("✓ Saved", 1500)
+            self._status_bar.showMessage("\u2713 Saved", 1500)
             on_change()
 
         # Construct each tab. Constructor order is also display order.
@@ -88,19 +99,18 @@ class SettingsWindow(QMainWindow):
         self.help = HelpTab(config=config, on_change=_on_change_with_indicator)
         self.about = AboutTab(config=config, on_change=_on_change_with_indicator)
 
-        self._tabs.addTab(self.general, "General")
-        self._tabs.addTab(self.voice, "Voice")
-        self._tabs.addTab(self.models, "Models")
-        self._tabs.addTab(self.tools, "Tools")
-        self._tabs.addTab(self.hotkeys, "Hotkeys")
-        self._tabs.addTab(self.help, "Help")
-        self._tabs.addTab(self.about, "About")
+        _tab_widgets = [
+            self.general, self.voice, self.models,
+            self.tools, self.hotkeys, self.help, self.about,
+        ]
+        for (_key, label), widget in zip(_TAB_LABELS, _tab_widgets):
+            self._tabs.addTab(widget, label)
 
     def _autosave(self) -> None:
         """Persist config immediately (tabs also save on each change)."""
         try:
             save_config(self._config)
-            self._status_bar.showMessage("✓ Saved", 1500)
+            self._status_bar.showMessage("\u2713 Saved", 1500)
         except Exception:
             log.exception("autosave failed from SettingsWindow")
 

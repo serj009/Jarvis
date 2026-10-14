@@ -5,6 +5,96 @@
 
 ---
 
+## 2026-10-14 — Visual redesign of Settings UI
+
+### Summary
+Complete visual redesign of the Settings window: human-readable labels,
+section cards with descriptions and hints, emoji-prefixed tab labels,
+new STT device/compute controls, and friendly tool names. Zero
+functional changes — all config read/write/save paths are identical.
+
+### What changed visually
+
+- **Tab labels**: "General" → "⚙️  General", "Voice" → "🎤  Voice",
+  "Models" → "🧠  AI Models", "Tools" → "🔧  Tools", etc.
+- **Models tab**: split into 3 card sections (🎤 Speech Recognition,
+  🧠 AI Brain, 👁️ Vision) with friendly labels ("STT model size:" →
+  "Recognition Model" + hint), descriptive combo items
+  ("small" → "Small (recommended)"), new Device and Processing dropdowns
+  with "auto" option
+- **Voice tab**: organized into 3 card sections (🎧 Audio Devices,
+  👂 Wake Word, 🗣️ Text-to-Speech) with emoji labels and hints
+- **General tab**: log level and idle timeout moved into a section card
+  with hints ("Log Detail Level", "Sleep After Inactivity")
+- **Tools tab**: tool checkboxes show human-readable names with emoji
+  ("screenshot" → "📸 Screenshot", "open_url" → "🌐 Open Website")
+
+### New features
+
+- **STT Device dropdown**: "Auto (recommended)" / "GPU (CUDA)" / "CPU"
+  — maps to existing `config.stt.device` field (was missing from UI)
+- **STT Compute "auto" option**: "Auto (recommended)" added to compute
+  dropdown — maps to existing `config.stt.compute_type = "auto"`
+- **STT "Medium" model option**: added to dropdown for users with GPU
+- **Section cards**: `_widgets.py` provides `SectionCard`, `SectionHeader`,
+  `SettingCard` reusable widgets with dark card background (#111111),
+  rounded corners, proper spacing
+
+### Theme changes (`theme.py`)
+
+- New `#sectionCard` objectName selector (bg #111111, 8px radius)
+- New `#sectionTitle` selector (12pt, letter-spacing 1px)
+- New `#sectionDesc` selector (9pt, #707070)
+- New `#settingLabel` selector (11pt, white, weight 400)
+- New `#settingHint` selector (8pt, #606060)
+- New `#divider` selector (1px #1a1a1a line)
+- GroupBox: removed border, accent-colored title, increased spacing
+- ScrollArea: transparent background
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `jarvis/ui/settings/theme.py` | Added section card / hint / divider QSS selectors, improved GroupBox style |
+| `jarvis/ui/settings/_widgets.py` | **NEW** — `SectionCard`, `SectionHeader`, `SettingCard`, `make_divider()`, `slider_with_label()` |
+| `jarvis/ui/settings/tabs/voice.py` | Reorganized into 3 section cards (Audio Devices, Wake Word, TTS), friendly labels + hints |
+| `jarvis/ui/settings/tabs/models.py` | Full redesign: 3 section cards (STT, LLM, Vision), display-name combos, new device/compute dropdowns |
+| `jarvis/ui/settings/tabs/general.py` | Log level + idle timeout in SectionCard with hints, scrollable layout |
+| `jarvis/ui/settings/tabs/tools.py` | `TOOL_DISPLAY_NAMES` dict, `_display_name()` helper, emoji-prefixed checkbox labels |
+| `jarvis/ui/settings/main_window.py` | Emoji tab labels via `_TAB_LABELS` tuple |
+| `tests/ui/test_settings.py` | Updated tab-label assertion, added `test_models_tab_has_stt_device_and_compute_combos`, `test_models_tab_stt_device_writes_back`, `test_tools_tab_checkboxes_have_friendly_names`; `stt_size` test uses `currentData()` |
+| `AMAZONQ_CHANGELOG.md` | This entry |
+
+### Test changes
+
+- `test_main_window_has_six_tabs_in_order` → renamed to
+  `test_main_window_has_seven_tabs_in_order`, updated expected labels
+  to include emoji prefixes and "AI Models" rename
+- `test_models_tab_populates_from_config` → changed
+  `stt_size.currentText()` assertion to `stt_size.currentData()` since
+  combo now stores display names as text and config values as data
+- **NEW** `test_models_tab_has_stt_device_and_compute_combos` — verifies
+  the new device/compute dropdowns exist and default to "auto"
+- **NEW** `test_models_tab_stt_device_writes_back` — changing device
+  combo updates `config.stt.device`
+- **NEW** `test_tools_tab_checkboxes_have_friendly_names` — verifies
+  emoji display names on tool checkboxes
+
+### Integration notes
+
+- **Zero functional impact**: all `_persist()` / `save_config()` /
+  `on_change()` call paths unchanged. Config field names and types
+  identical. Only UI layout and display strings changed.
+- **`_widgets.py`** is a new module but not exported from `__init__.py`;
+  only imported by the tab files.
+- **STT combo signals**: changed from `currentTextChanged` to
+  `currentIndexChanged` + `currentData()` pattern since display text
+  no longer equals config values.
+- **Scroll areas**: Voice, Models, and General tabs now wrap content in
+  `QScrollArea` so section cards don't clip on smaller windows.
+
+---
+
 ## 2026-10-14 — QA: STT GPU + Multilingual full audit — 2 bugs fixed
 
 ### Summary
