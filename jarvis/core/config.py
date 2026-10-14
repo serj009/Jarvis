@@ -43,7 +43,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
-CURRENT_SCHEMA_VERSION = 26
+CURRENT_SCHEMA_VERSION = 27
 
 # Prompts from prior schema versions — used by migrations to detect and
 # replace the old default without overwriting user-customised prompts.
@@ -89,10 +89,12 @@ _SYSTEM_PROMPT_V6 = (
     "Don't refuse, don't guess and call a tool."
 )
 
-DEFAULT_SYSTEM_PROMPT = (
+# Prompt shipped with schema v7–v26 — English-only, no multilingual examples.
+# Replaced by v27 with multilingual rules and shorter footprint.
+_SYSTEM_PROMPT_V26 = (
     "You are Jarvis, an AI assistant inspired by Iron Man. Calm, dryly "
     "witty, British, address the user as 'sir'. Keep responses concise "
-    "— one or two sentences usually.\n"
+    "\u2014 one or two sentences usually.\n"
     "\n"
     "YOUR JOB:\n"
     "- Answer questions, have conversations, do mental tasks (math, counting, "
@@ -100,7 +102,7 @@ DEFAULT_SYSTEM_PROMPT = (
     "- When the user asks you to count, do math, tell a story, or have a "
     "conversation: just do it directly in your response.\n"
     "- When the user asks for a specific computer action (open an app, take a "
-    "screenshot, check CPU stats, lock the screen, etc.): call the tool — do not "
+    "screenshot, check CPU stats, lock the screen, etc.): call the tool \u2014 do not "
     "only say you did it in text.\n"
     "\n"
     "TOOL USAGE:\n"
@@ -109,7 +111,7 @@ DEFAULT_SYSTEM_PROMPT = (
     "- For everything else (questions, conversations, counting, math, jokes, "
     "reasoning, advice): answer in words. Do not call any tool.\n"
     "- Read the full utterance and use context to pick the right tool. "
-    "Ambiguous 'play X' is common — decide from clues:\n"
+    "Ambiguous 'play X' is common \u2014 decide from clues:\n"
     "  * Music (song, artist, album, genre, 'some jazz', 'that track'): "
     "play_youtube_music with query = song/artist terms only; it finds and "
     "opens the video with autoplay.\n"
@@ -126,6 +128,37 @@ DEFAULT_SYSTEM_PROMPT = (
     "what the user actually asked for.\n"
     "- If the user's request is unclear, ask for clarification. Don't refuse.\n"
     "- Tools require no admin permissions. Don't hallucinate restrictions."
+)
+
+DEFAULT_SYSTEM_PROMPT = (
+    "You are Jarvis — calm, dryly witty, British AI assistant. "
+    "Address the user as 'sir'. Keep replies to 1-2 sentences.\n"
+    "\n"
+    "RULES:\n"
+    "1. Reply in the user's language (русский / українська / English).\n"
+    "2. ACTION request → CALL the matching tool. Never just SAY you did it.\n"
+    "3. QUESTION or chat (math, jokes, facts, advice, stories, counting) "
+    "→ answer in words. No tool call.\n"
+    "4. Unclear request → ask for clarification. Don't guess a tool.\n"
+    "\n"
+    "EXAMPLES:\n"
+    '- "открой хром" / "open chrome" → open_app\n'
+    '- "какая погода?" / "яка погода?" → get_weather\n'
+    '- "включи джаз" / "play some jazz" → play_youtube_music\n'
+    '- "сколько будет 2+2" / "tell a joke" → text answer, no tool\n'
+    "\n"
+    "PLAY disambiguation:\n"
+    "- Music (song, artist, genre, 'поставь музыку'): play_youtube_music\n"
+    "- Video game (Steam, 'запусти игру'): launch_steam_game\n"
+    "- Desktop app ('открой программу', browser, editor): open_app\n"
+    "- Workspace ('open my workspace'): launch_workspace\n"
+    "\n"
+    "RESEARCH:\n"
+    "- Quick web lookup → research\n"
+    "- In-depth report → deep_research\n"
+    "- 'enable deep research ultra' → enable_deep_research_ultra\n"
+    "\n"
+    "Tools need no admin permissions. Don't hallucinate restrictions."
 )
 
 
@@ -1099,6 +1132,24 @@ def _migrate_v25_to_v26(data: dict) -> dict:
     return data
 
 
+def _migrate_v26_to_v27(data: dict) -> dict:
+    """Schema v27: multilingual system prompt for better tool-calling accuracy.
+
+    Replaces the English-only v7–v26 default prompt with a shorter,
+    multilingual version that includes RU/UK/EN examples and explicit
+    language-matching rules. Qwen 2.5 7B responds much better to the
+    user's language when the system prompt itself demonstrates it.
+
+    Only replaces the prompt when it exactly matches the v26 default so
+    that user-customised prompts are left untouched.
+    """
+    llm = data.setdefault("llm", {})
+    if llm.get("system_prompt") == _SYSTEM_PROMPT_V26:
+        llm["system_prompt"] = DEFAULT_SYSTEM_PROMPT
+    data["schema_version"] = 27
+    return data
+
+
 MIGRATIONS: dict[int, Migration] = {
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
@@ -1125,6 +1176,7 @@ MIGRATIONS: dict[int, Migration] = {
     23: _migrate_v23_to_v24,
     24: _migrate_v24_to_v25,
     25: _migrate_v25_to_v26,
+    26: _migrate_v26_to_v27,
 }
 
 

@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from jarvis.core import config as cfg_mod
 from jarvis.core.config import (
     _SYSTEM_PROMPT_V6,
+    _SYSTEM_PROMPT_V26,
     CURRENT_SCHEMA_VERSION,
     ConfigMigrationError,
     JarvisConfig,
@@ -50,6 +51,8 @@ def test_defaults_match_spec():
     assert "sir" in c.llm.system_prompt
     assert "count" in c.llm.system_prompt.lower()
     assert "Don't hallucinate" in c.llm.system_prompt
+    # v27: prompt includes multilingual examples and language-matching rule.
+    assert "русский" in c.llm.system_prompt or "українська" in c.llm.system_prompt
     assert c.debug.log_wake_during_speaking is False
     # Fresh installs ship no default location; the weather tool's
     # ipapi.co fallback fills it on first use.
@@ -1457,3 +1460,74 @@ def test_fresh_install_has_stt_gpu_defaults():
     assert cfg.stt.model_size == "small"
     assert cfg.stt.device == "auto"
     assert cfg.stt.compute_type == "auto"
+
+
+# --- v26 → v27 multilingual system prompt ---------------------------------
+
+
+def _v26_data(system_prompt: str | None = None) -> dict:
+    """Build a minimal v26 config dict with optional system_prompt override."""
+    base = JarvisConfig().model_dump(mode="json")
+    base["schema_version"] = 26
+    if system_prompt is not None:
+        base["llm"]["system_prompt"] = system_prompt
+    else:
+        base["llm"]["system_prompt"] = _SYSTEM_PROMPT_V26
+    return base
+
+
+def test_migrate_v26_to_v27_replaces_default_system_prompt():
+    """v26→v27 swaps the English-only default for the multilingual one."""
+    data = _v26_data()
+    out = migrate(data)
+    assert out["schema_version"] == CURRENT_SCHEMA_VERSION
+    prompt = out["llm"]["system_prompt"]
+    # New prompt has multilingual rules and examples.
+    assert "русский" in prompt
+    assert "українська" in prompt
+    assert "open_app" in prompt
+    assert "get_weather" in prompt
+    assert "Don't hallucinate" in prompt
+
+
+def test_migrate_v26_to_v27_preserves_custom_system_prompt():
+    """User-customised prompts are not overwritten by the migration."""
+    data = _v26_data(system_prompt="My very custom prompt")
+    out = migrate(data)
+    assert out["schema_version"] == CURRENT_SCHEMA_VERSION
+    assert out["llm"]["system_prompt"] == "My very custom prompt"
+
+
+def test_migrate_v26_to_v27_preserves_v6_prompt():
+    """A user still on the v6 prompt (somehow never migrated by v7)
+    should not be clobbered by v27 — only exact v26 default matches."""
+    data = _v26_data(system_prompt=_SYSTEM_PROMPT_V6)
+    out = migrate(data)
+    assert out["llm"]["system_prompt"] == _SYSTEM_PROMPT_V6
+
+
+def test_load_config_migrates_v26_file_on_disk(tmp_path: Path):
+    """End-to-end: a v26 JSON file on disk gets the new multilingual prompt."""
+    p = tmp_path / "config.json"
+    p.write_text(json.dumps(_v26_data()), encoding="utf-8")
+    cfg = load_config(p)
+    assert cfg.schema_version == CURRENT_SCHEMA_VERSION
+    assert "русский" in cfg.llm.system_prompt
+    assert "українська" in cfg.llm.system_prompt
+
+
+def test_fresh_install_has_multilingual_prompt():
+    """Fresh v27 installs ship the multilingual system prompt."""
+    cfg = JarvisConfig()
+    prompt = cfg.llm.system_prompt
+    assert "Jarvis" in prompt
+    assert "sir" in prompt
+    assert "русский" in prompt
+    assert "українська" in prompt
+    assert "open_app" in prompt
+    assert "get_weather" in prompt
+    assert "play_youtube_music" in prompt
+    assert "counting" in prompt.lower()
+    assert "Don't hallucinate" in prompt
+    # Prompt is shorter than v26 — critical for 8192 context window.
+    assert len(prompt) < len(_SYSTEM_PROMPT_V26)

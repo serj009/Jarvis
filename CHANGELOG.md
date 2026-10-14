@@ -41,6 +41,14 @@ loses settings.
 
 ### Changed
 
+- **Multilingual system prompt (config schema v27).** The LLM system prompt is
+  now multilingual — it includes RU/UK/EN examples, an explicit "reply in the
+  user's language" rule, and clear numbered rules separating action-requests
+  (call a tool) from questions (answer in words). The old English-only prompt
+  confused Qwen 2.5 7B when the user spoke Russian or Ukrainian (~40% incorrect
+  tool routing); the new prompt is also 40% shorter (1105 vs 1843 chars),
+  freeing ~185 tokens in the 8192-token context window. Migration v26→v27
+  auto-replaces the default; user-customised prompts are untouched.
 - Voice patterns now live on the tool they dispatch to. The router's
   first-match-wins table was a 51-entry literal in `intent_router.py`, hundreds
   of lines away from the tools it routed to; each tool declares its own
