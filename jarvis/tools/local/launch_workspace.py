@@ -68,13 +68,15 @@ def _workspace_description(apps: list[WorkspaceAppEntry]) -> str:
         return (
             "Opens the user's workspace (apps configured in Settings → General). "
             "Call when the user says 'open my workspace', 'launch workspace', "
-            "or 'start my setup'."
+            "or 'start my setup'. "
+            "(RU: открой рабочее / UK: відкрий робоче)"
         )
     names = ", ".join(a.label for a in apps)
     return (
         f"Opens the user's workspace by launching: {names}. "
         "Call when the user says 'open my workspace', 'launch workspace', "
-        "'start my workspace', or 'start my setup'."
+        "'start my workspace', or 'start my setup'. "
+        "(RU: открой рабочее / UK: відкрий робоче)"
     )
 
 

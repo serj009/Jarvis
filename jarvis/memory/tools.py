@@ -39,7 +39,8 @@ class RememberTool:
     description: str = (
         "Store a piece of information in long-term memory. Use when the user "
         "says 'remember that...', 'save this...', 'note that...', or "
-        "'keep in mind that...'. The fact parameter is the information to store."
+        "'keep in mind that...'. The fact parameter is the information to store. "
+        "(RU: запомни / UK: запам'ятай)"
     )
     args_schema = RememberArgs
     requires_confirmation: bool = False
@@ -86,7 +87,8 @@ class RecallTool:
     description: str = (
         "Search long-term memory for stored facts. Use when the user asks "
         "'what do you know about...', 'do you remember...', 'what did I tell "
-        "you about...'. Returns matching facts from memory."
+        "you about...'. Returns matching facts from memory. "
+        "(RU: вспомни, напомни / UK: згадай, нагадай)"
     )
     args_schema = RecallArgs
     requires_confirmation: bool = False
@@ -154,7 +156,8 @@ class ForgetTool:
     description: str = (
         "Delete a fact from long-term memory. Use when the user says "
         "'forget about...', 'delete that...', 'remove from memory...'. "
-        "Searches for the fact first, then deletes the best match."
+        "Searches for the fact first, then deletes the best match. "
+        "(RU: забудь / UK: забудь)"
     )
     args_schema = ForgetArgs
     requires_confirmation: bool = True  # Destructive — ask before deleting

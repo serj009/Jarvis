@@ -14,6 +14,22 @@ loses settings.
 
 ### Added
 
+- **Multilingual tool descriptions (RU/UK keywords).** Every voice-facing
+  tool description now ends with a short `(RU: keyword / UK: keyword)` hint
+  so that Qwen 8B can associate Russian/Ukrainian user requests with the
+  correct EN-described tool in the OpenAI function-calling schema.
+  19 tools updated: open_app, close_app, open_url, play_youtube_music,
+  launch_steam_game, launch_workspace, get_weather, screenshot, see_screen,
+  lock_screen, volume, get_time, clipboard, list_directory, take_note,
+  remember_fact, search_memory, forget_fact, report_cpu_and_memory_percentages.
+  Non-voice tools (deep_research, research internals, etc.) left unchanged.
+  Token overhead: ~5-10 extra tokens per tool description.
+
+### Fixed
+
+- `test_setup_local_tools_registers_the_phase_4_set` expected names list
+  now includes `get_time` (added in previous commit but missing from golden).
+
 - **`get_time` tool — tell the current time and date by voice.**
   New local tool (`jarvis/tools/local/get_time.py`) answers "what time is it?",
   "сколько времени?", "котра година?" and similar queries in EN/RU/UK.

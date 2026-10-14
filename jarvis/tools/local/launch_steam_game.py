@@ -32,7 +32,8 @@ class LaunchSteamGameTool:
         "boot a game on Steam — e.g. 'play Elden Ring', 'launch Cyberpunk', "
         "'start Portal on Steam'. Do NOT use for music, songs, artists, "
         "YouTube, or opening the Steam client itself (use open_app for "
-        "the Steam application)."
+        "the Steam application). "
+        "(RU: запусти игру в стиме / UK: запусти гру в стімі)"
     )
     args_schema = LaunchSteamGameArgs
     requires_confirmation: bool = False

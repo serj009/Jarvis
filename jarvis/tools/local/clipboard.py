@@ -20,7 +20,8 @@ class ClipboardTool:
     name: str = "clipboard"
     description: str = (
         "Reads the current clipboard contents. Only use when the user "
-        "explicitly asks to read or check the clipboard."
+        "explicitly asks to read or check the clipboard. "
+        "(RU: буфер обмена / UK: буфер обміну)"
     )
     args_schema: type[BaseModel] = EmptyArgs
     requires_confirmation: bool = False

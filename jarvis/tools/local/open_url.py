@@ -91,7 +91,8 @@ class OpenUrlTool:
         "'https://www.youtube.com'. For a web search use "
         "'https://www.google.com/search?q=<query>'. Do NOT use for installed "
         "desktop programs (use open_app) or for playing music (use "
-        "play_youtube_music, it opens the video directly)."
+        "play_youtube_music, it opens the video directly). "
+        "(RU: найди, загугли, поищи / UK: знайди, загугли, пошукай)"
     )
     args_schema = OpenUrlArgs
     requires_confirmation: bool = False

@@ -38,7 +38,8 @@ class GetTimeTool:
     name: str = "get_time"
     description: str = (
         "Tell the current time and date. Use when the user asks "
-        "what time it is or today's date."
+        "what time it is or today's date. "
+        "(RU: сколько времени, который час / UK: котра година, скільки часу)"
     )
     args_schema: type[BaseModel] = EmptyArgs
     requires_confirmation: bool = False

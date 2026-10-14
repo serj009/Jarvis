@@ -56,7 +56,8 @@ class VolumeTool:
     description: str = (
         "Changes system audio volume. Only use when the user explicitly "
         "asks to change volume. action=up|down|mute|unmute; amount sets "
-        "the step count for up/down (1-20, ~2% per tick)."
+        "the step count for up/down (1-20, ~2% per tick). "
+        "(RU: громче, тише, звук / UK: гучніше, тихіше, звук)"
     )
     args_schema = VolumeArgs
     requires_confirmation: bool = False

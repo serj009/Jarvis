@@ -63,7 +63,8 @@ class PlayYoutubeMusicTool:
         "Use when the user wants to hear a song, track, artist, or music. "
         "Pass `query` as the distilled song/artist search string from their "
         "full request — the tool resolves the top video and opens it directly "
-        "(not a search results page). Do NOT use open_url for music playback."
+        "(not a search results page). Do NOT use open_url for music playback. "
+        "(RU: включи музыку, поставь песню / UK: увімкні музику, постав пісню)"
     )
     args_schema = PlayYoutubeMusicArgs
     requires_confirmation: bool = False
