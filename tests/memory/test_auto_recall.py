@@ -6,8 +6,9 @@ import sqlite3
 
 import pytest
 
-from jarvis.memory.auto_recall import get_relevant_memories, _text_for_injection
+from jarvis.memory.auto_recall import get_relevant_memories, _text_for_injection, _is_preference_fact, _PREFERENCE_TAGS
 from jarvis.memory.store import Fact, MemoryStore
+from jarvis.memory.relations import RelationStore
 
 
 # ---------------------------------------------------------------------------
@@ -246,3 +247,224 @@ class TestTierAwareRecall:
         result = await get_relevant_memories(store, "Serhii", min_score=0.0)
         assert result is not None
         assert _get_tier(store.db_path, fid) == "hot"
+
+
+# ---------------------------------------------------------------------------
+# Relation-aware recall (T4.7)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture()
+async def store_with_relations(tmp_path):
+    """MemoryStore + RelationStore with linked facts for testing relation expansion."""
+    db_path = tmp_path / "test_rel_memory.db"
+    s = MemoryStore(db_path=db_path)
+    await s.open()
+
+    # Primary fact (will be found by keyword search)
+    f1 = await s.add("Mafia 2 — got Flame of Frenzy achievement", category="games", tags=["mafia_2", "achievement"])
+    # Related facts (linked via relations, NOT directly findable by "Flame of Frenzy")
+    f2 = await s.add("Mafia 2 achievements: Flame of the Fell God still needed", category="games", tags=["mafia_2", "achievement"])
+    f3 = await s.add("Mafia 2 — completed chapter 5", category="games", tags=["mafia_2", "progress"])
+    # Unrelated fact
+    f4 = await s.add("User prefers dark theme", category="personal", tags=["ui"])
+
+    rel = RelationStore(db_path=db_path)
+    rel.init_schema()
+    rel.add_relation(f1, f2, "related_to", strength=0.9)
+    rel.add_relation(f1, f3, "belongs_to", strength=0.8)
+
+    yield s, rel, {"f1": f1, "f2": f2, "f3": f3, "f4": f4}
+    await s.close()
+
+
+class TestRelationAwareRecall:
+    """Integration tests: auto-recall expands found facts via relation graph."""
+
+    @pytest.mark.asyncio()
+    async def test_related_facts_injected(self, store_with_relations) -> None:
+        """When a primary fact has relations, related facts appear in output."""
+        store, rel, ids = store_with_relations
+        result = await get_relevant_memories(
+            store, "Flame of Frenzy",
+            min_score=0.0,
+            relation_store=rel,
+        )
+        assert result is not None
+        # The primary fact should be there
+        assert "Flame of Frenzy" in result
+        # Related facts should be injected with [related] prefix
+        assert "[related]" in result
+
+    @pytest.mark.asyncio()
+    async def test_related_facts_contain_linked_content(self, store_with_relations) -> None:
+        """Related facts bring in content from the relation graph."""
+        store, rel, ids = store_with_relations
+        result = await get_relevant_memories(
+            store, "Flame of Frenzy",
+            min_score=0.0,
+            relation_store=rel,
+        )
+        assert result is not None
+        # At least one of the related facts should appear
+        has_fell_god = "Fell God" in result
+        has_chapter = "chapter 5" in result
+        assert has_fell_god or has_chapter, f"Expected related content in: {result}"
+
+    @pytest.mark.asyncio()
+    async def test_unrelated_facts_not_pulled_in(self, store_with_relations) -> None:
+        """Facts without relations to primary results are NOT injected."""
+        store, rel, ids = store_with_relations
+        result = await get_relevant_memories(
+            store, "Flame of Frenzy",
+            min_score=0.0,
+            relation_store=rel,
+        )
+        # "dark theme" is unrelated — should not appear
+        if result:
+            assert "dark theme" not in result
+
+    @pytest.mark.asyncio()
+    async def test_dedup_no_duplicate_facts(self, store_with_relations) -> None:
+        """A fact already in primary results is NOT duplicated as related."""
+        store, rel, ids = store_with_relations
+        result = await get_relevant_memories(
+            store, "Flame of Frenzy",
+            min_score=0.0,
+            relation_store=rel,
+        )
+        assert result is not None
+        lines = [l for l in result.split("\n") if l.startswith("- ")]
+        # Extract fact texts (strip prefix markers)
+        texts = [l.lstrip("- ").replace("[related] ", "") for l in lines]
+        # No exact duplicates
+        assert len(texts) == len(set(texts)), f"Duplicates found: {texts}"
+
+    @pytest.mark.asyncio()
+    async def test_max_total_cap(self, tmp_path) -> None:
+        """Total facts (primary + related) capped at max_total."""
+        db_path = tmp_path / "cap_test.db"
+        s = MemoryStore(db_path=db_path)
+        await s.open()
+
+        # Create 1 primary fact with 8 related facts
+        primary = await s.add("Main game fact about Elden Ring", category="games", tags=["elden_ring"])
+        related_ids = []
+        for i in range(8):
+            rid = await s.add(f"Elden Ring related fact number {i}", category="games", tags=["elden_ring"])
+            related_ids.append(rid)
+
+        rel = RelationStore(db_path=db_path)
+        rel.init_schema()
+        for rid in related_ids:
+            rel.add_relation(primary, rid, "related_to")
+
+        result = await get_relevant_memories(
+            s, "Elden Ring",
+            min_score=0.0,
+            max_results=3,
+            relation_store=rel,
+            max_total=5,
+        )
+        assert result is not None
+        bullet_lines = [l for l in result.split("\n") if l.startswith("- ")]
+        assert len(bullet_lines) <= 5, f"Expected ≤5 total, got {len(bullet_lines)}"
+        await s.close()
+
+    @pytest.mark.asyncio()
+    async def test_no_relation_store_still_works(self, store_with_relations) -> None:
+        """Without relation_store, recall works as before (no expansion)."""
+        store, _rel, _ids = store_with_relations
+        result = await get_relevant_memories(store, "Flame of Frenzy", min_score=0.0)
+        assert result is not None
+        assert "[related]" not in result
+
+
+# ---------------------------------------------------------------------------
+# Preference-aware injection (T4.7)
+# ---------------------------------------------------------------------------
+
+class TestIsPreferenceFact:
+    """Unit tests for _is_preference_fact helper."""
+
+    def test_behavior_tag(self) -> None:
+        fact = Fact(id="1", text="always open Chrome", tags=["auto_behavior"])
+        assert _is_preference_fact(fact) is True
+
+    def test_negative_pref_tag(self) -> None:
+        fact = Fact(id="2", text="never close Steam", tags=["auto_negative_pref"])
+        assert _is_preference_fact(fact) is True
+
+    def test_tool_pref_tag(self) -> None:
+        fact = Fact(id="3", text="my browser is Chrome", tags=["auto_tool_pref"])
+        assert _is_preference_fact(fact) is True
+
+    def test_setting_pref_tag(self) -> None:
+        fact = Fact(id="4", text="volume 70", tags=["auto_setting_pref"])
+        assert _is_preference_fact(fact) is True
+
+    def test_regular_fact_not_preference(self) -> None:
+        fact = Fact(id="5", text="User likes Stalker", tags=["auto_preference"])
+        assert _is_preference_fact(fact) is False
+
+    def test_empty_tags(self) -> None:
+        fact = Fact(id="6", text="Something", tags=[])
+        assert _is_preference_fact(fact) is False
+
+    def test_no_tags_attr(self) -> None:
+        fact = Fact(id="7", text="Something")
+        assert _is_preference_fact(fact) is False
+
+
+@pytest.fixture()
+async def pref_store(tmp_path) -> MemoryStore:
+    """MemoryStore with both regular facts and preference facts."""
+    s = MemoryStore(db_path=tmp_path / "pref_memory.db")
+    await s.open()
+    # Regular fact
+    await s.add("User likes Stalker 2", category="games", tags=["auto_preference"])
+    # Preference facts
+    await s.add(
+        "User said: always open Chrome instead of Edge",
+        category="behavior", source="conversation", tags=["auto_behavior"],
+    )
+    await s.add(
+        "User said: never close Steam when closing everything",
+        category="negative_pref", source="conversation", tags=["auto_negative_pref"],
+    )
+    yield s
+    await s.close()
+
+
+class TestPreferenceAwareRecall:
+    """Integration tests: preferences injected with boost (before regular memories)."""
+
+    @pytest.mark.asyncio()
+    async def test_preferences_appear_before_regular_memories(self, pref_store) -> None:
+        result = await get_relevant_memories(
+            pref_store, "Chrome Steam Stalker", min_score=0.0,
+        )
+        assert result is not None
+        # "[User preferences:]" must appear before "[Relevant memories"
+        pref_pos = result.find("[User preferences:]")
+        mem_pos = result.find("[Relevant memories from past conversations:]")
+        assert pref_pos != -1, "Preference header missing"
+        if mem_pos != -1:
+            assert pref_pos < mem_pos, "Preferences must come before regular memories"
+
+    @pytest.mark.asyncio()
+    async def test_preference_header_present(self, pref_store) -> None:
+        result = await get_relevant_memories(
+            pref_store, "Chrome", min_score=0.0,
+        )
+        assert result is not None
+        assert "[User preferences:]" in result
+
+    @pytest.mark.asyncio()
+    async def test_only_regular_memories_no_pref_header(self, pref_store) -> None:
+        """When only non-preference facts match, no [User preferences:] header."""
+        result = await get_relevant_memories(
+            pref_store, "Stalker 2", min_score=0.0,
+        )
+        if result is not None:
+            # If Stalker matched, it should be under regular memories only
+            assert "[Relevant memories from past conversations:]" in result

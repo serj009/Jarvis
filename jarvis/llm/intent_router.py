@@ -113,6 +113,7 @@ from jarvis.llm.conversation import ToolExchange
 if TYPE_CHECKING:
     from jarvis.memory.store import MemoryStore
     from jarvis.memory.tool_examples import ToolExampleStore
+    from jarvis.memory.relations import RelationStore
     from jarvis.core.game_mode import GameMode
     from jarvis.llm.conversation import Conversation
     from jarvis.llm.ollama_client import OllamaClient
@@ -368,6 +369,8 @@ class IntentRouter:
         memory_store: MemoryStore | None = None,
         # T4.5: Self-learning tool examples.
         tool_example_store: ToolExampleStore | None = None,
+        # T4.7: Relation-aware recall — expand found facts via relation graph.
+        relation_store: RelationStore | None = None,
     ) -> None:
         # `registry` is the live source of the tool schemas — querying it
         # fresh on every route() call means a settings-driven enable/disable
@@ -393,6 +396,7 @@ class IntentRouter:
         self._tool_call_seq = 0
         self._memory_store = memory_store
         self._tool_example_store = tool_example_store
+        self._relation_store = relation_store
 
         # Game mode: set by app.py after construction (avoids circular deps)
         self._game_mode: GameMode | None = None
@@ -530,6 +534,9 @@ class IntentRouter:
             # T4.7: log user actions to long-term memory
             self._log_actions(intents, exchanges)
 
+            # T4.8: check event-triggered reminders after app/game launch
+            reminder_text = await self._check_launch_reminders(intents, exchanges)
+
             if ends_turn:
                 # Every tool in this round is a one-shot action (open a
                 # site / an app) and it succeeded. Asking the model again
@@ -544,6 +551,8 @@ class IntentRouter:
                 )
                 if spoken:
                     yield SpeakIntent(text=spoken)
+                if reminder_text:
+                    yield SpeakIntent(text=reminder_text)
                 self._conv.clear_injected_context()
                 return
 
@@ -562,8 +571,62 @@ class IntentRouter:
                 )
                 if spoken:
                     yield SpeakIntent(text=spoken)
+                if reminder_text:
+                    yield SpeakIntent(text=reminder_text)
                 self._conv.clear_injected_context()
                 return
+
+    # -- event-triggered reminders ----------------------------------------
+
+    async def _check_launch_reminders(
+        self,
+        intents: list[ToolIntent],
+        exchanges: list[ToolExchange],
+    ) -> str:
+        """Check for event-triggered reminders after app/game launches.
+
+        Inspects the tool intents for launch_steam_game / open_app.
+        If found and successful, searches memory for reminders tagged
+        with that app/game name.
+
+        Returns formatted spoken reminder text, or empty string.
+        Non-fatal: any exception is logged and silently swallowed.
+        """
+        if self._memory_store is None:
+            return ""
+
+        # Collect app/game names from successful launch tools
+        targets: list[str] = []
+        for intent, exchange in zip(intents, exchanges):
+            if exchange.result.startswith("Error:"):
+                continue
+            if intent.tool_name == "launch_steam_game":
+                name = intent.args.get("game_name") or intent.args.get("name", "")
+                if name:
+                    targets.append(name)
+            elif intent.tool_name == "open_app":
+                name = intent.args.get("name") or intent.args.get("app_name", "")
+                if name:
+                    targets.append(name)
+
+        if not targets:
+            return ""
+
+        try:
+            from jarvis.memory.reminders import check_reminders, format_reminders_for_speech
+
+            all_reminders: list[str] = []
+            for target in targets:
+                reminders = await check_reminders(self._memory_store, target)
+                all_reminders.extend(reminders)
+
+            if all_reminders:
+                lang = reply_language()
+                return format_reminders_for_speech(all_reminders, lang=lang)
+        except Exception:
+            log.warning("[router] reminder check failed (non-fatal)", exc_info=True)
+
+        return ""
 
     # -- auto-context injection -------------------------------------------
 
@@ -575,8 +638,8 @@ class IntentRouter:
         second system message between the main prompt and history.
 
         Non-fatal: any exception is logged and silently swallowed.
-
-        parts: list[str] = []
+        """
+        parts: list[str] = []  # noqa: RUF012
 
         # 0. Game mode: inject preloaded game context (RAM, no LLM cost)
         if self._game_mode is not None and self._game_mode.is_active:
@@ -595,6 +658,7 @@ class IntentRouter:
 
                 memory_text = await get_relevant_memories(
                     self._memory_store, transcription,
+                    relation_store=self._relation_store,
                 )
                 if memory_text:
                     parts.append(memory_text)

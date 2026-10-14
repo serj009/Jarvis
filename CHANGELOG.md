@@ -14,6 +14,68 @@ loses settings.
 
 ### Added
 
+- **Event-Triggered Reminders — context-bound reminders that fire on app/game
+  launch (T4.8).**
+  New module `jarvis/memory/reminders.py`. Users can now say:
+  - "Напомни когда буду играть в Elden Ring что нужно найти Flame of the Fell God"
+  - "Когда открою Chrome — напомни проверить почту"
+  - "Remind me when I play Skyrim to find the Daedric sword"
+  - "Нагадай коли буду грати в Stalker 2 що знайти артефакт"
+
+  Reminders are stored in long-term memory as `category="reminder"` facts with
+  a `trigger:<target>` tag. When the target app/game is launched, the reminder
+  is surfaced as spoken text.
+
+  Detection: `auto_save.py` recognises reminder patterns (EN/RU/UK) via
+  `parse_reminder()` before regular fact extraction. Matched utterances are
+  saved via `save_reminder()` and do NOT also create a regular fact.
+
+  Trigger points:
+  1. `IntentRouter._run_tools()` — after a successful `launch_steam_game` or
+     `open_app` tool call, `check_reminders(target)` fires and the result is
+     yielded as a `SpeakIntent` so the user hears it immediately.
+  2. `GameMode._preload_game_context()` — when game mode activates, reminders
+     for the detected game are appended to the preloaded context block so they
+     are visible even without the LLM.
+
+  Helper: `format_reminders_for_speech()` formats one or multiple reminders
+  into a natural spoken string in the current reply language.
+  `clear_reminder()` removes a fired reminder so it doesn't repeat.
+
+  Tests: `tests/memory/test_reminders.py` — parse patterns (EN/RU/UK),
+  save + check round-trip, case-insensitive matching, multiple reminders,
+  clear after fire, format for speech, non-matching utterances.
+
+- **Preference Learning — behavioral habit memory (T4.7).**
+  `jarvis/memory/auto_save.py` now detects and saves four new categories
+  of user preferences beyond simple "I like X" facts:
+
+  1. **Behavioral preferences** (`behavior`): "always open Chrome",
+     "всегда открывай Chrome", "завжди відкривай Chrome"
+  2. **Negative preferences** (`negative_pref`): "never close Steam",
+     "никогда не закрывай Steam", "ніколи не закривай Steam"
+  3. **Tool preferences** (`tool_pref`): "my browser is Chrome",
+     "мой браузер — Chrome", "мій браузер — Chrome"
+  4. **Setting preferences** (`setting_pref`): "volume to 70",
+     "громкость на 50"
+
+  Trilingual support (EN/RU/UK) for all patterns. Saved with
+  `auto_behavior`, `auto_negative_pref`, `auto_tool_pref`,
+  `auto_setting_pref` tags for traceability.
+
+  `jarvis/memory/auto_recall.py` now provides **preference-aware
+  injection**: facts tagged with preference tags are injected BEFORE
+  regular memories under a `[User preferences:]` header, so the LLM
+  treats them as user instructions rather than passive context:
+
+  ```
+  [User preferences:]
+  - User said: always open Chrome instead of Edge
+  - User said: never close Steam when closing everything
+  [Relevant memories from past conversations:]
+  - User likes Stalker 2
+  ```
+
 - **Game Mode — intelligent VRAM management when games are running.**
   New module `jarvis/core/game_mode.py` (`GameMode`). When a resource-heavy
   (MAIN) game is detected via periodic process scanning (psutil, every 30s),

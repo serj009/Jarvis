@@ -504,6 +504,19 @@ class GameMode:
                 lines.append(f"- {text}")
 
             self._preloaded_context = "\n".join(lines)
+
+            # Inject event-triggered reminders for this game
+            try:
+                from jarvis.memory.reminders import check_reminders
+
+                reminders = await check_reminders(self._memory, game_title)
+                if reminders:
+                    self._preloaded_context += "\n\n[REMINDERS for this game:]"
+                    for r in reminders:
+                        self._preloaded_context += f"\n⚠ REMINDER: {r}"
+            except Exception:
+                log.warning("game mode: reminder check failed (non-fatal)", exc_info=True)
+
             log.info(
                 "game mode: preloaded %d facts for '%s' (%d chars)",
                 len(results), game_title, len(self._preloaded_context),

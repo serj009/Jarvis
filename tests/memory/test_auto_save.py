@@ -90,6 +90,118 @@ class TestExtractFacts:
 
 
 # ---------------------------------------------------------------------------
+# Behavioral preferences (T4.7)
+# ---------------------------------------------------------------------------
+
+class TestBehavioralPreferences:
+    """Tests for behavioral / negative / tool / setting preference patterns."""
+
+    # -- behavior (always / every time) ------------------------------------
+
+    def test_en_always(self) -> None:
+        facts = extract_facts("always open Chrome instead of Edge")
+        assert len(facts) >= 1
+        assert facts[0][1] == "behavior"
+        assert "chrome" in facts[0][0].lower()
+
+    def test_en_every_time(self) -> None:
+        facts = extract_facts("every time use dark mode")
+        assert len(facts) >= 1
+        assert facts[0][1] == "behavior"
+
+    def test_ru_vsegda(self) -> None:
+        facts = extract_facts("всегда открывай Chrome а не Edge")
+        assert len(facts) >= 1
+        assert facts[0][1] == "behavior"
+        assert "chrome" in facts[0][0].lower()
+
+    def test_ru_vsyo_vremya(self) -> None:
+        facts = extract_facts("всё время используй тёмную тему")
+        assert len(facts) >= 1
+        assert facts[0][1] == "behavior"
+
+    def test_uk_zavzhdy(self) -> None:
+        facts = extract_facts("завжди відкривай Chrome")
+        assert len(facts) >= 1
+        assert facts[0][1] == "behavior"
+
+    def test_uk_kozhnoho_razu(self) -> None:
+        facts = extract_facts("кожного разу використовуй темну тему")
+        assert len(facts) >= 1
+        assert facts[0][1] == "behavior"
+
+    # -- negative_pref (never / don't ever) --------------------------------
+
+    def test_en_never(self) -> None:
+        facts = extract_facts("never close Steam when closing everything")
+        assert len(facts) >= 1
+        assert facts[0][1] == "negative_pref"
+        assert "steam" in facts[0][0].lower()
+
+    def test_en_dont_ever(self) -> None:
+        facts = extract_facts("don't ever minimize my game")
+        assert len(facts) >= 1
+        assert facts[0][1] == "negative_pref"
+
+    def test_ru_nikogda_ne(self) -> None:
+        facts = extract_facts("никогда не закрывай Steam")
+        assert len(facts) >= 1
+        assert facts[0][1] == "negative_pref"
+
+    def test_ru_ne_nado(self) -> None:
+        facts = extract_facts("не надо закрывать браузер")
+        assert len(facts) >= 1
+        assert facts[0][1] == "negative_pref"
+
+    def test_uk_nikoly_ne(self) -> None:
+        facts = extract_facts("ніколи не закривай Steam")
+        assert len(facts) >= 1
+        assert facts[0][1] == "negative_pref"
+
+    def test_uk_ne_treba(self) -> None:
+        facts = extract_facts("не треба закривати браузер")
+        assert len(facts) >= 1
+        assert facts[0][1] == "negative_pref"
+
+    # -- tool_pref (my browser is X) ---------------------------------------
+
+    def test_en_my_browser_is(self) -> None:
+        facts = extract_facts("my browser is Chrome")
+        assert len(facts) >= 1
+        assert facts[0][1] == "tool_pref"
+        assert "chrome" in facts[0][0].lower()
+
+    def test_en_my_editor_is(self) -> None:
+        facts = extract_facts("my editor is VS Code")
+        assert len(facts) >= 1
+        assert facts[0][1] == "tool_pref"
+
+    def test_ru_moy_brauzer(self) -> None:
+        facts = extract_facts("мой браузер — Chrome")
+        assert len(facts) >= 1
+        assert facts[0][1] == "tool_pref"
+
+    def test_uk_miy_brauzer(self) -> None:
+        facts = extract_facts("мій браузер — Chrome")
+        assert len(facts) >= 1
+        assert facts[0][1] == "tool_pref"
+
+    # -- setting_pref (volume to 70%) --------------------------------------
+
+    def test_en_volume(self) -> None:
+        facts = extract_facts("volume to 70")
+        assert len(facts) >= 1
+        assert facts[0][1] == "setting_pref"
+        assert "70" in facts[0][0]
+
+    def test_ru_gromkost(self) -> None:
+        facts = extract_facts("громкость на 50")
+        assert len(facts) >= 1
+        assert facts[0][1] == "setting_pref"
+        assert "50" in facts[0][0]
+
+
+# ---------------------------------------------------------------------------
 # auto_save_facts (async, needs store)
 # ---------------------------------------------------------------------------
 
