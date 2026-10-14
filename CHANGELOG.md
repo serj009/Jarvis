@@ -14,6 +14,37 @@ loses settings.
 
 ### Added
 
+- **Action Logger: record user actions to long-term memory (T4.7).**
+  New module `jarvis/memory/action_logger.py`. After each successful tool call
+  in the router's feedback loop, a human-readable action record is saved to
+  memory (e.g. "Opened chrome", "Launched game: Mafia 2 on Steam"). This lets
+  Jarvis build contextual history of user behaviour — "запусти ту игру" recalls
+  Mafia 2 because the action is in memory. Actions are fire-and-forget via
+  `asyncio.create_task`, never blocking the pipeline. Noisy/internal tools
+  (clipboard, dashboard, etc.) are skipped via `_SKIP_TOOLS`.
+
+- **Session Summary: persist session context across wake-word timeouts (T4.7).**
+  New module `jarvis/memory/session_summary.py`. When `Conversation.maybe_clear()`
+  decides the conversation timed out (wake-word timeout > continuity window),
+  the session's turns are condensed into a brief summary and saved to long-term
+  memory as `category="session"`, `tags=["session_summary"]`. This gives Jarvis
+  cross-session awareness: "что мы вчера делали?" → auto_recall finds the
+  session summary → Jarvis can answer. Sessions with fewer than 2 user turns
+  are not summarised.
+
+- **Auto-recall: session-history boost.**
+  `auto_recall.py` now detects "what did we do yesterday?" style queries
+  (EN/RU/UK) and pulls in recent session_summary facts even when FTS5
+  keyword overlap is poor, ensuring session summaries surface when asked about.
+
+- **`Conversation.set_memory_store()`.**
+  New method on `Conversation` for attaching a `MemoryStore` after
+  construction. Used by the composition root to enable session-summary
+  persistence without adding a hard constructor dependency.
+
+- **Tests:** `tests/memory/test_action_logger.py`,
+  `tests/memory/test_session_summary.py`.
+
 - **Tiered memory storage — hot/warm/cold/archive lifecycle (T4.6).**
   New module `jarvis/memory/tier_manager.py` (`TierManager`).  Facts now
   move through four tiers based on `last_accessed_at` age:

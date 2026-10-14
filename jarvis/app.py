@@ -2634,6 +2634,9 @@ class JarvisApp:
 
         )
 
+        # T4.7: attach memory store for session-summary persistence
+        self.conversation.set_memory_store(self.memory_store)
+
 
         self.registry = ToolRegistry(self.cfg.tools)
 

@@ -81,6 +81,7 @@ message whose results never arrived. Two layers defend against it:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from collections.abc import Callable, Sequence
@@ -261,6 +262,16 @@ class Conversation:
         self._turns: list[Message] = []
         self._last_activity: float | None = None
         self._injected_context: str | None = None
+        self._memory_store = None  # set via set_memory_store()
+
+    def set_memory_store(self, memory_store) -> None:
+        """Attach a MemoryStore for session-summary persistence.
+
+        Called by the composition root after both Conversation and
+        MemoryStore are constructed.  Avoids adding a hard constructor
+        dependency on the memory subsystem.
+        """
+        self._memory_store = memory_store
 
     # -- API --
 
@@ -354,7 +365,11 @@ class Conversation:
         If the last assistant turn completed within continuity_seconds, the
         user is likely following up — history is kept. If more time has
         elapsed (or there is no prior history), this is a fresh session and
-        history is wiped.
+        history is wiped.  When a MemoryStore is attached (via
+        ``set_memory_store``), the outgoing session's turns are summarised
+        and saved to long-term memory **before** clearing, so cross-session
+        context survives (e.g. "what did we do yesterday?").  The save is
+        fire-and-forget (``asyncio.create_task``) and never blocks wake.
 
         Called by AudioPipeline's on_wake hook via the composition root.
         """
@@ -362,6 +377,7 @@ class Conversation:
             return
         elapsed = self._time() - self._last_activity
         if elapsed > continuity_seconds:
+            self._save_session_summary_async()
             self.clear()
         else:
             log.debug(
@@ -416,6 +432,36 @@ class Conversation:
         return msgs
 
     # -- internal --
+
+    def _save_session_summary_async(self) -> None:
+        """Fire-and-forget: summarise the current turns and persist to memory.
+
+        Called from ``maybe_clear`` BEFORE history is wiped.  The method is
+        synchronous (``maybe_clear`` is sync and called from a sync lambda
+        in the composition root), but we know an asyncio loop IS running
+        (the caller lives inside ``AudioPipeline._handle_wake_detection``).
+        ``asyncio.create_task`` is therefore safe.
+
+        If no memory store is attached, or the store is not open, or the
+        session is too short, this is a no-op.
+        """
+        store = self._memory_store
+        if store is None or not store.is_open:
+            return
+        if not self._turns:
+            return
+
+        # Snapshot turns before clear() wipes them.
+        turns_snapshot = list(self._turns)
+        try:
+            from jarvis.memory.session_summary import save_session_summary
+
+            asyncio.create_task(save_session_summary(store, turns_snapshot))
+        except RuntimeError:
+            # No running event loop (unit tests, non-async context).
+            log.debug("session summary: no running loop; skipping")
+        except Exception:
+            log.warning("session summary: failed to schedule", exc_info=True)
 
     def _inactivity_elapsed(self) -> bool:
         if self._last_activity is None:

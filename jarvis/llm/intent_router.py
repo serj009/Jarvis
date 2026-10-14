@@ -101,6 +101,7 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import asyncio
 import re
 from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
@@ -489,6 +490,9 @@ class IntentRouter:
             # T4.5: record successful tool calls for self-learning
             self._record_tool_examples(transcription, intents, exchanges)
 
+            # T4.7: log user actions to long-term memory
+            self._log_actions(intents, exchanges)
+
             if ends_turn:
                 # Every tool in this round is a one-shot action (open a
                 # site / an app) and it succeeded. Asking the model again
@@ -583,6 +587,29 @@ class IntentRouter:
                 )
             except Exception:
                 log.warning("[router] tool-example record failed", exc_info=True)
+
+    def _log_actions(
+        self,
+        intents: list[ToolIntent],
+        exchanges: list[ToolExchange],
+    ) -> None:
+        """Log successful tool calls as user actions to long-term memory.
+
+        Fire-and-forget via asyncio.create_task — never blocks pipeline.
+        Non-fatal: any exception is logged and silently swallowed.
+        """
+        if self._memory_store is None:
+            return
+        from jarvis.memory.action_logger import log_action
+
+        for intent, exchange in zip(intents, exchanges):
+            success = not exchange.result.startswith("Error:")
+            try:
+                asyncio.create_task(
+                    log_action(self._memory_store, intent.tool_name, intent.args, success=success)
+                )
+            except Exception:
+                log.warning("[router] action-log failed", exc_info=True)
 
     # -- internal --
 
