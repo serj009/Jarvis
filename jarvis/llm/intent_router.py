@@ -113,6 +113,7 @@ from jarvis.llm.conversation import ToolExchange
 if TYPE_CHECKING:
     from jarvis.memory.store import MemoryStore
     from jarvis.memory.tool_examples import ToolExampleStore
+    from jarvis.core.game_mode import GameMode
     from jarvis.llm.conversation import Conversation
     from jarvis.llm.ollama_client import OllamaClient
     from jarvis.tools.registry import ToolRegistry, ToolResult
@@ -246,6 +247,26 @@ _STOP_PATTERN: re.Pattern[str] = re.compile(
     re.IGNORECASE,
 )
 
+# Game mode voice patterns — matched after stop, before tool patterns.
+# "game mode" / "игровой режим" / "ігровий режим" → show status
+# "включи / выключи / enable / disable game mode" → force activate/deactivate
+_GAME_MODE_STATUS_PATTERN: re.Pattern[str] = re.compile(
+    r"^(?:game\s*mode|игровой\s*режим|ігровий\s*режим)$",
+    re.IGNORECASE,
+)
+_GAME_MODE_ON_PATTERN: re.Pattern[str] = re.compile(
+    r"^(?:(?:включи|enable|activate|start)\s+(?:game\s*mode|игровой\s*режим|ігровий\s*режим)"
+    r"|game\s*mode\s+(?:on|enable|start|activate)"
+    r"|(?:game\s*mode|игровой\s*режим|ігровий\s*режим)\s+(?:on|вкл|включи))$",
+    re.IGNORECASE,
+)
+_GAME_MODE_OFF_PATTERN: re.Pattern[str] = re.compile(
+    r"^(?:(?:выключи|отключи|disable|deactivate|stop)\s+(?:game\s*mode|игровой\s*режим|ігровий\s*режим)"
+    r"|game\s*mode\s+(?:off|disable|stop|deactivate)"
+    r"|(?:game\s*mode|игровой\s*режим|ігровий\s*режим)\s+(?:off|выкл|выключи))$",
+    re.IGNORECASE,
+)
+
 
 def _what_time_intent(
     time_provider: Callable[[], datetime.datetime],
@@ -373,6 +394,9 @@ class IntentRouter:
         self._memory_store = memory_store
         self._tool_example_store = tool_example_store
 
+        # Game mode: set by app.py after construction (avoids circular deps)
+        self._game_mode: GameMode | None = None
+
     def _current_tools(self) -> list[dict]:
         if self._registry is not None:
             return self._registry.as_openai_functions()
@@ -428,6 +452,19 @@ class IntentRouter:
 
         pattern_intent = self._try_pattern(transcription)
         if pattern_intent is not None:
+            # Game mode on/off: fire the async action before yielding
+            if self._game_mode is not None:
+                normalized = _normalize(transcription)
+                if _GAME_MODE_ON_PATTERN.match(normalized):
+                    try:
+                        await self._game_mode.force_activate()
+                    except Exception:
+                        log.warning("game mode force_activate failed", exc_info=True)
+                elif _GAME_MODE_OFF_PATTERN.match(normalized):
+                    try:
+                        await self._game_mode.force_deactivate()
+                    except Exception:
+                        log.warning("game mode force_deactivate failed", exc_info=True)
             yield pattern_intent
             return
 
@@ -538,8 +575,18 @@ class IntentRouter:
         second system message between the main prompt and history.
 
         Non-fatal: any exception is logged and silently swallowed.
-        """
+
         parts: list[str] = []
+
+        # 0. Game mode: inject preloaded game context (RAM, no LLM cost)
+        if self._game_mode is not None and self._game_mode.is_active:
+            ctx = self._game_mode.preloaded_context
+            if ctx:
+                parts.append(ctx)
+                log.debug(
+                    "[router] game mode: injecting %d chars of preloaded context",
+                    len(ctx),
+                )
 
         # 1. Auto-recall relevant memories
         if self._memory_store is not None:
@@ -761,6 +808,23 @@ class IntentRouter:
             return None
         if _STOP_PATTERN.match(normalized):
             return StopIntent()
+        # Game mode voice commands (before tool patterns)
+        if self._game_mode is not None:
+            if _GAME_MODE_STATUS_PATTERN.match(normalized):
+                info = self._game_mode.get_game_session_info()
+                if info:
+                    return SpeakIntent(text=info)
+                return SpeakIntent(text="Game mode is not active, sir.")
+            if _GAME_MODE_ON_PATTERN.match(normalized):
+                # force_activate is async; wrap in a ToolIntent-like
+                # SpeakIntent and handle activation in route()
+                return SpeakIntent(
+                    text="Activating game mode, sir. Models will be evicted from VRAM."
+                )
+            if _GAME_MODE_OFF_PATTERN.match(normalized):
+                return SpeakIntent(
+                    text="Deactivating game mode, sir. Restoring full capabilities."
+                )
         for pattern, builder in self._patterns:
             m = pattern.match(normalized)
             if m is None:

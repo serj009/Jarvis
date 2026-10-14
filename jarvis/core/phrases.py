@@ -151,6 +151,23 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Работаю над этим, сэр.",
         "uk": "Працюю над цим, сер.",
     },
+    # Game mode — spoken when the LLM needs to be temporarily loaded
+    # during game mode (slow path: model evicted, needs re-load).
+    "thinking_game_mode_1": {
+        "en": "One moment, sir, loading the model...",
+        "ru": "Один момент, сэр, загружаю модель...",
+        "uk": "Одну мить, сер, завантажую модель...",
+    },
+    "thinking_game_mode_2": {
+        "en": "Bear with me, sir — game mode is active, loading temporarily.",
+        "ru": "Подождите, сэр — игровой режим, загружаю временно.",
+        "uk": "Зачекайте, сер — ігровий режим, завантажую тимчасово.",
+    },
+    "thinking_game_mode_3": {
+        "en": "Briefly loading for your question, sir.",
+        "ru": "Кратко загружаю для вашего вопроса, сэр.",
+        "uk": "Коротко завантажую для вашого питання, сер.",
+    },
     "thinking_check_1": {
         "en": "Let me check, sir.",
         "ru": "Сейчас проверю, сэр.",
