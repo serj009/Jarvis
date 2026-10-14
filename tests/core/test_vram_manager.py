@@ -56,15 +56,16 @@ class TestVRAMManager:
     async def test_eviction_frees_lower_priority(self, mgr: VRAMManager) -> None:
         mgr.register("ollama", size_mb=8000, priority=10)
         mgr.register("tts", size_mb=2500, priority=20)
-        mgr.register("vision", size_mb=5000, priority=30)  # least important
+        mgr.register("vision", size_mb=3500, priority=30)  # least important
 
         await mgr.request("ollama")
         await mgr.request("tts")
-        # Now 10500 MB used, 1500 free. Vision needs 5000.
-        # Should evict tts (priority 20 > 10, but vision is 30 so tts is candidate)
+        # Now 10500 MB used, 1500 free. Vision needs 3500.
+        # Should evict tts (priority 20 — higher number = less important
+        # than ollama's 10). After evicting tts: 4000 free >= 3500.
         ok = await mgr.request("vision")
         assert ok is True
-        # tts was evicted (priority 20 — higher number than ollama's 10)
+        # tts was evicted; ollama stays (most important, priority 10)
         status = mgr.status()
         assert status["consumers"]["tts"]["loaded"] is False
         assert status["consumers"]["vision"]["loaded"] is True

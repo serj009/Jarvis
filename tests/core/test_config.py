@@ -36,8 +36,8 @@ def test_defaults_match_spec():
     assert c.audio.prefer_respeaker is True
     assert c.wake_word.model == "hey_jarvis"
     assert c.wake_word.sensitivity == 0.5
-    assert c.stt.model_size == "tiny.en"
-    assert c.stt.language == "en"
+    assert c.stt.model_size == "base"
+    assert c.stt.language == "auto"
     assert c.stt.compute_type == "int8"
     assert c.tts.voice == "en_GB-alan-medium"
     assert c.llm.model == "qwen2.5:7b-instruct"
@@ -351,10 +351,11 @@ def test_migrate_v2_to_v3_bumps_version_only():
     assert out["stt"] == stt_before
 
 
-def test_fresh_install_gets_tiny_en_default():
-    """New installs (no config on disk) get 'tiny.en' as the STT model."""
+def test_fresh_install_gets_base_multilingual_default():
+    """New installs (no config on disk) get 'base' as the STT model."""
     cfg = JarvisConfig()
-    assert cfg.stt.model_size == "tiny.en"
+    assert cfg.stt.model_size == "base"
+    assert cfg.stt.language == "auto"
 
 
 def test_load_config_migrates_v2_file_on_disk(tmp_path: Path):

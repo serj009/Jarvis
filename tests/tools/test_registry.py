@@ -332,6 +332,7 @@ def test_setup_local_tools_registers_the_phase_4_set():
         # it out of the model's fallback set.
         "report_cpu_and_memory_percentages",
         "screenshot",
+        "switch_language",
         # type_into_active_window is omitted: disabled by default in ToolsConfig
         "volume",
     ]

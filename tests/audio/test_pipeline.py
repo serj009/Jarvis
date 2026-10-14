@@ -21,6 +21,7 @@ from jarvis.audio.protocols import (
     AudioSource,
     SpeechToText,
     TextToSpeech,
+    TranscriptionResult,
     VADEvent,
     VoiceActivityDetector,
     WakeWordDetector,
@@ -102,7 +103,7 @@ class FakeSTT:
     async def transcribe(self, audio):
         self.calls += 1
         self.last_audio = audio
-        return self.transcription
+        return TranscriptionResult(text=self.transcription)
 
 
 class FakeTTS:
@@ -189,6 +190,10 @@ def make_pipeline(
         min_utterance_ms=min_utterance_ms,
         barge_in_enabled=barge_in_enabled,
         on_wake=on_wake,
+        # Disable Phase 3 thinking phrases in unit tests: FakeTTS blocks
+        # on each speak() call via a gate, and the thinking phrase speak()
+        # would deadlock before the response chain reaches SPEAKING state.
+        thinking_phrases_enabled=False,
     )
     return pipeline, bus, sm, source, ww, vad, stt, tts
 

@@ -99,6 +99,20 @@ def _make_registry():
     return MagicMock()
 
 
+def _make_memory_store():
+    m = MagicMock()
+    m.open = AsyncMock()
+    m.close = AsyncMock()
+    return m
+
+
+def _make_conversation_memory():
+    m = MagicMock()
+    m.open = AsyncMock()
+    m.close = AsyncMock()
+    return m
+
+
 # ---------------------------------------------------------------------------
 # _audio_main: happy path
 # ---------------------------------------------------------------------------
@@ -128,6 +142,8 @@ async def test_audio_main_happy_path():
         mcp_manager=_make_mcp_manager(),
         mcp_servers=[],
         registry=_make_registry(),
+        memory_store=_make_memory_store(),
+        conversation_memory=_make_conversation_memory(),
     )
 
     lm.load_all.assert_awaited_once()
@@ -171,6 +187,8 @@ async def test_audio_main_load_failure_sets_error_skips_pipeline():
         mcp_manager=_make_mcp_manager(),
         mcp_servers=[],
         registry=_make_registry(),
+        memory_store=_make_memory_store(),
+        conversation_memory=_make_conversation_memory(),
     )
 
     assert done.is_set()
@@ -209,6 +227,8 @@ async def test_audio_main_ollama_warmup_failure_is_non_fatal():
         mcp_manager=_make_mcp_manager(),
         mcp_servers=[],
         registry=_make_registry(),
+        memory_store=_make_memory_store(),
+        conversation_memory=_make_conversation_memory(),
     )
 
     assert done.is_set()
@@ -259,6 +279,8 @@ async def test_audio_main_unload_after_pipeline_stop():
         mcp_manager=_make_mcp_manager(),
         mcp_servers=[],
         registry=_make_registry(),
+        memory_store=_make_memory_store(),
+        conversation_memory=_make_conversation_memory(),
     )
 
     assert order == ["pipeline_stop", "unload_all"]

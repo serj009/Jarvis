@@ -5,6 +5,128 @@
 
 ---
 
+## 2026-10-14 — Fix: Whisper model mismatch + pytest PermissionError
+
+### Root Cause 1: JARVIS fails to start — Whisper model not found
+`config.py` defaulted to `model_size="tiny.en"` (English-only), but
+`setup_jarvis.py` downloads the `"base"` model (multilingual). Since
+`stt.py` uses `local_files_only=True`, it crashed at launch trying to
+load a model that was never downloaded.
+
+**Fix** — aligned config defaults with setup_jarvis.py:
+- `STTConfig.model_size`: `"tiny.en"` → `"base"`
+- `STTConfig.language`: `"en"` → `"auto"`
+- Added migration v23→v24: converts `tiny.en`→`base`, `en`→`auto` for
+  existing configs (only when values match the broken defaults)
+- Schema version bumped 23 → 24
+
+### Root Cause 2: 182 pytest ERRORS — PermissionError on tmp_path
+pytest's `tmp_path` fixture scans `%TEMP%/pytest-of-<user>` to create
+numbered temp dirs. On Windows this dir can become inaccessible if a
+previous run created it under elevated/different security context.
+
+**Fix** — created root-level `conftest.py` with `pytest_configure()` that
+redirects `basetemp` to `.pytest_tmp/` inside the project tree when no
+explicit `--basetemp` is passed. This avoids the system temp dir entirely.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `jarvis/core/config.py` | `CURRENT_SCHEMA_VERSION` 23→24, STTConfig defaults `base`/`auto`, added `_migrate_v23_to_v24()` |
+| `tests/core/test_config.py` | Updated 3 assertions to match new defaults |
+| `conftest.py` (NEW) | Root-level pytest config: safe basetemp redirect |
+| `.gitignore` | Added `.pytest_tmp/` |
+| `AMAZONQ_CHANGELOG.md` | This entry |
+
+### Integration notes
+- `_resolve_model_id("base", "auto")` → returns `"base"` (multilingual),
+  which is exactly what `setup_jarvis.py` downloads. No STT code changes needed.
+- Migration is safe for existing configs: only touches the exact broken defaults.
+  Users who explicitly set model_size/language keep their values.
+- Test command no longer needs `--basetemp` flag (conftest handles it),
+  but `--basetemp` still works if passed (conftest defers to explicit CLI).
+
+---
+
+## 2026-10-14 — Test Suite Fix: 17 FAILED → 0, 182 ERRORS diagnosed
+
+### Summary
+Fixed all 17 FAILED tests introduced by Phase 2-4 changes. The 182 ERRORS
+are a `PermissionError` on the `tmp_path` pytest fixture (`[WinError 5]
+Access is denied: 'C:\...\pytest-of-serj'`) — an OS-level temp-directory
+permission issue unrelated to code changes. Fixed by cleaning up the stale
+temp dir or running PowerShell as Administrator.
+
+### Bug Fixes (5 bugs, 17 tests)
+
+#### BUG 1: pipeline.py — `'str' object has no attribute 'text'` (10 FAILED)
+- **Root cause**: `FakeSTT.transcribe()` in `test_pipeline.py` returned a
+  plain `str`, but `_run_response_chain()` at line 474 accesses `result.text`
+  expecting a `TranscriptionResult` (the protocol contract since Phase 2).
+- **Fix**: Updated `FakeSTT.transcribe()` to return
+  `TranscriptionResult(text=self.transcription)` and imported the class.
+  Also added `thinking_phrases_enabled=False` to the test's `make_pipeline()`
+  helper — FakeTTS blocks on each `speak()` call via a gate, and the Phase 3
+  thinking-phrase `speak()` would deadlock before the response chain reaches
+  SPEAKING state.
+- **Files**: `tests/audio/test_pipeline.py`
+
+#### BUG 2: test_app.py — missing `memory_store` / `conversation_memory` args (4 FAILED)
+- **Root cause**: Phase 4 added `memory_store` and `conversation_memory`
+  positional parameters to `_audio_main()` in `app.py`, but the test calls
+  were not updated.
+- **Fix**: Added `_make_memory_store()` and `_make_conversation_memory()`
+  helpers (AsyncMock with `.open()` and `.close()`), passed them to all four
+  `_audio_main()` calls.
+- **Files**: `tests/ui/test_app.py`
+
+#### BUG 3: test_registry.py — missing `switch_language` in expected tool list (1 FAILED)
+- **Root cause**: Phase 3 added `SwitchLanguageTool` to `setup_local_tools()`,
+  but the pinned expected-names list in `test_setup_local_tools_registers_the_phase_4_set`
+  was not updated.
+- **Fix**: Added `"switch_language"` in alphabetical order between
+  `"screenshot"` and `"volume"`.
+- **Files**: `tests/tools/test_registry.py`
+
+#### BUG 4: test_vram_manager.py — eviction arithmetic overflow (1 FAILED)
+- **Root cause**: Test registered `ollama=8000MB`, `tts=2500MB`,
+  `vision=5000MB` in a 12000MB budget. After evicting tts, only 4000MB free
+  — still not enough for vision (5000MB). So ollama gets evicted too,
+  contradicting the assertion `ollama.loaded is True`.
+  (8000 + 5000 = 13000 > 12000 budget.)
+- **Fix**: Reduced vision size from 5000 to 3500MB in the test. Now after
+  evicting tts: 4000MB free ≥ 3500MB needed. Ollama stays loaded as intended.
+- **Files**: `tests/core/test_vram_manager.py`
+
+#### BUG 5: auto_tagger.py — "saves" pattern too restrictive (1 FAILED)
+- **Root cause**: The saves tag rule pattern `save\s*(?:game|file)` required
+  "save" to be followed by "game" or "file". The test text
+  `"Stalker 2 achievements guide with save locations"` has "save loc" which
+  didn't match.
+- **Fix**: Broadened the regex to `save\s*(?:game|file|loc)|saves?\b` so it
+  matches "save game", "save file", "save locations", and standalone
+  "save"/"saves". Backward compatible — all existing matches still work.
+- **Files**: `jarvis/memory/auto_tagger.py`
+
+### 182 ERRORS — Root Cause Analysis
+All 182 errors are identical `PermissionError`:
+```
+PermissionError: [WinError 5] Access is denied:
+    'C:\Users\serj\AppData\Local\Temp\pytest-of-serj'
+```
+This is pytest's `tmp_path` fixture failing to create/scan the basetemp
+directory. Cause: a prior pytest run (or another user/process) owns that
+directory, and the current user lacks permission to scan it.
+**Fix**: Delete the stale `pytest-of-serj` directory, or run:
+```powershell
+$env:APPDATA = "$env:TEMP\jarvis-test-appdata"
+python -m pytest -q --basetemp="$env:TEMP\jarvis-pytest-$PID"
+```
+Not a code issue — no source changes needed.
+
+---
+
 ## 2026-10-09 — AutoClassifier + RelationStore + EmbeddingCache Integration
 
 ### Summary
