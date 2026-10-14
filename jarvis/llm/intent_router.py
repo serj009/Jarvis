@@ -114,6 +114,9 @@ if TYPE_CHECKING:
     from jarvis.memory.store import MemoryStore
     from jarvis.memory.tool_examples import ToolExampleStore
     from jarvis.memory.relations import RelationStore
+    from jarvis.memory.personal_aliases import PersonalAliasStore
+    from jarvis.memory.user_profile import UserProfile
+    from jarvis.memory.usage_stats import UsageStats
     from jarvis.core.game_mode import GameMode
     from jarvis.llm.conversation import Conversation
     from jarvis.llm.ollama_client import OllamaClient
@@ -371,6 +374,12 @@ class IntentRouter:
         tool_example_store: ToolExampleStore | None = None,
         # T4.7: Relation-aware recall — expand found facts via relation graph.
         relation_store: RelationStore | None = None,
+        # T4.9: Personal aliases — user-learned app name mappings.
+        personal_aliases: PersonalAliasStore | None = None,
+        # T4.9: User profile — persistent user facts for context injection.
+        user_profile: UserProfile | None = None,
+        # T4.9: Usage stats — command/app frequency tracking.
+        usage_stats: UsageStats | None = None,
     ) -> None:
         # `registry` is the live source of the tool schemas — querying it
         # fresh on every route() call means a settings-driven enable/disable
@@ -397,6 +406,9 @@ class IntentRouter:
         self._memory_store = memory_store
         self._tool_example_store = tool_example_store
         self._relation_store = relation_store
+        self._personal_aliases = personal_aliases
+        self._user_profile = user_profile
+        self._usage_stats = usage_stats
 
         # Game mode: set by app.py after construction (avoids circular deps)
         self._game_mode: GameMode | None = None
@@ -674,6 +686,24 @@ class IntentRouter:
             except Exception:
                 log.warning("[router] tool-examples failed (non-fatal)", exc_info=True)
 
+        # 3. User profile — persistent facts (name, city, etc.)
+        if self._user_profile is not None:
+            try:
+                profile_text = self._user_profile.for_prompt()
+                if profile_text:
+                    parts.append(profile_text)
+            except Exception:
+                log.warning("[router] user-profile failed (non-fatal)", exc_info=True)
+
+        # 4. Usage stats — frequently used apps
+        if self._usage_stats is not None:
+            try:
+                stats_text = self._usage_stats.for_prompt()
+                if stats_text:
+                    parts.append(stats_text)
+            except Exception:
+                log.warning("[router] usage-stats failed (non-fatal)", exc_info=True)
+
         if parts:
             self._conv.inject_context("\n\n".join(parts))
         else:
@@ -698,6 +728,78 @@ class IntentRouter:
                 )
             except Exception:
                 log.warning("[router] tool-example record failed", exc_info=True)
+
+        # T4.9: Record usage stats for every successful tool call.
+        self._record_usage_stats(intents, exchanges)
+
+        # T4.9: Learn personal aliases from successful open_app calls.
+        self._learn_personal_aliases(transcription, intents, exchanges)
+
+    def _record_usage_stats(
+        self,
+        intents: list[ToolIntent],
+        exchanges: list[ToolExchange],
+    ) -> None:
+        """Record tool and app usage stats. Non-fatal."""
+        if self._usage_stats is None:
+            return
+        for intent, exchange in zip(intents, exchanges):
+            if exchange.result.startswith("Error:"):
+                continue
+            try:
+                self._usage_stats.record_tool_use(intent.tool_name)
+                if intent.tool_name == "open_app":
+                    app_name = intent.args.get("name", "")
+                    if app_name:
+                        self._usage_stats.record_app_use(app_name)
+            except Exception:
+                log.warning("[router] usage-stats record failed", exc_info=True)
+
+    def _learn_personal_aliases(
+        self,
+        transcription: str,
+        intents: list[ToolIntent],
+        exchanges: list[ToolExchange],
+    ) -> None:
+        """Learn personal aliases from successful open_app calls.
+
+        When the utterance contains a generic word ("браузер", "редактор",
+        "player") and the tool argument is a specific app ("chrome",
+        "vscode", "vlc"), learn the mapping. Non-fatal.
+        """
+        if self._personal_aliases is None:
+            return
+        # Generic words that likely map to a specific app
+        _GENERIC_WORDS = {
+            "браузер", "browser", "редактор", "editor", "плеер", "player",
+            "плеєр", "мессенджер", "messenger", "месенджер", "почта", "mail",
+            "пошта", "музыка", "music", "музика", "архиватор", "archiver",
+            "терминал", "terminal", "термінал", "ide", "іде",
+        }
+        for intent, exchange in zip(intents, exchanges):
+            if intent.tool_name != "open_app":
+                continue
+            if exchange.result.startswith("Error:"):
+                continue
+            app_arg = intent.args.get("name", "").strip().lower()
+            if not app_arg:
+                continue
+            # Check if the transcription contains a generic word
+            transcription_lower = transcription.lower()
+            for generic in _GENERIC_WORDS:
+                if generic in transcription_lower and generic != app_arg:
+                    try:
+                        self._personal_aliases.learn(generic, app_arg)
+                        log.info(
+                            "[router] learned personal alias: %r → %r",
+                            generic, app_arg,
+                        )
+                    except Exception:
+                        log.warning(
+                            "[router] personal-alias learn failed",
+                            exc_info=True,
+                        )
+                    break  # one generic word per utterance is enough
 
     def _log_actions(
         self,

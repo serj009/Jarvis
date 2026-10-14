@@ -225,6 +225,9 @@ from jarvis.memory.store import MemoryStore
 from jarvis.memory.relations import RelationStore
 from jarvis.memory.embeddings import EmbeddingIndex
 from jarvis.memory.tool_examples import ToolExampleStore
+from jarvis.memory.personal_aliases import PersonalAliasStore
+from jarvis.memory.user_profile import UserProfile
+from jarvis.memory.usage_stats import UsageStats
 
 
 from jarvis.memory.conversation import ConversationMemory
@@ -705,7 +708,10 @@ def _make_router_adapter(
                     import asyncio
                     from jarvis.memory.auto_save import auto_save_facts
                     asyncio.create_task(
-                        auto_save_facts(memory_store, transcription),
+                        auto_save_facts(
+                            memory_store, transcription,
+                            user_profile=self.user_profile,
+                        ),
                     )
                 except Exception:
                     pass  # never block the pipeline
@@ -2617,6 +2623,18 @@ class JarvisApp:
         self.tool_example_store = ToolExampleStore(
             path=_data_root / "tool_examples.json",
         )
+        # T4.9: PersonalAliasStore — user-learned app name aliases.
+        self.personal_aliases = PersonalAliasStore(
+            path=_data_root / "personal_aliases.json",
+        )
+        # T4.9: UserProfile — persistent user facts (name, city, etc.).
+        self.user_profile = UserProfile(
+            path=_data_root / "user_profile.json",
+        )
+        # T4.9: UsageStats — command/app frequency tracking.
+        self.usage_stats = UsageStats(
+            path=_data_root / "usage_stats.json",
+        )
 
         self.conversation_memory = ConversationMemory()
 
@@ -2688,6 +2706,7 @@ class JarvisApp:
             memory_store=self.memory_store,
 
             stt=self.stt, tts_manager=self.tts_manager,
+            personal_aliases=self.personal_aliases,
 
 
         )
@@ -2729,6 +2748,9 @@ class JarvisApp:
             memory_store=self.memory_store,
             tool_example_store=self.tool_example_store,
             relation_store=self.relation_store,
+            personal_aliases=self.personal_aliases,
+            user_profile=self.user_profile,
+            usage_stats=self.usage_stats,
 
 
         )

@@ -37,6 +37,11 @@ Auto-Memory (T4.4/T4.5):
     action_logger       -- Log user actions (tool calls) to long-term memory
     session_summary     -- Save session summaries on wake-word timeout (cross-session context)
 
+Personalization (T4.9):
+    personal_aliases    -- PersonalAliasStore: user-learned app name aliases (JSON)
+    user_profile        -- UserProfile: persistent user facts (name, city, etc.) (JSON)
+    usage_stats         -- UsageStats: command/app frequency tracking (JSON)
+
 Tiered Storage (T4.6):
     tier_manager        -- TierManager: hot/warm/cold/archive lifecycle management
     context_inference   -- ContextInference: resolve implicit references from history

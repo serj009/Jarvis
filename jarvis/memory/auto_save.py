@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from jarvis.memory.store import MemoryStore
+    from jarvis.memory.user_profile import UserProfile
 
 log = logging.getLogger(__name__)
 
@@ -171,6 +172,7 @@ async def auto_save_facts(
     memory_store: MemoryStore,
     user_utterance: str,
     assistant_response: str | None = None,
+    user_profile: UserProfile | None = None,
 ) -> int:
     """Extract and save facts from a conversation turn.
 
@@ -229,6 +231,13 @@ async def auto_save_facts(
             )
             saved += 1
             log.debug("[auto-save] saved fact: %s (category=%s)", fact_text[:60], category)
+
+            # T4.9: Auto-update user profile from identity/location facts.
+            if user_profile is not None and category in ("identity", "location", "work"):
+                try:
+                    user_profile.update_from_fact(fact_text, category)
+                except Exception:
+                    log.warning("[auto-save] profile update failed", exc_info=True)
         except Exception:
             log.warning("[auto-save] failed to save fact: %s", fact_text[:60], exc_info=True)
 
