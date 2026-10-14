@@ -27,6 +27,7 @@ Design:
 from __future__ import annotations
 
 import logging
+import re
 from typing import TYPE_CHECKING
 
 from jarvis.memory.smart_search import SmartSearch
@@ -36,6 +37,24 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+
+# Patterns that indicate the user is asking about past session activity.
+# When matched, session_summary facts get an extra search pass so they
+# surface even when FTS5 keyword overlap is poor.
+_SESSION_HISTORY_PATTERN: re.Pattern[str] = re.compile(
+    r"(?:"
+    # EN
+    r"what did we (?:do|discuss|talk about)|last (?:session|time|conversation)"
+    r"|yesterday|earlier today"
+    # RU
+    r"|что мы (?:делали|обсуждали|обговаривали)"
+    r"|(?:вчера|прошл(?:ый|ая|ое) (?:раз|сессия|разговор))"
+    # UK
+    r"|що ми (?:робили|обговорювали)"
+    r"|(?:вчора|минул(?:ий|а|е) (?:раз|сесія|розмова))"
+    r")",
+    re.IGNORECASE,
+)
 
 def _text_for_injection(fact: Fact) -> str | None:
     """Return the text to inject for *fact* based on its tier.
@@ -107,6 +126,20 @@ async def get_relevant_memories(
     try:
         # 1. Fetch candidates via FTS5 / LIKE (fast, ~10-50 ms)
         raw_facts = await memory_store.search(utterance, limit=20)
+
+        # 1b. Session-history boost: when the user asks about past
+        # activity ("what did we do yesterday?"), pull in recent
+        # session_summary facts even if FTS5 didn't find them via
+        # keyword overlap.
+        if _SESSION_HISTORY_PATTERN.search(utterance):
+            session_facts = await memory_store.search(
+                "Session", category="session", tag="session_summary", limit=5,
+            )
+            existing_ids = {f.id for f in raw_facts}
+            for sf in session_facts:
+                if sf.id not in existing_ids:
+                    raw_facts.append(sf)
+
         if not raw_facts:
             return None
 
