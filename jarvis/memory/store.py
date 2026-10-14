@@ -1,11 +1,12 @@
-"""MemoryStore: SQLite-backed persistent fact storage (roadmap T4.1/T4.2).
+"""MemoryStore: SQLite-backed persistent fact storage (roadmap T4.1/T4.2/T4.6).
 
 Stores facts as tagged, categorized text entries in a SQLite database.
 Designed to scale to 5+ years of daily use with thousands of facts.
 
 Schema:
     facts(id, text, category, source, language, created_at, updated_at,
-          access_count, last_accessed_at, is_permanent)
+          access_count, last_accessed_at, is_permanent,
+          tier, condensed_text)
     fact_tags(fact_id, tag)
 
 Data path: %APPDATA%/Jarvis/memory/memory.db (Windows)
@@ -17,6 +18,12 @@ connection per call. WAL mode is enabled for concurrent reads.
 Embedding hook: when an EmbeddingIndex is attached via
 ``set_embedding_index()``, add/delete/update operations automatically
 keep the FAISS index in sync.
+
+Tiered storage (T4.6):
+    Each fact has a ``tier`` column — hot / warm / cold / archive.
+    New facts start as ``hot``. TierManager demotes facts based on
+    last_accessed_at age. Any access promotes back to ``hot``.
+    Original text is NEVER modified; ``condensed_text`` is a separate column.
 
 Usage:
     store = MemoryStore()
@@ -46,6 +53,8 @@ from jarvis.memory.auto_tagger import AutoTagger
 
 FactSource = Literal["user", "conversation", "system", "import"]
 
+TierLevel = Literal["hot", "warm", "cold", "archive"]
+
 if TYPE_CHECKING:
     from jarvis.memory.embeddings import EmbeddingIndex
 
@@ -69,6 +78,8 @@ class Fact:
     access_count: int = 0
     last_accessed_at: str | None = None
     is_permanent: bool = False
+    tier: TierLevel = "hot"
+    condensed_text: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -204,6 +215,7 @@ class MemoryStore:
         conn.execute("PRAGMA foreign_keys=ON")
         conn.executescript(_SCHEMA)
         conn.executescript(_RELATIONS_SCHEMA)
+        self._migrate_tiered_columns(conn)
         try:
             conn.executescript(_FTS_SCHEMA)
         except sqlite3.OperationalError:
@@ -214,6 +226,35 @@ class MemoryStore:
     async def close(self) -> None:
         self._opened = False
         log.info("memory store closed")
+
+    @staticmethod
+    def _migrate_tiered_columns(conn: sqlite3.Connection) -> None:
+        """Add tier + condensed_text columns if they don't exist (T4.6 migration).
+
+        SQLite supports ``ALTER TABLE ... ADD COLUMN`` but not CHECK constraints
+        in ALTER. The CHECK is enforced at the application level.
+        """
+        # Inspect existing columns
+        cursor = conn.execute("PRAGMA table_info(facts)")
+        existing = {row[1] for row in cursor.fetchall()}
+
+        if "tier" not in existing:
+            conn.execute(
+                "ALTER TABLE facts ADD COLUMN tier TEXT NOT NULL DEFAULT 'hot'"
+            )
+            log.info("migration: added 'tier' column to facts table")
+
+        if "condensed_text" not in existing:
+            conn.execute(
+                "ALTER TABLE facts ADD COLUMN condensed_text TEXT"
+            )
+            log.info("migration: added 'condensed_text' column to facts table")
+
+        # Index for tier-based queries (maintenance, auto-recall filtering)
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_facts_tier ON facts(tier)"
+        )
+        conn.commit()
 
     # -- CRUD ---------------------------------------------------------------
 
@@ -504,6 +545,9 @@ class MemoryStore:
 
     @staticmethod
     def _row_to_fact(row: tuple, tags: list[str]) -> Fact:
+        # Columns: id(0) text(1) category(2) source(3) language(4)
+        # created_at(5) updated_at(6) access_count(7) last_accessed_at(8)
+        # is_permanent(9) [tier(10) condensed_text(11)]
         return Fact(
             id=row[0],
             text=row[1],
@@ -515,5 +559,108 @@ class MemoryStore:
             access_count=row[7],
             last_accessed_at=row[8],
             is_permanent=bool(row[9]),
+            tier=row[10] if len(row) > 10 and row[10] else "hot",
+            condensed_text=row[11] if len(row) > 11 else None,
             tags=tags,
         )
+
+    # -- tiered storage (T4.6) ----------------------------------------------
+
+    async def get_facts_by_tier_and_age(
+        self, tier: TierLevel, before: datetime,
+    ) -> list[Fact]:
+        """Get facts in *tier* whose last_accessed_at is older than *before*.
+
+        Permanent facts are excluded — they never transition tiers.
+        Facts with NULL last_accessed_at use created_at as the fallback.
+        """
+        return await asyncio.to_thread(
+            self._sync_get_facts_by_tier_and_age, tier, before.isoformat(),
+        )
+
+    def _sync_get_facts_by_tier_and_age(
+        self, tier: str, before_iso: str,
+    ) -> list[Fact]:
+        conn = sqlite3.connect(str(self._db_path))
+        try:
+            rows = conn.execute(
+                """
+                SELECT * FROM facts
+                WHERE tier = ?
+                  AND is_permanent = 0
+                  AND COALESCE(last_accessed_at, created_at) < ?
+                ORDER BY COALESCE(last_accessed_at, created_at) ASC
+                """,
+                (tier, before_iso),
+            ).fetchall()
+            result = []
+            for row in rows:
+                tags = [
+                    r[0]
+                    for r in conn.execute(
+                        "SELECT tag FROM fact_tags WHERE fact_id = ?", (row[0],)
+                    ).fetchall()
+                ]
+                result.append(self._row_to_fact(row, tags))
+            return result
+        finally:
+            conn.close()
+
+    async def update_tier(
+        self, fact_id: str, new_tier: TierLevel, condensed: str,
+    ) -> None:
+        """Move a fact to *new_tier* and set its *condensed_text*."""
+        await asyncio.to_thread(
+            self._sync_update_tier, fact_id, new_tier, condensed,
+        )
+
+    def _sync_update_tier(
+        self, fact_id: str, new_tier: str, condensed: str,
+    ) -> None:
+        conn = sqlite3.connect(str(self._db_path))
+        try:
+            conn.execute(
+                "UPDATE facts SET tier = ?, condensed_text = ? WHERE id = ?",
+                (new_tier, condensed, fact_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    async def promote_to_hot(self, fact_id: str) -> None:
+        """Promote a fact back to HOT tier and refresh last_accessed_at.
+
+        Called by auto-recall whenever a fact is matched — ensures that
+        actively-used memories stay in the hottest tier regardless of age.
+        """
+        now = datetime.now(UTC).isoformat()
+        await asyncio.to_thread(self._sync_promote_to_hot, fact_id, now)
+
+    def _sync_promote_to_hot(self, fact_id: str, now: str) -> None:
+        conn = sqlite3.connect(str(self._db_path))
+        try:
+            conn.execute(
+                "UPDATE facts SET tier = 'hot', last_accessed_at = ?, "
+                "access_count = access_count + 1 WHERE id = ?",
+                (now, fact_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    async def tier_stats(self) -> dict[str, int]:
+        """Return fact counts per tier — {hot: N, warm: N, cold: N, archive: N}."""
+        return await asyncio.to_thread(self._sync_tier_stats)
+
+    def _sync_tier_stats(self) -> dict[str, int]:
+        conn = sqlite3.connect(str(self._db_path))
+        try:
+            rows = conn.execute(
+                "SELECT tier, COUNT(*) FROM facts GROUP BY tier"
+            ).fetchall()
+            stats = {"hot": 0, "warm": 0, "cold": 0, "archive": 0}
+            for tier, cnt in rows:
+                stats[tier] = cnt
+            return stats
+        finally:
+            conn.close()

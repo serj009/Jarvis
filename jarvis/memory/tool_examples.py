@@ -11,15 +11,19 @@ Format::
 
     {
         "open_app": [
-            {"utterance": "открой хром", "args": {"app_name": "chrome"}, "count": 5},
-            {"utterance": "open telegram", "args": {"app_name": "telegram"}, "count": 3},
+            {"utterance": "открой хром", "args": {"app_name": "chrome"}, "count": 5,
+             "last_used": "2026-10-14T15:30:00+00:00"},
+            {"utterance": "open telegram", "args": {"app_name": "telegram"}, "count": 3,
+             "last_used": "2026-10-13T10:00:00+00:00"},
         ],
         "get_weather": [
-            {"utterance": "какая погода", "args": {}, "count": 12},
+            {"utterance": "какая погода", "args": {}, "count": 12,
+             "last_used": "2026-10-15T08:00:00+00:00"},
         ]
     }
 
 Dedup: if the same utterance→tool already exists, increment count.
+Each entry also tracks ``last_used`` (ISO timestamp of the most recent call).
 Max examples per tool: 10 (keep highest count).
 Max total: 100.
 """
@@ -28,6 +32,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -94,12 +99,14 @@ class ToolExampleStore:
         self, utterance: str, tool_name: str, args: dict,
     ) -> None:
         examples = self._data.setdefault(tool_name, [])
+        now = datetime.now(UTC).isoformat()
 
         # Dedup: check if an identical utterance already exists
         utterance_lower = utterance.lower().strip()
         for ex in examples:
             if ex.get("utterance", "").lower() == utterance_lower:
                 ex["count"] = ex.get("count", 1) + 1
+                ex["last_used"] = now
                 self._save()
                 return
 
@@ -108,6 +115,7 @@ class ToolExampleStore:
             "utterance": utterance_lower,
             "args": args,
             "count": 1,
+            "last_used": now,
         })
 
         # Prune per-tool: keep top MAX_PER_TOOL by count
