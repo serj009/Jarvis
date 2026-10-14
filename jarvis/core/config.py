@@ -43,7 +43,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
-CURRENT_SCHEMA_VERSION = 25
+CURRENT_SCHEMA_VERSION = 26
 
 # Prompts from prior schema versions — used by migrations to detect and
 # replace the old default without overwriting user-customised prompts.
@@ -174,21 +174,30 @@ class WakeWordConfig(_Base):
 
 
 class STTConfig(_Base):
-    # Phase 2 (T2.1): multilingual STT (UA/RU/EN).
-    # "base" is the default — it's what setup_jarvis.py downloads and
-    # supports all three project languages with language="auto".
-    # "small" is more accurate (~500 MB) but slower on CPU.
+    # GPU-accelerated multilingual STT (UA/RU/EN).
+    # "small" is the default — ~500 MB, ~85-90% accuracy for RU/UK/EN.
+    # setup_jarvis.py downloads "small" on first run.
+    # "base" is lighter (~150 MB) but less accurate (~70% for RU).
     # The .en suffix restricts to English only; avoid for multilingual.
     # "medium" is much larger (~1.5 GB); not recommended on CPU.
     model_size: Literal[
         "tiny", "tiny.en", "base", "base.en",
         "small", "small.en", "medium", "medium.en",
-    ] = "base"
+    ] = "small"
     # T2.1: "auto" enables Whisper language auto-detection (UA/RU/EN).
     # Fixed codes ("en", "ru", "uk") lock to one language; "auto" is
     # recommended for the multilingual project.
     language: str = "auto"
-    compute_type: Literal["int8", "float16", "float32"] = "int8"
+    # Device for Whisper inference.
+    # "auto" = try CUDA first, fall back to CPU if unavailable.
+    # "cuda" = force GPU (falls back to CPU with WARNING if no CUDA).
+    # "cpu"  = force CPU (safe, always works).
+    device: Literal["auto", "cpu", "cuda"] = "auto"
+    # Compute type for Whisper model quantisation.
+    # "auto" = float16 on CUDA, int8 on CPU (best defaults for each).
+    # Explicit values override: "int8" (CPU-friendly), "float16" (GPU),
+    # "float32" (highest precision, most VRAM).
+    compute_type: Literal["auto", "int8", "float16", "float32"] = "auto"
     # T2.4: Confidence thresholds.
     # confidence >= proceed -> send to LLM as-is.
     # clarify <= confidence < proceed -> ask user to repeat.
@@ -1071,6 +1080,30 @@ def _migrate_v24_to_v25(data: dict) -> dict:
     return data
 
 
+def _migrate_v25_to_v26(data: dict) -> dict:
+    """Schema v26: GPU-accelerated STT with auto-device + small model.
+
+    Upgrades STT from CPU/base/int8 to GPU-auto/small/auto for users
+    who never changed the defaults. Users who explicitly chose a
+    different model_size (e.g. "tiny", "medium") are left untouched —
+    only the exact v25 shipping defaults trigger the upgrade.
+    """
+    stt = data.setdefault("stt", {})
+    # Only upgrade users still on the v25 shipping defaults.
+    # If model_size != "base" the user made a deliberate choice.
+    if stt.get("model_size") == "base" and "device" not in stt:
+        stt["model_size"] = "small"
+        stt["device"] = "auto"
+        stt["compute_type"] = "auto"
+    else:
+        # Ensure new fields exist even if we don't change model_size.
+        stt.setdefault("device", "auto")
+        if stt.get("compute_type") not in ("auto", "int8", "float16", "float32"):
+            stt.setdefault("compute_type", "auto")
+    data["schema_version"] = 26
+    return data
+
+
 MIGRATIONS: dict[int, Migration] = {
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
@@ -1096,6 +1129,7 @@ MIGRATIONS: dict[int, Migration] = {
     22: _migrate_v22_to_v23,
     23: _migrate_v23_to_v24,
     24: _migrate_v24_to_v25,
+    25: _migrate_v25_to_v26,
 }
 
 

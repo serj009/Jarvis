@@ -212,7 +212,7 @@ class FasterWhisperSTT:
     def __init__(
         self,
         *,
-        model_size: str = "base",
+        model_size: str = "small",
         language: str = "en",
         compute_type: str = "int8",
         download_root: Path | None = None,
@@ -229,7 +229,7 @@ class FasterWhisperSTT:
         self.language = language
         self.compute_type = compute_type
         self._download_root = download_root
-        self._device = device
+        self._configured_device = device
         self._confidence_proceed = confidence_proceed
         self._confidence_clarify = confidence_clarify
         self.max_clarify_retries = max_clarify_retries
@@ -241,6 +241,59 @@ class FasterWhisperSTT:
             self.hotwords = HOTWORDS_BY_LANG.get(language, HOTWORDS_AUTO)
         else:
             self.hotwords = hotwords
+
+    # -- device / compute_type resolution -----------------------------------
+
+    @staticmethod
+    def _resolve_device(configured: str) -> str:
+        """Determine the actual device string for faster-whisper.
+
+        Rules:
+          "auto"  → try CUDA, fall back to CPU silently.
+          "cuda"  → use CUDA, but fall back to CPU with a WARNING if
+                    CUDA is not available.
+          "cpu"   → always CPU.
+
+        The method is robust: missing torch, missing CUDA driver, or
+        any unexpected exception all resolve to "cpu".
+        """
+        if configured == "cpu":
+            return "cpu"
+
+        # Check CUDA availability
+        cuda_available = False
+        try:
+            import torch
+            cuda_available = torch.cuda.is_available()
+        except ImportError:
+            log.debug("torch not installed; CUDA unavailable for STT")
+        except Exception:
+            log.debug("torch.cuda.is_available() failed", exc_info=True)
+
+        if cuda_available:
+            return "cuda"
+
+        # Fallback to CPU
+        if configured == "cuda":
+            log.warning(
+                "STT device='cuda' requested but CUDA is not available; "
+                "falling back to CPU"
+            )
+        else:
+            log.info("STT auto-device: CUDA not available, using CPU")
+
+        return "cpu"
+
+    @staticmethod
+    def _resolve_compute_type(device: str, configured: str) -> str:
+        """Determine the compute type based on resolved device.
+
+        "auto" → "float16" on CUDA (best speed/quality), "int8" on CPU.
+        Anything else is passed through as-is.
+        """
+        if configured == "auto":
+            return "float16" if device == "cuda" else "int8"
+        return configured
 
     # -- Loadable --
 
@@ -255,12 +308,17 @@ class FasterWhisperSTT:
             raise STTLoadError("faster_whisper is not installed") from e
 
         model_id = _resolve_model_id(self.model_size, self.language)
+
+        # Resolve device and compute_type with auto-detection + fallback.
+        device = self._resolve_device(self._configured_device)
+        compute_type = self._resolve_compute_type(device, self.compute_type)
+
         try:
             # Construction can download large model files on first use;
             # run in a thread so the loop stays responsive throughout.
             kwargs: dict = {
-                "device": self._device,
-                "compute_type": self.compute_type,
+                "device": device,
+                "compute_type": compute_type,
             }
             if self._download_root is not None:
                 kwargs["download_root"] = str(self._download_root)
@@ -270,11 +328,39 @@ class FasterWhisperSTT:
                 model_id,
                 **kwargs,
             )
-        except Exception as e:
-            raise STTLoadError(
-                f"could not load whisper model {model_id!r}: {e}"
-            ) from e
+        except Exception as exc:
+            # CUDA OOM or driver error: fall back to CPU automatically
+            # when the original request was "auto" (user didn't force CUDA).
+            if device == "cuda" and self._configured_device != "cuda":
+                log.warning(
+                    "STT CUDA load failed (%s); falling back to CPU", exc,
+                )
+                device = "cpu"
+                compute_type = self._resolve_compute_type(device, self.compute_type)
+                kwargs["device"] = device
+                kwargs["compute_type"] = compute_type
+                try:
+                    self._model = await asyncio.to_thread(
+                        WhisperModel,
+                        model_id,
+                        **kwargs,
+                    )
+                except Exception as cpu_exc:
+                    raise STTLoadError(
+                        f"could not load whisper model {model_id!r} "
+                        f"(CUDA failed: {exc}; CPU fallback failed: {cpu_exc})"
+                    ) from cpu_exc
+            else:
+                raise STTLoadError(
+                    f"could not load whisper model {model_id!r}: {exc}"
+                ) from exc
         self.is_loaded = True
+        log.info(
+            "STT loaded: model=%s, device=%s, compute=%s",
+            model_id,
+            device,
+            compute_type,
+        )
 
     async def unload(self) -> None:
         if not self.is_loaded:

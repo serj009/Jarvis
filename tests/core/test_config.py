@@ -36,9 +36,10 @@ def test_defaults_match_spec():
     assert c.audio.prefer_respeaker is True
     assert c.wake_word.model == "hey_jarvis"
     assert c.wake_word.sensitivity == 0.5
-    assert c.stt.model_size == "base"
+    assert c.stt.model_size == "small"
     assert c.stt.language == "auto"
-    assert c.stt.compute_type == "int8"
+    assert c.stt.device == "auto"
+    assert c.stt.compute_type == "auto"
     assert c.tts.voice == "en_GB-alan-medium"
     assert c.llm.model == "qwen2.5:7b-instruct"
     assert c.llm.keep_alive_seconds == 1800
@@ -351,11 +352,13 @@ def test_migrate_v2_to_v3_bumps_version_only():
     assert out["stt"] == stt_before
 
 
-def test_fresh_install_gets_base_multilingual_default():
-    """New installs (no config on disk) get 'base' as the STT model."""
+def test_fresh_install_gets_small_gpu_defaults():
+    """New installs (no config on disk) get 'small' model with GPU auto-detect."""
     cfg = JarvisConfig()
-    assert cfg.stt.model_size == "base"
+    assert cfg.stt.model_size == "small"
     assert cfg.stt.language == "auto"
+    assert cfg.stt.device == "auto"
+    assert cfg.stt.compute_type == "auto"
 
 
 def test_load_config_migrates_v2_file_on_disk(tmp_path: Path):
@@ -1366,3 +1369,95 @@ def test_load_config_v24_file_gains_sandbox(tmp_path: Path):
     cfg = load_config(p)
     assert cfg.schema_version == CURRENT_SCHEMA_VERSION
     assert len(cfg.sandbox.allowed_paths) >= 2
+
+
+# --- v25 → v26 STT GPU upgrade: small + auto device + auto compute --------
+
+
+def _v25_data(**stt_overrides: object) -> dict:
+    """Build a minimal v25 config dict with optional stt field overrides."""
+    base = JarvisConfig().model_dump(mode="json")
+    base["schema_version"] = 25
+    # Reset STT to v25 shipping defaults (base/int8, no device field).
+    base["stt"]["model_size"] = "base"
+    base["stt"]["compute_type"] = "int8"
+    base["stt"].pop("device", None)
+    base["stt"].update(stt_overrides)
+    return base
+
+
+def test_migrate_v25_to_v26_upgrades_default_base_to_small():
+    """Users on the v25 default (base/int8, no device) get upgraded to
+    small/auto/auto."""
+    data = _v25_data()
+    out = migrate(data)
+    assert out["schema_version"] == CURRENT_SCHEMA_VERSION
+    assert out["stt"]["model_size"] == "small"
+    assert out["stt"]["device"] == "auto"
+    assert out["stt"]["compute_type"] == "auto"
+
+
+def test_migrate_v25_to_v26_preserves_explicit_model_size():
+    """If the user explicitly chose a model (e.g. 'tiny', 'medium'),
+    the migration must NOT override it."""
+    for model in ("tiny", "small", "medium", "base.en"):
+        data = _v25_data(model_size=model)
+        # Simulate: user set a non-default model, so device was absent
+        data["stt"].pop("device", None)
+        out = migrate(data)
+        assert out["schema_version"] == CURRENT_SCHEMA_VERSION
+        # model_size not touched when it's not the default "base"
+        if model != "base":
+            assert out["stt"]["model_size"] == model
+        # device field should still be added
+        assert out["stt"]["device"] == "auto"
+
+
+def test_migrate_v25_to_v26_preserves_explicit_compute_type():
+    """A user who explicitly set compute_type=float16 keeps it."""
+    data = _v25_data(model_size="small", compute_type="float16")
+    out = migrate(data)
+    assert out["stt"]["model_size"] == "small"
+    assert out["stt"]["compute_type"] == "float16"
+    assert out["stt"]["device"] == "auto"
+
+
+def test_migrate_v25_to_v26_does_not_downgrade_if_device_already_set():
+    """If someone already has device in their config (e.g. hand-edited),
+    we don't touch model_size even if it's 'base'."""
+    data = _v25_data(model_size="base")
+    data["stt"]["device"] = "cpu"
+    out = migrate(data)
+    # device present → user made a choice → don't upgrade model
+    assert out["stt"]["model_size"] == "base"
+    assert out["stt"]["device"] == "cpu"
+
+
+def test_load_config_migrates_v25_file_on_disk(tmp_path: Path):
+    """End-to-end: a v25 config on disk with base/int8 gets upgraded
+    to small/auto/auto after loading."""
+    p = tmp_path / "config.json"
+    p.write_text(json.dumps(_v25_data()), encoding="utf-8")
+    cfg = load_config(p)
+    assert cfg.schema_version == CURRENT_SCHEMA_VERSION
+    assert cfg.stt.model_size == "small"
+    assert cfg.stt.device == "auto"
+    assert cfg.stt.compute_type == "auto"
+
+
+def test_load_config_v25_preserves_explicit_small_on_disk(tmp_path: Path):
+    """A user who already had 'small' keeps it after migration."""
+    p = tmp_path / "config.json"
+    data = _v25_data(model_size="small", compute_type="float16")
+    p.write_text(json.dumps(data), encoding="utf-8")
+    cfg = load_config(p)
+    assert cfg.stt.model_size == "small"
+    assert cfg.stt.compute_type == "float16"
+
+
+def test_fresh_install_has_stt_gpu_defaults():
+    """Fresh v26 installs get small + auto device + auto compute."""
+    cfg = JarvisConfig()
+    assert cfg.stt.model_size == "small"
+    assert cfg.stt.device == "auto"
+    assert cfg.stt.compute_type == "auto"

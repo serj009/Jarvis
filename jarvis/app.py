@@ -1116,7 +1116,7 @@ async def _handle_config_changed(
     # STT: model/compute reload (stop pipeline → unload → update → load → restart)
 
 
-    if "stt.model_size" in fields or "stt.compute_type" in fields:
+    if "stt.model_size" in fields or "stt.compute_type" in fields or "stt.device" in fields:
 
 
         log.info("hot-reload: stt model change (briefly stopping pipeline)")
@@ -1132,6 +1132,7 @@ async def _handle_config_changed(
 
 
         stt.compute_type = new.stt.compute_type
+        stt._configured_device = new.stt.device
 
 
         await stt.load()
@@ -2426,6 +2427,9 @@ class JarvisApp:
             download_root=default_whisper_download_root(),
 
 
+            device=self.cfg.stt.device,
+
+
             confidence_proceed=self.cfg.stt.confidence_proceed,
 
 
@@ -2507,6 +2511,9 @@ class JarvisApp:
 
         self.vram_manager.register("vision", size_mb=2000, priority=30)
 
+        # STT (small, float16 on CUDA) uses ~1 GB VRAM; low priority
+        # because it loads/unloads per turn, not persistently.
+        self.vram_manager.register("stt", size_mb=1000, priority=40)
 
 
 
