@@ -187,9 +187,25 @@ IntentProducer = Callable[[str], AsyncIterator[Intent]]
 
 # Leading filler patterns. Stripped iteratively until no more match.
 _FILLERS: tuple[re.Pattern, ...] = (
+    # EN
     re.compile(r"^hey jarvis,?\s+"),
     re.compile(r"^(?:can|could|would) you (?:please )?"),
     re.compile(r"^please\s+"),
+    # RU: "эй джарвис", "джарвис", "пожалуйста", "ну", "так", "эмм",
+    #     "слушай", "можешь ли ты", "будь добр"
+    re.compile(r"^(?:эй\s+)?(?:джарвис|жарвис),?\s+"),
+    re.compile(r"^(?:можешь|можешь\s+ли\s+ты)\s+(?:пожалуйста\s+)?"),
+    re.compile(r"^пожалуйста\s+"),
+    re.compile(r"^будь\s+добр,?\s+"),
+    re.compile(r"^(?:ну|так|ладно|слушай|значит|короче|это),?\s+"),
+    re.compile(r"^(?:э[мм]+|а[мм]+|хм+),?\s+"),
+    # UK: "гей джарвіс", "джарвіс", "будь ласка", "ну", "слухай",
+    #     "чи можеш ти"
+    re.compile(r"^(?:гей\s+)?(?:джарвіс|жарвіс),?\s+"),
+    re.compile(r"^(?:чи\s+)?(?:можеш|зможеш)\s+(?:ти\s+)?(?:будь\s+ласка\s+)?"),
+    re.compile(r"^будь\s+ласка,?\s+"),
+    re.compile(r"^(?:ну|так|ладно|слухай|значить|коротше|це),?\s+"),
+    re.compile(r"^(?:е[мм]+|гм+),?\s+"),
 )
 
 _TRAILING_PUNCT = re.compile(r"[\s.!?,]+$")
