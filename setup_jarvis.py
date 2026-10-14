@@ -361,7 +361,7 @@ def step_piper_voices() -> tuple[str, str, str]:
     return "Голоса Piper", OK, status_str
 
 
-def step_whisper(model: str = "base") -> tuple[str, str, str]:
+def step_whisper(model: str = "small") -> tuple[str, str, str]:
     """[5/9] Download faster-whisper model."""
     # Check if model is already cached
     # faster-whisper stores models in ~/.cache/huggingface/hub/ or download_root
@@ -613,9 +613,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--whisper-model",
-        default="base",
-        choices=["tiny", "tiny.en", "base", "base.en", "small", "small.en"],
-        help="Whisper model size (default: base)",
+        default="small",
+        choices=["tiny", "tiny.en", "base", "base.en", "small", "small.en",
+                 "medium", "medium.en"],
+        help="Whisper model size (default: small, ~500 MB, best for multilingual)",
     )
     parser.add_argument(
         "--skip-smoke-test",

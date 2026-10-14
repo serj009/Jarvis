@@ -5,6 +5,107 @@
 
 ---
 
+## 2026-10-14 — QA: STT GPU + Multilingual full audit — 2 bugs fixed
+
+### Summary
+Full QA review of STT GPU upgrade + multilingual support across RU/UK/EN.
+Verified all code paths, found and fixed 2 bugs, confirmed multilingual
+model resolution is correct for all 3 languages.
+
+### Bugs found and fixed
+
+#### ❌ BUG 1: `app.py` — `stt.device` hot-reload missing
+- **Symptom**: Changing `stt.device` in Settings (e.g. "auto" → "cpu") had
+  no effect until full restart. The hot-reload handler only watched for
+  `stt.model_size` and `stt.compute_type` changes.
+- **Fix**: Added `"stt.device"` to the hot-reload condition in
+  `_handle_config_changed()`, and set `stt._configured_device = new.stt.device`
+  alongside model_size and compute_type before the unload/load cycle.
+
+#### ⚠️ BUG 2: `stt.py` — No CUDA OOM fallback in `load()`
+- **Symptom**: If device resolved to "cuda" (from "auto") but CUDA ran out
+  of memory (e.g. Ollama using most of the 12 GB), `load()` raised
+  `STTLoadError` and STT was completely unavailable — no fallback to CPU.
+- **Fix**: Added CUDA→CPU fallback in `load()`: when device was auto-resolved
+  to "cuda" (not explicitly forced by user) and loading fails, automatically
+  retry with "cpu" + appropriate compute_type. User-forced `device="cuda"`
+  still raises STTLoadError as expected.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `jarvis/app.py` | Added `stt.device` to hot-reload condition + update `_configured_device` |
+| `jarvis/audio/stt.py` | CUDA OOM fallback in `load()`: auto→cuda fail → retry CPU |
+| `AMAZONQ_CHANGELOG.md` | This entry |
+
+---
+
+## 2026-10-14 — STT GPU Upgrade: small model + CUDA auto-detect + fallback
+
+### Summary
+Upgraded Whisper STT from CPU-only/base/int8 to GPU-auto/small/auto for
+significantly better multilingual accuracy (~85-90% vs ~70% for Russian).
+RTX 3060 12GB has ~6GB free VRAM (Ollama uses ~5-6GB), and the `small`
+model in float16 needs only ~1GB — fits comfortably.
+
+All changes include robust CPU fallback: no CUDA → CPU, no torch → CPU,
+CUDA OOM → logged warning + CPU. Zero new dependencies.
+
+### Changes
+
+#### `jarvis/core/config.py` — STTConfig + schema v26
+- `model_size` default: `"base"` → `"small"` (better accuracy)
+- New field: `device: Literal["auto", "cpu", "cuda"] = "auto"`
+- `compute_type` default: `"int8"` → `"auto"` (float16 on CUDA, int8 on CPU)
+- Added `"auto"` to compute_type Literal
+- `CURRENT_SCHEMA_VERSION` bumped 25 → 26
+- Migration `_migrate_v25_to_v26`: upgrades base/int8 → small/auto/auto only
+  when user was on exact v25 shipping defaults; explicit choices preserved
+
+#### `jarvis/audio/stt.py` — GPU support + auto-device resolution
+- New `_resolve_device(configured)` static method: auto → try CUDA → CPU fallback
+- New `_resolve_compute_type(device, configured)` static method: auto → float16/int8
+- `load()` uses resolved device/compute_type; logs final configuration
+- Robust: no torch → CPU, no CUDA driver → CPU, any exception → CPU
+
+#### `jarvis/app.py` — wire device config + VRAM registration
+- `FasterWhisperSTT(...)` now receives `device=self.cfg.stt.device`
+- Registered `"stt"` as VRAM consumer (1000 MB, priority 40)
+
+#### `setup_jarvis.py` — download `small` by default
+- `step_whisper()` default: `"base"` → `"small"`
+- `--whisper-model` argparse default: `"base"` → `"small"`
+- Added `"medium"` and `"medium.en"` to argparse choices
+- Updated help text
+
+#### `tests/core/test_config.py` — updated + new tests
+- `test_defaults_match_spec`: updated for small/auto/auto
+- `test_fresh_install_gets_base_multilingual_default` → renamed to
+  `test_fresh_install_gets_small_gpu_defaults`
+- 8 new tests for v25→v26 migration: default upgrade, explicit model
+  preservation, compute_type preservation, device-already-set guard,
+  on-disk round-trip, fresh install defaults
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `jarvis/core/config.py` | STTConfig fields, schema v26, migration v25→v26 |
+| `jarvis/audio/stt.py` | `_resolve_device()`, `_resolve_compute_type()`, load() logging |
+| `jarvis/app.py` | `device=` param, STT VRAM registration |
+| `setup_jarvis.py` | Default model small, argparse update |
+| `tests/core/test_config.py` | Updated defaults + 8 new migration tests |
+| `AMAZONQ_CHANGELOG.md` | This entry |
+
+### Integration notes
+- No new dependencies: faster-whisper already supports CUDA when torch+CUDA is installed
+- Fallback chain: auto → try CUDA → CPU. Never crashes on missing CUDA.
+- Migration is safe: only touches exact v25 defaults (base + no device field)
+- VRAM budget: small/float16 ≈ 1 GB; fits within 6 GB free alongside Ollama
+
+---
+
 ## 2026-10-14 — QA Review: Critical config.py NameError fix
 
 ### Summary
