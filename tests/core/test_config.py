@@ -1317,3 +1317,52 @@ def test_unreadable_key_reaches_consumers_as_absent_not_as_ciphertext(
     assert runtime.groq_api_key is None
     # Falls back to the free pipeline instead of sending garbage to Brave.
     assert runtime.search_provider == "ddg"
+
+
+# --- v24 → v25 sandbox section migration -----------------------------------
+
+
+def _v24_data() -> dict:
+    """Build a minimal v24 config dict (no sandbox section)."""
+    base = JarvisConfig().model_dump(mode="json")
+    base["schema_version"] = 24
+    base.pop("sandbox", None)
+    return base
+
+
+def test_migrate_v24_to_v25_adds_sandbox_defaults():
+    """v24→v25 adds the sandbox section with default allowed_paths."""
+    data = _v24_data()
+    out = migrate(data)
+    assert out["schema_version"] == CURRENT_SCHEMA_VERSION
+    assert "sandbox" in out
+    assert isinstance(out["sandbox"]["allowed_paths"], list)
+    assert len(out["sandbox"]["allowed_paths"]) >= 2  # Desktop, Documents, Downloads
+    assert out["sandbox"]["confirm_destructive"] is True
+
+
+def test_migrate_v24_to_v25_preserves_existing_sandbox():
+    """If a v24 dict already carries sandbox (e.g. test fixture), keep it."""
+    data = _v24_data()
+    data["sandbox"] = {
+        "allowed_paths": ["~/Projects"],
+        "confirm_destructive": False,
+    }
+    out = migrate(data)
+    assert out["sandbox"]["allowed_paths"] == ["~/Projects"]
+    assert out["sandbox"]["confirm_destructive"] is False
+
+
+def test_fresh_install_has_sandbox_defaults():
+    cfg = JarvisConfig()
+    assert hasattr(cfg, "sandbox")
+    assert isinstance(cfg.sandbox.allowed_paths, list)
+    assert cfg.sandbox.confirm_destructive is True
+
+
+def test_load_config_v24_file_gains_sandbox(tmp_path: Path):
+    p = tmp_path / "config.json"
+    p.write_text(json.dumps(_v24_data()), encoding="utf-8")
+    cfg = load_config(p)
+    assert cfg.schema_version == CURRENT_SCHEMA_VERSION
+    assert len(cfg.sandbox.allowed_paths) >= 2

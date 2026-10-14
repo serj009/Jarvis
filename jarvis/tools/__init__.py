@@ -16,6 +16,8 @@ table and the Settings -> Tools list — is jarvis/tools/catalogue.py.
 from collections.abc import Callable
 from typing import Any, cast
 
+from jarvis.tools.risk import RiskLevel, risk_level_for_tool, should_confirm
+from jarvis.tools.sandbox import PathValidator, SandboxViolationError
 from jarvis.tools.mcp_client import MCPManager, MCPServerConnection, MCPTool
 from jarvis.tools.registry import (
     PRIORITY_CATCH_ALL,
@@ -60,6 +62,7 @@ def setup_local_tools(
     `vram_manager` is the live VRAMManager (T1.4) — passed to SystemStatsTool
     so it can report GPU/VRAM status; None disables GPU reporting."""
     from jarvis.tools.local.clipboard import ClipboardTool
+    from jarvis.core.config import SandboxConfig
     from jarvis.tools.local.close_app import CloseAppTool
     from jarvis.tools.local.files import ListDirectoryTool
     from jarvis.tools.local.launch_steam_game import LaunchSteamGameTool
@@ -104,6 +107,17 @@ def setup_local_tools(
         (ws_cfg or WorkspaceConfig()).apps
     )
 
+    # T5.1: Build the path validator from the sandbox config.
+    sandbox_cfg = getattr(config, "sandbox", None) if config is not None else None
+    if sandbox_cfg is None:
+        sandbox_cfg = SandboxConfig()
+    from pathlib import Path as _Path
+    sandbox_paths = [_Path(p).expanduser() for p in sandbox_cfg.allowed_paths]
+    path_validator = PathValidator(
+        allowed_paths=sandbox_paths,
+        allow_home_fallback=True,
+    )
+
     vision_cfg = getattr(config, "vision", None) if config is not None else None
     if vision_cfg is None:
         from jarvis.core.config import VisionConfig
@@ -112,7 +126,7 @@ def setup_local_tools(
     base_tools: list[Tool[Any]] = [
         ClipboardTool(),
         CloseAppTool(),
-        ListDirectoryTool(),
+        ListDirectoryTool(path_validator=path_validator),
         LockScreenTool(),
         OpenAppTool(),
         OpenUrlTool(),
@@ -165,4 +179,9 @@ __all__ = [
     "VoicePattern",
     "VoiceRoutable",
     "setup_local_tools",
+    "RiskLevel",
+    "risk_level_for_tool",
+    "should_confirm",
+    "PathValidator",
+    "SandboxViolationError",
 ]

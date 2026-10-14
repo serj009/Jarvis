@@ -43,7 +43,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
-CURRENT_SCHEMA_VERSION = 24
+CURRENT_SCHEMA_VERSION = 25
 
 # Prompts from prior schema versions — used by migrations to detect and
 # replace the old default without overwriting user-customised prompts.
@@ -498,6 +498,40 @@ class WeatherConfig(_Base):
     unit: Literal["celsius", "fahrenheit"] = "fahrenheit"
 
 
+def _default_sandbox_allowed_paths() -> list[str]:
+    """Default sandbox whitelist for fresh installs.
+
+    Seeds ~/Desktop and ~/Documents so new users have a reasonable
+    working surface without hand-editing config. The strings are stored
+    as-is (not resolved) so the config is portable across home-directory
+    renames and readable in JSON.
+    """
+    return ["~/Desktop", "~/Documents", "~/Downloads"]
+
+
+class SandboxConfig(_Base):
+    """Workspace sandbox settings (Phase 5, T5.1).
+
+    Controls which filesystem paths tools are allowed to access and
+    whether destructive actions require user confirmation.
+    """
+
+    # Directories tools may read/write. Paths are expanded at validation
+    # time (~ → home, env vars, resolve). A path and all its descendants
+    # are allowed; everything else is blocked.
+    allowed_paths: list[str] = Field(
+        default_factory=_default_sandbox_allowed_paths,
+        description="Directories tools may access (~ expanded at runtime).",
+    )
+    # Master switch for destructive-action confirmation. When False, tools
+    # tagged DESTRUCTIVE or SYSTEM run without prompting — useful for
+    # automation / scripting, but NOT recommended for interactive use.
+    confirm_destructive: bool = Field(
+        default=True,
+        description="Require user confirmation before destructive actions.",
+    )
+
+
 class JarvisConfig(_Base):
     schema_version: int = CURRENT_SCHEMA_VERSION
     general: GeneralConfig = Field(default_factory=GeneralConfig)
@@ -519,6 +553,7 @@ class JarvisConfig(_Base):
     mcp_servers: list[MCPServerConfig] = Field(default_factory=_default_mcp_servers)
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
 
+    sandbox: SandboxConfig = Field(default_factory=SandboxConfig)
 
 # --- secrets at rest -------------------------------------------------------
 
@@ -995,6 +1030,47 @@ def _migrate_v22_to_v23(data: dict) -> dict:
     return data
 
 
+def _migrate_v23_to_v24(data: dict) -> dict:
+    """Schema v24: align STT defaults with setup_jarvis.py downloads.
+
+    setup_jarvis.py downloads the multilingual ``base`` model, but the
+    v2→v3 migration changed the default to ``tiny.en`` (English-only).
+    That model is never downloaded, so fresh installs crash on first
+    launch with ``local_files_only=True``.
+
+    This migration converts ``tiny.en`` → ``base`` and ``en`` → ``auto``
+    only when the values match the broken v3 defaults (i.e. the user
+    never changed them). Explicitly-chosen models are left untouched.
+    """
+    stt = data.get("stt", {})
+    if stt.get("model_size") == "tiny.en":
+        stt["model_size"] = "base"
+    if stt.get("language") == "en":
+        stt["language"] = "auto"
+    data["schema_version"] = 24
+    return data
+
+
+def _migrate_v24_to_v25(data: dict) -> dict:
+    """Schema v25: workspace sandbox configuration (Phase 5, T5.1).
+
+    Adds the ``sandbox`` section with a default whitelist of
+    ~/Desktop, ~/Documents, ~/Downloads and destructive-action
+    confirmation enabled. Existing configs gain the section at
+    defaults so existing tools keep working (the whitelist covers
+    the most common user directories).
+    """
+    data.setdefault(
+        "sandbox",
+        {
+            "allowed_paths": ["~/Desktop", "~/Documents", "~/Downloads"],
+            "confirm_destructive": True,
+        },
+    )
+    data["schema_version"] = 25
+    return data
+
+
 MIGRATIONS: dict[int, Migration] = {
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
@@ -1019,6 +1095,7 @@ MIGRATIONS: dict[int, Migration] = {
     21: _migrate_v21_to_v22,
     22: _migrate_v22_to_v23,
     23: _migrate_v23_to_v24,
+    24: _migrate_v24_to_v25,
 }
 
 
@@ -1113,27 +1190,6 @@ def save_config(config: JarvisConfig, path: Path | None = None) -> None:
     with tmp.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
     tmp.replace(p)
-
-
-def _migrate_v23_to_v24(data: dict) -> dict:
-    """Schema v24: align STT defaults with setup_jarvis.py downloads.
-
-    setup_jarvis.py downloads the multilingual ``base`` model, but the
-    v2→v3 migration changed the default to ``tiny.en`` (English-only).
-    That model is never downloaded, so fresh installs crash on first
-    launch with ``local_files_only=True``.
-
-    This migration converts ``tiny.en`` → ``base`` and ``en`` → ``auto``
-    only when the values match the broken v3 defaults (i.e. the user
-    never changed them). Explicitly-chosen models are left untouched.
-    """
-    stt = data.get("stt", {})
-    if stt.get("model_size") == "tiny.en":
-        stt["model_size"] = "base"
-    if stt.get("language") == "en":
-        stt["language"] = "auto"
-    data["schema_version"] = 24
-    return data
 
 
 # ---------------------------------------------------------------------------
