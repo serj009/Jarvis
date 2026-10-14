@@ -14,6 +14,60 @@ loses settings.
 
 ### Added
 
+- **Tiered memory storage — hot/warm/cold/archive lifecycle (T4.6).**
+  New module `jarvis/memory/tier_manager.py` (`TierManager`).  Facts now
+  move through four tiers based on `last_accessed_at` age:
+  - **HOT** (< 30 days): full text, auto-injected into LLM context
+  - **WARM** (30-90 days): condensed text (first 100 chars), auto-injected
+  - **COLD** (90 days – 14 months): maximally condensed (50 chars),
+    injected with "[old memory]" prefix
+  - **ARCHIVE** (> 14 months): NOT auto-injected, only via explicit recall
+
+  Permanent facts (`is_permanent=True`) are exempt from demotion.
+  Any access (auto-recall match, explicit get) promotes a fact back to HOT.
+  Original text is **never modified** — `condensed_text` is a separate column.
+  `TierManager.run_maintenance()` runs at startup / periodically (non-blocking).
+
+- **Schema migration: `tier` + `condensed_text` columns on `facts` table.**
+  `MemoryStore._sync_open()` now runs `_migrate_tiered_columns()` which
+  adds the two new columns via `ALTER TABLE ADD COLUMN` if they don't exist.
+  New index `idx_facts_tier` for tier-filtered queries.  Zero-downtime:
+  existing facts default to `tier='hot'`, `condensed_text=NULL`.
+
+- **New `MemoryStore` methods for tiered storage:**
+  - `get_facts_by_tier_and_age(tier, before)` — fetch demotable facts
+  - `update_tier(fact_id, new_tier, condensed)` — move fact to new tier
+  - `promote_to_hot(fact_id)` — promote back to HOT + refresh access time
+  - `tier_stats()` — return `{hot: N, warm: N, cold: N, archive: N}`
+
+- **Tier-aware auto-recall (`auto_recall.py` updated, T4.6).**
+  `get_relevant_memories()` now uses tier-specific text for injection:
+  HOT → original, WARM → condensed, COLD → condensed + "[old memory]",
+  ARCHIVE → excluded.  Matched warm/cold facts are automatically promoted
+  back to HOT via `promote_to_hot()`.  New helper `_text_for_injection()`.
+
+- **Contextual inference — `jarvis/memory/context_inference.py` (T4.6).**
+  New module `ContextInference` resolves implicit references like
+  "запусти ту игру" / "open that site" by combining:
+  1. Recent tool-call history (`ToolExampleStore` with `last_used` timestamps)
+  2. Memory facts (`MemoryStore` search)
+
+  Pure heuristic (no LLM), < 5 ms.  Falls back gracefully when no match.
+  Public API: `get_recent_tool_activity(tool, days)` and
+  `infer_implicit_reference(utterance)`.
+
+- **`last_used` timestamps in ToolExampleStore.**
+  `record_success()` now sets `last_used` (ISO datetime) on every entry.
+  Used by `ContextInference` to prefer recent tool calls over old ones.
+
+- **New tests:**
+  - `tests/memory/test_tier_manager.py` — migration, demotion, promotion,
+    condensation, tier_stats
+  - `tests/memory/test_context_inference.py` — implicit reference resolution,
+    recent activity, edge cases
+  - `tests/memory/test_auto_recall.py` — updated with tier-aware injection
+    and promotion tests
+
 - **Auto-recall: inject relevant memories into LLM context (T4.4).**
   New module `jarvis/memory/auto_recall.py`. Before each LLM call the router
   searches the memory store for facts relevant to the user's utterance
