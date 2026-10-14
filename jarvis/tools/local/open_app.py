@@ -29,6 +29,7 @@ from pydantic import BaseModel, Field
 
 from jarvis.core.phrases import opening_phrase
 from jarvis.core.request_context import current_user_transcription
+from jarvis.memory.personal_aliases import PersonalAliasStore
 from jarvis.tools.local.app_aliases import APP_ALIASES as _APP_ALIASES, resolve_app_alias
 from jarvis.platform import windows as winplat
 from jarvis.platform.app_discovery import normalize_open_query
@@ -116,8 +117,12 @@ class OpenAppTool:
         self,
         *,
         app_resolver: Callable[[str], InstalledApp | None] | None = None,
+        personal_aliases: PersonalAliasStore | None = None,
     ) -> None:
         self._app_resolver = app_resolver
+        # Personal aliases: user-learned name mappings ("браузер" → "chrome").
+        # Checked BEFORE the static alias table so user preferences win.
+        self._personal_aliases = personal_aliases
 
     def _resolve_installed(self, query: str) -> InstalledApp | None:
         if self._app_resolver is not None:
@@ -148,6 +153,14 @@ class OpenAppTool:
         token = _resolve_name(args.name)
         if not token:
             return ToolResult(success=False, error="app name is empty")
+
+        # 0. Personal aliases: user-learned mappings (highest priority).
+        #    "браузер" → "chrome" if the user always means Chrome.
+        if self._personal_aliases is not None:
+            personal = self._personal_aliases.resolve(token)
+            if personal:
+                log.info("open_app: personal alias %r → %r", token, personal)
+                token = personal
 
         # Resolve multilingual / informal alias to a canonical Windows-
         # recognisable name before any search or matching step.

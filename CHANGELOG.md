@@ -14,6 +14,45 @@ loses settings.
 
 ### Added
 
+- **Personalization — personal aliases, user profile, usage stats (T4.9).**
+  Three new modules that make Jarvis adapt to the user over time:
+
+  **Personal Aliases** (`jarvis/memory/personal_aliases.py`):
+  User-learned application name mappings. When the user says "открой браузер"
+  and the resolved app is Chrome, Jarvis remembers "браузер" = "chrome" for
+  future calls. Resolution order in `open_app`: personal aliases → static
+  aliases → fuzzy match. Learning sources:
+  - Implicit: after successful `open_app` when utterance contains a generic
+    word ("браузер", "редактор", "player") and tool arg is specific.
+  - Explicit: "мой браузер — Chrome" (via auto_save fact patterns).
+  Storage: `%APPDATA%/Jarvis/personal_aliases.json`, max 200 entries, LRU prune.
+
+  **User Profile** (`jarvis/memory/user_profile.py`):
+  Structured persistent facts (name, city, country, timezone, occupation,
+  interests, custom fields). Auto-populated from `auto_save.py` when identity
+  or location facts are extracted ("меня зовут Серж", "I live in Warsaw").
+  Injected into LLM context via `_inject_auto_context()` as `[User profile:]`.
+  Storage: `%APPDATA%/Jarvis/user_profile.json`.
+
+  **Usage Stats** (`jarvis/memory/usage_stats.py`):
+  Tracks tool call frequency, app open frequency, and active hours.
+  Recorded after every successful tool call in `IntentRouter._record_tool_examples`.
+  Top 3 apps injected into LLM context as `[User's frequently used apps:]`.
+  Storage: `%APPDATA%/Jarvis/usage_stats.json`.
+
+  Integration points:
+  - `jarvis/tools/local/open_app.py`: personal aliases checked before static aliases.
+  - `jarvis/llm/intent_router.py`: records usage stats, learns personal aliases,
+    injects user profile and usage stats into LLM context.
+  - `jarvis/memory/auto_save.py`: calls `user_profile.update_from_fact()` on
+    identity/location/work fact saves.
+  - `jarvis/app.py`: creates all three stores, wires them into tools and router.
+
+  New tests:
+  - `tests/memory/test_personal_aliases.py` (16 tests)
+  - `tests/memory/test_user_profile.py` (22 tests)
+  - `tests/memory/test_usage_stats.py` (16 tests)
+
 - **Event-Triggered Reminders — context-bound reminders that fire on app/game
   launch (T4.8).**
   New module `jarvis/memory/reminders.py`. Users can now say:

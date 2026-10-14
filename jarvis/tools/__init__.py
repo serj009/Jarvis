@@ -44,6 +44,7 @@ def setup_local_tools(
     memory_store: object = None,
     stt: object = None,
     tts_manager: object = None,
+    personal_aliases: object = None,
 ) -> None:
     """Register every built-in local tool into `registry`.
 
@@ -130,7 +131,7 @@ def setup_local_tools(
         GetTimeTool(),
         ListDirectoryTool(path_validator=path_validator),
         LockScreenTool(),
-        OpenAppTool(),
+        OpenAppTool(personal_aliases=personal_aliases),
         OpenUrlTool(),
         LaunchSteamGameTool(),
         LaunchWorkspaceTool(workspace_apps=workspace_apps),
