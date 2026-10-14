@@ -358,6 +358,7 @@ async def main() -> int:
         max_tokens=cfg.llm.max_tokens,
         system_prompt=cfg.llm.system_prompt,
         keep_alive_seconds=cfg.llm.keep_alive_seconds,
+        num_ctx=cfg.llm.num_ctx,
     )
     conversation = Conversation(
         system_prompt_provider=lambda: cfg.llm.system_prompt,

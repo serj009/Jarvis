@@ -91,6 +91,16 @@ log = logging.getLogger(__name__)
 # A single message in OpenAI/Ollama chat format.
 Message = dict
 
+# --- conversation summary constants -----------------------------------
+
+# Marker prefix for the summary placeholder in _turns.
+_SUMMARY_MARKER = "[Earlier in this conversation: "
+
+# How many recent messages to protect from summarisation.  Approximately
+# 3 user+assistant pairs.  Must be >= 2 so at least the current turn
+# survives even at the tightest trim.
+_RECENT_MESSAGES_TO_KEEP = 6
+
 
 @dataclass(frozen=True, slots=True)
 class ToolExchange:
@@ -119,6 +129,54 @@ def _tool_call_ids(msg: Message) -> list[str]:
     return [
         (c.get("id") or "") if isinstance(c, dict) else "" for c in calls
     ]
+
+
+def _is_summary_message(msg: Message) -> bool:
+    """True when *msg* is a conversation-summary placeholder."""
+    return (
+        msg.get("role") == "system"
+        and msg.get("content", "").startswith(_SUMMARY_MARKER)
+    )
+
+
+def _summarize_turns(turns: list[Message]) -> str:
+    """Condense old turns into a brief textual summary.
+
+    Template-based, NOT LLM-powered — zero latency cost.  Each turn is
+    condensed to a short line; tool results are reduced to just the tool
+    name.  The output is a pipe-separated string:
+
+        User: open chrome | Jarvis: Done, sir. | [Tool open_app was called]
+    """
+    parts: list[str] = []
+    for msg in turns:
+        role = msg.get("role", "")
+        content = msg.get("content", "")
+        if role == "user":
+            text = (content[:100] + "...") if len(content) > 100 else content
+            parts.append(f"User: {text}")
+        elif role == "assistant":
+            text = (content[:100] + "...") if len(content) > 100 else content
+            parts.append(f"Jarvis: {text}")
+        elif role == "tool":
+            tool_name = msg.get("name", "unknown")
+            parts.append(f"[Tool {tool_name} was called]")
+    return " | ".join(parts)
+
+
+def _build_summary_content(old_inner: str, new_fragment: str) -> str:
+    """Merge an existing summary body with a freshly-condensed fragment."""
+    if old_inner:
+        merged = old_inner + " | " + new_fragment
+    else:
+        merged = new_fragment
+    return f"{_SUMMARY_MARKER}{merged}]"
+
+
+def _extract_summary_inner(content: str) -> str:
+    """Return the text between the marker prefix and the trailing ``]``."""
+    inner = content[len(_SUMMARY_MARKER):]
+    return inner[:-1] if inner.endswith("]") else inner
 
 
 def _filter_turns_for_llm(turns: list[Message]) -> list[Message]:
@@ -202,6 +260,7 @@ class Conversation:
         self._time = time_provider
         self._turns: list[Message] = []
         self._last_activity: float | None = None
+        self._injected_context: str | None = None
 
     # -- API --
 
@@ -311,6 +370,21 @@ class Conversation:
                 continuity_seconds,
             )
 
+    def inject_context(self, context: str | None) -> None:
+        """Set a temporary context message inserted after the system prompt.
+
+        This is NOT persisted in turn history — it is injected fresh
+        each time ``current_messages()`` is called.  Used for auto-recall
+        memories and tool-call examples.
+
+        Pass ``None`` to clear previously injected context.
+        """
+        self._injected_context = context if context else None
+
+    def clear_injected_context(self) -> None:
+        """Remove any injected context.  Idempotent."""
+        self._injected_context = None
+
     def has_unanswered_user_turn(self) -> bool:
         """True when the last stored turn is a user message with no following
         assistant reply. Used by the router adapter to decide whether to store
@@ -320,11 +394,26 @@ class Conversation:
     def current_messages(self) -> list[Message]:
         """Read-only view: [system, *filtered_history]. Returns a fresh list
         each call so callers can safely pass to mutating consumers."""
+        return self._build_messages()
+
+    def _build_messages(self) -> list[Message]:
+        """Assemble the full message list.
+
+        Separated from current_messages() so both the public accessor
+        and internal helpers share the same assembly logic without
+        recursion risk.
+        """
         prompt = self._system_prompt_provider()
         filtered = _filter_turns_for_llm(self._turns)
+        msgs: list[Message] = []
         if prompt:
-            return [{"role": "system", "content": prompt}, *filtered]
-        return list(filtered)
+            msgs.append({"role": "system", "content": prompt})
+        # Auto-recall memories & tool examples — injected as a second
+        # system message between the main prompt and conversation history.
+        if self._injected_context:
+            msgs.append({"role": "system", "content": self._injected_context})
+        msgs.extend(filtered)
+        return msgs
 
     # -- internal --
 
@@ -340,19 +429,82 @@ class Conversation:
         A role:"tool" message is only legal while the assistant message
         declaring its tool_call_id is still ahead of it, and tool
         messages are always appended directly after that assistant
-        message. So the only way front-trimming can break the shape is
-        by cutting the assistant and leaving its results behind --
-        extend the cut forward over them. That can take the history
-        BELOW max_turns, which is the correct trade: a short history is
-        fine, a history the chat API rejects is not.
+        message.
 
-        At max_turns=1 a round trip therefore trims to nothing (the
-        user turn, the assistant call and its result are three
-        messages, and none can stand alone). That is a degenerate
-        setting -- the default is 10, and even 3 holds a whole
-        single-call round trip -- but it is bounded and well-formed
-        rather than broken.
+        Strategy
+        --------
+        When there is enough head-room (_RECENT_MESSAGES_TO_KEEP messages
+        beyond the trim cut), the oldest turns are **summarised** into a
+        compact system-role placeholder rather than silently dropped.
+        This preserves conversational context ("we talked about X
+        earlier") at a fraction of the token cost.
+
+        When head-room is too small (small max_turns, or only a few
+        messages over the limit) the old hard-trim path fires so the
+        existing safety invariants (no orphaned tool messages, bounded
+        history length) are maintained exactly as before.
         """
+        excess = len(self._turns) - self.max_turns
+        if excess <= 0:
+            return
+
+        # --- locate existing summary (always at index 0 if present) ---
+        has_summary = bool(self._turns) and _is_summary_message(
+            self._turns[0]
+        )
+        content_start = 1 if has_summary else 0
+        content_len = len(self._turns) - content_start
+
+        # How many recent messages we can protect (never more than we
+        # actually have).
+        protect = min(_RECENT_MESSAGES_TO_KEEP, content_len)
+        condensable_count = content_len - protect
+
+        if condensable_count <= 0:
+            # Not enough room to summarise — fall back to the original
+            # hard-trim so small-max_turns configs keep working.
+            self._hard_trim(excess)
+            return
+
+        # Determine the true end index, extending over trailing tool
+        # messages that would be orphaned by the cut (same invariant
+        # the old _trim enforced).
+        condense_end = content_start + condensable_count
+        while (
+            condense_end < len(self._turns)
+            and self._turns[condense_end].get("role") == "tool"
+        ):
+            condense_end += 1
+
+        to_condense = self._turns[content_start:condense_end]
+        if not to_condense:
+            self._hard_trim(excess)
+            return
+
+        new_fragment = _summarize_turns(to_condense)
+
+        # Merge with any pre-existing summary text.
+        if has_summary:
+            old_inner = _extract_summary_inner(
+                self._turns[0].get("content", "")
+            )
+        else:
+            old_inner = ""
+
+        summary_msg: Message = {
+            "role": "system",
+            "content": _build_summary_content(old_inner, new_fragment),
+        }
+
+        remaining = self._turns[condense_end:]
+        self._turns.clear()
+        self._turns.append(summary_msg)
+        self._turns.extend(remaining)
+
+    # -- legacy hard-trim (small max_turns, backward compat) -----------
+
+    def _hard_trim(self, excess: int) -> None:
+        """Drop *excess* oldest turns, extending over orphan tool msgs."""
         excess = len(self._turns) - self.max_turns
         if excess <= 0:
             return
