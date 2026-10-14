@@ -47,6 +47,60 @@ _FACT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
         re.IGNORECASE,
     ), "preference"),
 
+    # -- Behavioral preferences: "always do X", "every time do X" ----------
+    # EN
+    (re.compile(
+        r"(?:always|every\s+time)\s+(.+)",
+        re.IGNORECASE,
+    ), "behavior"),
+    # RU
+    (re.compile(
+        r"(?:всегда|всё\s+время)\s+(.+)",
+        re.IGNORECASE,
+    ), "behavior"),
+    # UK
+    (re.compile(
+        r"(?:завжди|кожного\s+разу)\s+(.+)",
+        re.IGNORECASE,
+    ), "behavior"),
+
+    # -- Negative preferences: "never do X", "don't ever X" ----------------
+    # EN
+    (re.compile(
+        r"(?:never|don'?t\s+ever)\s+(.+)",
+        re.IGNORECASE,
+    ), "negative_pref"),
+    # RU
+    (re.compile(
+        r"(?:никогда\s+не|не\s+надо|не\s+нужно)\s+(.+)",
+        re.IGNORECASE,
+    ), "negative_pref"),
+    # UK
+    (re.compile(
+        r"(?:ніколи\s+не|не\s+треба)\s+(.+)",
+        re.IGNORECASE,
+    ), "negative_pref"),
+
+    # -- Default tool preferences: "my browser is Chrome" ------------------
+    (re.compile(
+        r"(?:мой\s+(?:браузер|редактор|плеер))\s+(?:—|это|=)\s*(.+)",
+        re.IGNORECASE,
+    ), "tool_pref"),
+    (re.compile(
+        r"(?:my\s+(?:browser|editor|player))\s+is\s+(.+)",
+        re.IGNORECASE,
+    ), "tool_pref"),
+    (re.compile(
+        r"(?:мій\s+(?:браузер|редактор|плеєр))\s+(?:—|це|=)\s*(.+)",
+        re.IGNORECASE,
+    ), "tool_pref"),
+
+    # -- Setting preferences: "volume to 70%", "громкость на 70" ----------
+    (re.compile(
+        r"(?:громкость|volume)(?:\s+на|\s+(?:at|to))?\s+(\d+)",
+        re.IGNORECASE,
+    ), "setting_pref"),
+
     # -- Identity / names ---------------------------------------------------
     # EN: "my name is X", "I'm X", "call me X"
     (re.compile(
@@ -125,9 +179,29 @@ async def auto_save_facts(
     This function is designed to be called via
     ``asyncio.create_task(auto_save_facts(...))`` — fire-and-forget,
     never blocks the pipeline.
+
+    Also detects event-triggered reminder patterns and saves them via reminders.py.
     """
     if not memory_store.is_open:
         return 0
+
+    # --- Event-triggered reminders (before regular fact extraction) ---
+    try:
+        from jarvis.memory.reminders import parse_reminder, save_reminder
+
+        reminder = parse_reminder(user_utterance)
+        if reminder is not None:
+            trigger_target, reminder_text = reminder
+            await save_reminder(memory_store, trigger_target, reminder_text)
+            log.info(
+                "[auto-save] saved event reminder: target=%s text=%s",
+                trigger_target,
+                reminder_text[:60],
+            )
+            # Reminder is saved; no need to also extract as a regular fact
+            return 1
+    except Exception:
+        log.warning("[auto-save] reminder detection failed (non-fatal)", exc_info=True)
 
     facts = extract_facts(user_utterance)
     if not facts:

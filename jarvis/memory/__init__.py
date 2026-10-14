@@ -40,4 +40,8 @@ Auto-Memory (T4.4/T4.5):
 Tiered Storage (T4.6):
     tier_manager        -- TierManager: hot/warm/cold/archive lifecycle management
     context_inference   -- ContextInference: resolve implicit references from history
+
+Event-Triggered Reminders (T4.8):
+    reminders           -- parse_reminder, save_reminder, check_reminders:
+                           event-bound reminders that fire on app/game launch
 """

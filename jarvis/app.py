@@ -222,6 +222,7 @@ from jarvis.core.vram_manager import VRAMManager
 
 
 from jarvis.memory.store import MemoryStore
+from jarvis.memory.relations import RelationStore
 from jarvis.memory.embeddings import EmbeddingIndex
 from jarvis.memory.tool_examples import ToolExampleStore
 
@@ -2606,6 +2607,13 @@ class JarvisApp:
         # T4.4/T4.5: Tool example store for self-learning.
         # Lives next to memory.db in the Jarvis data dir.
         _data_root = self.memory_store.db_path.parent
+
+        # T4.7: RelationStore for graph-based fact expansion in auto-recall.
+        self.relation_store = RelationStore(db_path=self.memory_store.db_path)
+        try:
+            self.relation_store.init_schema()
+        except Exception:
+            log.warning("relation store schema init failed (non-fatal)", exc_info=True)
         self.tool_example_store = ToolExampleStore(
             path=_data_root / "tool_examples.json",
         )
@@ -2720,6 +2728,7 @@ class JarvisApp:
             # T4.4/T4.5: auto-memory + self-learning
             memory_store=self.memory_store,
             tool_example_store=self.tool_example_store,
+            relation_store=self.relation_store,
 
 
         )
