@@ -8,6 +8,12 @@ registry does not distinguish local from remote.
 
 Design rationale (Phase 4 Task 1 design note, approved):
 
+- Risk levels (Phase 5, T5.2): every tool carries an inherent risk level
+  (READ / WRITE / DESTRUCTIVE / SYSTEM). The registry now consults
+  ``risk.should_confirm(tool)`` to decide confirmation, which checks both
+  the legacy ``requires_confirmation`` flag and the risk level.
+
+
 - Validation lives at the registry boundary. Tools see an already-
   validated pydantic BaseModel via execute(). Bad raw args surface as
   ToolResult(success=False, error=...), never as exceptions, so the
@@ -72,6 +78,8 @@ from typing import Any, ClassVar, Protocol, TypeVar, runtime_checkable
 from pydantic import BaseModel, ValidationError
 
 from jarvis.core.config import ToolsConfig
+
+from jarvis.tools.risk import RiskLevel, risk_level_for_tool, should_confirm
 
 log = logging.getLogger(__name__)
 
@@ -454,10 +462,12 @@ class ToolRegistry:
         # getattr, not attribute access: `requires_confirmation` is part
         # of the Tool protocol, but a duck-typed object that omits it
         # would otherwise crash the dispatch path rather than be gated.
-        # Absent means "did not ask to be gated", which is the same
-        # answer as False and keeps every ungated tool on its old path —
-        # no confirmer consulted, no work done, no added latency.
-        if getattr(tool, "requires_confirmation", False):
+        # T5.2/T5.3: risk-level-aware confirmation. should_confirm()
+        # checks both the legacy requires_confirmation flag AND the
+        # tool's risk level (DESTRUCTIVE/SYSTEM → confirm). This is
+        # the single decision point for all confirmation logic.
+        needs_confirm = should_confirm(tool)
+        if needs_confirm:
             refusal = await self._confirm(name, tool, args)
             if refusal is not None:
                 log.info("tool %r did not run: %s", name, refusal)
@@ -465,6 +475,7 @@ class ToolRegistry:
                     success=False,
                     error=f"tool {name!r} did not run: {refusal}",
                 )
+        tool_risk = risk_level_for_tool(tool)
         started = time.monotonic()
         try:
             result = await tool.execute(args)
@@ -481,9 +492,10 @@ class ToolRegistry:
         # T1.2: tool stage in the turn log. Name and outcome only -- the
         # arguments may contain user text, so they are not logged.
         log.info(
-            "[tool] %s %s in %d ms",
+            "[tool] %s %s in %d ms (risk=%s)",
             name,
             "ok" if result.success else "failed",
             int((time.monotonic() - started) * 1000),
+            tool_risk.name,
         )
         return result

@@ -1,0 +1,208 @@
+"""Risk levels for tool actions (T5.2).
+
+Every tool action carries an inherent risk from "read-only information
+retrieval" to "irreversible system mutation". This module defines the
+risk taxonomy, maps each built-in tool to its level, and provides the
+lookup the registry uses to decide whether a tool call needs user
+confirmation.
+
+Design decisions:
+
+- Four levels, deliberately coarse. A finer scale (10-point, per-
+  parameter) over-classifies and under-communicates: the user sees a
+  dialog or doesn't, and a 10-point rating on a 2-outcome UX is noise.
+  The four levels map directly to four UX outcomes:
+
+    READ        → execute immediately, no prompt, minimal log.
+    WRITE       → execute immediately, audit-log the action.
+    DESTRUCTIVE → require user confirmation before executing.
+    SYSTEM      → require user confirmation + elevated warning.
+
+- The ``TOOL_RISK_MAP`` is the single source of truth for built-in risk
+  assignments. MCP tools default to WRITE (the server is trusted enough
+  to connect to, but every mutation is logged) unless the server config
+  sets ``requires_confirmation=True``, in which case the registry
+  already treats them as confirmable (see registry.py).
+
+- ``risk_level`` is NOT added to the ``Tool`` protocol. The protocol is
+  @runtime_checkable and used by MCP tools that have no risk_level
+  attribute. Instead, the registry uses getattr() to read it, defaulting
+  to READ for tools that predate this module. The ``requires_confirmation``
+  bool remains the authoritative confirmation flag; risk_level is an
+  additional signal that the registry consults.
+
+- Backward compatibility: a tool with ``requires_confirmation=True`` and
+  no ``risk_level`` still gets prompted. A tool with ``risk_level=DESTRUCTIVE``
+  and ``requires_confirmation=False`` gets prompted (the risk level
+  overrides the explicit False). This is fail-safe: marking something
+  destructive must be sufficient; you shouldn't also have to set a
+  separate bool.
+
+Integration:
+    from jarvis.tools.risk import RiskLevel, risk_level_for_tool
+    level = risk_level_for_tool(tool)
+    if level.requires_confirmation:
+        ...  # prompt the user
+"""
+
+from __future__ import annotations
+
+import enum
+from typing import Any
+
+
+class RiskLevel(enum.IntEnum):
+    """Risk classification for tool actions.
+
+    IntEnum so levels are naturally ordered: ``DESTRUCTIVE > WRITE`` is True.
+    The numeric values are spaced for future insertion if needed."""
+
+    READ = 10
+    WRITE = 20
+    DESTRUCTIVE = 30
+    SYSTEM = 40
+
+    @property
+    def requires_confirmation(self) -> bool:
+        """Whether this risk level should trigger a confirmation prompt."""
+        return self >= RiskLevel.DESTRUCTIVE
+
+    @property
+    def label(self) -> str:
+        """Human-readable label for UI display."""
+        return {
+            RiskLevel.READ: "Read-only",
+            RiskLevel.WRITE: "Write",
+            RiskLevel.DESTRUCTIVE: "Destructive",
+            RiskLevel.SYSTEM: "System",
+        }.get(self, "Unknown")
+
+    @property
+    def description(self) -> str:
+        """One-sentence explanation for the settings UI."""
+        return {
+            RiskLevel.READ: "Retrieves information without modifying anything.",
+            RiskLevel.WRITE: "Creates or modifies files/settings.",
+            RiskLevel.DESTRUCTIVE: (
+                "Deletes or irreversibly changes data. "
+                "Requires user confirmation."
+            ),
+            RiskLevel.SYSTEM: (
+                "Executes system-level operations (shell commands, "
+                "process control). Requires user confirmation."
+            ),
+        }.get(self, "")
+
+
+# ---------------------------------------------------------------------------
+# Built-in tool → risk-level mapping
+# ---------------------------------------------------------------------------
+# This is the single source of truth for which risk level each built-in
+# tool carries. Tools not listed here default to READ (safe default).
+#
+# Ordering matches jarvis/tools/catalogue.py for easy cross-reference.
+
+TOOL_RISK_MAP: dict[str, RiskLevel] = {
+    # -- read-only tools (no confirmation, no audit) -----------------------
+    "clipboard": RiskLevel.READ,
+    "list_directory": RiskLevel.READ,
+    "get_weather": RiskLevel.READ,
+    "report_cpu_and_memory_percentages": RiskLevel.READ,
+    "screenshot": RiskLevel.READ,
+    "see_screen": RiskLevel.READ,
+    # UI panels — read-only (show/close panels)
+    "show_dashboard": RiskLevel.READ,
+    "close_dashboard": RiskLevel.READ,
+    "show_clipboard_history": RiskLevel.READ,
+    "close_clipboard_history": RiskLevel.READ,
+    "open_help": RiskLevel.READ,
+    "show_logs": RiskLevel.READ,
+    "close_logs": RiskLevel.READ,
+    "open_notes": RiskLevel.READ,
+    "close_notes": RiskLevel.READ,
+    "read_note": RiskLevel.READ,
+    # Research — read-only (viewing)
+    "research": RiskLevel.READ,
+    "close_research": RiskLevel.READ,
+    "read_more": RiskLevel.READ,
+    "copy_research": RiskLevel.READ,
+    # Memory — read
+    "recall": RiskLevel.READ,
+    "memory_status": RiskLevel.READ,
+    # Volume — WRITE because it mutates system state, but reversible
+    "volume": RiskLevel.WRITE,
+    # -- write tools (no confirmation, audit-logged) -----------------------
+    "open_app": RiskLevel.WRITE,
+    "close_app": RiskLevel.WRITE,
+    "open_url": RiskLevel.WRITE,
+    "play_youtube_music": RiskLevel.WRITE,
+    "launch_steam_game": RiskLevel.WRITE,
+    "launch_workspace": RiskLevel.WRITE,
+    "take_note": RiskLevel.WRITE,
+    "append_to_note": RiskLevel.WRITE,
+    "switch_language": RiskLevel.WRITE,
+    # Deep research — creates files, network calls
+    "deep_research": RiskLevel.WRITE,
+    "pause_deep_research": RiskLevel.WRITE,
+    "resume_deep_research": RiskLevel.WRITE,
+    "close_deep_research": RiskLevel.WRITE,
+    "enable_deep_research_ultra": RiskLevel.WRITE,
+    "disable_deep_research_ultra": RiskLevel.WRITE,
+    # Memory — write
+    "remember": RiskLevel.WRITE,
+    # -- destructive tools (confirmation required) -------------------------
+    "delete_note": RiskLevel.DESTRUCTIVE,
+    "delete_deep_research": RiskLevel.DESTRUCTIVE,
+    "delete_all_deep_research": RiskLevel.DESTRUCTIVE,
+    "clear_clipboard_history": RiskLevel.DESTRUCTIVE,
+    # Memory — destructive
+    "forget": RiskLevel.DESTRUCTIVE,
+    # -- system tools (confirmation + elevated warning) --------------------
+    "type_into_active_window": RiskLevel.SYSTEM,
+    "lock_screen": RiskLevel.SYSTEM,
+    "paste_clipboard_item": RiskLevel.SYSTEM,
+}
+
+
+def risk_level_for_tool(tool: Any) -> RiskLevel:
+    """Return the risk level for a tool instance.
+
+    Lookup order:
+    1. ``tool.risk_level`` attribute (explicit per-instance/class).
+    2. ``TOOL_RISK_MAP[tool.name]`` (the static map above).
+    3. ``RiskLevel.READ`` (safe default for unknown tools).
+
+    MCP tools will typically hit case 3 (READ) unless their server
+    config sets ``requires_confirmation=True``, which the registry
+    already handles independently.
+    """
+    # 1. Explicit attribute on the tool.
+    explicit = getattr(tool, "risk_level", None)
+    if isinstance(explicit, RiskLevel):
+        return explicit
+
+    # 2. Static map lookup by name.
+    name = getattr(tool, "name", None)
+    if name and name in TOOL_RISK_MAP:
+        return TOOL_RISK_MAP[name]
+
+    # 3. Safe default.
+    return RiskLevel.READ
+
+
+def should_confirm(tool: Any) -> bool:
+    """Whether a tool call should require user confirmation.
+
+    Checks BOTH the legacy ``requires_confirmation`` flag AND the risk
+    level. Either one being affirmative triggers the prompt — this is
+    the backward-compatible fail-safe union.
+
+    This is the single function the registry should call to decide
+    whether to prompt. It replaces the raw
+    ``getattr(tool, "requires_confirmation", False)`` check.
+    """
+    # Legacy explicit flag.
+    if getattr(tool, "requires_confirmation", False):
+        return True
+    # Risk-level gate.
+    return risk_level_for_tool(tool).requires_confirmation

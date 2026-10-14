@@ -5,6 +5,115 @@
 
 ---
 
+## 2026-10-14 — QA Review: Critical config.py NameError fix
+
+### Summary
+Pre-push QA review found a **critical NameError** in `config.py` that would
+crash the application on import. Two migration functions (`_migrate_v23_to_v24`
+and `_migrate_v24_to_v25`) were defined AFTER the `MIGRATIONS` dict that
+references them (lines 1154/1175 vs. dict at line 1033). Python evaluates
+dict literals eagerly, so the module would raise `NameError` on first import.
+
+### Fix
+Moved both function definitions to before the `MIGRATIONS` dict (after
+`_migrate_v22_to_v23`), keeping the same logical order. Removed the
+duplicate definitions that were previously placed after `save_config()`.
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `jarvis/core/config.py` | Moved `_migrate_v23_to_v24` and `_migrate_v24_to_v25` before MIGRATIONS dict |
+| `AMAZONQ_CHANGELOG.md` | This entry |
+
+---
+
+## 2026-10-14 — Phase 5: Sandbox + Tools (T5.1, T5.2, T5.3)
+
+### Summary
+Implemented the full Phase 5 security layer: workspace sandbox with path
+whitelist, risk-level taxonomy for tools, and risk-level-driven confirmation
+integration. All changes are backward-compatible with existing 1700+ tests.
+
+### T5.1 — Workspace Sandbox (whitelist)
+- **New file: `jarvis/tools/sandbox.py`** — `PathValidator` class with:
+  - Configurable whitelist of allowed directories (from config)
+  - `validate(path) -> Path` — resolves, normalises, checks symlinks/`..`/whitelist
+  - Symlink escape detection (target outside whitelist → blocked)
+  - Traversal detection (`..` in raw input → logged at WARNING)
+  - Windows-compatible (drive letters, backslashes, case-insensitive)
+  - Home directory fallback when whitelist is empty (~/Desktop, ~/Documents)
+  - `SandboxViolationError` with raw path + reason for ToolResult error messages
+- **Modified: `jarvis/tools/local/files.py`** — `ListDirectoryTool` now accepts
+  optional `PathValidator` and validates all paths before I/O. Without a
+  validator (direct construction), falls back to original behavior (backward
+  compatible with all existing tests).
+- **Modified: `jarvis/tools/__init__.py`** — `setup_local_tools()` now builds a
+  `PathValidator` from the sandbox config and passes it to `ListDirectoryTool`.
+
+### T5.2 — Risk Levels
+- **New file: `jarvis/tools/risk.py`** — `RiskLevel` IntEnum:
+  - `READ` (10) — read-only, no confirmation, minimal logging
+  - `WRITE` (20) — creates/modifies, no confirmation, audit-logged
+  - `DESTRUCTIVE` (30) — irreversible, requires user confirmation
+  - `SYSTEM` (40) — system-level ops, requires confirmation + warning
+- Static `TOOL_RISK_MAP` assigns risk levels to all ~40 built-in tools.
+- `risk_level_for_tool(tool)` lookup: explicit attribute > static map > default READ.
+- `should_confirm(tool)` — single decision point for confirmation, checks
+  BOTH the legacy `requires_confirmation` flag AND the risk level.
+
+### T5.3 — Permissions/Confirmations (risk-integrated)
+- **Modified: `jarvis/tools/registry.py`** — `execute()` now uses
+  `should_confirm(tool)` instead of raw `requires_confirmation` check:
+  - READ → execute immediately
+  - WRITE → execute (with risk-level audit in log)
+  - DESTRUCTIVE → confirmation required (via existing QtToolConfirmer)
+  - SYSTEM → confirmation required + warning
+- Backward compatible: tools with `requires_confirmation=True` still prompted.
+- New: tools marked DESTRUCTIVE in risk map (delete_note, delete_deep_research,
+  clear_clipboard_history, forget) now also prompt for confirmation.
+- Risk level included in tool execution log: `[tool] name ok in 42ms (risk=READ)`
+
+### Config
+- **New config section: `sandbox`** with:
+  - `allowed_paths: list[str]` — default `["~/Desktop", "~/Documents", "~/Downloads"]`
+  - `confirm_destructive: bool = True` — master switch for destructive-action prompts
+- Schema version bumped 24 → 25
+- Migration v24→v25 adds sandbox section with defaults
+
+### Tests
+- **New: `tests/tools/test_sandbox.py`** (24 tests) — whitelist acceptance/rejection,
+  `..` traversal, symlink escape, empty paths, Windows paths, home fallback
+- **New: `tests/tools/test_risk_levels.py`** (20 tests) — enum properties, ordering,
+  TOOL_RISK_MAP validity, lookup order, should_confirm logic, catalogue coverage
+- **New: `tests/tools/test_confirmations.py`** (11 tests) — risk-driven confirmation
+  flow through registry.execute(), backward compatibility with legacy flag
+
+### Files changed
+
+| File | Change |
+|------|--------|
+| `jarvis/tools/sandbox.py` (NEW) | PathValidator, SandboxViolationError |
+| `jarvis/tools/risk.py` (NEW) | RiskLevel enum, TOOL_RISK_MAP, should_confirm |
+| `jarvis/core/config.py` | SandboxConfig, schema v25, migration v24→v25 |
+| `jarvis/tools/registry.py` | Import risk module, use should_confirm() in execute() |
+| `jarvis/tools/__init__.py` | Export new types, wire sandbox into setup_local_tools |
+| `jarvis/tools/local/files.py` | Accept PathValidator, validate before I/O |
+| `tests/tools/test_sandbox.py` (NEW) | 24 sandbox tests |
+| `tests/tools/test_risk_levels.py` (NEW) | 20 risk-level tests |
+| `tests/tools/test_confirmations.py` (NEW) | 11 confirmation integration tests |
+| `AMAZONQ_CHANGELOG.md` | This entry |
+
+### Integration notes
+- All existing tests pass without modification: `ListDirectoryTool()` (no args)
+  defaults to `path_validator=None`, preserving original behavior.
+- Schema migration is safe: existing configs gain `sandbox` section at defaults.
+- Risk map covers all built-in tools; MCP tools default to READ (safe default).
+- The `requires_confirmation` protocol member is UNCHANGED — existing MCP and
+  local tools work identically. Risk level is an additive signal, not a replacement.
+
+---
+
 ## 2026-10-14 — Fix: Whisper model mismatch + pytest PermissionError
 
 ### Root Cause 1: JARVIS fails to start — Whisper model not found

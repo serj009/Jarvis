@@ -2,9 +2,11 @@
 
 This is the Phase 4 file surface: list_directory ONLY. Read, write, move,
 and delete are intentionally absent — they're the destructive class of
-operations that needs the requires_confirmation UX (deferred to Phase
-6+) before they ship. Until then, the LLM has visibility into the
-filesystem but no ability to modify it through tools."""
+operations that needs the requires_confirmation UX before they ship.
+
+Phase 5 (T5.1): all paths are validated through the workspace sandbox
+before any I/O. Access outside the whitelist is blocked with a clear
+error message."""
 
 from __future__ import annotations
 
@@ -14,6 +16,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from jarvis.tools.risk import RiskLevel
+from jarvis.tools.sandbox import PathValidator, SandboxViolationError
 from jarvis.tools.registry import ToolResult
 
 log = logging.getLogger(__name__)
@@ -43,22 +47,49 @@ class ListDirectoryTool:
     )
     args_schema = ListDirectoryArgs
     requires_confirmation: bool = False
+    risk_level: RiskLevel = RiskLevel.READ
+
+    def __init__(
+        self,
+        *,
+        path_validator: PathValidator | None = None,
+    ) -> None:
+        self._validator = path_validator
 
     async def execute(self, args: ListDirectoryArgs) -> ToolResult:
+        # T5.1: sandbox validation before any filesystem access.
+        if self._validator is not None:
+            try:
+                resolved = self._validator.validate(args.path)
+            except SandboxViolationError as e:
+                return ToolResult(
+                    success=False,
+                    error=(
+                        f"Access denied: {e.reason}. "
+                        "I can only browse directories in your allowed "
+                        "workspace folders, sir."
+                    ),
+                )
+        else:
+            resolved = None
+
         def _list() -> tuple[Path, list[str]]:
-            raw = Path(args.path).expanduser()
-            if not raw.is_absolute():
-                raw = (Path.home() / raw).resolve()
+            if resolved is not None:
+                target = resolved
             else:
-                raw = raw.resolve()
-            if not raw.exists():
-                raise FileNotFoundError(str(raw))
-            if not raw.is_dir():
-                raise NotADirectoryError(str(raw))
-            return raw, sorted(p.name for p in raw.iterdir())
+                raw = Path(args.path).expanduser()
+                if not raw.is_absolute():
+                    target = (Path.home() / raw).resolve()
+                else:
+                    target = raw.resolve()
+            if not target.exists():
+                raise FileNotFoundError(str(target))
+            if not target.is_dir():
+                raise NotADirectoryError(str(target))
+            return target, sorted(p.name for p in target.iterdir())
 
         try:
-            resolved, names = await asyncio.to_thread(_list)
+            actual, names = await asyncio.to_thread(_list)
         except FileNotFoundError as e:
             return ToolResult(success=False, error=f"no such directory: {e}")
         except NotADirectoryError as e:
@@ -69,15 +100,8 @@ class ListDirectoryTool:
             return ToolResult(success=False, error=f"could not list: {e}")
 
         if not names:
-            # Drop the resolved path from spoken output — TTS reading a
-            # full Windows path is unintelligible. The path lives in
-            # the log (above, via _list raising or returning) and the
-            # eventual desktop notification surface (Phase 5).
-            log.info("list_directory: %s is empty", resolved)
+            log.info("list_directory: %s is empty", actual)
             return ToolResult(success=True, output="The folder is empty, sir.")
-        # Hard cap. Even a 6-item directory is too much to read verbatim
-        # over TTS in any natural-sounding cadence; pick the smaller of
-        # (count, preview) and surface the full count alongside.
         preview = ", ".join(names[:_SPOKEN_PREVIEW_COUNT])
         suffix = (
             f"First {_SPOKEN_PREVIEW_COUNT}: {preview}."
