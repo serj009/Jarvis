@@ -14,6 +14,44 @@ loses settings.
 
 ### Added
 
+- **Game Mode — intelligent VRAM management when games are running.**
+  New module `jarvis/core/game_mode.py` (`GameMode`). When a resource-heavy
+  (MAIN) game is detected via periodic process scanning (psutil, every 30s),
+  JARVIS transitions to lite mode:
+  1. Evicts Ollama LLM from VRAM (`keep_alive=0`)
+  2. Switches STT from GPU to CPU (`tiny` model, int8, minimal wake-word)
+  3. Releases all tracked VRAM consumers via `VRAMManager.release_all()`
+  4. Preloads game-specific memories into RAM for instant answers
+  5. Monitors game process — restores full mode when game exits
+
+  Game classification: MAIN games (full 3D, need VRAM) trigger game mode;
+  IDLE/clicker games (Cookie Clicker, Auto Clicker, etc.) are ignored via
+  a configurable pattern blacklist. Games are detected from the Steam library
+  (already scanned at startup) and a user-configurable custom list.
+
+  Voice commands: "game mode" → status, "включи игровой режим" / "enable
+  game mode" → force activate, "выключи игровой режим" / "disable game mode"
+  → force deactivate. Multilingual patterns (EN/RU/UK).
+
+  Slow-path LLM: when preloaded context doesn't have the answer, Ollama is
+  temporarily loaded, the question is answered, and the model is evicted
+  again. Game mode thinking phrases ("Один момент, sir, загружаю модель...")
+  are spoken during the load.
+
+  Game sessions are logged to long-term memory on deactivation ("Played
+  Elden Ring for 2h 15m") so Jarvis can recall gaming history.
+
+  Config: `game_mode` section in `config.json` with `enabled`, 
+  `scan_interval_seconds`, `idle_game_patterns`, `custom_main_games`.
+  Schema v28, migration from v27.
+
+  Integration: `app.py` creates and starts GameMode after boot;
+  `IntentRouter` injects preloaded game context; `phrases.py` adds
+  game mode thinking phrases (EN/RU/UK).
+
+  Tests: `tests/core/test_game_mode.py` — classification, activation,
+  deactivation, preloading, idle-game rejection, voice commands.
+
 - **Action Logger: record user actions to long-term memory (T4.7).**
   New module `jarvis/memory/action_logger.py`. After each successful tool call
   in the router's feedback loop, a human-readable action record is saved to

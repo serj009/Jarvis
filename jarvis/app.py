@@ -1,4 +1,5 @@
-"""Composition root for the Jarvis desktop application.
+
+from jarvis.core.game_mode import GameMode
 
 
 
@@ -1195,8 +1196,25 @@ async def _handle_config_changed(
 
         )
 
+        # ------------------------------------------------------------------
+        # 5c. Game Mode — intelligent VRAM management when games run
+        # ------------------------------------------------------------------
+        gm_cfg = self.cfg.game_mode
+        self.game_mode = GameMode(
+            vram_manager=self.vram_manager,
+            ollama_client=self.ollama,
+            stt=self.stt,
+            memory_store=self.memory_store,
+            scan_interval_seconds=gm_cfg.scan_interval_seconds,
+            steam_games={},  # populated at runtime by scan_steam_games()
+            idle_game_patterns=frozenset(gm_cfg.idle_game_patterns),
+            custom_main_games=gm_cfg.custom_main_games,
+            enabled=gm_cfg.enabled,
+        )
+        self.router._game_mode = self.game_mode
 
-        await pipeline.stop()
+
+
 
 
         await source.unload()
@@ -1386,6 +1404,7 @@ async def _audio_main(
 
     memory_store: MemoryStore,
     conversation_memory: ConversationMemory,
+    game_mode: GameMode | None = None,
 
 ) -> None:
 
@@ -1608,6 +1627,10 @@ async def _audio_main(
 
 
 
+    # Start game mode monitoring (non-blocking background task)
+    if game_mode is not None:
+        game_mode.start_monitoring()
+
 
     log.info('ready — say "hey jarvis".')
 
@@ -1634,6 +1657,10 @@ async def _audio_main(
 
 
         log.warning("MCP shutdown raised; continuing", exc_info=True)
+    # Stop game mode monitoring before pipeline teardown
+    if game_mode is not None:
+        game_mode.stop_monitoring()
+
 
 
     resource_monitor.close()
@@ -3167,6 +3194,7 @@ class JarvisApp:
 
 
                 conversation_memory=self.conversation_memory,
+                game_mode=self.game_mode,
 
             )
 

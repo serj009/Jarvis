@@ -43,7 +43,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
-CURRENT_SCHEMA_VERSION = 27
+CURRENT_SCHEMA_VERSION = 28
 
 # Prompts from prior schema versions — used by migrations to detect and
 # replace the old default without overwriting user-customised prompts.
@@ -580,6 +580,33 @@ class SandboxConfig(_Base):
     )
 
 
+def _default_idle_game_patterns() -> list[str]:
+    """Default IDLE game process-name patterns (matched as substrings)."""
+    return [
+        "cookie", "clicker", "idle", "autoclicker", "auto_clicker",
+        "autoclick", "clickerheroes", "adventurecapitalist",
+        "realm_grinder", "ngu_idle", "antimatter", "melvor",
+        "idleminer", "idle_slayer", "taptitans", "egg_inc",
+    ]
+
+
+class GameModeConfig(_Base):
+    """Settings for automatic VRAM management when games are running.
+
+    When a resource-heavy (MAIN) game is detected, JARVIS evicts models
+    from VRAM, switches STT to a lightweight CPU model, and preloads
+    game-specific memories for instant answers.
+    """
+
+    enabled: bool = True
+    scan_interval_seconds: int = Field(default=30, ge=5, le=300)
+    idle_game_patterns: list[str] = Field(
+        default_factory=_default_idle_game_patterns,
+    )
+    # Custom MAIN game executables not in Steam (process names without .exe)
+    custom_main_games: list[str] = Field(default_factory=list)
+
+
 class JarvisConfig(_Base):
     schema_version: int = CURRENT_SCHEMA_VERSION
     general: GeneralConfig = Field(default_factory=GeneralConfig)
@@ -602,6 +629,7 @@ class JarvisConfig(_Base):
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
 
     sandbox: SandboxConfig = Field(default_factory=SandboxConfig)
+    game_mode: GameModeConfig = Field(default_factory=GameModeConfig)
 
 # --- secrets at rest -------------------------------------------------------
 
@@ -1156,6 +1184,18 @@ def _migrate_v26_to_v27(data: dict) -> dict:
     return data
 
 
+def _migrate_v27_to_v28(data: dict) -> dict:
+    """Schema v28: Game Mode — intelligent VRAM management when games run.
+
+    Adds the ``game_mode`` section with default settings. Existing configs
+    get game mode enabled by default; the feature is fully automatic and
+    safe (only activates when a known game process is detected).
+    """
+    data.setdefault("game_mode", {})
+    data["schema_version"] = 28
+    return data
+
+
 MIGRATIONS: dict[int, Migration] = {
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
@@ -1183,6 +1223,7 @@ MIGRATIONS: dict[int, Migration] = {
     24: _migrate_v24_to_v25,
     25: _migrate_v25_to_v26,
     26: _migrate_v26_to_v27,
+    27: _migrate_v27_to_v28,
 }
 
 
