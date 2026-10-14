@@ -29,6 +29,16 @@ class ShowDashboardTool:
             regex=r"^(?:show|open)\s+(?:me\s+)?(?:the\s+|my\s+)?system\s+stats$",
             priority=240,
         ),
+        # RU: "покажи панель", "открой дашборд", "покажи статистику"
+        VoicePattern(
+            regex=r"^(?:покажи|открой)\s+(?:мою\s+)?(?:панель|дашборд|статистику)$",
+            priority=230,
+        ),
+        # UK: "покажи панель", "відкрий дашборд", "покажи статистику"
+        VoicePattern(
+            regex=r"^(?:покажи|відкрий)\s+(?:мою\s+)?(?:панель|дашборд|статистику)$",
+            priority=230,
+        ),
     )
 
     def __init__(self, *, on_open: Callable[[], None]) -> None:
@@ -49,6 +59,14 @@ class CloseDashboardTool:
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
         VoicePattern(
             regex=r"^close\s+(?:the\s+|my\s+)?dashboard$", priority=250
+        ),
+        # RU: "закрой панель", "закрой дашборд"
+        VoicePattern(
+            regex=r"^закрой\s+(?:мою\s+)?(?:панель|дашборд)$", priority=250
+        ),
+        # UK: "закрий панель", "закрий дашборд"
+        VoicePattern(
+            regex=r"^закрий\s+(?:мою\s+)?(?:панель|дашборд)$", priority=250
         ),
     )
 

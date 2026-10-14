@@ -26,6 +26,12 @@ class ScreenshotTool:
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
         # "screenshot", "take screenshot", "take a screenshot".
         VoicePattern(regex=r"^(?:take\s+(?:a\s+)?)?screenshot$", priority=20),
+        # RU: "скриншот", "сделай скриншот", "снимок экрана"
+        VoicePattern(regex=r"^(?:сделай\s+)?скриншот$", priority=20),
+        VoicePattern(regex=r"^снимок\s+экрана$", priority=20),
+        # UK: "скріншот", "зроби скріншот", "знімок екрану"
+        VoicePattern(regex=r"^(?:зроби\s+)?скріншот$", priority=20),
+        VoicePattern(regex=r"^знімок\s+екран[ау]$", priority=20),
     )
 
     async def execute(self, args: EmptyArgs) -> ToolResult:

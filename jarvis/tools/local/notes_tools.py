@@ -47,6 +47,18 @@ class TakeNoteTool:
             priority=440,
             args=lambda m: {"content": m.group(1)},
         ),
+        # RU: "запиши купить молоко", "заметка: встреча в 3", "запомни ..."
+        VoicePattern(
+            regex=r"^(?:запиши|заметка|запомни)\s*[:\s]?\s*(.+)$",
+            priority=440,
+            args=lambda m: {"content": m.group(1)},
+        ),
+        # UK: "запиши купити молоко", "нотатка: зустріч о 3", "запам\'ятай ..."
+        VoicePattern(
+            regex=r"^(?:запиши|нотатка|запам'?ятай)\s*[:\s]?\s*(.+)$",
+            priority=440,
+            args=lambda m: {"content": m.group(1)},
+        ),
     )
 
     def __init__(self, *, on_create: Callable[[str, str], str]) -> None:
@@ -211,6 +223,16 @@ class OpenNotesTool:
             regex=r"^(?:open|show|bring\s+up)\s+(?:my\s+|the\s+)?notes$",
             priority=420,
         ),
+        # RU: "открой заметки", "покажи мои заметки"
+        VoicePattern(
+            regex=r"^(?:открой|покажи)\s+(?:мои\s+)?заметки$",
+            priority=420,
+        ),
+        # UK: "відкрий нотатки", "покажи мої нотатки"
+        VoicePattern(
+            regex=r"^(?:відкрий|покажи)\s+(?:мої\s+)?нотатки$",
+            priority=420,
+        ),
     )
 
     def __init__(self, *, on_open: Callable[[], None]) -> None:
@@ -231,6 +253,14 @@ class CloseNotesTool:
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
         VoicePattern(
             regex=r"^close\s+(?:my\s+|the\s+)?notes$", priority=430
+        ),
+        # RU: "закрой заметки", "закрой мои заметки"
+        VoicePattern(
+            regex=r"^закрой\s+(?:мои\s+)?заметки$", priority=430
+        ),
+        # UK: "закрий нотатки", "закрий мої нотатки"
+        VoicePattern(
+            regex=r"^закрий\s+(?:мої\s+)?нотатки$", priority=430
         ),
     )
 

@@ -14,6 +14,32 @@ loses settings.
 
 ### Added
 
+- **Multilingual app-alias dictionary (`app_aliases.py`).** Extended the
+  open_app alias table from ~20 English-only entries to ~200 aliases across
+  Russian, Ukrainian, and English, covering 71 programs (browsers,
+  messengers, office suites, dev tools, multimedia, Windows system utilities,
+  gaming launchers, common utilities). When a user says "открой хром" or
+  "відкрий блокнот", the STT token is now resolved to a Windows-launchable
+  name ("chrome", "notepad") *before* the fuzzy installed-app search, so the
+  match succeeds on the first try instead of falling through to a failed
+  shell resolution. Fallback to the original name is preserved for unknown
+  inputs. New test suite: `tests/tools/local/test_app_aliases.py`.
+
+- **Multilingual voice patterns (RU/UK).** All 13 voice-routed tools now have
+  Russian and Ukrainian regex patterns alongside the existing English ones.
+  Whisper STT outputs text in the speaker's language, so a user saying "открой
+  хром" or "відкрий хром" now hits the fast pattern layer (~100 ms) instead of
+  falling through to the slow LLM path (2–5 s). Patterns are separate
+  `VoicePattern` entries per language — not merged into EN regexes — for
+  readability and debug. Affected tools: open_app, volume (with RU/UK → EN
+  action-word mapping), screenshot, lock_screen, open_url, launch_workspace,
+  see_screen, notes (take_note, open_notes, close_notes), dashboard
+  (show/close), help, research, log_tools (show/close), clipboard_history
+  (show/close). EN patterns are unchanged. New test suite:
+  `tests/tools/test_multilingual_voice_patterns.py` validates every regex
+  compiles, matches expected phrases, captures correct groups, and maps volume
+  actions correctly.
+
 - Tool-result feedback loop. When the model calls a tool, its result is now fed
   back as a `role: "tool"` message and the model is re-invoked, so it can act on
   what came back: "what's the weather, and if it's below 10 open my coat app",

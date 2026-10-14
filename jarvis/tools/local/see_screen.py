@@ -102,6 +102,16 @@ class SeeScreenTool:
         VoicePattern(
             regex=r"^(?:can\s+you\s+)?see\s+my\s+screen$", priority=410
         ),
+        # RU: "посмотри на экран", "опиши экран", "что на экране"
+        VoicePattern(
+            regex=r"^(?:посмотри|опиши|что)\s+(?:на\s+)?(?:мо[ёе]м\s+)?экран[еу]?\??$",
+            priority=380,
+        ),
+        # UK: "подивись на екран", "опиши екран", "що на екрані"
+        VoicePattern(
+            regex=r"^(?:подивись|опиши|що)\s+(?:на\s+)?(?:моєму\s+)?екран[іу]?\??$",
+            priority=380,
+        ),
     )
 
     def __init__(

@@ -30,6 +30,16 @@ class ShowClipboardHistoryTool:
             priority=260,
         ),
         VoicePattern(regex=r"^what\s+have\s+i\s+copied\??$", priority=270),
+        # RU: "покажи буфер обмена", "открой историю буфера"
+        VoicePattern(
+            regex=r"^(?:покажи|открой)\s+(?:историю\s+)?буфер(?:а?\s+обмена)?$",
+            priority=260,
+        ),
+        # UK: "покажи буфер обміну", "відкрий історію буферу"
+        VoicePattern(
+            regex=r"^(?:покажи|відкрий)\s+(?:історію\s+)?буфер(?:у?\s+обміну)?$",
+            priority=260,
+        ),
     )
 
     def __init__(self, *, on_open: Callable[[], None]) -> None:
@@ -54,6 +64,16 @@ class CloseClipboardHistoryTool:
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
         VoicePattern(
             regex=r"^close\s+(?:the\s+|my\s+)?clipboard\s+history$",
+            priority=280,
+        ),
+        # RU: "закрой буфер обмена", "закрой историю буфера"
+        VoicePattern(
+            regex=r"^закрой\s+(?:историю\s+)?буфер(?:а?\s+обмена)?$",
+            priority=280,
+        ),
+        # UK: "закрий буфер обміну", "закрий історію буферу"
+        VoicePattern(
+            regex=r"^закрий\s+(?:історію\s+)?буфер(?:у?\s+обміну)?$",
             priority=280,
         ),
     )

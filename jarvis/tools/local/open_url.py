@@ -110,6 +110,22 @@ class OpenUrlTool:
                 "url": "https://www.google.com/search?q=" + quote_plus(m.group(1))
             },
         ),
+        # RU: "найди ...", "загугли ...", "поищи ...", "погугли ..."
+        VoicePattern(
+            regex=r"^(?:найди|загугли|поищи|погугли)\s+(.+)$",
+            priority=500,
+            args=lambda m: {
+                "url": "https://www.google.com/search?q=" + quote_plus(m.group(1))
+            },
+        ),
+        # UK: "знайди ...", "загугли ...", "пошукай ...", "погугли ..."
+        VoicePattern(
+            regex=r"^(?:знайди|загугли|пошукай|погугли)\s+(.+)$",
+            priority=500,
+            args=lambda m: {
+                "url": "https://www.google.com/search?q=" + quote_plus(m.group(1))
+            },
+        ),
     )
 
     async def execute(self, args: OpenUrlArgs) -> ToolResult:
