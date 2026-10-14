@@ -69,7 +69,8 @@ class SeeScreenTool:
         "look at, read, or describe their screen, or to identify what's "
         "visible (errors, dialogs, content of an article, what app is "
         "open, etc.). Optionally accepts a 'question' argument for "
-        "follow-up queries about the screen contents."
+        "follow-up queries about the screen contents. "
+        "(RU: что на экране, посмотри / UK: що на екрані, подивись)"
     )
     args_schema: type[BaseModel] = SeeScreenArgs
     requires_confirmation: bool = False

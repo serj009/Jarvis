@@ -317,6 +317,7 @@ def test_setup_local_tools_registers_the_phase_4_set():
     assert names == [
         "clipboard",
         "close_app",
+        "get_time",
         "get_weather",
         "launch_steam_game",
         "launch_workspace",

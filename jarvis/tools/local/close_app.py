@@ -108,7 +108,8 @@ class CloseAppTool:
         "Closes, quits, or kills a running desktop application. Call this "
         "when the user asks to close, quit, exit, stop, or kill an app or "
         "program (e.g. 'close Chrome', 'quit Spotify'). Matches the "
-        "running process by name; do not use it for closing files or tabs."
+        "running process by name; do not use it for closing files or tabs. "
+        "(RU: закрой, выключи / UK: закрій, вимкни)"
     )
     args_schema = CloseAppArgs
     requires_confirmation: bool = False

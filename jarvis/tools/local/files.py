@@ -43,7 +43,8 @@ class ListDirectoryTool:
     description: str = (
         "Lists files in a directory. Only use when the user explicitly "
         "asks what is in a folder, directory, or path. Read-only — does "
-        "not open, modify, or delete files."
+        "not open, modify, or delete files. "
+        "(RU: покажи файлы, список файлов / UK: покажи файли)"
     )
     args_schema = ListDirectoryArgs
     requires_confirmation: bool = False

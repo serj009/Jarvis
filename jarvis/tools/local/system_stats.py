@@ -72,7 +72,8 @@ class SystemStatsTool:
         "Only use this when the user explicitly asks for "
         "CPU, memory, RAM, GPU, VRAM, or system performance numbers. Never use "
         "this for general questions, greetings, conversations, or "
-        "factual queries."
+        "factual queries. "
+        "(RU: статистика системы / UK: статистика системи)"
     )
     args_schema: type[BaseModel] = EmptyArgs
     requires_confirmation: bool = False

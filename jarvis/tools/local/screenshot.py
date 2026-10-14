@@ -19,7 +19,8 @@ class ScreenshotTool:
     name: str = "screenshot"
     description: str = (
         "Captures the screen and saves the image. Only use when the user "
-        "explicitly asks for a screenshot or to capture the screen."
+        "explicitly asks for a screenshot or to capture the screen. "
+        "(RU: скриншот, снимок экрана / UK: скріншот, знімок екрану)"
     )
     args_schema: type[BaseModel] = EmptyArgs
     requires_confirmation: bool = False

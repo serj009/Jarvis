@@ -35,7 +35,8 @@ class TakeNoteTool:
     description: str = (
         "Saves a new markdown note. Call when the user says 'take a note', "
         "'jot this down', 'write this down', 'note that', or 'remember this'. "
-        "Pass the actual content (NOT the trigger phrase) as 'content'."
+        "Pass the actual content (NOT the trigger phrase) as 'content'. "
+        "(RU: запиши, заметка / UK: запиши, нотатка)"
     )
     args_schema = TakeNoteArgs
     requires_confirmation: bool = False

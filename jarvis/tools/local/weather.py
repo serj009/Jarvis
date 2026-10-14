@@ -95,7 +95,8 @@ class WeatherTool:
         "Reports current weather conditions. Optionally accepts a 'location' "
         "argument (city name or city+state). Without it, uses the configured "
         "default location. Use this whenever the user asks about weather, "
-        "temperature, forecast, rain, snow, or similar weather topics."
+        "temperature, forecast, rain, snow, or similar weather topics. "
+        "(RU: погода / UK: погода)"
     )
     args_schema: type[BaseModel] = WeatherArgs
     requires_confirmation: bool = False

@@ -77,7 +77,8 @@ class OpenAppTool:
         "user asks, in any language, to open, launch or start a program "
         "— do not only describe the action in text. Resolves installed "
         "apps via fuzzy matching. NOT for websites or web searches: use "
-        "open_url for those."
+        "open_url for those. "
+        "(RU: открой, запусти / UK: відкрий, запусти)"
     )
     args_schema = OpenAppArgs
     requires_confirmation: bool = False

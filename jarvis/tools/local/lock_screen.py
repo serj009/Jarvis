@@ -15,7 +15,8 @@ class LockScreenTool:
     name: str = "lock_screen"
     description: str = (
         "Locks the Windows screen. Only use when the user explicitly "
-        "asks to lock the screen or PC."
+        "asks to lock the screen or PC. "
+        "(RU: заблокируй экран / UK: заблокуй екран)"
     )
     args_schema: type[BaseModel] = EmptyArgs
     # NOTE: re-decided when the confirmation gate landed, rather than
