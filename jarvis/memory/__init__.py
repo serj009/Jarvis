@@ -29,4 +29,9 @@ Knowledge:
 
 Voice Tools:
     tools               -- remember, recall, forget, memory status
+
+Auto-Memory (T4.4/T4.5):
+    auto_recall         -- Inject relevant memories into LLM context before each call
+    auto_save           -- Extract and save facts from conversations (fire-and-forget)
+    tool_examples       -- Self-learning: store successful tool-call patterns as examples
 """

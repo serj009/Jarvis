@@ -263,6 +263,12 @@ class LLMConfig(_Base):
     max_tokens: int = Field(default=1024, gt=0)
     system_prompt: str = DEFAULT_SYSTEM_PROMPT
     # Ollama keep_alive: how long the daemon keeps the model resident in
+    # Ollama context window. 16384 costs ~1.2 GB more KV cache on
+    # qwen3:8b vs 8192, but doubles the usable conversation window.
+    # MUST stay the same across all requests (warm-up included):
+    # changing num_ctx makes Ollama reload the model.
+    num_ctx: int = Field(default=16384, gt=0)
+    # Ollama keep_alive: how long the daemon keeps the model resident in
     # VRAM between requests. 1800 s = 30 min handles realistic
     # conversational gaps without re-paying cold-load latency. SLEEPING
     # mode explicitly evicts via keep_alive=0; this is the "active use"

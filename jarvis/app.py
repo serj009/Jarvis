@@ -222,6 +222,7 @@ from jarvis.core.vram_manager import VRAMManager
 
 from jarvis.memory.store import MemoryStore
 from jarvis.memory.embeddings import EmbeddingIndex
+from jarvis.memory.tool_examples import ToolExampleStore
 
 
 from jarvis.memory.conversation import ConversationMemory
@@ -561,6 +562,7 @@ def _make_router_adapter(
 
 
     registry: ToolRegistry,
+    memory_store: MemoryStore | None = None,
 
 
 ):
@@ -694,6 +696,17 @@ def _make_router_adapter(
 
                 conversation.add_assistant_turn("".join(tool_spoken).strip())
 
+            # T4.4: auto-save facts from the user's utterance.
+            # Fire-and-forget: never blocks the pipeline.
+            if memory_store is not None and memory_store.is_open:
+                try:
+                    import asyncio
+                    from jarvis.memory.auto_save import auto_save_facts
+                    asyncio.create_task(
+                        auto_save_facts(memory_store, transcription),
+                    )
+                except Exception:
+                    pass  # never block the pipeline
 
         finally:
 
@@ -2563,6 +2576,13 @@ class JarvisApp:
                 self.embedding_index = None
 
 
+        # T4.4/T4.5: Tool example store for self-learning.
+        # Lives next to memory.db in the Jarvis data dir.
+        _data_root = self.memory_store.db_path.parent
+        self.tool_example_store = ToolExampleStore(
+            path=_data_root / "tool_examples.json",
+        )
+
         self.conversation_memory = ConversationMemory()
 
 
@@ -2594,6 +2614,7 @@ class JarvisApp:
 
 
             keep_alive_seconds=self.cfg.llm.keep_alive_seconds,
+            num_ctx=self.cfg.llm.num_ctx,
 
 
         )
@@ -2665,6 +2686,10 @@ class JarvisApp:
 
 
             open_target_planner=_open_target_planner(),
+
+            # T4.4/T4.5: auto-memory + self-learning
+            memory_store=self.memory_store,
+            tool_example_store=self.tool_example_store,
 
 
         )
@@ -2743,7 +2768,7 @@ class JarvisApp:
             tts=self.tts,
 
 
-            response_producer=_make_router_adapter(self.router, self.conversation, self.registry),
+            response_producer=_make_router_adapter(self.router, self.conversation, self.registry, self.memory_store),
 
 
             bus=self.bus,

@@ -7,6 +7,8 @@ import pytest
 from jarvis.llm.conversation import (
     Conversation,
     ToolExchange,
+    _is_summary_message,
+    _summarize_turns,
     _filter_turns_for_llm,
 )
 
@@ -727,3 +729,203 @@ def test_clear_wipes_tool_round_trips_too():
     c.add_tool_round_trip(content="", exchanges=[_exchange()])
     c.clear()
     assert c.current_messages() == [{"role": "system", "content": "sys"}]
+
+
+# =====================================================================
+# Conversation summarisation (lazy summary instead of hard trim)
+# =====================================================================
+
+
+def test_summarization_replaces_old_turns():
+    """With max_turns=10, adding 11+ messages triggers summarisation.
+    Old turns are replaced by a single system-role summary; the total
+    message count drops but no information is silently lost."""
+    c = Conversation(system_prompt_provider=_provider("sys"), max_turns=10)
+    # Build 6 pairs = 12 messages; trim fires on the 11th.
+    for i in range(6):
+        c.add_user_turn(f"u{i}")
+        c.add_assistant_turn(f"a{i}")
+
+    msgs = c.current_messages()
+    # First message is the system prompt.
+    assert msgs[0] == {"role": "system", "content": "sys"}
+    # Second message should be the summary placeholder.
+    assert msgs[1]["role"] == "system"
+    assert msgs[1]["content"].startswith("[Earlier in this conversation: ")
+    # Recent turns must still be present as individual messages.
+    contents = [m.get("content", "") for m in msgs[2:]]
+    # The last 3 pairs (a3/u4/a4/u5/a5 or similar) should be in contents.
+    assert "a5" in contents
+    assert "u5" in contents
+
+
+def test_summary_preserves_recent_turns():
+    """The last ~3 pairs must survive summarisation intact."""
+    c = Conversation(system_prompt_provider=_provider("sys"), max_turns=10)
+    for i in range(7):
+        c.add_user_turn(f"user_{i}")
+        c.add_assistant_turn(f"asst_{i}")
+
+    msgs = c.current_messages()
+    recent_contents = [m.get("content", "") for m in msgs if m["role"] != "system"]
+    # The most recent turns should be verbatim in the message list.
+    assert "user_6" in recent_contents
+    assert "asst_6" in recent_contents
+    assert "user_5" in recent_contents
+    assert "asst_5" in recent_contents
+
+
+def test_summary_content_includes_key_info():
+    """The summary text must mention user requests and tool names."""
+    c = Conversation(system_prompt_provider=_provider("sys"), max_turns=10)
+
+    # A few regular turns
+    c.add_user_turn("what is the weather?")
+    c.add_tool_round_trip(
+        content="",
+        exchanges=[ToolExchange("c1", "get_weather", {}, "sunny 22C")],
+    )
+    c.add_assistant_turn("It's sunny, sir.")
+    c.add_user_turn("open chrome")
+    c.add_tool_round_trip(
+        content="",
+        exchanges=[ToolExchange("c2", "open_app", {}, "opened chrome")],
+    )
+    c.add_assistant_turn("Done, sir.")
+
+    # Pad to force summarisation (need >10 messages).
+    for i in range(4):
+        c.add_user_turn(f"pad{i}")
+        c.add_assistant_turn(f"ok{i}")
+
+    msgs = c.current_messages()
+    # Find the summary message
+    summaries = [m for m in msgs if _is_summary_message(m)]
+    assert len(summaries) >= 1, "expected a summary message"
+    summary_text = summaries[0]["content"]
+    # Must reference the tool names.
+    assert "get_weather" in summary_text
+    assert "open_app" in summary_text
+    # Must reference user text.
+    assert "weather" in summary_text.lower()
+
+
+def test_no_summarization_under_max_turns():
+    """When the turn count is within max_turns, no summary is created."""
+    c = Conversation(system_prompt_provider=_provider("sys"), max_turns=10)
+    for i in range(4):
+        c.add_user_turn(f"u{i}")
+        c.add_assistant_turn(f"a{i}")
+
+    msgs = c.current_messages()
+    assert not any(_is_summary_message(m) for m in msgs)
+    # All turns present verbatim.
+    contents = [m["content"] for m in msgs[1:]]
+    assert contents == ["u0", "a0", "u1", "a1", "u2", "a2", "u3", "a3"]
+
+
+def test_summary_grows_on_repeated_trims():
+    """Multiple trim cycles append to the same summary rather than
+    creating a second summary message."""
+    c = Conversation(system_prompt_provider=_provider("sys"), max_turns=10)
+    # First batch: 6 pairs (triggers first summarisation at 11 msgs).
+    for i in range(6):
+        c.add_user_turn(f"batch1_{i}")
+        c.add_assistant_turn(f"reply1_{i}")
+
+    # Second batch: push above max_turns again.
+    for i in range(4):
+        c.add_user_turn(f"batch2_{i}")
+        c.add_assistant_turn(f"reply2_{i}")
+
+    msgs = c.current_messages()
+    # Exactly one summary message (role=system after the main system prompt).
+    system_msgs = [m for m in msgs if _is_summary_message(m)]
+    assert len(system_msgs) == 1, f"expected 1 summary, got {len(system_msgs)}"
+    # The summary should reference content from the first batch.
+    assert "batch1_0" in system_msgs[0]["content"]
+
+
+def test_summary_with_tool_round_trips():
+    """Tool round trips inside the condensed region are summarised
+    cleanly: tool messages mention the tool name, and no orphaned
+    tool messages remain in _turns."""
+    c = Conversation(system_prompt_provider=_provider("sys"), max_turns=10)
+    # user -> tool round trip -> assistant -> repeat
+    c.add_user_turn("check weather")
+    c.add_tool_round_trip(
+        content="", exchanges=[ToolExchange("c1", "get_weather", {}, "cold")]
+    )
+    c.add_assistant_turn("It's cold, sir.")
+    c.add_user_turn("open spotify")
+    c.add_tool_round_trip(
+        content="", exchanges=[ToolExchange("c2", "open_app", {}, "opened")]
+    )
+    c.add_assistant_turn("Done.")
+    # Fill remaining slots to trigger trim
+    for i in range(4):
+        c.add_user_turn(f"filler{i}")
+        c.add_assistant_turn(f"ok{i}")
+
+    # No orphaned tool messages in the raw _turns
+    for idx, msg in enumerate(c._turns):
+        if msg.get("role") != "tool":
+            continue
+        parent_ids = {
+            tc["id"]
+            for m in c._turns[:idx]
+            for tc in (m.get("tool_calls") or [])
+        }
+        assert msg["tool_call_id"] in parent_ids, (
+            f"orphaned tool msg at index {idx}: {c._turns}"
+        )
+
+
+def test_small_max_turns_uses_hard_trim_not_summary():
+    """For max_turns <= _RECENT_MESSAGES_TO_KEEP the summarisation path
+    cannot fire; the old hard-trim behaviour applies unchanged."""
+    c = Conversation(system_prompt_provider=_provider("sys"), max_turns=4)
+    for i in range(6):
+        c.add_user_turn(f"u{i}")
+        c.add_assistant_turn(f"a{i}")
+    msgs = c.current_messages()
+    # No summary should exist.
+    assert not any(_is_summary_message(m) for m in msgs)
+    assert msgs[0]["role"] == "system"
+    assert len(msgs) == 5  # system + 4 turns
+
+
+# =====================================================================
+# num_ctx default (Part 1 sanity)
+# =====================================================================
+
+
+def test_num_ctx_16384():
+    """Verify the Ollama default context-window constant is 16384."""
+    from jarvis.llm.ollama_client import DEFAULT_NUM_CTX
+
+    assert DEFAULT_NUM_CTX == 16384
+
+
+# =====================================================================
+# _summarize_turns unit tests
+# =====================================================================
+
+
+def test_summarize_turns_truncates_long_content():
+    turns = [{"role": "user", "content": "x" * 200}]
+    result = _summarize_turns(turns)
+    assert result.startswith("User: " + "x" * 100 + "...")
+    assert len(result) < 200
+
+
+def test_summarize_turns_handles_mixed_roles():
+    turns = [
+        {"role": "user", "content": "hi"},
+        {"role": "assistant", "content": "hello"},
+        {"role": "tool", "name": "weather", "content": "sunny"},
+    ]
+    result = _summarize_turns(turns)
+    assert "User: hi" in result
+    assert "Jarvis: hello" in result
+    assert "[Tool weather was called]" in result

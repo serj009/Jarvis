@@ -14,6 +14,65 @@ loses settings.
 
 ### Added
 
+- **Auto-recall: inject relevant memories into LLM context (T4.4).**
+  New module `jarvis/memory/auto_recall.py`. Before each LLM call the router
+  searches the memory store for facts relevant to the user's utterance
+  (FTS5 + SmartSearch ranking, ~10-50 ms). Top results are injected as a
+  second system message between the main prompt and conversation history
+  via `Conversation.inject_context()`. Empty results → zero overhead.
+  This gives the model persistent cross-session knowledge without the user
+  explicitly saying "вспомни".
+
+- **Auto-save: extract facts from conversations (T4.4).**
+  New module `jarvis/memory/auto_save.py`. After each completed response
+  chain, pattern-matches the user's utterance for fact-bearing phrases
+  (preferences, identity, location, work — EN/RU/UK) and saves them as
+  `source="conversation"` facts with `auto_*` tags. Runs as a
+  fire-and-forget `asyncio.create_task`, never blocks the audio pipeline.
+  Deduplicates against existing facts to avoid noise.
+
+- **Self-learning tool examples (T4.5).**
+  New module `jarvis/memory/tool_examples.py` (`ToolExampleStore`). When
+  a tool call succeeds in the router's feedback loop, the pattern
+  `utterance → tool_name(args)` is recorded in a JSON file. Top examples
+  (sorted by count) are injected alongside auto-recall memories into the
+  LLM context as few-shot prompts. Dedup by utterance; capped at 10
+  examples per tool, 100 total.
+
+- **`Conversation.inject_context()` / `clear_injected_context()`.**
+  New methods on `Conversation` for inserting a temporary system message
+  (auto-recall + tool examples) after the main prompt. Not persisted in
+  turn history — injected fresh each call via `current_messages()`.
+
+- **IntentRouter: `memory_store` + `tool_example_store` parameters.**
+  `route()` now calls `_inject_auto_context()` before the LLM call to
+  populate memories + examples, and `_record_tool_examples()` after
+  successful tool execution. Both are non-fatal (exception = log + continue).
+
+- **Tests:** `tests/memory/test_auto_recall.py`,
+  `tests/memory/test_auto_save.py`, `tests/memory/test_tool_examples.py`.
+
+### Added
+
+- **`num_ctx` raised 8192 → 16384 and exposed in config.**
+  `DEFAULT_NUM_CTX` in `ollama_client.py` is now 16384. A matching
+  `llm.num_ctx` field was added to `LLMConfig` (config.py) and wired
+  through `app.py` and `audio_loopback.py` so Settings can override it.
+  16384 costs ~1.2 GB more KV-cache on qwen3:8b vs 8192 but doubles the
+  usable conversation window, which is needed for the new summarisation
+  feature below.
+
+- **Lazy conversation summarisation (replaces hard trim).**
+  When `Conversation._trim()` fires (history exceeds `max_turns`), old
+  turns are now **condensed** into a compact `[Earlier in this
+  conversation: ...]` system-role placeholder instead of being silently
+  dropped. Recent turns (~3 pairs, 6 messages) are always kept verbatim.
+  Summarisation is template-based (zero LLM calls, zero latency cost).
+  Repeated trims append to the same summary. Small `max_turns` values
+  (≤ 6) fall back to the previous hard-trim path for backward
+  compatibility. New test suite: 10 tests covering summary creation,
+  growth, tool-round-trip handling, and the hard-trim fallback.
+
 - **Multilingual tool descriptions (RU/UK keywords).** Every voice-facing
   tool description now ends with a short `(RU: keyword / UK: keyword)` hint
   so that Qwen 8B can associate Russian/Ukrainian user requests with the

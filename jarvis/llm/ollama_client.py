@@ -55,11 +55,13 @@ DEFAULT_ENDPOINT: str = "http://localhost:11434"
 # Context window requested from Ollama. Ollama's VRAM-based default on a
 # 12 GB card is 4096 tokens, and Jarvis' system prompt + ~45 tool schemas
 # already take ~4000 of them: every turn hit "slot context shift" (half the
-# context discarded, instructions and tool descriptions included) and the
-# prompt cache never helped. 8192 costs ~0.6 GB more KV cache on qwen3:8b.
+# context discarded, instructions and tool descriptions included), the prompt
+# cache never helped, and conversation summarisation still ran out of room.
+# 16384 costs ~1.2 GB more KV cache on qwen3:8b vs 8192, but doubles the
+# usable conversation window.
 # MUST be the same on every request (warm-up included): a different num_ctx
 # makes Ollama reload the model.
-DEFAULT_NUM_CTX: int = 8192
+DEFAULT_NUM_CTX: int = 16384
 
 # qwen3 "thinks" (writes hidden reasoning) before answering unless told not
 # to. Jarvis never shows that text, so it is pure latency for a voice

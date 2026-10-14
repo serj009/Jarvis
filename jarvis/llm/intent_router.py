@@ -110,6 +110,8 @@ from jarvis.core.phrases import reply_language, say
 from jarvis.llm.conversation import ToolExchange
 
 if TYPE_CHECKING:
+    from jarvis.memory.store import MemoryStore
+    from jarvis.memory.tool_examples import ToolExampleStore
     from jarvis.llm.conversation import Conversation
     from jarvis.llm.ollama_client import OllamaClient
     from jarvis.tools.registry import ToolRegistry, ToolResult
@@ -340,6 +342,10 @@ class IntentRouter:
         # which keeps the router's behaviour unchanged (and tests free of
         # this PC's installed-apps index).
         open_target_planner: Callable[[str], Awaitable[ToolIntent | None]] | None = None,
+        # T4.4: Auto-memory — injected into context before every LLM call.
+        memory_store: MemoryStore | None = None,
+        # T4.5: Self-learning tool examples.
+        tool_example_store: ToolExampleStore | None = None,
     ) -> None:
         # `registry` is the live source of the tool schemas — querying it
         # fresh on every route() call means a settings-driven enable/disable
@@ -363,11 +369,26 @@ class IntentRouter:
         # round trips sharing "call_1" would let the trimming/orphan
         # filter pair a tool result with the wrong assistant message.
         self._tool_call_seq = 0
+        self._memory_store = memory_store
+        self._tool_example_store = tool_example_store
 
     def _current_tools(self) -> list[dict]:
         if self._registry is not None:
             return self._registry.as_openai_functions()
         return self._static_tools
+
+    def _filtered_tools(self, utterance: str) -> list[dict]:
+        """Return tool schemas filtered to those relevant for *utterance*.
+
+        Wraps ``_current_tools()`` through the keyword-based filter so the
+        LLM sees only the tools it is likely to need, freeing context
+        tokens for conversation history.  Falls back to the full set when
+        no keywords match (safe default)."""
+        all_tools = self._current_tools()
+        if not all_tools:
+            return all_tools
+        from jarvis.tools.tool_filter import filter_tools_for_utterance
+        return filter_tools_for_utterance(utterance, all_tools)
 
     def _feedback_enabled(self) -> bool:
         """True when the router can run the tool-result loop itself."""
@@ -409,9 +430,22 @@ class IntentRouter:
             yield pattern_intent
             return
 
+        # T4.4/T4.5: inject auto-recall memories + tool examples
+        await self._inject_auto_context(transcription)
+
         messages = self._conv.add_user_turn(transcription)
+
+        # Dynamic tool filtering
+        # utterance, freeing context for conversation history.  Computed
+        # once before the loop so every iteration (including tool-result
+        # feedback rounds) sees the same subset — the user's intent
+        # hasn't changed between iterations.
+        tools_for_turn = self._filtered_tools(transcription)
+
         for iteration in range(1, self._max_tool_iterations + 1):
-            text_parts, raw_tool_calls = await self._stream_round(messages)
+            text_parts, raw_tool_calls = await self._stream_round(
+                messages, tools=tools_for_turn,
+            )
 
             if not raw_tool_calls:
                 # The model answered in prose. This is the only path
@@ -420,6 +454,9 @@ class IntentRouter:
                 for part in text_parts:
                     if part:
                         yield SpeakIntent(text=part)
+                # T4.4: clear injected context after response is done
+                self._conv.clear_injected_context()
+                # T4.5: no tool call — nothing to record
                 full_text = "".join(text_parts)
                 if full_text:
                     self._conv.add_assistant_turn(full_text)
@@ -449,6 +486,8 @@ class IntentRouter:
             messages = self._conv.add_tool_round_trip(
                 content="".join(text_parts), exchanges=exchanges
             )
+            # T4.5: record successful tool calls for self-learning
+            self._record_tool_examples(transcription, intents, exchanges)
 
             if ends_turn:
                 # Every tool in this round is a one-shot action (open a
@@ -464,6 +503,7 @@ class IntentRouter:
                 )
                 if spoken:
                     yield SpeakIntent(text=spoken)
+                self._conv.clear_injected_context()
                 return
 
             if iteration >= self._max_tool_iterations:
@@ -481,12 +521,74 @@ class IntentRouter:
                 )
                 if spoken:
                     yield SpeakIntent(text=spoken)
+                self._conv.clear_injected_context()
                 return
+
+    # -- auto-context injection -------------------------------------------
+
+    async def _inject_auto_context(self, transcription: str) -> None:
+        """Build and inject auto-recall memories + tool examples.
+
+        Called once per LLM turn, BEFORE ``add_user_turn``.
+        Sets ``_conv.inject_context(...)`` so the memories appear as a
+        second system message between the main prompt and history.
+
+        Non-fatal: any exception is logged and silently swallowed.
+        """
+        parts: list[str] = []
+
+        # 1. Auto-recall relevant memories
+        if self._memory_store is not None:
+            try:
+                from jarvis.memory.auto_recall import get_relevant_memories
+
+                memory_text = await get_relevant_memories(
+                    self._memory_store, transcription,
+                )
+                if memory_text:
+                    parts.append(memory_text)
+            except Exception:
+                log.warning("[router] auto-recall failed (non-fatal)", exc_info=True)
+
+        # 2. Tool examples from self-learning
+        if self._tool_example_store is not None:
+            try:
+                examples_text = self._tool_example_store.get_examples_for_prompt()
+                if examples_text:
+                    parts.append(examples_text)
+            except Exception:
+                log.warning("[router] tool-examples failed (non-fatal)", exc_info=True)
+
+        if parts:
+            self._conv.inject_context("\n\n".join(parts))
+        else:
+            self._conv.clear_injected_context()
+
+    def _record_tool_examples(
+        self,
+        transcription: str,
+        intents: list[ToolIntent],
+        exchanges: list[ToolExchange],
+    ) -> None:
+        """Record successful tool calls for self-learning.  Non-fatal."""
+        if self._tool_example_store is None:
+            return
+        for intent, exchange in zip(intents, exchanges):
+            # Only record successes (result doesn't start with "Error:")
+            if exchange.result.startswith("Error:"):
+                continue
+            try:
+                self._tool_example_store.record_success(
+                    transcription, intent.tool_name, intent.args,
+                )
+            except Exception:
+                log.warning("[router] tool-example record failed", exc_info=True)
 
     # -- internal --
 
     async def _stream_round(
-        self, messages: list[dict]
+        self, messages: list[dict],
+        tools: list[dict] | None = None,
     ) -> tuple[list[str], list[dict]]:
         """One LLM invocation. Returns (content chunks, raw tool calls).
 
@@ -501,7 +603,7 @@ class IntentRouter:
         text_parts: list[str] = []
         tool_calls: list[dict] = []
         async for chunk in self._llm.stream_chat(
-            messages, tools=self._current_tools()
+            messages, tools=tools if tools is not None else self._current_tools()
         ):
             if chunk.content:
                 text_parts.append(chunk.content)
