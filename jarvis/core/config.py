@@ -43,7 +43,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
-CURRENT_SCHEMA_VERSION = 23
+CURRENT_SCHEMA_VERSION = 24
 
 # Prompts from prior schema versions — used by migrations to detect and
 # replace the old default without overwriting user-customised prompts.
@@ -174,19 +174,20 @@ class WakeWordConfig(_Base):
 
 
 class STTConfig(_Base):
-    # Phase 2 (T2.1): "small" recommended for multilingual (UA/RU/EN).
-    # "tiny.en" remains the default for new installs (fast, English-only).
-    # For multilingual, set language="auto" and model_size="small".
-    # The .en suffix restricts the model to English only, which is faster.
-    # "medium" is available but much larger (~1.5 GB); not recommended on
-    # CPU unless the user has patience.
+    # Phase 2 (T2.1): multilingual STT (UA/RU/EN).
+    # "base" is the default — it's what setup_jarvis.py downloads and
+    # supports all three project languages with language="auto".
+    # "small" is more accurate (~500 MB) but slower on CPU.
+    # The .en suffix restricts to English only; avoid for multilingual.
+    # "medium" is much larger (~1.5 GB); not recommended on CPU.
     model_size: Literal[
         "tiny", "tiny.en", "base", "base.en",
         "small", "small.en", "medium", "medium.en",
-    ] = "tiny.en"
-    # T2.1: "auto" enables Whisper language auto-detection.
-    # Fixed codes: "en", "ru", "uk", or any ISO 639-1 code Whisper supports.
-    language: str = "en"
+    ] = "base"
+    # T2.1: "auto" enables Whisper language auto-detection (UA/RU/EN).
+    # Fixed codes ("en", "ru", "uk") lock to one language; "auto" is
+    # recommended for the multilingual project.
+    language: str = "auto"
     compute_type: Literal["int8", "float16", "float32"] = "int8"
     # T2.4: Confidence thresholds.
     # confidence >= proceed -> send to LLM as-is.
@@ -1017,6 +1018,7 @@ MIGRATIONS: dict[int, Migration] = {
     20: _migrate_v20_to_v21,
     21: _migrate_v21_to_v22,
     22: _migrate_v22_to_v23,
+    23: _migrate_v23_to_v24,
 }
 
 
@@ -1111,6 +1113,27 @@ def save_config(config: JarvisConfig, path: Path | None = None) -> None:
     with tmp.open("w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
     tmp.replace(p)
+
+
+def _migrate_v23_to_v24(data: dict) -> dict:
+    """Schema v24: align STT defaults with setup_jarvis.py downloads.
+
+    setup_jarvis.py downloads the multilingual ``base`` model, but the
+    v2→v3 migration changed the default to ``tiny.en`` (English-only).
+    That model is never downloaded, so fresh installs crash on first
+    launch with ``local_files_only=True``.
+
+    This migration converts ``tiny.en`` → ``base`` and ``en`` → ``auto``
+    only when the values match the broken v3 defaults (i.e. the user
+    never changed them). Explicitly-chosen models are left untouched.
+    """
+    stt = data.get("stt", {})
+    if stt.get("model_size") == "tiny.en":
+        stt["model_size"] = "base"
+    if stt.get("language") == "en":
+        stt["language"] = "auto"
+    data["schema_version"] = 24
+    return data
 
 
 # ---------------------------------------------------------------------------

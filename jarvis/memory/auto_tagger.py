@@ -75,7 +75,7 @@ _GAME_RULES = [
     TagRule(re.compile(r"diablo|діабло|диабло", re.I), "diablo", "games"),
     TagRule(re.compile(r"gta\b|гта\b", re.I), "gta", "games"),
     TagRule(re.compile(r"achievement|ачивк|досягнен", re.I), "achievements", ""),
-    TagRule(re.compile(r"save\s*(?:game|file)|сохранен|збережен", re.I), "saves", ""),
+    TagRule(re.compile(r"save\s*(?:game|file|loc)|saves?\b|сохранен|збережен", re.I), "saves", ""),
 ]
 
 # Tech rules
