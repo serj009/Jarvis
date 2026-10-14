@@ -39,6 +39,17 @@ class LockScreenTool:
         VoicePattern(
             regex=r"^lock\s+(?:the\s+)?(?:screen|my\s+pc|pc)$", priority=30
         ),
+        # RU: "заблокируй экран", "заблокировать компьютер"
+        VoicePattern(
+            regex=r"^заблокируй\s+(?:экран|компьютер|пк)$", priority=30
+        ),
+        VoicePattern(
+            regex=r"^заблокировать\s+(?:экран|компьютер)$", priority=30
+        ),
+        # UK: "заблокуй екран", "заблокуй комп\'ютер"
+        VoicePattern(
+            regex=r"^заблокуй\s+(?:екран|комп'?ютер|пк)$", priority=30
+        ),
     )
 
     async def execute(self, args: EmptyArgs) -> ToolResult:

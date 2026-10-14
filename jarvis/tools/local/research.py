@@ -65,6 +65,18 @@ class ResearchTool:
             priority=210,
             args=lambda m: {"query": m.group(1)},
         ),
+        # RU: "найди информацию про ...", "исследуй ..."
+        VoicePattern(
+            regex=r"^(?:найди\s+информацию|исследуй)\s+(.+)$",
+            priority=200,
+            args=lambda m: {"query": m.group(1)},
+        ),
+        # UK: "знайди інформацію про ...", "досліди ..."
+        VoicePattern(
+            regex=r"^(?:знайди\s+інформацію|досліди)\s+(.+)$",
+            priority=200,
+            args=lambda m: {"query": m.group(1)},
+        ),
     )
 
     def __init__(

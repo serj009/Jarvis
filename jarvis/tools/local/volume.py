@@ -30,6 +30,27 @@ class VolumeArgs(BaseModel):
     )
 
 
+# -- RU/UK voice-action word → EN action mappings for volume patterns ---
+
+_VOLUME_ACTION_MAP_RU: dict[str, str] = {
+    "громче": "up",
+    "тише": "down",
+    "выключи": "mute",
+    "выключить": "mute",
+    "включи": "unmute",
+    "включить": "unmute",
+}
+
+_VOLUME_ACTION_MAP_UK: dict[str, str] = {
+    "гучніше": "up",
+    "тихіше": "down",
+    "вимкни": "mute",
+    "вимкнути": "mute",
+    "увімкни": "unmute",
+    "увімкнути": "unmute",
+}
+
+
 class VolumeTool:
     name: str = "volume"
     description: str = (
@@ -44,6 +65,18 @@ class VolumeTool:
             regex=r"^volume\s+(up|down|mute|unmute)$",
             priority=10,
             args=lambda m: {"action": m.group(1)},
+        ),
+        # RU: "звук громче", "громкость тише", "звук выключи"
+        VoicePattern(
+            regex=r"^(?:звук|громкость)\s+(громче|тише|выключи(?:ть)?|включи(?:ть)?)$",
+            priority=10,
+            args=lambda m: {"action": _VOLUME_ACTION_MAP_RU.get(m.group(1), "up")},
+        ),
+        # UK: "звук гучніше", "гучність тихіше", "звук вимкни"
+        VoicePattern(
+            regex=r"^(?:звук|гучність)\s+(гучніше|тихіше|вимкн(?:и|ути)|увімкн(?:и|ути))$",
+            priority=10,
+            args=lambda m: {"action": _VOLUME_ACTION_MAP_UK.get(m.group(1), "up")},
         ),
     )
 

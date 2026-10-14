@@ -88,6 +88,16 @@ class LaunchWorkspaceTool:
             regex=r"^(?:jarvis,?\s+)?(?:open|launch|start)\s+(?:my\s+)?workspace$",
             priority=220,
         ),
+        # RU: "открой рабочее", "запусти мой workspace"
+        VoicePattern(
+            regex=r"^(?:открой|запусти)\s+(?:мо[йє]\s+)?(?:рабоч(?:ее|ий)|workspace)$",
+            priority=220,
+        ),
+        # UK: "відкрий робоче", "запусти мій workspace"
+        VoicePattern(
+            regex=r"^(?:відкрий|запусти)\s+(?:мо[єї]\s+)?(?:робоч(?:е|ий)|workspace)$",
+            priority=220,
+        ),
     )
     args_schema = EmptyArgs
 

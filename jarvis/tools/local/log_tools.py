@@ -24,6 +24,14 @@ class ShowLogsTool:
             priority=320,
         ),
         VoicePattern(regex=r"^show\s+(?:me\s+)?errors$", priority=330),
+        # RU: "покажи логи", "открой лог"
+        VoicePattern(
+            regex=r"^(?:покажи|открой)\s+(?:мои\s+)?логи?$", priority=320
+        ),
+        # UK: "покажи логи", "відкрий лог"
+        VoicePattern(
+            regex=r"^(?:покажи|відкрий)\s+(?:мої\s+)?логи?$", priority=320
+        ),
     )
 
     def __init__(self, *, on_open: Callable[[], None]) -> None:
@@ -43,6 +51,10 @@ class CloseLogsTool:
     requires_confirmation: bool = False
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
         VoicePattern(regex=r"^close\s+(?:the\s+|my\s+)?logs?$", priority=340),
+        # RU: "закрой логи"
+        VoicePattern(regex=r"^закрой\s+(?:мои\s+)?логи?$", priority=340),
+        # UK: "закрий логи"
+        VoicePattern(regex=r"^закрий\s+(?:мої\s+)?логи?$", priority=340),
     )
 
     def __init__(self, *, on_close: Callable[[], None]) -> None:

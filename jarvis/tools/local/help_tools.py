@@ -30,6 +30,20 @@ class OpenHelpTool:
         VoicePattern(
             regex=r"^what\s+can\s+(?:you|i)\s+(?:do|say)\??$", priority=370
         ),
+        # RU: "помощь", "покажи справку", "что ты умеешь?"
+        VoicePattern(
+            regex=r"^(?:покажи\s+)?(?:помощь|справк[уа])$", priority=350
+        ),
+        VoicePattern(
+            regex=r"^что\s+ты\s+(?:умеешь|можешь)\??$", priority=370
+        ),
+        # UK: "допомога", "покажи довідку", "що ти вмієш?"
+        VoicePattern(
+            regex=r"^(?:покажи\s+)?(?:допомог[уа]|довідк[уа])$", priority=350
+        ),
+        VoicePattern(
+            regex=r"^що\s+ти\s+(?:вмієш|можеш)\??$", priority=370
+        ),
     )
 
     def __init__(self, *, on_open: Callable[[], None]) -> None:

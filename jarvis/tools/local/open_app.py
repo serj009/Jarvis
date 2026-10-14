@@ -29,6 +29,7 @@ from pydantic import BaseModel, Field
 
 from jarvis.core.phrases import opening_phrase
 from jarvis.core.request_context import current_user_transcription
+from jarvis.tools.local.app_aliases import APP_ALIASES as _APP_ALIASES, resolve_app_alias
 from jarvis.platform import windows as winplat
 from jarvis.platform.app_discovery import normalize_open_query
 from jarvis.tools.registry import PRIORITY_CATCH_ALL, ToolResult, VoicePattern
@@ -37,29 +38,6 @@ if TYPE_CHECKING:
     from jarvis.platform.windows_apps import InstalledApp
 
 log = logging.getLogger(__name__)
-
-_APP_ALIASES: dict[str, str] = {
-    "chrome": "chrome",
-    "google chrome": "chrome",
-    "edge": "msedge",
-    "microsoft edge": "msedge",
-    "firefox": "firefox",
-    "spotify": "spotify",
-    "vscode": "code",
-    "visual studio code": "code",
-    "code": "code",
-    "notepad": "notepad",
-    "calc": "calc",
-    "calculator": "calc",
-    "terminal": "wt",
-    "windows terminal": "wt",
-    "cmd": "cmd",
-    "command prompt": "cmd",
-    "explorer": "explorer",
-    "file explorer": "explorer",
-    "discord": "discord",
-    "steam": "steam",
-}
 
 
 def _needs_path_launch(command: str) -> bool:
@@ -119,6 +97,18 @@ class OpenAppTool:
             priority=PRIORITY_CATCH_ALL,
             args=lambda m: {"name": m.group(1)},
         ),
+        # RU: "открой хром", "запусти блокнот", "открыть калькулятор"
+        VoicePattern(
+            regex=r"^(?:открой|запусти|открыть)\s+(.+)$",
+            priority=PRIORITY_CATCH_ALL,
+            args=lambda m: {"name": m.group(1)},
+        ),
+        # UK: "відкрий хром", "запусти блокнот", "відкрити калькулятор"
+        VoicePattern(
+            regex=r"^(?:відкрий|запусти|відкрити)\s+(.+)$",
+            priority=PRIORITY_CATCH_ALL,
+            args=lambda m: {"name": m.group(1)},
+        ),
     )
 
     def __init__(
@@ -157,6 +147,10 @@ class OpenAppTool:
         token = _resolve_name(args.name)
         if not token:
             return ToolResult(success=False, error="app name is empty")
+
+        # Resolve multilingual / informal alias to a canonical Windows-
+        # recognisable name before any search or matching step.
+        token = resolve_app_alias(token)
 
         # (command, display) pairs, tried in order; first launch that
         # doesn't raise wins. Reliable real-path candidates come first.
