@@ -59,6 +59,33 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
             "сайт", "посиланн",
         ],
     },
+    "browser": {
+        "tools": [
+            "browser_tabs", "content_reader", "bookmarks", "media_control",
+        ],
+        "keywords_en": [
+            "tab", "new tab", "close tab", "switch tab",
+            "back", "forward", "refresh", "bookmark",
+            "read page", "page content", "save page",
+            "pause", "resume", "next track", "fullscreen",
+        ],
+        "keywords_ru": [
+            "вкладк", "новая вкладк", "закрой вкладк",
+            "назад", "вперёд", "обнови",
+            "закладк", "запомни страниц",
+            "прочитай страниц", "контент страниц",
+            "пауза", "продолж", "следующ", "полный экран",
+            "трек", "стоп",
+        ],
+        "keywords_uk": [
+            "вкладк", "нова вкладк", "закрий вкладк",
+            "назад", "вперед", "оновити",
+            "закладк", "запам'ятай сторінк",
+            "прочитай сторінк", "контент сторінк",
+            "пауза", "продовж", "наступн", "повний екран",
+            "трек", "стоп",
+        ],
+    },
     "media": {
         "tools": [
             "play_youtube_music", "launch_steam_game", "volume",
@@ -174,6 +201,128 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
         "keywords_uk": [
             "заблокуй", "набер", "переключ мов", "мов",
             "файл", "папк", "каталог", "скопіюй",
+        ],
+    },
+    "windows_control": {
+        "tools": [
+            "window_action", "list_windows",
+        ],
+        "keywords_en": [
+            "window", "minimize", "maximise", "maximize", "focus",
+            "snap", "restore", "list windows",
+        ],
+        "keywords_ru": [
+            "окн", "сверни", "разверни", "фокус", "прикрепи",
+            "список окон",
+        ],
+        "keywords_uk": [
+            "вікн", "згорни", "розгорни", "фокус", "прикріпи",
+            "список вікон",
+        ],
+    },
+    "timers": {
+        "tools": [
+            "set_timer", "cancel_timer", "list_timers",
+        ],
+        "keywords_en": [
+            "timer", "alarm", "countdown", "remind",
+        ],
+        "keywords_ru": [
+            "таймер", "будильник", "напомн", "обратный отсчёт",
+        ],
+        "keywords_uk": [
+            "таймер", "будильник", "нагадай", "зворотній відлік",
+        ],
+    },
+    "power": {
+        "tools": [
+            "power_control",
+        ],
+        "keywords_en": [
+            "shutdown", "shut down", "restart", "reboot",
+            "sleep", "hibernate", "caffeinate", "don't sleep",
+        ],
+        "keywords_ru": [
+            "выключи", "перезагру", "спящий", "усни",
+            "не засыпай", "гибернац",
+        ],
+        "keywords_uk": [
+            "вимкни", "перезавантаж", "сплячий", "засни",
+            "не засинай", "гібернац",
+        ],
+    },
+    "cli": {
+        "tools": [
+            "run_command",
+        ],
+        "keywords_en": [
+            "command", "terminal", "cmd", "ping", "ipconfig",
+            "netstat", "tasklist",
+        ],
+        "keywords_ru": [
+            "команд", "терминал", "пинг", "консоль",
+        ],
+        "keywords_uk": [
+            "команд", "термінал", "пінг", "консоль",
+        ],
+    },
+    "downloads": {
+        "tools": [
+            "download_file",
+        ],
+        "keywords_en": [
+            "download",
+        ],
+        "keywords_ru": [
+            "скачай", "загрузи",
+        ],
+        "keywords_uk": [
+            "скачай", "завантаж",
+        ],
+    },
+    "packages": {
+        "tools": [
+            "package_search", "package_install", "package_uninstall",
+        ],
+        "keywords_en": [
+            "install", "uninstall", "winget", "package",
+        ],
+        "keywords_ru": [
+            "установи", "удали программ", "пакет",
+        ],
+        "keywords_uk": [
+            "встанови", "видали програм", "пакет",
+        ],
+    },
+    "game_saves": {
+        "tools": [
+            "find_game_saves", "backup_game_saves", "list_known_games",
+        ],
+        "keywords_en": [
+            "save", "saves", "backup", "game save",
+        ],
+        "keywords_ru": [
+            "сохранени", "бэкап", "сейв",
+        ],
+        "keywords_uk": [
+            "збереженн", "бекап", "сейв",
+        ],
+    },
+    "processes": {
+        "tools": [
+            "process_info", "heavy_processes", "wait_for_process",
+        ],
+        "keywords_en": [
+            "process", "memory usage", "ram usage", "heavy",
+            "wait for", "installer",
+        ],
+        "keywords_ru": [
+            "процесс", "сколько памяти", "жрёт", "подожди",
+            "установщик",
+        ],
+        "keywords_uk": [
+            "процес", "скільки пам", "їсть", "зачекай",
+            "встановлювач",
         ],
     },
 }

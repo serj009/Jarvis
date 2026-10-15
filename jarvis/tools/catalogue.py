@@ -58,6 +58,8 @@ def _local_tool_classes() -> tuple[type, ...]:
     settings tab sorts by name. See registry.PRIORITY_* on why ordering is
     explicit rather than positional.
     """
+    from jarvis.tools.local.bookmarks import BookmarksTool
+    from jarvis.tools.local.browser_tabs import BrowserTabsTool
     from jarvis.tools.local.clipboard import ClipboardTool
     from jarvis.tools.local.clipboard_history_tools import (
         ClearClipboardHistoryTool,
@@ -66,6 +68,7 @@ def _local_tool_classes() -> tuple[type, ...]:
         ShowClipboardHistoryTool,
     )
     from jarvis.tools.local.close_app import CloseAppTool
+    from jarvis.tools.local.content_reader import ContentReaderTool
     from jarvis.tools.local.dashboard_tools import CloseDashboardTool, ShowDashboardTool
     from jarvis.tools.local.deep_research_tools import (
         CloseDeepResearchTool,
@@ -85,6 +88,7 @@ def _local_tool_classes() -> tuple[type, ...]:
     from jarvis.tools.local.launch_workspace import LaunchWorkspaceTool
     from jarvis.tools.local.lock_screen import LockScreenTool
     from jarvis.tools.local.log_tools import CloseLogsTool, ShowLogsTool
+    from jarvis.tools.local.media_control import MediaControlTool
     from jarvis.tools.local.notes_tools import (
         AppendToNoteTool,
         CloseNotesTool,
@@ -109,7 +113,25 @@ def _local_tool_classes() -> tuple[type, ...]:
     from jarvis.tools.local.volume import VolumeTool
     from jarvis.tools.local.weather import WeatherTool
 
+    # Phase 6: Windows control modules
+    from jarvis.tools.local.window_manager import WindowActionTool, ListWindowsTool
+    from jarvis.tools.local.timers import SetTimerTool, CancelTimerTool, ListTimersTool
+    from jarvis.tools.local.power_control import PowerControlTool
+    from jarvis.tools.local.cli_runner import CLIRunnerTool
+    from jarvis.tools.local.download_manager import DownloadFileTool
+    from jarvis.tools.local.package_manager import (
+        PackageSearchTool, PackageInstallTool, PackageUninstallTool,
+    )
+    from jarvis.tools.local.game_saves import (
+        FindGameSavesTool, BackupGameSavesTool, ListKnownGamesTool,
+    )
+    from jarvis.tools.local.process_monitor import (
+        ProcessInfoTool, HeavyProcessesTool, WaitForProcessTool,
+    )
+
     return (
+        BookmarksTool,
+        BrowserTabsTool,
         ClipboardTool,
         ClearClipboardHistoryTool,
         CloseClipboardHistoryTool,
@@ -117,6 +139,7 @@ def _local_tool_classes() -> tuple[type, ...]:
         ShowClipboardHistoryTool,
         CloseAppTool,
         CloseDashboardTool,
+        ContentReaderTool,
         ShowDashboardTool,
         CloseDeepResearchTool,
         DeepResearchTool,
@@ -136,6 +159,7 @@ def _local_tool_classes() -> tuple[type, ...]:
         AppendToNoteTool,
         CloseNotesTool,
         DeleteNoteTool,
+        MediaControlTool,
         OpenNotesTool,
         ReadNoteTool,
         TakeNoteTool,
@@ -152,6 +176,24 @@ def _local_tool_classes() -> tuple[type, ...]:
         TypeIntoActiveWindowTool,
         VolumeTool,
         WeatherTool,
+        # Phase 6: Windows control tools
+        WindowActionTool,
+        ListWindowsTool,
+        SetTimerTool,
+        CancelTimerTool,
+        ListTimersTool,
+        PowerControlTool,
+        CLIRunnerTool,
+        DownloadFileTool,
+        PackageSearchTool,
+        PackageInstallTool,
+        PackageUninstallTool,
+        FindGameSavesTool,
+        BackupGameSavesTool,
+        ListKnownGamesTool,
+        ProcessInfoTool,
+        HeavyProcessesTool,
+        WaitForProcessTool,
     )
 
 
