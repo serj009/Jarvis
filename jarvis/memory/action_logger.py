@@ -39,7 +39,7 @@ _ACTION_TEMPLATES: dict[str, str] = {
     "lock_screen": "Locked the screen",
     "launch_workspace": "Opened workspace",
     "take_note": "Created a note: {title}",
-    "remember": "Asked to remember something",
+    "remember_fact": "Asked to remember something",
     "deep_research": "Started deep research: {query}",
     "research": "Researched: {query}",
     "volume": "Changed volume: {action}",
@@ -48,12 +48,12 @@ _ACTION_TEMPLATES: dict[str, str] = {
 
 # Tools NOT worth logging (too noisy / internal)
 _SKIP_TOOLS: frozenset[str] = frozenset({
-    "clipboard", "list_directory", "memory_status", "recall",
+    "clipboard", "list_directory", "memory_status", "search_memory",
     "show_dashboard", "close_dashboard", "show_logs", "close_logs",
     "open_help", "open_notes", "close_notes", "close_research",
     "read_more", "copy_research", "show_clipboard_history",
     "close_clipboard_history", "clear_clipboard_history",
-    "paste_clipboard_item", "switch_language", "forget",
+    "paste_clipboard_item", "switch_language", "forget_fact",
     "read_note", "append_to_note", "delete_note",
     "pause_deep_research", "resume_deep_research",
     "close_deep_research", "delete_deep_research",

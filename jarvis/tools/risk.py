@@ -135,7 +135,7 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     "read_more": RiskLevel.READ,
     "copy_research": RiskLevel.READ,
     # Memory — read
-    "recall": RiskLevel.READ,
+    "search_memory": RiskLevel.READ,
     "memory_status": RiskLevel.READ,
     # Volume — WRITE because it mutates system state, but reversible
     "volume": RiskLevel.WRITE,
@@ -157,14 +157,14 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     "enable_deep_research_ultra": RiskLevel.WRITE,
     "disable_deep_research_ultra": RiskLevel.WRITE,
     # Memory — write
-    "remember": RiskLevel.WRITE,
+    "remember_fact": RiskLevel.WRITE,
     # -- destructive tools (confirmation required) -------------------------
     "delete_note": RiskLevel.DESTRUCTIVE,
     "delete_deep_research": RiskLevel.DESTRUCTIVE,
     "delete_all_deep_research": RiskLevel.DESTRUCTIVE,
     "clear_clipboard_history": RiskLevel.DESTRUCTIVE,
     # Memory — destructive
-    "forget": RiskLevel.DESTRUCTIVE,
+    "forget_fact": RiskLevel.DESTRUCTIVE,
     # -- system tools (confirmation + elevated warning) --------------------
     "type_into_active_window": RiskLevel.SYSTEM,
     "lock_screen": RiskLevel.SYSTEM,

@@ -293,7 +293,7 @@ class TestCheckToolChain:
 
     def test_memory_then_url_flagged(self, sanitizer: OutputSanitizer):
         calls = [
-            {"tool_name": "recall"},
+            {"tool_name": "search_memory"},
             {"tool_name": "open_url"},
         ]
         result = sanitizer.check_tool_chain(calls)
@@ -342,7 +342,7 @@ class TestCheckToolChain:
         assert result.safe
 
     def test_single_call_always_safe(self, sanitizer: OutputSanitizer):
-        calls = [{"tool_name": "recall"}]
+        calls = [{"tool_name": "search_memory"}]
         result = sanitizer.check_tool_chain(calls)
         assert result.safe
 
@@ -354,7 +354,7 @@ class TestCheckToolChain:
         is still flagged — the exfiltration window doesn't require
         adjacency."""
         calls = [
-            {"tool_name": "recall"},
+            {"tool_name": "search_memory"},
             {"tool_name": "get_weather"},
             {"tool_name": "open_app"},
             {"tool_name": "open_url"},  # exfiltration after benign ops
@@ -366,7 +366,7 @@ class TestCheckToolChain:
         """send THEN read is not exfiltration (nothing to exfiltrate yet)."""
         calls = [
             {"tool_name": "open_url"},
-            {"tool_name": "recall"},
+            {"tool_name": "search_memory"},
         ]
         result = sanitizer.check_tool_chain(calls)
         assert result.safe

@@ -179,7 +179,7 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
         "tools": [
             "take_note", "read_note", "open_notes", "close_notes",
             "delete_note", "append_to_note",
-            "remember", "recall", "forget", "memory_status",
+            "remember_fact", "search_memory", "forget_fact", "memory_status",
         ],
         "keywords_en": [
             "note", "remember", "recall", "forget", "memory",
