@@ -67,6 +67,7 @@ def _local_tool_classes() -> tuple[type, ...]:
         PasteClipboardItemTool,
         ShowClipboardHistoryTool,
     )
+    from jarvis.tools.local.close_app import CloseAppTool
     from jarvis.tools.local.page_monitor import (
         StartPageMonitorTool, StopPageMonitorTool,
         CheckPageChangesTool, ListPageMonitorsTool,

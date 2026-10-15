@@ -123,7 +123,7 @@ INJECTION_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 # (set_of_data_reading_tools, set_of_data_sending_tools, human_reason)
 SUSPICIOUS_CHAINS: list[tuple[frozenset[str], frozenset[str], str]] = [
     (
-        frozenset({"recall", "search_memory", "get_user_profile"}),
+        frozenset({"search_memory", "get_user_profile"}),
         frozenset({"open_url", "web_search", "download_file", "web_page_fetch"}),
         "Memory/profile data may be exfiltrated via network request",
     ),

@@ -58,7 +58,7 @@ class TestFormatAction:
         assert result == "Used some_new_tool"
 
     def test_skip_tool_returns_none(self) -> None:
-        for tool in ("clipboard", "recall", "memory_status", "forget",
+        for tool in ("clipboard", "search_memory", "memory_status", "forget_fact",
                       "show_dashboard", "close_dashboard"):
             assert format_action(tool, {}) is None, f"{tool} should be skipped"
 
