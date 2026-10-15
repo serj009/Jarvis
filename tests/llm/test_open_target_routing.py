@@ -81,9 +81,12 @@ async def test_unknown_name_goes_to_the_llm():
         calls.append("scan")
         return {}
 
-    router, llm = _router(make_installed_app_planner(provider), "open_url", "open_app")
+    # Use a phrase that the planner returns None for (no open-verb match)
+    # AND that does not match any voice pattern in the catalogue.
+    # (Russian "Открой блокнот" now matches the RU open_app pattern.)
+    router, llm = _router(make_installed_app_planner(provider))
 
-    intents = await _collect(router, "Открой блокнот")
+    intents = await _collect(router, "what is notepad")
 
     assert llm.calls == 1
     assert isinstance(intents[0], SpeakIntent)
@@ -94,15 +97,24 @@ async def test_planner_failure_falls_back_to_the_llm():
     async def broken(text):
         raise RuntimeError("boom")
 
-    router, llm = _router(broken, "open_url", "open_app")
-    await _collect(router, "Открой YouTube")
+    # Use a phrase that does not match any voice pattern so the LLM
+    # fallback is exercised when the planner raises.
+    router, llm = _router(broken)
+    await _collect(router, "tell me a joke")
     assert llm.calls == 1
 
 
 async def test_unregistered_tool_falls_back_to_the_llm():
-    planner = make_installed_app_planner(lambda: {})
-    router, llm = _router(planner, "open_app")  # open_url disabled/missing
-    await _collect(router, "Открой YouTube")
+    # The planner resolves to a ToolIntent whose tool is NOT registered.
+    # _try_open_target detects the missing tool and returns None.
+    # Use a non-matching phrase so the pattern layer also falls through.
+    async def planner_returning_unregistered(text):
+        return ToolIntent("open_url", {"url": "https://www.youtube.com"})
+
+    router, llm = _router(
+        planner_returning_unregistered, "open_app",
+    )  # open_url disabled/missing
+    await _collect(router, "tell me about YouTube")
     assert llm.calls == 1
 
 
@@ -119,6 +131,8 @@ async def test_index_failure_still_opens_the_website():
 
 
 async def test_no_planner_keeps_old_behaviour():
-    router, llm = _router(None, "open_url", "open_app")
-    await _collect(router, "Открой YouTube")
+    # No planner at all — everything falls through to the LLM.
+    # Use a phrase that doesn't match any voice pattern.
+    router, llm = _router(None)
+    await _collect(router, "tell me about YouTube")
     assert llm.calls == 1

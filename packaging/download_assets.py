@@ -42,9 +42,9 @@ PIPER_VOICES: list[tuple[str, str]] = [
         "ru/ru_RU/irina/medium",
     ),
     (
-        "uk_UA-mykyta-medium",
+        "uk_UA-mykyta-high",
         "https://huggingface.co/rhasspy/piper-voices/resolve/main/"
-        "uk/uk_UA/mykyta/medium",
+        "uk/uk_UA/mykyta/high",
     ),
     (
         # NOTE: Lada uses x_low quality (no medium model available on HF).

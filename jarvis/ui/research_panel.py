@@ -407,7 +407,7 @@ class ResearchPanel(QWidget):
         panel_width: int = _DEFAULT_PANEL_WIDTH,
         on_width_changed: Callable[[int], None] | None = None,
         ollama_endpoint: str = "http://localhost:11434",
-        ollama_model: str = "qwen2.5:7b-instruct",
+        ollama_model: str = "qwen3:8b",
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(

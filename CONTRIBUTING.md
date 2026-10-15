@@ -63,7 +63,7 @@ HTTP on `localhost`. Install it from <https://ollama.com/download>, then pull at
 least the default model:
 
 ```powershell
-ollama pull qwen2.5:7b-instruct
+ollama pull qwen3:8b
 ```
 
 Optional, depending on what you are working on:

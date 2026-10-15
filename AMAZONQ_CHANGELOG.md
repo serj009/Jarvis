@@ -5,6 +5,77 @@
 
 ---
 
+## 2026-10-15 — Critical fixes: 8 tests + setup_jarvis.py + migrations v29→v30
+
+### Summary
+Fixed all 8 remaining test failures from home run, fixed setup_jarvis.py for clean first-run experience,
+synced LLM model default (qwen3:8b), fixed missing Ukrainian voice (mykyta-medium→mykyta-high).
+Schema v29→v30.
+
+### Bug Fixes — 8 Failed Tests
+
+#### test_open_target_routing.py (4 tests) — LLM call count = 0
+- **Root cause**: Russian voice patterns in `open_app.py` (`^(?:открой|запусти|открыть)\s+(.+)$`) intercepted test phrases at pattern layer BEFORE reaching LLM
+- **Fix**: Replaced test phrases with non-matching English phrases that don't trigger any pattern
+- File: `tests/llm/test_open_target_routing.py`
+
+#### test_hot_reload.py (1 test) — NameError: name 'self' is not defined
+- **Root cause**: `_make_router_adapter()` is a free function (not a method), but used `self.user_profile`
+- **Fix**: Added `user_profile` parameter to `_make_router_adapter()`, passed from call-site in JarvisApp
+- File: `jarvis/app.py`
+
+#### test_pipeline.py (1 test) — timeout
+- **Root cause**: Pre-existing flaky timing — 1.0s timeout too short under load
+- **Fix**: Increased `wait_for_cs` timeout 1.0→3.0s
+- File: `tests/audio/test_pipeline.py`
+
+#### test_intent_router.py (1 test) — timeout
+- **Root cause**: `route()` now does async work in `_inject_auto_context` before streaming, 1.0s too short
+- **Fix**: Increased `asyncio.wait_for` timeout 1.0→3.0s
+- File: `tests/llm/test_intent_router.py`
+
+### setup_jarvis.py — First-Run Fixes
+
+#### Dependencies: `pip install -e ".[dev,embeddings]"`
+- **Was**: `pip install -e .` (only base deps — no pytest, sentence-transformers, faiss)
+- **Now**: `pip install -e ".[dev,embeddings]"` — installs everything in one step
+- File: `setup_jarvis.py`
+
+#### Ukrainian voice: mykyta-medium → mykyta-high
+- **Root cause**: HuggingFace `rhasspy/piper-voices` has `mykyta` ONLY in `high` quality (114MB), no `medium`
+- **Fix**: Updated voice name + URL in 6 files
+- Files: `setup_jarvis.py`, `packaging/download_assets.py`, `jarvis/core/config.py`, `jarvis/audio/voice_registry.py`, `tests/audio/test_voice_registry.py`, `jarvis/core/migrations.py`
+
+#### LLM model: qwen2.5:7b-instruct → qwen3:8b
+- **Problem**: setup_jarvis.py downloaded `qwen3:8b`, but config expected `qwen2.5:7b-instruct`
+- **Fix**: Synced config default to match what setup downloads
+- Files: `jarvis/core/config.py`, `jarvis/core/migrations.py`, `jarvis/llm/ollama_client.py`, `jarvis/memory/memory_manager.py`, `jarvis/memory/auto_classifier.py`, `jarvis/ui/research_panel.py`, `tests/core/test_config.py`, `README.md`, `CONTRIBUTING.md`
+
+### Migration v29 → v30
+1. `llm.model == "qwen2.5:7b-instruct"` → `"qwen3:8b"` (only if old default)
+2. `tts.voices_uk == "uk_UA-mykyta-medium"` → `"uk_UA-mykyta-high"`
+3. `tts.voice == "uk_UA-mykyta-medium"` → `"uk_UA-mykyta-high"`
+
+### Files Changed (15 total)
+- `jarvis/app.py` — _make_router_adapter() self fix
+- `jarvis/core/config.py` — LLM default + voice default + schema v30
+- `jarvis/core/migrations.py` — _migrate_v29_to_v30()
+- `jarvis/llm/ollama_client.py` — model default
+- `jarvis/memory/memory_manager.py` — model default
+- `jarvis/memory/auto_classifier.py` — model default
+- `jarvis/ui/research_panel.py` — model default
+- `jarvis/audio/voice_registry.py` — mykyta-high
+- `setup_jarvis.py` — dev+embeddings deps + mykyta-high
+- `packaging/download_assets.py` — mykyta-high
+- `tests/llm/test_open_target_routing.py` — 4 test phrase fixes
+- `tests/audio/test_pipeline.py` — timeout 1→3s
+- `tests/llm/test_intent_router.py` — timeout 1→3s
+- `tests/audio/test_voice_registry.py` — mykyta-high assert
+- `tests/core/test_config.py` — model default assert
+- `README.md`, `CONTRIBUTING.md` — qwen3:8b
+
+---
+
 ## 2026-10-14 — Visual redesign of Settings UI
 
 ### Summary

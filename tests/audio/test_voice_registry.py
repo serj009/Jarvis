@@ -17,7 +17,7 @@ class TestVoiceRegistry:
         reg = VoiceRegistry()
         assert reg.get_voice_name("en") == "en_GB-alan-medium"
         assert reg.get_voice_name("ru") == "ru_RU-dmitri-medium"
-        assert reg.get_voice_name("uk") == "uk_UA-mykyta-medium"
+        assert reg.get_voice_name("uk") == "uk_UA-mykyta-high"
 
     def test_set_voice(self) -> None:
         reg = VoiceRegistry()

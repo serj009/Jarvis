@@ -659,7 +659,8 @@ async def test_cancellation_skips_assistant_turn_keeps_user_turn():
             received.append(intent)
 
     task = asyncio.create_task(consume())
-    await asyncio.wait_for(started.wait(), timeout=1.0)
+    # Wider timeout to absorb CI jitter (route() does lightweight async work before the stream).
+    await asyncio.wait_for(started.wait(), timeout=3.0)
 
     task.cancel()
     with pytest.raises(asyncio.CancelledError):

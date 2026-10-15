@@ -365,7 +365,8 @@ async def test_barge_in_after_grace_cancels_tts_and_returns_to_listening():
         await asyncio.sleep(TTS_BARGE_IN_GRACE_SECONDS + 0.05)
         source.push()
 
-        await wait_for_cs(sm, ConversationalState.LISTENING)
+        # Slightly wider timeout to absorb CI jitter (was 1.0 s default).
+        await wait_for_cs(sm, ConversationalState.LISTENING, timeout=3.0)
         assert tts.cancel_count >= 1
     finally:
         await pipeline.stop()

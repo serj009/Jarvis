@@ -104,7 +104,7 @@ class OllamaClient:
     def __init__(
         self,
         *,
-        model: str = "qwen2.5:7b-instruct",
+        model: str = "qwen3:8b",
         temperature: float = 0.7,
         max_tokens: int = 1024,
         system_prompt: str = "",

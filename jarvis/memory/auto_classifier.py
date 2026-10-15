@@ -14,7 +14,7 @@ unavailable, classification silently falls back to "general" shard.
 Usage:
     classifier = AutoClassifier(
         ollama_endpoint="http://localhost:11434",
-        model="qwen2.5:7b-instruct",
+        model="qwen3:8b",
     )
     result = await classifier.classify("Wukong", context="collect all brushes")
     # -> type="game", shard="games", confidence=0.85
@@ -113,7 +113,7 @@ class AutoClassifier:
         self,
         *,
         ollama_endpoint: str = "http://localhost:11434",
-        model: str = "qwen2.5:7b-instruct",
+        model: str = "qwen3:8b",
         cache_path: Path | str | None = None,
         max_cache: int = 5000,
     ) -> None:
