@@ -67,6 +67,7 @@ def setup_local_tools(
     from jarvis.tools.local.close_app import CloseAppTool
     from jarvis.tools.local.files import ListDirectoryTool
     from jarvis.tools.local.get_time import GetTimeTool
+    from jarvis.tools.local.web_knowledge import SavePageKnowledgeTool
     from jarvis.tools.local.launch_steam_game import LaunchSteamGameTool
     from jarvis.tools.local.launch_workspace import LaunchWorkspaceTool
     from jarvis.tools.local.lock_screen import LockScreenTool
@@ -194,8 +195,25 @@ def setup_local_tools(
         base_tools.append(
             SeeScreenTool(ollama_client=ollama_client, vision_config=vision_cfg)
         )
+
     for tool in base_tools:
         registry.register(tool)
+
+    # Web knowledge extraction — needs ollama_client + memory_store + relation_store.
+    # relation_store lives on memory_store._db_path via MemoryManager; we get it
+    # from the memory_store's db_path so the tool can create one if needed.
+    if ollama_client is not None and memory_store is not None:
+        relation_store = None
+        try:
+            from jarvis.memory.relations import RelationStore
+            relation_store = RelationStore(db_path=memory_store.db_path)
+        except Exception:
+            pass
+        registry.register(SavePageKnowledgeTool(
+            ollama_client=ollama_client,
+            memory_store=memory_store,
+            relation_store=relation_store,
+        ))
 
     # T4.1: Memory tools — remember, recall, forget, status.
     if memory_store is not None:

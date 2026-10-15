@@ -113,6 +113,7 @@ def _local_tool_classes() -> tuple[type, ...]:
     from jarvis.tools.local.volume import VolumeTool
     from jarvis.tools.local.weather import WeatherTool
 
+    from jarvis.tools.local.web_knowledge import SavePageKnowledgeTool
     # Phase 6: Windows control modules
     from jarvis.tools.local.window_manager import WindowActionTool, ListWindowsTool
     from jarvis.tools.local.timers import SetTimerTool, CancelTimerTool, ListTimersTool
@@ -176,6 +177,7 @@ def _local_tool_classes() -> tuple[type, ...]:
         TypeIntoActiveWindowTool,
         VolumeTool,
         WeatherTool,
+        SavePageKnowledgeTool,
         # Phase 6: Windows control tools
         WindowActionTool,
         ListWindowsTool,

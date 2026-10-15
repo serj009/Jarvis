@@ -112,6 +112,7 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     "content_reader": RiskLevel.READ,
     "bookmarks": RiskLevel.WRITE,
     "media_control": RiskLevel.WRITE,
+    "save_page_knowledge": RiskLevel.WRITE,
     # Weather / system
     "get_weather": RiskLevel.READ,
     "report_cpu_and_memory_percentages": RiskLevel.READ,
