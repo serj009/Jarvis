@@ -5,6 +5,49 @@
 
 ---
 
+## 2026-10-15 — Phase 6: Windows Control + Phase 7: Browser (13 new tools)
+
+### Summary
+Added 8 new Windows control tools (Phase 6) and 5 browser tools + browser controller package (Phase 7).
+Total: 13 new tool modules, 1 new package (jarvis/browser/), 13 new test files, ~342 test functions.
+
+### Phase 6 — Windows Control (8 tools)
+
+| Tool | File | What it does |
+|------|------|-------------|
+| window_manager | `jarvis/tools/local/window_manager.py` | Focus/minimize/maximize/snap/close windows, list windows |
+| timers | `jarvis/tools/local/timers.py` | Set/cancel/list timers, JSON persistence |
+| power_control | `jarvis/tools/local/power_control.py` | Shutdown/restart/sleep/hibernate/caffeinate |
+| cli_runner | `jarvis/tools/local/cli_runner.py` | Whitelisted CLI commands (ping, ipconfig, dir, etc.) |
+| download_manager | `jarvis/tools/local/download_manager.py` | Download files by URL to ~/Downloads |
+| package_manager | `jarvis/tools/local/package_manager.py` | winget search/install/uninstall |
+| game_saves | `jarvis/tools/local/game_saves.py` | Find/backup/restore saves for 10 games |
+| process_monitor | `jarvis/tools/local/process_monitor.py` | Process memory/CPU, heavy processes, wait-for-exit |
+
+### Phase 7 — Browser (5 tools + 1 package)
+
+| Tool | File | What it does |
+|------|------|-------------|
+| browser_controller | `jarvis/browser/browser_controller.py` | Two modes: Simple (webbrowser) + Advanced (Selenium) |
+| browser_tabs | `jarvis/tools/local/browser_tabs.py` | Open/close/switch tabs, back/forward/refresh |
+| content_reader | `jarvis/tools/local/content_reader.py` | Read/summarize pages, save as PDF |
+| bookmarks | `jarvis/tools/local/bookmarks.py` | Save/search/open bookmarks, JSON storage |
+| media_control | `jarvis/tools/local/media_control.py` | Play/pause, next track, fullscreen, media keys |
+
+### Integration
+- `jarvis/tools/__init__.py` — all 13 tools registered in setup_local_tools()
+- `jarvis/tools/risk.py` — TOOL_RISK_MAP updated for all new tools
+- `jarvis/tools/tool_filter.py` — keyword categories updated
+- `pyproject.toml` — [browser] optional deps (selenium, beautifulsoup4, yt-dlp), added to [all]
+
+### Tests (13 new files, ~342 test functions)
+- tests/tools/local/test_{window_manager,timers,power_control,cli_runner}.py
+- tests/tools/local/test_{download_manager,package_manager,game_saves,process_monitor}.py
+- tests/tools/local/test_{browser_tabs,content_reader,bookmarks,media_control}.py
+- tests/browser/test_browser_controller.py
+
+---
+
 ## 2026-10-15 — Critical fixes: 8 tests + setup_jarvis.py + migrations v29→v30
 
 ### Summary

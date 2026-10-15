@@ -107,6 +107,12 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     "clipboard": RiskLevel.READ,
     "list_directory": RiskLevel.READ,
     "get_time": RiskLevel.READ,
+    # Browser tools (Phase 7)
+    "browser_tabs": RiskLevel.WRITE,
+    "content_reader": RiskLevel.READ,
+    "bookmarks": RiskLevel.WRITE,
+    "media_control": RiskLevel.WRITE,
+    # Weather / system
     "get_weather": RiskLevel.READ,
     "report_cpu_and_memory_percentages": RiskLevel.READ,
     "screenshot": RiskLevel.READ,
@@ -162,6 +168,32 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     "type_into_active_window": RiskLevel.SYSTEM,
     "lock_screen": RiskLevel.SYSTEM,
     "paste_clipboard_item": RiskLevel.SYSTEM,
+    # -- Phase 6: Windows control tools ------------------------------------
+    # Window management — reversible, no data loss
+    "window_action": RiskLevel.WRITE,
+    "list_windows": RiskLevel.READ,
+    # Timers — no system mutation, fully reversible
+    "set_timer": RiskLevel.WRITE,
+    "cancel_timer": RiskLevel.WRITE,
+    "list_timers": RiskLevel.READ,
+    # Power control — shutdown/restart are SYSTEM-level (irreversible)
+    "power_control": RiskLevel.SYSTEM,
+    # CLI runner — whitelisted read-only commands, but shell access = SYSTEM
+    "run_command": RiskLevel.SYSTEM,
+    # Downloads — creates files, network I/O
+    "download_file": RiskLevel.WRITE,
+    # Package manager — install/uninstall are destructive
+    "package_search": RiskLevel.READ,
+    "package_install": RiskLevel.DESTRUCTIVE,
+    "package_uninstall": RiskLevel.DESTRUCTIVE,
+    # Game saves — find is read-only, backup creates files
+    "find_game_saves": RiskLevel.READ,
+    "backup_game_saves": RiskLevel.WRITE,
+    "list_known_games": RiskLevel.READ,
+    # Process monitor — read-only info + blocking wait
+    "process_info": RiskLevel.READ,
+    "heavy_processes": RiskLevel.READ,
+    "wait_for_process": RiskLevel.READ,
 }
 
 

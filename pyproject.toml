@@ -72,11 +72,18 @@ dev = [
 aec = [
   "pywebrtc-audio",
 ]
+# Phase 7: Browser automation — optional Selenium + scraping deps.
+# Install via: pip install -e ".[browser]"
+browser = [
+  "selenium>=4,<5",
+  "beautifulsoup4>=4,<5",
+]
 # All optional dependencies combined — for one-step full install.
 # Install via: pip install -e ".[all]"
 all = [
   "jarvis[dev]",
   "jarvis[embeddings]",
+  "jarvis[browser]",
   "jarvis[aec]",
 ]
 

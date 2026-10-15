@@ -315,27 +315,44 @@ def test_setup_local_tools_registers_the_phase_4_set():
     setup_local_tools(reg)
     names = sorted(t.name for t in reg.list_enabled())
     assert names == [
+        "backup_game_saves",
+        "cancel_timer",
         "clipboard",
         "close_app",
+        "download_file",
+        "find_game_saves",
         "get_time",
         "get_weather",
+        "heavy_processes",
         "launch_steam_game",
         "launch_workspace",
         "list_directory",
+        "list_known_games",
+        "list_timers",
+        "list_windows",
         "lock_screen",
         "open_app",
         "open_url",
+        "package_install",
+        "package_search",
+        "package_uninstall",
         "play_youtube_music",
+        "power_control",
+        "process_info",
         # Renamed from "system_stats" because the short name read as a
         # generic "tell me about the system" probe and the LLM was
         # firing it for ambiguous transcriptions ("jot", "in chat",
         # "capital of france"). The verbose action-specific name keeps
         # it out of the model's fallback set.
         "report_cpu_and_memory_percentages",
+        "run_command",
         "screenshot",
+        "set_timer",
         "switch_language",
         # type_into_active_window is omitted: disabled by default in ToolsConfig
         "volume",
+        "wait_for_process",
+        "window_action",
     ]
 
 

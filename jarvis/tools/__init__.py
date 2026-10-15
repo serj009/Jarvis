@@ -74,12 +74,34 @@ def setup_local_tools(
     from jarvis.tools.local.open_url import OpenUrlTool
     from jarvis.tools.local.play_youtube_music import PlayYoutubeMusicTool
     from jarvis.tools.local.screenshot import ScreenshotTool
+    from jarvis.tools.local.browser_tabs import BrowserTabsTool
+    from jarvis.tools.local.content_reader import ContentReaderTool
+    from jarvis.tools.local.bookmarks import BookmarksTool
+    from jarvis.tools.local.media_control import MediaControlTool
     from jarvis.tools.local.switch_language import SwitchLanguageTool
     from jarvis.tools.local.see_screen import SeeScreenTool
     from jarvis.tools.local.system_stats import SystemStatsTool
     from jarvis.tools.local.type_into_active_window import TypeIntoActiveWindowTool
     from jarvis.tools.local.volume import VolumeTool
     from jarvis.tools.local.weather import WeatherTool
+
+    # Phase 6: Windows control modules
+    from jarvis.tools.local.window_manager import WindowActionTool, ListWindowsTool
+    from jarvis.tools.local.timers import SetTimerTool, CancelTimerTool, ListTimersTool
+    from jarvis.tools.local.power_control import PowerControlTool
+    from jarvis.tools.local.cli_runner import CLIRunnerTool
+    from jarvis.tools.local.download_manager import DownloadFileTool
+    from jarvis.tools.local.package_manager import (
+        PackageSearchTool,
+        PackageInstallTool,
+        PackageUninstallTool,
+    )
+    from jarvis.tools.local.game_saves import (
+        FindGameSavesTool, BackupGameSavesTool, ListKnownGamesTool,
+    )
+    from jarvis.tools.local.process_monitor import (
+        ProcessInfoTool, HeavyProcessesTool, WaitForProcessTool,
+    )
 
     weather_cfg = getattr(config, "weather", None)
     if weather_cfg is None:
@@ -127,6 +149,10 @@ def setup_local_tools(
 
     base_tools: list[Tool[Any]] = [
         ClipboardTool(),
+        BrowserTabsTool(),
+        ContentReaderTool(),
+        BookmarksTool(),
+        MediaControlTool(),
         CloseAppTool(),
         GetTimeTool(),
         ListDirectoryTool(path_validator=path_validator),
@@ -142,6 +168,24 @@ def setup_local_tools(
         SwitchLanguageTool(stt=stt, tts_manager=tts_manager),
         VolumeTool(),
         WeatherTool(weather_config=weather_cfg, save_fn=weather_save_fn),
+        # Phase 6: Windows control tools
+        WindowActionTool(),
+        ListWindowsTool(),
+        SetTimerTool(),
+        CancelTimerTool(),
+        ListTimersTool(),
+        PowerControlTool(),
+        CLIRunnerTool(),
+        DownloadFileTool(),
+        PackageSearchTool(),
+        PackageInstallTool(),
+        PackageUninstallTool(),
+        FindGameSavesTool(),
+        BackupGameSavesTool(),
+        ListKnownGamesTool(),
+        ProcessInfoTool(),
+        HeavyProcessesTool(),
+        WaitForProcessTool(),
     ]
     # SeeScreenTool needs an OllamaClient to call /api/chat with images.
     # Tests that pass None happily register every text-only tool but skip
