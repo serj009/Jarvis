@@ -195,6 +195,65 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     "process_info": RiskLevel.READ,
     "heavy_processes": RiskLevel.READ,
     "wait_for_process": RiskLevel.READ,
+    # -- Phase 7 batch 2: browser-power tools ------------------------------
+    # Price lookup — read-only web scraping
+    "price_lookup": RiskLevel.READ,
+    # YouTube summary — read-only (downloads subtitles + LLM call)
+    "youtube_summary": RiskLevel.READ,
+    # Full page screenshot — read-only capture
+    "full_page_screenshot": RiskLevel.READ,
+    # Image scraper — downloads files to disk
+    "scrape_images": RiskLevel.WRITE,
+    # -- Page monitoring / comparison / form fill / translation -------------
+    "start_page_monitor": RiskLevel.WRITE,
+    "stop_page_monitor": RiskLevel.WRITE,
+    "check_page_changes": RiskLevel.READ,
+    "list_page_monitors": RiskLevel.READ,
+    "compare_pages": RiskLevel.READ,
+    "fill_form": RiskLevel.WRITE,
+    "translate_page": RiskLevel.READ,
+    # -- Phase 6 batch 2: Windows tools ------------------------------------
+    # Display manager — brightness/night mode are reversible
+    "set_brightness": RiskLevel.WRITE,
+    "toggle_night_mode": RiskLevel.WRITE,
+    "display_info": RiskLevel.READ,
+    # Startup manager — remove is destructive, add is write
+    "list_startup": RiskLevel.READ,
+    "remove_from_startup": RiskLevel.DESTRUCTIVE,
+    "add_to_startup": RiskLevel.WRITE,
+    # Network tools — read-only
+    "my_ip": RiskLevel.READ,
+    "speed_test": RiskLevel.READ,
+    "network_info": RiskLevel.READ,
+    # Disk cleaner — clean is destructive
+    "disk_space": RiskLevel.READ,
+    "find_large_folders": RiskLevel.READ,
+    "clean_temp_files": RiskLevel.DESTRUCTIVE,
+    # Hotkey sender — safe combos READ, dangerous combos gated in code
+    "send_hotkey": RiskLevel.WRITE,
+    # Notifications — reversible
+    "show_notification": RiskLevel.WRITE,
+    "schedule_notification": RiskLevel.WRITE,
+    # -- Phase 7 batch 3: browser/cross tools ------------------------------
+    # Tab manager — reversible browser actions
+    "close_other_tabs": RiskLevel.WRITE,
+    "count_tabs": RiskLevel.READ,
+    "find_tab": RiskLevel.READ,
+    "duplicate_tab": RiskLevel.WRITE,
+    # Password generator — read-only (generates, optional clipboard)
+    "generate_password": RiskLevel.READ,
+    # RSS reader — subscriptions stored locally
+    "subscribe_rss": RiskLevel.WRITE,
+    "unsubscribe_rss": RiskLevel.WRITE,
+    "list_rss_feeds": RiskLevel.READ,
+    "get_latest_news": RiskLevel.READ,
+    # QR share — creates files, opens viewer
+    "generate_qr": RiskLevel.WRITE,
+    "share_to_phone": RiskLevel.WRITE,
+    # Focus mode — modifies behavior/hosts file
+    "start_focus_mode": RiskLevel.WRITE,
+    "stop_focus_mode": RiskLevel.WRITE,
+    "focus_mode_status": RiskLevel.READ,
 }
 
 

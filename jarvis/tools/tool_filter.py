@@ -62,12 +62,15 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
     "browser": {
         "tools": [
             "browser_tabs", "content_reader", "bookmarks", "media_control",
+            "close_other_tabs", "count_tabs", "find_tab", "duplicate_tab",
         ],
         "keywords_en": [
             "tab", "new tab", "close tab", "switch tab",
             "back", "forward", "refresh", "bookmark",
             "read page", "page content", "save page",
             "pause", "resume", "next track", "fullscreen",
+            "close other tabs", "how many tabs", "count tabs",
+            "find tab", "duplicate tab",
         ],
         "keywords_ru": [
             "вкладк", "новая вкладк", "закрой вкладк",
@@ -76,6 +79,7 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
             "прочитай страниц", "контент страниц",
             "пауза", "продолж", "следующ", "полный экран",
             "трек", "стоп",
+            "закрой остальные", "сколько вкладок", "найди вкладку", "дублируй вкладку",
         ],
         "keywords_uk": [
             "вкладк", "нова вкладк", "закрий вкладк",
@@ -84,6 +88,7 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
             "прочитай сторінк", "контент сторінк",
             "пауза", "продовж", "наступн", "повний екран",
             "трек", "стоп",
+            "закрий інші", "скільки вкладок", "знайди вкладку", "дублюй вкладку",
         ],
     },
     "knowledge": {
@@ -342,6 +347,294 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
         "keywords_uk": [
             "процес", "скільки пам", "їсть", "зачекай",
             "встановлювач",
+        ],
+    },
+    # -- Phase 7 batch 2: browser-power tools ------------------------------
+    "price_comparison": {
+        "tools": [
+            "price_lookup",
+        ],
+        "keywords_en": [
+            "price", "cheaper", "cheapest", "compare price",
+            "best deal", "deal",
+        ],
+        "keywords_ru": [
+            "цен", "дешевл", "сравни цен", "лучшая цена",
+            "где купить",
+        ],
+        "keywords_uk": [
+            "цін", "дешевш", "порівняй цін", "найкраща ціна",
+            "де купити",
+        ],
+    },
+    "video_summary": {
+        "tools": [
+            "youtube_summary",
+        ],
+        "keywords_en": [
+            "summarize video", "video summary", "what's this video",
+            "video about",
+        ],
+        "keywords_ru": [
+            "суммаризируй видео", "о чём видео", "краткое содержание видео",
+            "что в видео",
+        ],
+        "keywords_uk": [
+            "підсумуй відео", "про що відео", "коротко про відео",
+            "що в відео",
+        ],
+    },
+    "full_page_screenshot": {
+        "tools": [
+            "full_page_screenshot",
+        ],
+        "keywords_en": [
+            "full page screenshot", "entire page", "whole page",
+            "full screenshot",
+        ],
+        "keywords_ru": [
+            "скриншот всей страниц", "снимок всей страниц",
+            "скрин целой страниц",
+        ],
+        "keywords_uk": [
+            "скріншот всієї сторінк", "знімок всієї сторінк",
+            "скрін цілої сторінк",
+        ],
+    },
+    "image_scraping": {
+        "tools": [
+            "scrape_images",
+        ],
+        "keywords_en": [
+            "download images", "scrape images", "save images",
+            "all images", "all pictures",
+        ],
+        "keywords_ru": [
+            "скачай картинк", "скачай изображени", "сохрани картинк",
+        ],
+        "keywords_uk": [
+            "скачай картинк", "скачай зображенн", "збережи картинк",
+        ],
+    },
+    "page_monitor": {
+        "tools": [
+            "start_page_monitor", "stop_page_monitor",
+            "check_page_changes", "list_page_monitors",
+        ],
+        "keywords_en": [
+            "monitor", "watch page", "track changes", "page changed",
+            "stop monitoring",
+        ],
+        "keywords_ru": [
+            "следи за страниц", "отслежива", "что изменилось",
+            "перестань следить", "мониторинг",
+        ],
+        "keywords_uk": [
+            "стеж за сторінк", "відстежуй", "що змінилось",
+            "перестань стежити", "моніторинг",
+        ],
+    },
+    "page_compare": {
+        "tools": [
+            "compare_pages",
+        ],
+        "keywords_en": [
+            "compare pages", "compare tabs", "difference between",
+        ],
+        "keywords_ru": [
+            "сравни страниц", "сравни вкладк", "разница между",
+        ],
+        "keywords_uk": [
+            "порівняй сторінк", "порівняй вкладк", "різниця між",
+        ],
+    },
+    "form_fill": {
+        "tools": [
+            "fill_form",
+        ],
+        "keywords_en": [
+            "fill form", "auto-fill", "autofill",
+        ],
+        "keywords_ru": [
+            "заполни форму", "автозаполнен",
+        ],
+        "keywords_uk": [
+            "заповни форму", "автозаповнен",
+        ],
+    },
+    "page_translate": {
+        "tools": [
+            "translate_page",
+        ],
+        "keywords_en": [
+            "translate page", "translate to",
+        ],
+        "keywords_ru": [
+            "переведи страниц", "переведи на",
+        ],
+        "keywords_uk": [
+            "переклади сторінк", "переклади на",
+        ],
+    },
+    # -- Phase 6 batch 2: Windows tools ------------------------------------
+    "display": {
+        "tools": [
+            "set_brightness", "toggle_night_mode", "display_info",
+        ],
+        "keywords_en": [
+            "brightness", "night mode", "night light", "display",
+            "monitor", "resolution", "screen info",
+        ],
+        "keywords_ru": [
+            "яркость", "ночной режим", "дисплей", "монитор",
+            "разрешение", "экран",
+        ],
+        "keywords_uk": [
+            "яскравість", "нічний режим", "дисплей", "монітор",
+            "роздільна здатність", "екран",
+        ],
+    },
+    "startup": {
+        "tools": [
+            "list_startup", "remove_from_startup", "add_to_startup",
+        ],
+        "keywords_en": [
+            "startup", "boot", "autostart", "auto start",
+        ],
+        "keywords_ru": [
+            "автозагрузк", "автозапуск", "загрузк",
+        ],
+        "keywords_uk": [
+            "автозавантаженн", "автозапуск",
+        ],
+    },
+    "network": {
+        "tools": [
+            "my_ip", "speed_test", "network_info",
+        ],
+        "keywords_en": [
+            "ip address", "my ip", "speed test", "internet speed",
+            "network", "ping", "interface",
+        ],
+        "keywords_ru": [
+            "айпи", "ip адрес", "скорость интернет", "сет",
+            "пинг", "интерфейс",
+        ],
+        "keywords_uk": [
+            "айпі", "ip адрес", "швидкість інтернет", "мереж",
+            "пінг", "інтерфейс",
+        ],
+    },
+    "disk": {
+        "tools": [
+            "disk_space", "find_large_folders", "clean_temp_files",
+        ],
+        "keywords_en": [
+            "disk", "drive", "free space", "storage",
+            "temp files", "temporary", "large folders", "biggest folders",
+            "clean",
+        ],
+        "keywords_ru": [
+            "диск", "место", "свободн", "хранилищ",
+            "временны", "большие папки", "почисти",
+        ],
+        "keywords_uk": [
+            "диск", "місце", "вільн", "сховищ",
+            "тимчасов", "найбільші папки", "почисти",
+        ],
+    },
+    "hotkeys": {
+        "tools": [
+            "send_hotkey",
+        ],
+        "keywords_en": [
+            "press", "hotkey", "shortcut", "combo", "key combination",
+        ],
+        "keywords_ru": [
+            "нажми", "горячая клавиш", "комбинаци", "клавиш",
+        ],
+        "keywords_uk": [
+            "натисни", "гаряча клавіш", "комбінаці", "клавіш",
+        ],
+    },
+    "notifications": {
+        "tools": [
+            "show_notification", "schedule_notification",
+        ],
+        "keywords_en": [
+            "notification", "notify", "alert", "toast",
+        ],
+        "keywords_ru": [
+            "уведомлени", "оповещени", "алерт",
+        ],
+        "keywords_uk": [
+            "сповіщенн", "оповіщенн", "алерт",
+        ],
+    },
+    # -- Phase 7 batch 3: browser/cross tools ------------------------------
+    "security": {
+        "tools": [
+            "generate_password",
+        ],
+        "keywords_en": [
+            "password", "passphrase", "generate password", "random password",
+        ],
+        "keywords_ru": [
+            "пароль", "парольн", "сгенерируй пароль", "случайный пароль",
+            "придумай пароль",
+        ],
+        "keywords_uk": [
+            "пароль", "парольн", "згенеруй пароль", "випадковий пароль",
+            "придумай пароль",
+        ],
+    },
+    "rss_news": {
+        "tools": [
+            "subscribe_rss", "unsubscribe_rss",
+            "list_rss_feeds", "get_latest_news",
+        ],
+        "keywords_en": [
+            "rss", "feed", "news", "subscribe", "unsubscribe",
+            "what's new", "latest news",
+        ],
+        "keywords_ru": [
+            "rss", "лент", "новост", "подпишись", "отпишись",
+            "что нового", "последние новост",
+        ],
+        "keywords_uk": [
+            "rss", "стрічк", "новин", "підпишись", "відпишись",
+            "що нового", "останні новин",
+        ],
+    },
+    "qr_share": {
+        "tools": [
+            "generate_qr", "share_to_phone",
+        ],
+        "keywords_en": [
+            "qr", "qr code", "share to phone", "share link",
+        ],
+        "keywords_ru": [
+            "qr", "куар", "на телефон", "поделись ссылк",
+        ],
+        "keywords_uk": [
+            "qr", "куар", "на телефон", "поділись посиланн",
+        ],
+    },
+    "focus": {
+        "tools": [
+            "start_focus_mode", "stop_focus_mode", "focus_mode_status",
+        ],
+        "keywords_en": [
+            "focus", "focus mode", "work mode", "block site",
+            "distract", "concentrate",
+        ],
+        "keywords_ru": [
+            "фокус", "режим фокуса", "режим работы", "заблокируй сайт",
+            "отвлека", "концентрац",
+        ],
+        "keywords_uk": [
+            "фокус", "режим фокусу", "режим роботи", "заблокуй сайт",
+            "відволіка", "концентрац",
         ],
     },
 }
