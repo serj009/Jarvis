@@ -84,6 +84,16 @@ security = [
   "argon2-cffi>=21,<24",
   "cryptography>=41,<44",
 ]
+# Extra optional tools — QR codes, YouTube subtitles, notifications, etc.
+# Install via: pip install -e ".[extras]"
+extras = [
+  "qrcode>=7,<9",
+  "yt-dlp>=2024,<2028",
+  "plyer>=2,<3",
+  "wmi>=1.5,<2; sys_platform == 'win32'",
+  "pygetwindow>=0.0.9,<1; sys_platform == 'win32'",
+]
+
 # All optional dependencies combined — for one-step full install.
 # Install via: pip install -e ".[all]"
 all = [
@@ -91,6 +101,7 @@ all = [
   "jarvis[embeddings]",
   "jarvis[browser]",
   "jarvis[security]",
+  "jarvis[extras]",
   "jarvis[aec]",
 ]
 

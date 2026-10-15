@@ -5,6 +5,45 @@
 
 ---
 
+## 2026-10-15 — Security: 4-layer defense + crypto vault + encrypted storage (schema v31)
+
+### Summary
+Full security overhaul: 4-layer defense system against malicious LLM, crypto-grade password vault 
+(Argon2id + AES-256-GCM + DPAPI), encrypted storage for all user data, and dependency audit fixes.
+
+### Encrypted Storage (data at rest)
+- `jarvis/platform/encrypted_store.py` — EncryptedJsonStore (DPAPI + JRVS_ENC header)
+- `jarvis/platform/encrypted_db.py` — SQLite column-level encryption
+- 11 JSON stores migrated to encrypted: user_profile, aliases, bookmarks, timers, RSS, monitors, etc.
+- Memory SQLite: text, tags, condensed_text columns encrypted
+- SecurityConfig added to config.py, migration v30→v31
+
+### 4-Layer Defense System
+| Layer | Module | What |
+|-------|--------|------|
+| 1 | `origin_tracker.py` | HMAC-signed user voice input |
+| 2 | `leak_scanner.py` | Personal data exfiltration detection in URLs |
+| 3 | `output_sanitizer.py` | Prompt injection + suspicious tool chain detection |
+| 4 | `audit_log.py` | Hash-chained DPAPI-encrypted audit log |
+| Gate | `tool_guard.py` | Unified security checkpoint for all tool calls |
+
+### Crypto Password Vault
+- `password_vault.py` — 3-layer encryption: Argon2id → AES-256-GCM → DPAPI
+- `auto_login.py` — Login to sites, password NEVER enters LLM context
+- `vault_manager.py` — 6 management tools (save/list/remove/unlock/lock/change)
+
+### Dependency Audit Fix
+- Added [extras] group: qrcode, yt-dlp, plyer, wmi, pygetwindow
+- Added to [all] group
+- All lazy imports verified with fallbacks
+
+### Stats
+- 25 new/modified files
+- 200 new security test functions
+- Schema v31
+
+---
+
 ## 2026-10-15 — 20 new tools: browser scenarios + windows extended + knowledge extractor
 
 ### Summary
