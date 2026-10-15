@@ -1,5 +1,4 @@
-
-from jarvis.core.game_mode import GameMode
+"""JarvisApp — composition root for the desktop voice assistant.
 
 
 
@@ -216,6 +215,7 @@ from jarvis.core.errors import ErrorHandler
 
 
 from jarvis.core.personalization import PersonalizationContext
+from jarvis.core.game_mode import GameMode
 from jarvis.core.logging_utils import JsonFormatter
 
 
