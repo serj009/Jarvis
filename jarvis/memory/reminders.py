@@ -189,7 +189,8 @@ async def check_reminders(
     try:
         # Search by tag for exact trigger match
         results = await memory_store.search(
-            tag, category="reminder", limit=20,
+            "REMINDER", category="reminder", tag=tag,
+            limit=20,
         )
 
         reminders: list[str] = []

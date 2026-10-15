@@ -571,7 +571,8 @@ def _migrate_v25_to_v26(data: dict) -> dict:
     # model_size is deliberately left untouched (see docstring).
     if "device" not in stt:
         stt["device"] = "auto"
-        stt["compute_type"] = "auto"
+        if stt.get("compute_type", "int8") == "int8":
+            stt["compute_type"] = "auto"
     data["schema_version"] = 26
     return data
 
