@@ -72,6 +72,14 @@ dev = [
 aec = [
   "pywebrtc-audio",
 ]
+# All optional dependencies combined — for one-step full install.
+# Install via: pip install -e ".[all]"
+all = [
+  "jarvis[dev]",
+  "jarvis[embeddings]",
+  "jarvis[aec]",
+]
+
 # T4.2: Semantic memory search — optional heavy dependencies.
 # Install via: pip install -e ".[embeddings]"
 embeddings = [

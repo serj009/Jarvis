@@ -268,9 +268,9 @@ def step_dependencies() -> tuple[str, str, str]:
         )
         pre_count = len(json.loads(result.stdout)) if result.returncode == 0 else 0
 
-        print("      Установка зависимостей (pip install -e '.[dev,embeddings]')...")
+        print("      Установка зависимостей (pip install -e '.[all]')...")
         proc = subprocess.run(
-            [pip, "install", "-e", f"{ROOT}[dev,embeddings]"],
+            [pip, "install", "-e", f"{ROOT}[all]"],
             capture_output=True, text=True, timeout=600,
         )
         if proc.returncode != 0:
@@ -519,23 +519,53 @@ except Exception as e:
 
 def step_ollama() -> tuple[str, str, str]:
     """[8/9] Check Ollama availability and model status."""
+    # Check if ollama CLI is available
+    ollama_exe = shutil.which("ollama")
+
     data = _get_json(f"{OLLAMA_API}/api/tags")
+    if data is None:
+        # Ollama not running — try to find and start it
+        if ollama_exe:
+            print("      Ollama не запущен, пробуем запустить...")
+            try:
+                subprocess.Popen(
+                    [ollama_exe, "serve"],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                )
+                time.sleep(3)  # Wait for startup
+                data = _get_json(f"{OLLAMA_API}/api/tags")
+            except OSError:
+                pass
+
     if data is None:
         return (
             "Ollama",
             WARN,
-            "Ollama не запущен. Установите: https://ollama.com и запустите: ollama serve",
+            "Ollama не запущен и не найден. Установите: https://ollama.com",
         )
 
     models = [m.get("name", "") for m in data.get("models", [])]
     if DEFAULT_OLLAMA_MODEL in models or any(DEFAULT_OLLAMA_MODEL.split(":")[0] in m for m in models):
         return "Ollama", OK, f"({DEFAULT_OLLAMA_MODEL})"
-    else:
-        return (
-            "Ollama",
-            WARN,
-            f"Модель {DEFAULT_OLLAMA_MODEL} не найдена. Запустите: ollama pull {DEFAULT_OLLAMA_MODEL}",
-        )
+
+    # Model not found — try to pull it
+    if ollama_exe:
+        print(f"      Скачивание модели {DEFAULT_OLLAMA_MODEL} (это может занять несколько минут)...")
+        try:
+            proc = subprocess.run(
+                [ollama_exe, "pull", DEFAULT_OLLAMA_MODEL],
+                timeout=1800,  # 30 min for large models
+            )
+            if proc.returncode == 0:
+                return "Ollama", OK, f"({DEFAULT_OLLAMA_MODEL}, скачано)"
+        except (subprocess.SubprocessError, OSError) as exc:
+            print(f"      Ошибка скачивания: {exc}")
+
+    return (
+        "Ollama",
+        WARN,
+        f"Модель {DEFAULT_OLLAMA_MODEL} не найдена. Запустите: ollama pull {DEFAULT_OLLAMA_MODEL}",
+    )
 
 
 def step_embeddings() -> tuple[str, str, str]:
