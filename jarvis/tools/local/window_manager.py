@@ -267,8 +267,8 @@ class ListWindowsTool:
     requires_confirmation: bool = False
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
         VoicePattern(regex=r"^list\s+(?:all\s+)?windows$", priority=200),
-        VoicePattern(regex=r"^(?:список|покажи)\s+ок(?:о|о)н$", priority=200),
-        VoicePattern(regex=r"^(?:список|покажи)\s+вік(?:о|о)н$", priority=200),
+        VoicePattern(regex=r"^(?:список|покажи)\s+окон$", priority=200),
+        VoicePattern(regex=r"^(?:список|покажи)\s+вікон$", priority=200),
         VoicePattern(
             regex=r"^(?:какие|які)\s+окна\s+открыт[ыо]$", priority=200
         ),

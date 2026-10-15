@@ -86,6 +86,25 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
             "трек", "стоп",
         ],
     },
+    "knowledge": {
+        "tools": [
+            "save_page_knowledge",
+        ],
+        "keywords_en": [
+            "save page", "remember page", "extract knowledge",
+            "save information from page", "page knowledge",
+        ],
+        "keywords_ru": [
+            "сохрани информацию со страниц", "запомни страниц",
+            "сохрани знания", "запомни что на странице",
+            "извлеки знания",
+        ],
+        "keywords_uk": [
+            "збережи інформацію зі сторінк", "запамʼятай сторінк",
+            "збережи знання", "запамʼятай що на сторінц",
+            "витягни знання",
+        ],
+    },
     "media": {
         "tools": [
             "play_youtube_music", "launch_steam_game", "volume",
