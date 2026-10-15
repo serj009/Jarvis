@@ -102,6 +102,15 @@ class _Conv:
             )
         return msgs
 
+    def clear_injected_context(self) -> None:
+        pass
+
+    def inject_context(self, ctx: str | None) -> None:
+        pass
+
+    def add_tool_round_trip(self, *, content: str = "", exchanges=()) -> list[dict]:
+        return self.current_messages()
+
 
 def _content_chunk(text: str, *, done: bool = False) -> ChatChunk:
     return ChatChunk(content=text, done=done)
@@ -485,12 +494,14 @@ async def test_tool_call_in_final_chunk_yields_tool_intent():
 
 
 async def test_play_and_launch_phrases_use_llm_not_pattern():
-    """Music and game requests are not pattern-matched; the LLM chooses
-    play_youtube_music vs launch_steam_game from context."""
+    """Ambiguous play/music requests are not pattern-matched; the LLM
+    chooses play_youtube_music vs launch_steam_game from context.
+
+    Unambiguous phrases like 'launch X on steam' ARE pattern-matched
+    (launch_steam_game voice patterns)."""
     router, llm, conv = _make_router()
     for phrase in (
         "play bohemian rhapsody",
-        "launch elden ring on steam",
         "play some jazz",
     ):
         llm.stream_calls = 0

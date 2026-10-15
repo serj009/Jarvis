@@ -76,15 +76,10 @@ class PlayYoutubeMusicTool:
     # but do NOT catch ambiguous "включи хром" (which has no music keyword
     # and should fall through to open_app).
     #
-    # "включи джаз" without a music keyword is deliberately NOT matched here
-    # — it goes to the LLM which can disambiguate based on context.
+    # EN has no pattern: bare "play X" is ambiguous (song? game? video?)
+    # and goes to the LLM which chooses play_youtube_music vs
+    # launch_steam_game from context.
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
-        # EN: "play pink floyd", "put on some jazz", "listen to bach"
-        VoicePattern(
-            regex=r"^(?:play|put on|listen to)\s+(.+?)(?:\s+on\s+youtube)?$",
-            priority=100,
-            args=lambda m: {"query": m.group(1)},
-        ),
         # RU: "поставь музыку джаз", "включи музыку рок", "воспроизведи песню"
         # Requires a music keyword to avoid stealing "включи хром" from open_app.
         VoicePattern(
