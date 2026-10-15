@@ -67,7 +67,14 @@ def _local_tool_classes() -> tuple[type, ...]:
         PasteClipboardItemTool,
         ShowClipboardHistoryTool,
     )
-    from jarvis.tools.local.close_app import CloseAppTool
+    from jarvis.tools.local.page_monitor import (
+        StartPageMonitorTool, StopPageMonitorTool,
+        CheckPageChangesTool, ListPageMonitorsTool,
+    )
+    from jarvis.tools.local.page_compare import ComparePagesTool
+    from jarvis.tools.local.smart_form_fill import SmartFormFillTool
+    from jarvis.tools.local.page_translate import TranslatePageTool
+
     from jarvis.tools.local.content_reader import ContentReaderTool
     from jarvis.tools.local.dashboard_tools import CloseDashboardTool, ShowDashboardTool
     from jarvis.tools.local.deep_research_tools import (
@@ -128,6 +135,41 @@ def _local_tool_classes() -> tuple[type, ...]:
     )
     from jarvis.tools.local.process_monitor import (
         ProcessInfoTool, HeavyProcessesTool, WaitForProcessTool,
+    )
+    # Phase 7 batch 2: browser-power tools
+    from jarvis.tools.local.price_lookup import PriceLookupTool
+    from jarvis.tools.local.youtube_summary import YoutubeSummaryTool
+    from jarvis.tools.local.full_page_screenshot import FullPageScreenshotTool
+    from jarvis.tools.local.image_scraper import ScrapeImagesTool
+    # Phase 6 batch 2: Windows tools
+    from jarvis.tools.local.display_manager import (
+        SetBrightnessTool, ToggleNightModeTool, DisplayInfoTool,
+    )
+    from jarvis.tools.local.startup_manager import (
+        ListStartupTool, RemoveFromStartupTool, AddToStartupTool,
+    )
+    from jarvis.tools.local.network_tools import (
+        MyIpTool, SpeedTestTool, NetworkInfoTool,
+    )
+    from jarvis.tools.local.disk_cleaner import (
+        DiskSpaceTool, FindLargeFoldersTool, CleanTempFilesTool,
+    )
+    from jarvis.tools.local.hotkey_sender import SendHotkeyTool
+    from jarvis.tools.local.win_notifications import (
+        ShowNotificationTool, ScheduleNotificationTool,
+    )
+    # Phase 7 batch 3: browser/cross tools
+    from jarvis.tools.local.tab_manager import (
+        CloseOtherTabsTool, CountTabsTool, FindTabTool, DuplicateTabTool,
+    )
+    from jarvis.tools.local.password_gen import GeneratePasswordTool
+    from jarvis.tools.local.rss_reader import (
+        SubscribeRssTool, UnsubscribeRssTool,
+        ListRssFeedsTool, GetLatestNewsTool,
+    )
+    from jarvis.tools.local.qr_share import GenerateQrTool, ShareToPhoneTool
+    from jarvis.tools.local.focus_mode import (
+        StartFocusModeTool, StopFocusModeTool, FocusModeStatusTool,
     )
 
     return (
@@ -196,6 +238,50 @@ def _local_tool_classes() -> tuple[type, ...]:
         ProcessInfoTool,
         HeavyProcessesTool,
         WaitForProcessTool,
+        # Page monitoring / comparison / form fill / translation
+        StartPageMonitorTool,
+        StopPageMonitorTool,
+        CheckPageChangesTool,
+        ListPageMonitorsTool,
+        ComparePagesTool,
+        SmartFormFillTool,
+        TranslatePageTool,
+        # Phase 7 batch 2: browser-power tools
+        PriceLookupTool,
+        YoutubeSummaryTool,
+        FullPageScreenshotTool,
+        ScrapeImagesTool,
+        # Phase 6 batch 2: Windows tools
+        SetBrightnessTool,
+        ToggleNightModeTool,
+        DisplayInfoTool,
+        ListStartupTool,
+        RemoveFromStartupTool,
+        AddToStartupTool,
+        MyIpTool,
+        SpeedTestTool,
+        NetworkInfoTool,
+        DiskSpaceTool,
+        FindLargeFoldersTool,
+        CleanTempFilesTool,
+        SendHotkeyTool,
+        ShowNotificationTool,
+        ScheduleNotificationTool,
+        # Phase 7 batch 3: browser/cross tools
+        CloseOtherTabsTool,
+        CountTabsTool,
+        FindTabTool,
+        DuplicateTabTool,
+        GeneratePasswordTool,
+        SubscribeRssTool,
+        UnsubscribeRssTool,
+        ListRssFeedsTool,
+        GetLatestNewsTool,
+        GenerateQrTool,
+        ShareToPhoneTool,
+        StartFocusModeTool,
+        StopFocusModeTool,
+        FocusModeStatusTool,
     )
 
 

@@ -97,11 +97,52 @@ def setup_local_tools(
         PackageInstallTool,
         PackageUninstallTool,
     )
+    # Phase 7 batch 2: browser-power tools
+    from jarvis.tools.local.price_lookup import PriceLookupTool
+    from jarvis.tools.local.full_page_screenshot import FullPageScreenshotTool
+    from jarvis.tools.local.image_scraper import ScrapeImagesTool
     from jarvis.tools.local.game_saves import (
         FindGameSavesTool, BackupGameSavesTool, ListKnownGamesTool,
     )
     from jarvis.tools.local.process_monitor import (
         ProcessInfoTool, HeavyProcessesTool, WaitForProcessTool,
+    )
+    from jarvis.tools.local.page_monitor import (
+        StartPageMonitorTool, StopPageMonitorTool,
+        CheckPageChangesTool, ListPageMonitorsTool,
+    )
+    from jarvis.tools.local.page_compare import ComparePagesTool
+    from jarvis.tools.local.smart_form_fill import SmartFormFillTool
+    from jarvis.tools.local.page_translate import TranslatePageTool
+    # Phase 6 batch 2: Windows tools
+    from jarvis.tools.local.display_manager import (
+        SetBrightnessTool, ToggleNightModeTool, DisplayInfoTool,
+    )
+    from jarvis.tools.local.startup_manager import (
+        ListStartupTool, RemoveFromStartupTool, AddToStartupTool,
+    )
+    from jarvis.tools.local.network_tools import (
+        MyIpTool, SpeedTestTool, NetworkInfoTool,
+    )
+    from jarvis.tools.local.disk_cleaner import (
+        DiskSpaceTool, FindLargeFoldersTool, CleanTempFilesTool,
+    )
+    from jarvis.tools.local.hotkey_sender import SendHotkeyTool
+    from jarvis.tools.local.win_notifications import (
+        ShowNotificationTool, ScheduleNotificationTool,
+    )
+    # Phase 7 batch 3: browser/cross tools
+    from jarvis.tools.local.tab_manager import (
+        CloseOtherTabsTool, CountTabsTool, FindTabTool, DuplicateTabTool,
+    )
+    from jarvis.tools.local.password_gen import GeneratePasswordTool
+    from jarvis.tools.local.rss_reader import (
+        SubscribeRssTool, UnsubscribeRssTool,
+        ListRssFeedsTool, GetLatestNewsTool,
+    )
+    from jarvis.tools.local.qr_share import GenerateQrTool, ShareToPhoneTool
+    from jarvis.tools.local.focus_mode import (
+        StartFocusModeTool, StopFocusModeTool, FocusModeStatusTool,
     )
 
     weather_cfg = getattr(config, "weather", None)
@@ -187,6 +228,47 @@ def setup_local_tools(
         ProcessInfoTool(),
         HeavyProcessesTool(),
         WaitForProcessTool(),
+        # Phase 7 batch 2: browser-power tools
+        PriceLookupTool(),
+        FullPageScreenshotTool(),
+        ScrapeImagesTool(),
+        # Page monitoring / comparison / form fill
+        StartPageMonitorTool(),
+        StopPageMonitorTool(),
+        CheckPageChangesTool(),
+        ListPageMonitorsTool(),
+        SmartFormFillTool(),
+        # Phase 6 batch 2: Windows tools
+        SetBrightnessTool(),
+        ToggleNightModeTool(),
+        DisplayInfoTool(),
+        ListStartupTool(),
+        RemoveFromStartupTool(),
+        AddToStartupTool(),
+        MyIpTool(),
+        SpeedTestTool(),
+        NetworkInfoTool(),
+        DiskSpaceTool(),
+        FindLargeFoldersTool(),
+        CleanTempFilesTool(),
+        SendHotkeyTool(),
+        ShowNotificationTool(),
+        ScheduleNotificationTool(),
+        # Phase 7 batch 3: browser/cross tools
+        CloseOtherTabsTool(),
+        CountTabsTool(),
+        FindTabTool(),
+        DuplicateTabTool(),
+        GeneratePasswordTool(),
+        SubscribeRssTool(),
+        UnsubscribeRssTool(),
+        ListRssFeedsTool(),
+        GetLatestNewsTool(),
+        GenerateQrTool(),
+        ShareToPhoneTool(),
+        StartFocusModeTool(),
+        StopFocusModeTool(),
+        FocusModeStatusTool(),
     ]
     # SeeScreenTool needs an OllamaClient to call /api/chat with images.
     # Tests that pass None happily register every text-only tool but skip
@@ -215,6 +297,15 @@ def setup_local_tools(
             relation_store=relation_store,
         ))
 
+    # Page comparison & translation — need ollama_client.
+    if ollama_client is not None:
+        registry.register(ComparePagesTool(
+            ollama_client=ollama_client,
+        ))
+        registry.register(TranslatePageTool(
+            ollama_client=ollama_client,
+        ))
+
     # T4.1: Memory tools — remember, recall, forget, status.
     if memory_store is not None:
         from jarvis.memory.tools import (
@@ -225,6 +316,14 @@ def setup_local_tools(
         )
         for tool in [RememberTool, RecallTool, ForgetTool, MemoryStatusTool]:
             registry.register(tool(memory_store=memory_store))
+
+    # YouTube summary — needs ollama_client for LLM summarisation.
+    if ollama_client is not None:
+        from jarvis.tools.local.youtube_summary import YoutubeSummaryTool as _YSTool
+        registry.register(_YSTool(ollama_client=ollama_client))
+    else:
+        # Register without LLM — tool will fail-fast with a clear error.
+        pass
 
 
 __all__ = [
