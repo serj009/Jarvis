@@ -63,7 +63,7 @@ class MemoryManager:
         knowledge_dir: Path | None = None,
         embedding_index: EmbeddingIndex | None = None,
         ollama_endpoint: str = "http://localhost:11434",
-        ollama_model: str = "qwen2.5:7b-instruct",
+        ollama_model: str = "qwen3:8b",
     ) -> None:
         self._data_root = data_root
 

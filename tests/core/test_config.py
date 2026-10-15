@@ -43,7 +43,7 @@ def test_defaults_match_spec():
     assert c.stt.device == "auto"
     assert c.stt.compute_type == "auto"
     assert c.tts.voice == "en_GB-alan-medium"
-    assert c.llm.model == "qwen2.5:7b-instruct"
+    assert c.llm.model == "qwen3:8b"
     assert c.llm.keep_alive_seconds == 1800
     assert c.llm.max_turns == 10
     assert c.llm.inactivity_timeout_seconds == 300

@@ -43,7 +43,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
-CURRENT_SCHEMA_VERSION = 29
+CURRENT_SCHEMA_VERSION = 30
 
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -159,7 +159,7 @@ class TTSConfig(_Base):
     #   voices_ru: "ru_RU-baranov-custom"
     voices_en: str = "en_GB-alan-medium"
     voices_ru: str = "ru_RU-dmitri-medium"
-    voices_uk: str = "uk_UA-mykyta-medium"
+    voices_uk: str = "uk_UA-mykyta-high"
     # Backend for future Qwen3-TTS: "piper" (CPU) or "qwen3_tts" (GPU)
     # When "auto", uses Qwen3 if available, falls back to Piper
     backend: str = "piper"
@@ -168,7 +168,7 @@ class TTSConfig(_Base):
 
 
 class LLMConfig(_Base):
-    model: str = "qwen2.5:7b-instruct"
+    model: str = "qwen3:8b"
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     max_tokens: int = Field(default=1024, gt=0)
     system_prompt: str = DEFAULT_SYSTEM_PROMPT

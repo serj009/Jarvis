@@ -6,7 +6,7 @@ Architecture:
     config:
         tts.voices.en = "en_GB-alan-medium"
         tts.voices.ru = "ru_RU-dmitri-medium"
-        tts.voices.uk = "uk_UA-mykyta-medium"
+        tts.voices.uk = "uk_UA-mykyta-high"
 
 Each language has its own voice assignment. When the detected language
 changes, the TTS provider can switch to the appropriate voice without
@@ -89,11 +89,12 @@ BUILTIN_VOICES: dict[str, VoiceProfile] = {
     ),
 
     # --- Ukrainian ---
-    "uk_UA-mykyta-medium": VoiceProfile(
-        name="uk_UA-mykyta-medium",
+    "uk_UA-mykyta-high": VoiceProfile(
+        name="uk_UA-mykyta-high",
         language="uk",
         display_name="Mykyta (Микита)",
         description="Ukrainian male voice. MIT license. Recommended.",
+        quality="high",
     ),
     "uk_UA-lada-x_low": VoiceProfile(
         name="uk_UA-lada-x_low",
@@ -160,7 +161,7 @@ class VoiceRegistry:
     DEFAULTS: dict[str, str] = {
         "en": "en_GB-alan-medium",
         "ru": "ru_RU-dmitri-medium",
-        "uk": "uk_UA-mykyta-medium",
+        "uk": "uk_UA-mykyta-high",
     }
 
     def __init__(self, voices_dir: Path | None = None) -> None:

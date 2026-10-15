@@ -569,6 +569,7 @@ def _make_router_adapter(
 
     registry: ToolRegistry,
     memory_store: MemoryStore | None = None,
+    user_profile: UserProfile | None = None,
 
 
 ):
@@ -711,7 +712,7 @@ def _make_router_adapter(
                     asyncio.create_task(
                         auto_save_facts(
                             memory_store, transcription,
-                            user_profile=self.user_profile,
+                            user_profile=user_profile,
                         ),
                     )
                 except Exception:
@@ -2840,7 +2841,7 @@ class JarvisApp:
             tts=self.tts,
 
 
-            response_producer=_make_router_adapter(self.router, self.conversation, self.registry, self.memory_store),
+            response_producer=_make_router_adapter(self.router, self.conversation, self.registry, self.memory_store, self.user_profile),
 
 
             bus=self.bus,

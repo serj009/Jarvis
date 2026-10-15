@@ -55,7 +55,7 @@
 
 ```bash
 # 1. Install Ollama and pull the model
-ollama pull qwen2.5:7b-instruct
+ollama pull qwen3:8b
 
 # 2. Clone and setup
 git clone https://github.com/serj009/Jarvis.git

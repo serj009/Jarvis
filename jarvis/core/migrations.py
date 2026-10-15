@@ -631,6 +631,33 @@ def _migrate_v28_to_v29(data: dict) -> dict:
     return data
 
 
+def _migrate_v29_to_v30(data: dict) -> dict:
+    """Schema v30: Sync LLM model default + fix Ukrainian voice quality.
+
+    1. LLM model: setup_jarvis.py downloads qwen3:8b but config defaulted
+       to qwen2.5:7b-instruct.  Align the default to what setup actually
+       installs so a fresh clone works without manual ollama pull.
+       Only migrate if the user still has the old default.
+
+    2. Ukrainian TTS voice: uk_UA-mykyta-medium does not exist on
+       HuggingFace (only "high" quality is published).  Rename to
+       uk_UA-mykyta-high so the voice actually downloads and loads.
+    """
+    llm = data.get("llm")
+    if isinstance(llm, dict):
+        if llm.get("model") == "qwen2.5:7b-instruct":
+            llm["model"] = "qwen3:8b"
+
+    tts = data.get("tts")
+    if isinstance(tts, dict):
+        if tts.get("voices_uk") == "uk_UA-mykyta-medium":
+            tts["voices_uk"] = "uk_UA-mykyta-high"
+        if tts.get("voice") == "uk_UA-mykyta-medium":
+            tts["voice"] = "uk_UA-mykyta-high"
+    data["schema_version"] = 30
+    return data
+
+
 MIGRATIONS: dict[int, Migration] = {
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
@@ -660,6 +687,7 @@ MIGRATIONS: dict[int, Migration] = {
     26: _migrate_v26_to_v27,
     27: _migrate_v27_to_v28,
     28: _migrate_v28_to_v29,
+    29: _migrate_v29_to_v30,
 }
 
 

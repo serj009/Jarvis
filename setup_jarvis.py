@@ -66,9 +66,9 @@ PIPER_VOICES: list[tuple[str, str]] = [
         "ru/ru_RU/irina/medium",
     ),
     (
-        "uk_UA-mykyta-medium",
+        "uk_UA-mykyta-high",
         "https://huggingface.co/rhasspy/piper-voices/resolve/main/"
-        "uk/uk_UA/mykyta/medium",
+        "uk/uk_UA/mykyta/high",
     ),
     (
         # NOTE: Lada uses x_low quality (no medium model on HuggingFace).
@@ -268,9 +268,9 @@ def step_dependencies() -> tuple[str, str, str]:
         )
         pre_count = len(json.loads(result.stdout)) if result.returncode == 0 else 0
 
-        print("      Установка зависимостей (pip install -e .)...")
+        print("      Установка зависимостей (pip install -e '.[dev,embeddings]')...")
         proc = subprocess.run(
-            [pip, "install", "-e", str(ROOT)],
+            [pip, "install", "-e", f"{ROOT}[dev,embeddings]"],
             capture_output=True, text=True, timeout=600,
         )
         if proc.returncode != 0:
