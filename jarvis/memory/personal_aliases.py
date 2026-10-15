@@ -20,10 +20,10 @@ Learning sources:
 
 from __future__ import annotations
 
-import json
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
+from jarvis.platform.encrypted_store import EncryptedJsonStore
 
 log = logging.getLogger(__name__)
 
@@ -35,6 +35,7 @@ class PersonalAliasStore:
 
     def __init__(self, path: Path) -> None:
         self._path = path
+        self._store = EncryptedJsonStore(path)
         self._data: dict[str, dict] = {}
         self._load()
 
@@ -43,25 +44,20 @@ class PersonalAliasStore:
         return self._path
 
     def _load(self) -> None:
-        if self._path.exists():
-            try:
-                self._data = json.loads(self._path.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                log.warning(
-                    "[personal-aliases] failed to load %s; starting fresh",
-                    self._path,
-                    exc_info=True,
-                )
-                self._data = {}
+        try:
+            self._data = self._store.load(default={})
+        except Exception:
+            log.warning(
+                "[personal-aliases] failed to load %s; starting fresh",
+                self._path,
+                exc_info=True,
+            )
+            self._data = {}
 
     def _save(self) -> None:
         try:
-            self._path.parent.mkdir(parents=True, exist_ok=True)
-            self._path.write_text(
-                json.dumps(self._data, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-        except OSError:
+            self._store.save(self._data)
+        except Exception:
             log.warning(
                 "[personal-aliases] failed to save %s",
                 self._path,

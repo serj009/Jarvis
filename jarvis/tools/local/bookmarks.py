@@ -7,7 +7,6 @@ Each entry has: name, url, title, summary (optional), saved_at.
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import webbrowser
 from datetime import datetime, timezone
@@ -17,6 +16,7 @@ from typing import Any, ClassVar, Literal
 from pydantic import BaseModel, Field
 
 from jarvis.tools.registry import ToolResult, VoicePattern
+from jarvis.platform.encrypted_store import EncryptedJsonStore
 
 log = logging.getLogger(__name__)
 
@@ -26,25 +26,16 @@ log = logging.getLogger(__name__)
 
 _BOOKMARKS_DIR = Path.home() / ".jarvis" / "data"
 _BOOKMARKS_FILE = _BOOKMARKS_DIR / "bookmarks.json"
+_BOOKMARKS_STORE = EncryptedJsonStore(_BOOKMARKS_FILE)
 
 
 def _load_bookmarks() -> list[dict[str, Any]]:
     """Load bookmarks from disk (empty list on first run)."""
-    if not _BOOKMARKS_FILE.exists():
-        return []
-    try:
-        return json.loads(_BOOKMARKS_FILE.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        log.warning("Corrupt bookmarks file — starting fresh")
-        return []
+    return _BOOKMARKS_STORE.load(default=[])
 
 
 def _save_bookmarks(bookmarks: list[dict[str, Any]]) -> None:
-    _BOOKMARKS_DIR.mkdir(parents=True, exist_ok=True)
-    _BOOKMARKS_FILE.write_text(
-        json.dumps(bookmarks, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    _BOOKMARKS_STORE.save(bookmarks)
 
 
 # ---------------------------------------------------------------------------

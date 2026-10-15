@@ -14,7 +14,6 @@ Tools:
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,6 +22,7 @@ from typing import Any, ClassVar, Literal
 from pydantic import BaseModel, Field
 
 from jarvis.tools.registry import ToolResult, VoicePattern
+from jarvis.platform.encrypted_store import EncryptedJsonStore
 
 log = logging.getLogger(__name__)
 
@@ -32,25 +32,16 @@ log = logging.getLogger(__name__)
 
 _RSS_DIR = Path.home() / ".jarvis" / "data"
 _RSS_FILE = _RSS_DIR / "rss_feeds.json"
+_RSS_STORE = EncryptedJsonStore(_RSS_FILE)
 
 
 def _load_feeds() -> list[dict[str, Any]]:
     """Load feed subscriptions from disk."""
-    if not _RSS_FILE.exists():
-        return []
-    try:
-        return json.loads(_RSS_FILE.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        log.warning("Corrupt RSS feeds file — starting fresh")
-        return []
+    return _RSS_STORE.load(default=[])
 
 
 def _save_feeds(feeds: list[dict[str, Any]]) -> None:
-    _RSS_DIR.mkdir(parents=True, exist_ok=True)
-    _RSS_FILE.write_text(
-        json.dumps(feeds, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    _RSS_STORE.save(feeds)
 
 
 # ---------------------------------------------------------------------------

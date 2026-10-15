@@ -171,6 +171,12 @@ def _local_tool_classes() -> tuple[type, ...]:
     from jarvis.tools.local.focus_mode import (
         StartFocusModeTool, StopFocusModeTool, FocusModeStatusTool,
     )
+    # Password vault tools
+    from jarvis.tools.local.auto_login import AutoLoginTool
+    from jarvis.tools.local.vault_manager import (
+        SaveCredentialTool, ListSavedSitesTool, RemoveCredentialTool,
+        UnlockVaultTool, LockVaultTool, ChangeVaultPasswordTool,
+    )
 
     return (
         BookmarksTool,
@@ -282,6 +288,14 @@ def _local_tool_classes() -> tuple[type, ...]:
         StartFocusModeTool,
         StopFocusModeTool,
         FocusModeStatusTool,
+        # Password vault tools
+        AutoLoginTool,
+        SaveCredentialTool,
+        ListSavedSitesTool,
+        RemoveCredentialTool,
+        UnlockVaultTool,
+        LockVaultTool,
+        ChangeVaultPasswordTool,
     )
 
 

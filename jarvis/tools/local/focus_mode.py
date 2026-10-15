@@ -20,7 +20,6 @@ State file: ``~/.jarvis/data/focus_mode.json``
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import sys
 import time
@@ -31,6 +30,7 @@ from typing import Any, ClassVar, Literal
 from pydantic import BaseModel, Field
 
 from jarvis.tools.registry import ToolResult, VoicePattern
+from jarvis.platform.encrypted_store import EncryptedJsonStore
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +40,7 @@ log = logging.getLogger(__name__)
 
 _FOCUS_DIR = Path.home() / ".jarvis" / "data"
 _FOCUS_FILE = _FOCUS_DIR / "focus_mode.json"
+_FOCUS_STORE = EncryptedJsonStore(_FOCUS_FILE)
 
 # Default distraction sites
 _DEFAULT_BLOCKED: list[str] = [
@@ -63,20 +64,13 @@ _FOCUS_MARKER = "# JARVIS-FOCUS-MODE"
 
 def _load_state() -> dict[str, Any]:
     """Load focus mode state from disk."""
-    if not _FOCUS_FILE.exists():
-        return {"active": False, "blocked": [], "end_time": None, "mode": "soft"}
-    try:
-        return json.loads(_FOCUS_FILE.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return {"active": False, "blocked": [], "end_time": None, "mode": "soft"}
+    return _FOCUS_STORE.load(
+        default={"active": False, "blocked": [], "end_time": None, "mode": "soft"}
+    )
 
 
 def _save_state(state: dict[str, Any]) -> None:
-    _FOCUS_DIR.mkdir(parents=True, exist_ok=True)
-    _FOCUS_FILE.write_text(
-        json.dumps(state, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
+    _FOCUS_STORE.save(state)
 
 
 def _is_expired(state: dict[str, Any]) -> bool:

@@ -5,6 +5,10 @@ database as MemoryStore. Enables rich queries like "what do I know about
 Stalker" → finds the game fact, then traverses belongs_to / related_to
 edges to surface achievements, locations, weapons, etc.
 
+Encryption at rest: ``related_content`` fields in traversal results are
+decrypted automatically via ``jarvis.platform.encrypted_db``.  The
+relation metadata (type, strength, timestamps) stays plaintext.
+
 Relation types:
     belongs_to  — "Achievement Doslidnyk" belongs_to "Stalker 2"
     related_to  — "Achievement Doslidnyk" related_to "Achievement Voyin"
@@ -31,6 +35,8 @@ from pathlib import Path
 from typing import Optional
 
 log = logging.getLogger(__name__)
+
+from jarvis.platform.encrypted_db import decrypt_value
 
 
 # ---------------------------------------------------------------------------
@@ -189,7 +195,10 @@ class RelationStore:
             params_fwd.append(relation_type)
 
         for row in conn.execute(query_fwd, params_fwd).fetchall():
-            results.append(dict(row))
+            d = dict(row)
+            if d.get("related_content"):
+                d["related_content"] = decrypt_value(d["related_content"]) or d["related_content"]
+            results.append(d)
             self._traverse(
                 conn, row["fact_id_to"], relation_type,
                 max_depth, visited, results, current_depth + 1,
@@ -209,7 +218,10 @@ class RelationStore:
             params_rev.append(relation_type)
 
         for row in conn.execute(query_rev, params_rev).fetchall():
-            results.append(dict(row))
+            d = dict(row)
+            if d.get("related_content"):
+                d["related_content"] = decrypt_value(d["related_content"]) or d["related_content"]
+            results.append(d)
             # Recurse into the "from" side of reverse edges so that
             # depth-2+ traversals discover transitive neighbours.
             # The *visited* set prevents infinite loops on cycles.
@@ -264,7 +276,14 @@ class RelationStore:
                 "WHERE r.fact_id_from = ? OR r.fact_id_to = ?",
                 (fact_id, fact_id),
             ).fetchall()
-            return [dict(r) for r in rows]
+            result = []
+            for r in rows:
+                d = dict(r)
+                for key in ("from_content", "to_content"):
+                    if d.get(key):
+                        d[key] = decrypt_value(d[key]) or d[key]
+                result.append(d)
+            return result
         finally:
             conn.close()
 

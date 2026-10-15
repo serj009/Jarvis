@@ -254,6 +254,20 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     "start_focus_mode": RiskLevel.WRITE,
     "stop_focus_mode": RiskLevel.WRITE,
     "focus_mode_status": RiskLevel.READ,
+    # -- Password vault tools -----------------------------------------------
+    # Auto-login: WRITE (enters credentials into forms, no data loss)
+    "auto_login": RiskLevel.WRITE,
+    # Save credential: WRITE (adds data to vault)
+    "save_credential": RiskLevel.WRITE,
+    # List: read-only (no passwords revealed)
+    "list_saved_sites": RiskLevel.READ,
+    # Remove: DESTRUCTIVE (permanently deletes credentials)
+    "remove_credential": RiskLevel.DESTRUCTIVE,
+    # Vault unlock/lock: WRITE (changes vault state)
+    "unlock_vault": RiskLevel.WRITE,
+    "lock_vault": RiskLevel.WRITE,
+    # Change master password: DESTRUCTIVE (re-encrypts entire vault)
+    "change_vault_password": RiskLevel.DESTRUCTIVE,
 }
 
 

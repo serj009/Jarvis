@@ -42,6 +42,33 @@ log = logging.getLogger(__name__)
 #   "музык" → музыка, музыку, музыкой, музыки …
 
 TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
+    "vault": {
+        "tools": [
+            "auto_login", "save_credential", "list_saved_sites",
+            "remove_credential", "unlock_vault", "lock_vault",
+            "change_vault_password",
+        ],
+        "keywords_en": [
+            "login", "log in", "sign in", "auto login", "autologin",
+            "password vault", "vault", "saved password", "credentials",
+            "save password", "remove password", "unlock vault", "lock vault",
+            "change master password",
+        ],
+        "keywords_ru": [
+            "залогинься", "войди", "авторизуйся", "логин",
+            "хранилище паролей", "сейф паролей", "пароль",
+            "сохрани пароль", "удали пароль", "запомни пароль",
+            "разблокируй хранилище", "заблокируй хранилище",
+            "смени мастер",
+        ],
+        "keywords_uk": [
+            "залогінься", "увійди", "авторизуйся", "логін",
+            "сховище паролів", "сейф паролів", "пароль",
+            "збережи пароль", "видали пароль", "запам'ятай пароль",
+            "розблокуй сховище", "заблокуй сховище",
+            "зміни мастер",
+        ],
+    },
     "apps": {
         "tools": [
             "open_app", "close_app", "launch_workspace", "open_url",
@@ -575,17 +602,23 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
     "security": {
         "tools": [
             "generate_password",
+            "auto_login", "save_credential", "list_saved_sites",
+            "remove_credential", "unlock_vault", "lock_vault",
+            "change_vault_password",
         ],
         "keywords_en": [
             "password", "passphrase", "generate password", "random password",
+            "vault", "login", "credentials", "saved password",
         ],
         "keywords_ru": [
             "пароль", "парольн", "сгенерируй пароль", "случайный пароль",
             "придумай пароль",
+            "хранилище", "логин", "залогинься", "авторизуйся",
         ],
         "keywords_uk": [
             "пароль", "парольн", "згенеруй пароль", "випадковий пароль",
             "придумай пароль",
+            "сховище", "логін", "залогінься", "авторизуйся",
         ],
     },
     "rss_news": {

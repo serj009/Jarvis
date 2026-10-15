@@ -15,11 +15,11 @@ Storage: %APPDATA%/Jarvis/usage_stats.json
 
 from __future__ import annotations
 
-import json
 import logging
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
+from jarvis.platform.encrypted_store import EncryptedJsonStore
 
 log = logging.getLogger(__name__)
 
@@ -29,6 +29,7 @@ class UsageStats:
 
     def __init__(self, path: Path) -> None:
         self._path = path
+        self._store = EncryptedJsonStore(path)
         self._data: dict = {"apps": {}, "tools": {}, "daily_hours": {}}
         self._load()
 
@@ -94,25 +95,21 @@ class UsageStats:
         return f"[User's frequently used apps: {apps_str}]"
 
     def _load(self) -> None:
-        if self._path.exists():
-            try:
-                self._data = json.loads(self._path.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                log.warning(
-                    "[usage-stats] failed to load %s; starting fresh",
-                    self._path,
-                    exc_info=True,
-                )
-                self._data = {"apps": {}, "tools": {}, "daily_hours": {}}
+        try:
+            loaded = self._store.load(default={"apps": {}, "tools": {}, "daily_hours": {}})
+            if isinstance(loaded, dict):
+                self._data = loaded
+        except Exception:
+            log.warning(
+                "[usage-stats] failed to load %s; starting fresh",
+                self._path,
+                exc_info=True,
+            )
 
     def _save(self) -> None:
         try:
-            self._path.parent.mkdir(parents=True, exist_ok=True)
-            self._path.write_text(
-                json.dumps(self._data, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-        except OSError:
+            self._store.save(self._data)
+        except Exception:
             log.warning(
                 "[usage-stats] failed to save %s",
                 self._path,

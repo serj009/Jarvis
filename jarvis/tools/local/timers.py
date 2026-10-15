@@ -7,7 +7,6 @@ it invokes an optional callback (designed for TTS notification).
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
 import time
@@ -17,6 +16,7 @@ from typing import Any, Callable, ClassVar, Literal, Optional
 from pydantic import BaseModel, Field
 
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
+from jarvis.platform.encrypted_store import EncryptedJsonStore
 
 log = logging.getLogger(__name__)
 
@@ -67,15 +67,13 @@ class TimerStore:
 
     def _save(self) -> None:
         try:
-            self._persist_path.parent.mkdir(parents=True, exist_ok=True)
+            store = EncryptedJsonStore(self._persist_path)
             active = {
                 n: t.to_dict() for n, t in self._timers.items()
                 if not t.cancelled and t.remaining > 0
             }
-            self._persist_path.write_text(
-                json.dumps(active, indent=2), encoding="utf-8"
-            )
-        except OSError:
+            store.save(active)
+        except Exception:
             log.debug("Could not save timers", exc_info=True)
 
     # -- public API -----------------------------------------------------

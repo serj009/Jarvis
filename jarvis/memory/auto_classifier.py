@@ -29,6 +29,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
+from jarvis.platform.encrypted_store import EncryptedJsonStore
 
 log = logging.getLogger(__name__)
 
@@ -130,8 +131,8 @@ class AutoClassifier:
         if self._cache_path is None or not self._cache_path.exists():
             return
         try:
-            with open(self._cache_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
+            store = EncryptedJsonStore(self._cache_path)
+            data = store.load(default={})
             for key, entry in data.items():
                 self._cache[key] = ClassificationResult.from_dict(entry)
             log.info("classification cache loaded: %d entities", len(self._cache))
@@ -142,10 +143,9 @@ class AutoClassifier:
         if self._cache_path is None:
             return
         try:
-            self._cache_path.parent.mkdir(parents=True, exist_ok=True)
+            store = EncryptedJsonStore(self._cache_path)
             data = {k: r.to_dict() for k, r in self._cache.items()}
-            with open(self._cache_path, "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
+            store.save(data)
         except Exception as e:
             log.warning("classification cache save failed: %s", e)
 
