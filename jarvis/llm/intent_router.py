@@ -111,6 +111,7 @@ from jarvis.core.phrases import reply_language, say
 from jarvis.llm.conversation import ToolExchange
 
 if TYPE_CHECKING:
+    from jarvis.core.personalization import PersonalizationContext
     from jarvis.memory.store import MemoryStore
     from jarvis.memory.tool_examples import ToolExampleStore
     from jarvis.memory.relations import RelationStore
@@ -368,17 +369,16 @@ class IntentRouter:
         # which keeps the router's behaviour unchanged (and tests free of
         # this PC's installed-apps index).
         open_target_planner: Callable[[str], Awaitable[ToolIntent | None]] | None = None,
-        # T4.4: Auto-memory — injected into context before every LLM call.
+        # Preferred: pass a PersonalizationContext grouping all stores.
+        personalization: PersonalizationContext | None = None,
+        # DEPRECATED individual params — kept for backward compat with
+        # existing callers and tests. When *personalization* is provided
+        # these are ignored; otherwise they seed a new context.
         memory_store: MemoryStore | None = None,
-        # T4.5: Self-learning tool examples.
         tool_example_store: ToolExampleStore | None = None,
-        # T4.7: Relation-aware recall — expand found facts via relation graph.
         relation_store: RelationStore | None = None,
-        # T4.9: Personal aliases — user-learned app name mappings.
         personal_aliases: PersonalAliasStore | None = None,
-        # T4.9: User profile — persistent user facts for context injection.
         user_profile: UserProfile | None = None,
-        # T4.9: Usage stats — command/app frequency tracking.
         usage_stats: UsageStats | None = None,
     ) -> None:
         # `registry` is the live source of the tool schemas — querying it
@@ -403,15 +403,27 @@ class IntentRouter:
         # round trips sharing "call_1" would let the trimming/orphan
         # filter pair a tool result with the wrong assistant message.
         self._tool_call_seq = 0
-        self._memory_store = memory_store
-        self._tool_example_store = tool_example_store
-        self._relation_store = relation_store
-        self._personal_aliases = personal_aliases
-        self._user_profile = user_profile
-        self._usage_stats = usage_stats
 
-        # Game mode: set by app.py after construction (avoids circular deps)
-        self._game_mode: GameMode | None = None
+        # --- personalization context ---
+        # Build from individual params when the caller hasn't passed a
+        # PersonalizationContext (backward compat for tests & callers).
+        if personalization is not None:
+            self._pctx = personalization
+        else:
+            from jarvis.core.personalization import PersonalizationContext
+            self._pctx = PersonalizationContext(
+                memory_store=memory_store,
+                relation_store=relation_store,
+                tool_examples=tool_example_store,
+                personal_aliases=personal_aliases,
+                user_profile=user_profile,
+                usage_stats=usage_stats,
+            )
+
+        # Game mode: usually set via personalization, but app.py may also
+        # assign it after construction (avoids circular deps).
+        if self._pctx.game_mode is None:
+            self._pctx.game_mode = None  # explicit sentinel
 
     def _current_tools(self) -> list[dict]:
         if self._registry is not None:
@@ -469,16 +481,16 @@ class IntentRouter:
         pattern_intent = self._try_pattern(transcription)
         if pattern_intent is not None:
             # Game mode on/off: fire the async action before yielding
-            if self._game_mode is not None:
+            if self._pctx.game_mode is not None:
                 normalized = _normalize(transcription)
                 if _GAME_MODE_ON_PATTERN.match(normalized):
                     try:
-                        await self._game_mode.force_activate()
+                        await self._pctx.game_mode.force_activate()
                     except Exception:
                         log.warning("game mode force_activate failed", exc_info=True)
                 elif _GAME_MODE_OFF_PATTERN.match(normalized):
                     try:
-                        await self._game_mode.force_deactivate()
+                        await self._pctx.game_mode.force_deactivate()
                     except Exception:
                         log.warning("game mode force_deactivate failed", exc_info=True)
             yield pattern_intent
@@ -604,7 +616,7 @@ class IntentRouter:
         Returns formatted spoken reminder text, or empty string.
         Non-fatal: any exception is logged and silently swallowed.
         """
-        if self._memory_store is None:
+        if self._pctx.memory_store is None:
             return ""
 
         # Collect app/game names from successful launch tools
@@ -629,7 +641,7 @@ class IntentRouter:
 
             all_reminders: list[str] = []
             for target in targets:
-                reminders = await check_reminders(self._memory_store, target)
+                reminders = await check_reminders(self._pctx.memory_store, target)
                 all_reminders.extend(reminders)
 
             if all_reminders:
@@ -654,8 +666,8 @@ class IntentRouter:
         parts: list[str] = []  # noqa: RUF012
 
         # 0. Game mode: inject preloaded game context (RAM, no LLM cost)
-        if self._game_mode is not None and self._game_mode.is_active:
-            ctx = self._game_mode.preloaded_context
+        if self._pctx.game_mode is not None and self._pctx.game_mode.is_active:
+            ctx = self._pctx.game_mode.preloaded_context
             if ctx:
                 parts.append(ctx)
                 log.debug(
@@ -664,13 +676,13 @@ class IntentRouter:
                 )
 
         # 1. Auto-recall relevant memories
-        if self._memory_store is not None:
+        if self._pctx.memory_store is not None:
             try:
                 from jarvis.memory.auto_recall import get_relevant_memories
 
                 memory_text = await get_relevant_memories(
-                    self._memory_store, transcription,
-                    relation_store=self._relation_store,
+                    self._pctx.memory_store, transcription,
+                    relation_store=self._pctx.relation_store,
                 )
                 if memory_text:
                     parts.append(memory_text)
@@ -678,27 +690,27 @@ class IntentRouter:
                 log.warning("[router] auto-recall failed (non-fatal)", exc_info=True)
 
         # 2. Tool examples from self-learning
-        if self._tool_example_store is not None:
+        if self._pctx.tool_examples is not None:
             try:
-                examples_text = self._tool_example_store.get_examples_for_prompt()
+                examples_text = self._pctx.tool_examples.get_examples_for_prompt()
                 if examples_text:
                     parts.append(examples_text)
             except Exception:
                 log.warning("[router] tool-examples failed (non-fatal)", exc_info=True)
 
         # 3. User profile — persistent facts (name, city, etc.)
-        if self._user_profile is not None:
+        if self._pctx.user_profile is not None:
             try:
-                profile_text = self._user_profile.for_prompt()
+                profile_text = self._pctx.user_profile.for_prompt()
                 if profile_text:
                     parts.append(profile_text)
             except Exception:
                 log.warning("[router] user-profile failed (non-fatal)", exc_info=True)
 
         # 4. Usage stats — frequently used apps
-        if self._usage_stats is not None:
+        if self._pctx.usage_stats is not None:
             try:
-                stats_text = self._usage_stats.for_prompt()
+                stats_text = self._pctx.usage_stats.for_prompt()
                 if stats_text:
                     parts.append(stats_text)
             except Exception:
@@ -716,14 +728,14 @@ class IntentRouter:
         exchanges: list[ToolExchange],
     ) -> None:
         """Record successful tool calls for self-learning.  Non-fatal."""
-        if self._tool_example_store is None:
+        if self._pctx.tool_examples is None:
             return
         for intent, exchange in zip(intents, exchanges):
             # Only record successes (result doesn't start with "Error:")
             if exchange.result.startswith("Error:"):
                 continue
             try:
-                self._tool_example_store.record_success(
+                self._pctx.tool_examples.record_success(
                     transcription, intent.tool_name, intent.args,
                 )
             except Exception:
@@ -741,17 +753,17 @@ class IntentRouter:
         exchanges: list[ToolExchange],
     ) -> None:
         """Record tool and app usage stats. Non-fatal."""
-        if self._usage_stats is None:
+        if self._pctx.usage_stats is None:
             return
         for intent, exchange in zip(intents, exchanges):
             if exchange.result.startswith("Error:"):
                 continue
             try:
-                self._usage_stats.record_tool_use(intent.tool_name)
+                self._pctx.usage_stats.record_tool_use(intent.tool_name)
                 if intent.tool_name == "open_app":
                     app_name = intent.args.get("name", "")
                     if app_name:
-                        self._usage_stats.record_app_use(app_name)
+                        self._pctx.usage_stats.record_app_use(app_name)
             except Exception:
                 log.warning("[router] usage-stats record failed", exc_info=True)
 
@@ -767,7 +779,7 @@ class IntentRouter:
         "player") and the tool argument is a specific app ("chrome",
         "vscode", "vlc"), learn the mapping. Non-fatal.
         """
-        if self._personal_aliases is None:
+        if self._pctx.personal_aliases is None:
             return
         # Generic words that likely map to a specific app
         _GENERIC_WORDS = {
@@ -789,7 +801,7 @@ class IntentRouter:
             for generic in _GENERIC_WORDS:
                 if generic in transcription_lower and generic != app_arg:
                     try:
-                        self._personal_aliases.learn(generic, app_arg)
+                        self._pctx.personal_aliases.learn(generic, app_arg)
                         log.info(
                             "[router] learned personal alias: %r → %r",
                             generic, app_arg,
@@ -811,7 +823,7 @@ class IntentRouter:
         Fire-and-forget via asyncio.create_task — never blocks pipeline.
         Non-fatal: any exception is logged and silently swallowed.
         """
-        if self._memory_store is None:
+        if self._pctx.memory_store is None:
             return
         from jarvis.memory.action_logger import log_action
 
@@ -819,7 +831,7 @@ class IntentRouter:
             success = not exchange.result.startswith("Error:")
             try:
                 asyncio.create_task(
-                    log_action(self._memory_store, intent.tool_name, intent.args, success=success)
+                    log_action(self._pctx.memory_store, intent.tool_name, intent.args, success=success)
                 )
             except Exception:
                 log.warning("[router] action-log failed", exc_info=True)
@@ -975,9 +987,9 @@ class IntentRouter:
         if _STOP_PATTERN.match(normalized):
             return StopIntent()
         # Game mode voice commands (before tool patterns)
-        if self._game_mode is not None:
+        if self._pctx.game_mode is not None:
             if _GAME_MODE_STATUS_PATTERN.match(normalized):
-                info = self._game_mode.get_game_session_info()
+                info = self._pctx.game_mode.get_game_session_info()
                 if info:
                     return SpeakIntent(text=info)
                 return SpeakIntent(text="Game mode is not active, sir.")

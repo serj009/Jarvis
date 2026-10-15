@@ -10,6 +10,7 @@ import pytest
 from pydantic import ValidationError
 
 from jarvis.core import config as cfg_mod
+from jarvis.core import migrations as mig_mod
 from jarvis.core.config import (
     _SYSTEM_PROMPT_V6,
     _SYSTEM_PROMPT_V26,
@@ -209,8 +210,10 @@ def test_migrate_runs_registered_chain(monkeypatch: pytest.MonkeyPatch):
         d["added_in_v3"] = True
         return d
 
-    monkeypatch.setattr(cfg_mod, "CURRENT_SCHEMA_VERSION", 3)
-    monkeypatch.setattr(cfg_mod, "MIGRATIONS", {1: v1_to_v2, 2: v2_to_v3})
+    monkeypatch.setattr(mig_mod, "CURRENT_SCHEMA_VERSION", 3)
+    monkeypatch.setattr(mig_mod, "MIGRATIONS", {1: v1_to_v2, 2: v2_to_v3})
+    monkeypatch.setattr(cfg_mod, "CURRENT_SCHEMA_VERSION", 3)  # keep config in sync
+    monkeypatch.setattr(cfg_mod, "MIGRATIONS", {1: v1_to_v2, 2: v2_to_v3})  # keep config in sync
 
     out = cfg_mod.migrate({"schema_version": 1})
     assert calls == [1, 2]
@@ -220,8 +223,10 @@ def test_migrate_runs_registered_chain(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_migrate_raises_when_link_in_chain_missing(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(mig_mod, "CURRENT_SCHEMA_VERSION", 3)
+    monkeypatch.setattr(mig_mod, "MIGRATIONS", {})  # no migrations registered
     monkeypatch.setattr(cfg_mod, "CURRENT_SCHEMA_VERSION", 3)
-    monkeypatch.setattr(cfg_mod, "MIGRATIONS", {})  # no migrations registered
+    monkeypatch.setattr(cfg_mod, "MIGRATIONS", {})
     with pytest.raises(ConfigMigrationError, match="no migration registered"):
         cfg_mod.migrate({"schema_version": 1})
 
@@ -232,6 +237,8 @@ def test_migrate_raises_when_migration_fails_to_bump_version(
     def buggy(d: dict) -> dict:
         return d  # forgot to bump schema_version
 
+    monkeypatch.setattr(mig_mod, "CURRENT_SCHEMA_VERSION", 2)
+    monkeypatch.setattr(mig_mod, "MIGRATIONS", {1: buggy})
     monkeypatch.setattr(cfg_mod, "CURRENT_SCHEMA_VERSION", 2)
     monkeypatch.setattr(cfg_mod, "MIGRATIONS", {1: buggy})
     with pytest.raises(ConfigMigrationError, match="produced schema_version"):
