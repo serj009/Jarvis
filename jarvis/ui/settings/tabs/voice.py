@@ -28,21 +28,38 @@ log = logging.getLogger(__name__)
 
 
 def _enumerate_devices(kind: str) -> list[tuple[str, str]]:
-    """Return [(label, name)] for input or output devices. label includes
-    the host API so duplicates (WASAPI vs MME variants of the same device)
-    are distinguishable. Returns [] on any sounddevice error so the
-    settings UI degrades gracefully when no audio backend is present."""
+    """Return [(label, name)] for input or output devices.
+
+    Uses the smart device_detector to filter out virtual/loopback devices
+    and collapse WASAPI/MME/DirectSound duplicates.  Falls back to raw
+    sounddevice enumeration (with host-API labels) when the detector is
+    unavailable.
+
+    Returns [] on any sounddevice error so the settings UI degrades
+    gracefully when no audio backend is present.
+    """
+    # --- smart path: filtered + deduplicated ---
     try:
-        import sounddevice as sd
-        devices = sd.query_devices()
-        hostapis = sd.query_hostapis()
-    except Exception as e:
-        log.warning("could not enumerate %s devices: %s", kind, e)
+        from jarvis.audio.device_detector import list_real_inputs, list_real_outputs
+
+        ranked = list_real_inputs() if kind == "input" else list_real_outputs()
+        return [(dev.clean_name, dev.name) for dev in ranked]
+    except Exception:
+        log.debug("smart device enumeration unavailable; using raw list", exc_info=True)
+
+    # --- fallback: raw sounddevice ---
+    try:
+        import sounddevice as sd  # type: ignore[import-untyped]
+
+        devices = sd.query_devices()  # type: ignore[no-untyped-call]
+        hostapis = sd.query_hostapis()  # type: ignore[no-untyped-call]
+    except Exception as exc:
+        log.warning("could not enumerate %s devices: %s", kind, exc)
         return []
-    field = "max_input_channels" if kind == "input" else "max_output_channels"
+    ch_field = "max_input_channels" if kind == "input" else "max_output_channels"
     out: list[tuple[str, str]] = []
     for dev in devices:
-        if int(dev.get(field, 0)) <= 0:
+        if int(dev.get(ch_field, 0)) <= 0:
             continue
         name = str(dev.get("name", ""))
         ha_index = dev.get("hostapi")
@@ -110,10 +127,14 @@ class VoiceTab(QWidget):
 
         refresh_devices = QPushButton("Refresh Devices")
         refresh_devices.clicked.connect(self._refresh_devices)
+        auto_detect_btn = QPushButton("\U0001f50d Auto-detect")
+        auto_detect_btn.setToolTip("Detect the best microphone and speaker automatically")
+        auto_detect_btn.clicked.connect(self._on_auto_detect)
         refresh_row = QWidget()
         rfl = QHBoxLayout(refresh_row)
         rfl.setContentsMargins(0, 0, 0, 0)
         rfl.addWidget(refresh_devices)
+        rfl.addWidget(auto_detect_btn)
         rfl.addStretch(1)
         devices_card.add_widget(refresh_row)
 
@@ -281,6 +302,59 @@ class VoiceTab(QWidget):
     def _refresh_devices(self) -> None:
         self._populate_devices()
         self._populate_voices()
+
+    def _on_auto_detect(self) -> None:
+        """Run smart detection and select the best mic + speaker."""
+        try:
+            from jarvis.audio.device_detector import (
+                detect_best_input,
+                detect_best_output,
+            )
+        except Exception:
+            log.warning("device_detector not available", exc_info=True)
+            return
+
+        # Refresh the combo lists first so the detected device is present.
+        self._populate_devices()
+
+        # --- input (microphone) ---
+        best_in = detect_best_input()
+        if best_in is not None:
+            self._select_device_in_combo(
+                self.input_device, best_in.name, "input_device",
+            )
+
+        # --- output (speaker) ---
+        best_out = detect_best_output()
+        if best_out is not None:
+            self._select_device_in_combo(
+                self.output_device, best_out.name, "output_device",
+            )
+
+    def _select_device_in_combo(
+        self, combo: QComboBox, device_name: str, config_attr: str,
+    ) -> None:
+        """Select *device_name* in *combo* using the same substring logic
+        the audio layer uses, then persist the choice to config."""
+        needle = device_name.lower()
+        idx = -1
+        for i in range(combo.count()):
+            data = combo.itemData(i)
+            if isinstance(data, str) and needle in data.lower():
+                idx = i
+                break
+        if idx < 0:
+            # Exact match on label text (smart enum may use clean names).
+            for i in range(combo.count()):
+                if needle in combo.itemText(i).lower():
+                    idx = i
+                    break
+        if idx >= 0:
+            combo.setCurrentIndex(idx)  # triggers _on_input/output_changed
+        else:
+            log.warning(
+                "auto-detect: %r not found in combo for %s", device_name, config_attr,
+            )
 
     # -- slots -----------------------------------------------------------
 

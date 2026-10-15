@@ -43,7 +43,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
-CURRENT_SCHEMA_VERSION = 28
+CURRENT_SCHEMA_VERSION = 29
 
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -99,20 +99,14 @@ class GeneralConfig(_Base):
 
 
 class AudioConfig(_Base):
-    # Defaults match the current dev machine (TONOR mic, Creative Pebble Pro
-    # speaker). Production users override via Settings → Voice. The substring-
-    # matching in audio/devices.py and tts.py falls back to system default with
-    # a warning when the named device is not found, so these strings are safe on
-    # other hardware.
-    # "Speakers (Creative Pebble Pro)" is preferred over "Pebble Pro": Windows
-    # re-enumeration produces two problematic extra entries for the same
-    # physical speaker — a phantom "Speakers (2- Creative Pebble Pro)" (sorts
-    # before the real one) and a Bluetooth HFP entry
-    # "Headset (... (Creative Pebble Pro))" (8 kHz mono, wrong for TTS).
-    # The "Speakers (" prefix uniquely matches device 43
-    # "Speakers (Creative Pebble Pro)" and excludes both noise entries.
-    input_device: str | None = "TONOR"
-    output_device: str | None = "Speakers (Creative Pebble Pro)"
+    # None = auto-detect at first launch via device_detector.py.
+    # The smart detector filters virtual/loopback devices, prefers WASAPI,
+    # and ranks physical microphones / speakers by channel count and sample
+    # rate.  Users can still pin a specific device in Settings → Voice; the
+    # substring-matching in audio/devices.py and tts.py falls back to the
+    # system default with a warning when the named device is not found.
+    input_device: str | None = None
+    output_device: str | None = None
     prefer_respeaker: bool = True
 
 

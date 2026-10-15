@@ -149,6 +149,24 @@ class AudioInputSource:
             # Explicit fallback to default; do NOT also scan for ReSpeaker
             # because an explicit setting was made (and missed).
             return [None]
+
+        # --- smart auto-detect (no explicit device configured) ----------
+        # Try the smart detector first: it filters virtual/loopback devices
+        # and ranks real microphones by quality.  Falls through to the
+        # ReSpeaker / system-default path when detection yields nothing.
+        try:
+            from jarvis.audio.device_detector import detect_best_input
+
+            best = detect_best_input()
+            if best is not None:
+                log.info(
+                    "auto-detected input device: %r (idx=%d, api=%s, score=%.1f)",
+                    best.name, best.index, best.host_api, best.score,
+                )
+                return [best.index]
+        except Exception:
+            log.warning("smart device detection failed; falling back", exc_info=True)
+
         if self._prefer_respeaker:
             idx = self._find_respeaker()
             if idx is not None:
