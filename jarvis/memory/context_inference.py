@@ -49,7 +49,7 @@ _IMPLICIT_PATTERNS: list[tuple[re.Pattern[str], list[str], str]] = [
             r"(?:ту|эту|тую)\s+(?:игр[уы]|гр[уы])|that\s+game|the\s+game",
             re.IGNORECASE,
         ),
-        ["launch_steam_game", "launch_game", "open_app"],
+        ["launch_steam_game", "launch_game"],
         "game",
     ),
     # Apps/programs: "ту программу", "that app", "ту прогу"

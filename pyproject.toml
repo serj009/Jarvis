@@ -57,6 +57,9 @@ dev = [
   "pytest>=8,<9",
   "pytest-asyncio>=0.23,<1",
   # T4.2: Semantic memory search. sentence-transformers pulls torch and
+  # knowledge_store reads YAML files (PyYAML is also a transitive dep of
+  # transformers, but made explicit here to avoid accidental breakage).
+  "pyyaml>=6,<8",
   # transformers; faiss-cpu provides the vector index. Both are optional
   # at runtime — jarvis gracefully falls back to keyword search when they
   # are absent. Placed under [dev] so CI and dev installs get them.

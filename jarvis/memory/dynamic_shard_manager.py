@@ -238,7 +238,10 @@ class DynamicShardManager:
 
     def force_create_shard(self, name: str, description: str = "") -> None:
         """Manually create a dynamic shard."""
-        normalized = normalize_topic(name, "general")
+        # Use the raw name (lowered / cleaned) rather than normalize_topic()
+        # so that explicit user requests like "cooking" aren't silently
+        # remapped to a standard shard (e.g. "general") and then rejected.
+        normalized = name.lower().strip().replace(" ", "_")
         if normalized in self._dynamic_shards or normalized in STANDARD_SHARDS:
             return
         self._dynamic_shards[normalized] = {

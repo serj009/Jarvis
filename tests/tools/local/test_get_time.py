@@ -33,7 +33,7 @@ async def test_execute_english_format():
 async def test_execute_russian_format():
     """When reply_language() returns 'ru', output is in Russian."""
     with patch(
-        "jarvis.tools.local.get_time.reply_language", return_value="ru"
+        "jarvis.core.phrases.reply_language", return_value="ru"
     ):
         result = await GetTimeTool().execute(EmptyArgs())
     out = result.output or ""
@@ -44,7 +44,7 @@ async def test_execute_russian_format():
 async def test_execute_ukrainian_format():
     """When reply_language() returns 'uk', output is in Ukrainian."""
     with patch(
-        "jarvis.tools.local.get_time.reply_language", return_value="uk"
+        "jarvis.core.phrases.reply_language", return_value="uk"
     ):
         result = await GetTimeTool().execute(EmptyArgs())
     out = result.output or ""

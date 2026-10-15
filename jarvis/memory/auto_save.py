@@ -98,7 +98,7 @@ _FACT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 
     # -- Setting preferences: "volume to 70%", "громкость на 70" ----------
     (re.compile(
-        r"(?:громкость|volume)(?:\s+на|\s+(?:at|to))?\s+(\d+)",
+        r"((?:громкость|volume)(?:\s+на|\s+(?:at|to))?\s+\d+)",
         re.IGNORECASE,
     ), "setting_pref"),
 

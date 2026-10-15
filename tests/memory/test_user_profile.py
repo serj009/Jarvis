@@ -139,9 +139,10 @@ class TestUserProfile:
     def test_interests_limit_in_prompt(self, profile) -> None:
         profile.set("interests", ["a", "b", "c", "d", "e", "f", "g"])
         result = profile.for_prompt()
-        # Only first 5 should be shown
-        assert "f" not in (result or "")
-        assert "g" not in (result or "")
+        # Only first 5 interests should be shown in the Interests line
+        assert result is not None
+        assert "Interests: a, b, c, d, e" in result
+        assert "Interests: a, b, c, d, e, f" not in result
 
     def test_timezone_in_prompt(self, profile) -> None:
         profile.set("timezone", "Europe/Warsaw")

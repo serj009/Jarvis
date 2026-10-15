@@ -157,7 +157,13 @@ async def get_relevant_memories(
 
     try:
         # 1. Fetch candidates via FTS5 / LIKE (fast, ~10-50 ms)
-        raw_facts = await memory_store.search(utterance, limit=20)
+        #    FTS5 defaults to implicit AND for multi-word queries, which
+        #    is too strict for memory recall ("Chrome Steam Stalker"
+        #    should find facts about Chrome OR Steam OR Stalker).
+        words = utterance.strip().split()
+        search_query = " OR ".join(words) if len(words) > 1 else utterance
+
+        raw_facts = await memory_store.search(search_query, limit=20)
 
         # 1b. Session-history boost: when the user asks about past
         # activity ("what did we do yesterday?"), pull in recent

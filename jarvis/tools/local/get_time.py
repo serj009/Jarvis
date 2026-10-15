@@ -58,7 +58,7 @@ class GetTimeTool:
             priority=80,
         ),
         VoicePattern(
-            regex=r"^(?:what(?:'s|\s+is)\s+)?(?:today(?:'s|\s+))?date\??$",
+            regex=r"^(?:what(?:'s|\s+is)\s+(?:the\s+)?)?(?:today(?:'s\s+|\s+))?date\??$",
             priority=80,
         ),
         VoicePattern(

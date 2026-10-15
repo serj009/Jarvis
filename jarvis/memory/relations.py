@@ -210,8 +210,13 @@ class RelationStore:
 
         for row in conn.execute(query_rev, params_rev).fetchall():
             results.append(dict(row))
-            # Do NOT recurse reverse edges to prevent infinite loops;
-            # the forward traversal of the opposite node handles it.
+            # Recurse into the "from" side of reverse edges so that
+            # depth-2+ traversals discover transitive neighbours.
+            # The *visited* set prevents infinite loops on cycles.
+            self._traverse(
+                conn, row["fact_id_from"], relation_type,
+                max_depth, visited, results, current_depth + 1,
+            )
 
     def find_all_related_to_tag(self, tag: str) -> list[str]:
         """Find all fact IDs related to a tag (through relation chains).

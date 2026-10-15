@@ -678,7 +678,7 @@ def test_load_config_migrates_v9_file_on_disk(tmp_path: Path):
 def _v10_data(output_device: str | None = "Pebble Pro") -> dict:
     """Return a minimal v10 config dict — built manually to avoid running
     the v10→v11 migration before the test is ready to call it."""
-    from jarvis.core.config import _migrate_v9_to_v10
+    from jarvis.core.migrations import _migrate_v9_to_v10
     data = _v9_data()
     data = _migrate_v9_to_v10(data)  # v9 → v10 only
     data.setdefault("audio", {})["output_device"] = output_device
