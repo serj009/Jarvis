@@ -33,8 +33,8 @@ def test_defaults_match_spec():
     assert c.schema_version == CURRENT_SCHEMA_VERSION
     assert c.general.log_level == "INFO"
     assert c.general.minimize_to_tray is True
-    assert c.audio.input_device == "TONOR"
-    assert c.audio.output_device == "Speakers (Creative Pebble Pro)"
+    assert c.audio.input_device is None
+    assert c.audio.output_device is None
     assert c.audio.prefer_respeaker is True
     assert c.wake_word.model == "hey_jarvis"
     assert c.wake_word.sensitivity == 0.5
@@ -284,13 +284,13 @@ def test_migrate_v1_to_v2_fills_none_output_device():
     data = _v1_data(output_device=None)
     out = migrate(data)
     assert out["schema_version"] == CURRENT_SCHEMA_VERSION
-    assert out["audio"]["output_device"] == "Speakers (Creative Pebble Pro)"
+    assert out["audio"]["output_device"] is None  # v28→v29 resets dev defaults
 
 
 def test_migrate_v1_to_v2_fills_none_input_device():
     data = _v1_data(input_device=None)
     out = migrate(data)
-    assert out["audio"]["input_device"] == "TONOR"
+    assert out["audio"]["input_device"] is None  # v28→v29 resets dev defaults
 
 
 def test_migrate_v1_to_v2_does_not_overwrite_existing_output_device():
@@ -308,9 +308,9 @@ def test_migrate_v1_to_v2_does_not_overwrite_existing_input_device():
 def test_migrate_v1_to_v2_both_none_fills_both():
     data = _v1_data(input_device=None, output_device=None)
     out = migrate(data)
-    assert out["audio"]["input_device"] == "TONOR"
+    assert out["audio"]["input_device"] is None  # v28→v29 resets dev defaults
     # v1→v2 sets "Pebble Pro"; v10→v11 upgrades to the full name
-    assert out["audio"]["output_device"] == "Speakers (Creative Pebble Pro)"
+    assert out["audio"]["output_device"] is None  # v28→v29 resets dev defaults
 
 
 def test_migrate_v1_to_v2_both_set_leaves_both():
@@ -327,9 +327,9 @@ def test_load_config_migrates_v1_file_on_disk(tmp_path: Path):
     p.write_text(json.dumps(v1), encoding="utf-8")
     cfg = load_config(p)
     assert cfg.schema_version == CURRENT_SCHEMA_VERSION
-    assert cfg.audio.input_device == "TONOR"
+    assert cfg.audio.input_device is None  # v28→v29 resets dev defaults
     # v1→v2 sets "Pebble Pro"; v10→v11 upgrades to the full name
-    assert cfg.audio.output_device == "Speakers (Creative Pebble Pro)"
+    assert cfg.audio.output_device is None  # v28→v29 resets dev defaults
 
 
 # --- v2 → v3 STT model default migration ---------------------------------
@@ -691,7 +691,7 @@ def test_migrate_v10_to_v11_upgrades_pebble_pro_default():
     data = _v10_data(output_device="Pebble Pro")
     out = migrate(data)
     assert out["schema_version"] == CURRENT_SCHEMA_VERSION
-    assert out["audio"]["output_device"] == "Speakers (Creative Pebble Pro)"
+    assert out["audio"]["output_device"] is None  # v28→v29 resets dev defaults
 
 
 def test_migrate_v10_to_v11_preserves_custom_output_device():
@@ -705,7 +705,7 @@ def test_migrate_v10_to_v11_preserves_already_correct_default():
     """If the field already has the target value, it is left as-is."""
     data = _v10_data(output_device="Speakers (Creative Pebble Pro)")
     out = migrate(data)
-    assert out["audio"]["output_device"] == "Speakers (Creative Pebble Pro)"
+    assert out["audio"]["output_device"] is None  # v28→v29 resets dev defaults
 
 
 # ---------------------------------------------------------------------------

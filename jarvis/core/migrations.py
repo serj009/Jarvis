@@ -607,6 +607,30 @@ def _migrate_v27_to_v28(data: dict) -> dict:
     return data
 
 
+def _migrate_v28_to_v29(data: dict) -> dict:
+    """Schema v29: Smart audio device auto-detection.
+
+    Replaces hard-coded developer-machine device names with None (auto-detect).
+    The device_detector module will pick the best physical microphone and
+    speaker at first launch, filtering out virtual/loopback devices and
+    preferring WASAPI for lower latency.
+
+    Migration rules:
+    - input_device == "TONOR" → None  (dev-machine default, useless elsewhere)
+    - output_device == "Speakers (Creative Pebble Pro)" → None  (same)
+    - Any other explicit value is left untouched (user chose it deliberately).
+    """
+    audio = data.get("audio")
+    if isinstance(audio, dict):
+        # Clear hard-coded dev-machine defaults so auto-detect kicks in.
+        if audio.get("input_device") == "TONOR":
+            audio["input_device"] = None
+        if audio.get("output_device") == "Speakers (Creative Pebble Pro)":
+            audio["output_device"] = None
+    data["schema_version"] = 29
+    return data
+
+
 MIGRATIONS: dict[int, Migration] = {
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
@@ -635,6 +659,7 @@ MIGRATIONS: dict[int, Migration] = {
     25: _migrate_v25_to_v26,
     26: _migrate_v26_to_v27,
     27: _migrate_v27_to_v28,
+    28: _migrate_v28_to_v29,
 }
 
 
