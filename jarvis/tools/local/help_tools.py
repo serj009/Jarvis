@@ -51,10 +51,15 @@ class OpenHelpTool:
 
     async def execute(self, args: EmptyArgs) -> ToolResult:  # noqa: ARG002
         self._on_open()
+        from jarvis.core.phrases import reply_language
+        lang = reply_language()
+        if lang == "ru":
+            msg = "Вот всё что я умею, sir. Можете использовать поиск для быстрого поиска."
+        elif lang == "uk":
+            msg = "Ось все що я вмію, sir. Можете скористатися пошуком."
+        else:
+            msg = "Here's everything I can do, sir. Use the search box to narrow it down."
         return ToolResult(
             success=True,
-            output=(
-                "Here's everything I can do, sir. Use the search box to "
-                "narrow it down."
-            ),
+            output=msg,
         )

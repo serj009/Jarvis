@@ -215,6 +215,10 @@ _FILLERS: tuple[re.Pattern, ...] = (
     re.compile(r"^будь\s+ласка,?\s+"),
     re.compile(r"^(?:ну|так|ладно|слухай|значить|коротше|це),?\s+"),
     re.compile(r"^(?:е[мм]+|гм+),?\s+"),
+    # RU/UK extra fillers: "как его", "ну типа", "э вот", "ну вот"
+    re.compile(r"^(?:как\s+(?:его|её|это)|ну\s+(?:типа|вот)|э\s+вот|вот\s+что),?\s+"),
+    # UK extra: "як його", "ну от", "е от"
+    re.compile(r"^(?:як\s+(?:його|її|це)|ну\s+от|е\s+от),?\s+"),
 )
 
 _TRAILING_PUNCT = re.compile(r"[\s.!?,]+$")
@@ -248,7 +252,11 @@ def _normalize(text: str) -> str:
 # intentionally miss and fall through to the LLM.
 _STOP_PATTERN: re.Pattern[str] = re.compile(
     r"^(?:stop|shut\s+up|quiet|be\s+quiet|never\s*mind|cancel"
-    r"|that'?s\s+enough|enough)$",
+    r"|that'?s\s+enough|enough"
+    # RU: замолчи, тихо, хватит, отмена, достаточно, молчи
+    r"|замолчи|тихо|хватит|отмена|достаточно|молчи|заткнись"
+    # UK: замовчи, тихо, досить, скасуй, мовчи
+    r"|замовчи|досить|скасуй|мовчи)$",
     re.IGNORECASE,
 )
 
