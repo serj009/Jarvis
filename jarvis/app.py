@@ -215,6 +215,7 @@ from jarvis.core.config import (
 from jarvis.core.errors import ErrorHandler
 
 
+from jarvis.core.personalization import PersonalizationContext
 from jarvis.core.logging_utils import JsonFormatter
 
 
@@ -1218,7 +1219,8 @@ async def _handle_config_changed(
             custom_main_games=gm_cfg.custom_main_games,
             enabled=gm_cfg.enabled,
         )
-        self.router._game_mode = self.game_mode
+        self.router._pctx.game_mode = self.game_mode
+        self.personalization.game_mode = self.game_mode
 
 
 
@@ -2638,6 +2640,17 @@ class JarvisApp:
 
         self.conversation_memory = ConversationMemory()
 
+        # ------------------------------------------------------------------
+        # 5d. PersonalizationContext — groups all personalization stores
+        # ------------------------------------------------------------------
+        self.personalization = PersonalizationContext(
+            memory_store=self.memory_store,
+            relation_store=self.relation_store,
+            tool_examples=self.tool_example_store,
+            personal_aliases=self.personal_aliases,
+            user_profile=self.user_profile,
+            usage_stats=self.usage_stats,
+        )
 
 
 
@@ -2744,13 +2757,8 @@ class JarvisApp:
 
             open_target_planner=_open_target_planner(),
 
-            # T4.4/T4.5: auto-memory + self-learning
-            memory_store=self.memory_store,
-            tool_example_store=self.tool_example_store,
-            relation_store=self.relation_store,
-            personal_aliases=self.personal_aliases,
-            user_profile=self.user_profile,
-            usage_stats=self.usage_stats,
+            # All personalization stores grouped in one object.
+            personalization=self.personalization,
 
 
         )

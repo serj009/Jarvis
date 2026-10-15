@@ -14,6 +14,42 @@ loses settings.
 
 ### Added
 
+- **Refactoring: PersonalizationContext + migrations extraction.**
+  Zero-functional-change refactoring to reduce tech debt:
+
+  **PersonalizationContext** (`jarvis/core/personalization.py`):
+  New dataclass grouping all 7 personalization stores (memory_store,
+  relation_store, tool_examples, personal_aliases, user_profile,
+  usage_stats, game_mode) into a single object. `IntentRouter.__init__()`
+  accepts a `personalization=` parameter instead of 7 individual keyword
+  arguments. Backward compatible: the old individual kwargs still work
+  and build a PersonalizationContext internally.
+
+  **Migrations extraction** (`jarvis/core/migrations.py`):
+  All 28 `_migrate_vX_to_vY` functions, the `MIGRATIONS` dict,
+  `migrate()`, `ConfigMigrationError`, and old prompt constants
+  (`_SYSTEM_PROMPT_V3/V6/V26`) extracted from `config.py` into a
+  dedicated module. `config.py` reduced from ~1388 to ~764 lines.
+  All symbols are re-exported from `config.py` for backward compatibility.
+
+  **app.py integration:**
+  `JarvisApp._build_audio_stack()` now creates a single
+  `self.personalization = PersonalizationContext(...)` after building
+  individual stores, and passes it to `IntentRouter(personalization=...)`.
+  Store creation order is unchanged.
+
+  **Test updates:**
+  - `tests/core/test_personalization.py` — new tests for PersonalizationContext.
+  - `tests/core/test_migrations.py` — module import, re-export, and chain tests.
+  - `tests/core/test_config.py` — monkeypatch targets updated to patch both
+    `config` and `migrations` modules.
+  - `tests/llm/test_router_pattern_equivalence.py` — unchanged (backward compat).
+
+  Files changed: `jarvis/core/config.py`, `jarvis/llm/intent_router.py`,
+  `jarvis/app.py`. Files added: `jarvis/core/personalization.py`,
+  `jarvis/core/migrations.py`, `tests/core/test_personalization.py`,
+  `tests/core/test_migrations.py`.
+
 - **Personalization — personal aliases, user profile, usage stats (T4.9).**
   Three new modules that make Jarvis adapt to the user over time:
 
