@@ -5,6 +5,62 @@
 
 ---
 
+## 2026-10-15 — 20 new tools: browser scenarios + windows extended + knowledge extractor
+
+### Summary
+Added 20 new tool modules (8 browser scenarios, 6 windows extended, 5 cross-platform, 1 knowledge extractor), 
+plus window_manager regex fix. Total: ~6,400 lines of new tool code, ~4,200 lines of tests.
+
+### Web Knowledge Extractor (structured page-to-memory)
+| File | What |
+|------|------|
+| `jarvis/memory/knowledge_extractor.py` | LLM-based structured extraction engine |
+| `jarvis/tools/local/web_knowledge.py` | "Сохрани информацию со страницы" — universal knowledge extraction |
+
+### Browser Scenarios (8 tools)
+| Tool | File | What |
+|------|------|------|
+| page_monitor | `page_monitor.py` | Track page changes, notify on diff |
+| page_compare | `page_compare.py` | Compare two pages via LLM |
+| smart_form_fill | `smart_form_fill.py` | Auto-fill forms from user_profile |
+| page_translate | `page_translate.py` | Translate page via LLM |
+| price_lookup | `price_lookup.py` | Find cheaper prices for products/games |
+| youtube_summary | `youtube_summary.py` | Summarize YouTube video from subtitles |
+| full_page_screenshot | `full_page_screenshot.py` | Full-page screenshot (Selenium CDP) |
+| image_scraper | `image_scraper.py` | Download all images from page |
+
+### Windows Extended (6 tools)
+| Tool | File | What |
+|------|------|------|
+| display_manager | `display_manager.py` | Brightness, night mode, display info |
+| startup_manager | `startup_manager.py` | List/add/remove from Windows startup |
+| network_tools | `network_tools.py` | IP, speed test, network info |
+| disk_cleaner | `disk_cleaner.py` | Disk space, large folders, clean temp |
+| hotkey_sender | `hotkey_sender.py` | Send keyboard shortcuts |
+| win_notifications | `win_notifications.py` | Windows toast notifications |
+
+### Cross-Platform (5 tools)
+| Tool | File | What |
+|------|------|------|
+| tab_manager | `tab_manager.py` | Close other tabs, count, find, duplicate |
+| password_gen | `password_gen.py` | Generate passwords/passphrases |
+| rss_reader | `rss_reader.py` | Subscribe/read RSS feeds |
+| qr_share | `qr_share.py` | Generate QR codes, share links |
+| focus_mode | `focus_mode.py` | Block distracting sites/apps |
+
+### Integration
+- `__init__.py`: 290→351 lines, all 49 tool classes registered
+- `risk.py`: 259→301 lines, 29 new TOOL_RISK_MAP entries
+- `tool_filter.py`: 567→733 lines, 10 new categories + browser category extended
+- `catalogue.py`: 257→318 lines, 29 new class entries
+
+### Fix
+- `window_manager.py`: regex `ок(?:о|о)н` → `окон` (redundant alternation)
+
+### Tests: 19 new test files, ~209 test functions
+
+---
+
 ## 2026-10-15 — Phase 6: Windows Control + Phase 7: Browser (13 new tools)
 
 ### Summary
