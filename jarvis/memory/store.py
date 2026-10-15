@@ -15,6 +15,11 @@ Data path: %APPDATA%/Jarvis/memory/memory.db (Windows)
 Thread safety: SQLite is accessed via asyncio.to_thread with one
 connection per call. WAL mode is enabled for concurrent reads.
 
+Encryption at rest (T-security):
+    Sensitive TEXT columns (text, condensed_text, tags) are encrypted
+    with Windows DPAPI via ``jarvis.platform.encrypted_db``.  Metadata
+    columns (timestamps, counters, tiers) stay plaintext for indexing.
+
 Embedding hook: when an EmbeddingIndex is attached via
 ``set_embedding_index()``, add/delete/update operations automatically
 keep the FAISS index in sync.
@@ -50,6 +55,7 @@ from uuid import uuid4
 
 log = logging.getLogger(__name__)
 from jarvis.memory.auto_tagger import AutoTagger
+from jarvis.platform.encrypted_db import decrypt_value, encrypt_value
 
 FactSource = Literal["user", "conversation", "system", "import"]
 
@@ -216,6 +222,7 @@ class MemoryStore:
         conn.executescript(_SCHEMA)
         conn.executescript(_RELATIONS_SCHEMA)
         self._migrate_tiered_columns(conn)
+        self._migrate_encrypt_columns(conn)
         try:
             conn.executescript(_FTS_SCHEMA)
         except sqlite3.OperationalError:
@@ -255,6 +262,55 @@ class MemoryStore:
             "CREATE INDEX IF NOT EXISTS idx_facts_tier ON facts(tier)"
         )
         conn.commit()
+
+    @staticmethod
+    def _migrate_encrypt_columns(conn: sqlite3.Connection) -> None:
+        """One-time migration: encrypt plaintext fact text/condensed_text.
+
+        Scans all rows; any whose ``text`` column does NOT start with the
+        ``dpapi:`` scheme prefix is considered legacy plaintext and is
+        encrypted in place.  Tags in ``fact_tags`` are also encrypted.
+
+        The migration is idempotent — already-encrypted values pass
+        through ``encrypt_value`` unchanged.
+        """
+        from jarvis.platform.encrypted_db import encrypt_value, needs_migration
+        from jarvis.platform.secrets import dpapi_available
+
+        if not dpapi_available():
+            return  # nothing to do on non-Windows
+
+        rows = conn.execute(
+            "SELECT id, text, condensed_text FROM facts"
+        ).fetchall()
+        migrated = 0
+        for row_id, text, condensed in rows:
+            new_text = encrypt_value(text) if needs_migration(text) else text
+            new_cond = (
+                encrypt_value(condensed)
+                if condensed is not None and needs_migration(condensed)
+                else condensed
+            )
+            if new_text != text or new_cond != condensed:
+                conn.execute(
+                    "UPDATE facts SET text = ?, condensed_text = ? WHERE id = ?",
+                    (new_text, new_cond, row_id),
+                )
+                migrated += 1
+
+        # Encrypt tags
+        tag_rows = conn.execute("SELECT fact_id, tag FROM fact_tags").fetchall()
+        for fid, tag in tag_rows:
+            if needs_migration(tag):
+                new_tag = encrypt_value(tag)
+                conn.execute(
+                    "UPDATE fact_tags SET tag = ? WHERE fact_id = ? AND tag = ?",
+                    (new_tag, fid, tag),
+                )
+
+        if migrated:
+            conn.commit()
+            log.info("migration: encrypted %d fact rows", migrated)
 
     # -- CRUD ---------------------------------------------------------------
 
@@ -301,15 +357,17 @@ class MemoryStore:
     ) -> None:
         conn = sqlite3.connect(str(self._db_path))
         try:
+            enc_text = encrypt_value(text)
             conn.execute(
                 "INSERT INTO facts (id, text, category, source, language, "
                 "created_at, updated_at, is_permanent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (fact_id, text, category, source, language, now, now, int(is_permanent)),
+                (fact_id, enc_text, category, source, language, now, now, int(is_permanent)),
             )
             for tag in tags:
+                enc_tag = encrypt_value(tag.lower().strip())
                 conn.execute(
                     "INSERT OR IGNORE INTO fact_tags (fact_id, tag) VALUES (?, ?)",
-                    (fact_id, tag.lower().strip()),
+                    (fact_id, enc_tag),
                 )
             conn.commit()
         finally:
@@ -332,9 +390,10 @@ class MemoryStore:
             row = conn.execute("SELECT * FROM facts WHERE id = ?", (fact_id,)).fetchone()
             if row is None:
                 return None
-            tags = [r[0] for r in conn.execute(
+            enc_tags = [r[0] for r in conn.execute(
                 "SELECT tag FROM fact_tags WHERE fact_id = ?", (fact_id,)
             ).fetchall()]
+            tags = [decrypt_value(t) or t for t in enc_tags]
             return self._row_to_fact(row, tags)
         finally:
             conn.close()
@@ -407,16 +466,17 @@ class MemoryStore:
         conn = sqlite3.connect(str(self._db_path))
         try:
             rows = conn.execute("SELECT id, text FROM facts").fetchall()
-            return [(r[0], r[1]) for r in rows]
+            return [(r[0], decrypt_value(r[1]) or r[1]) for r in rows]
         finally:
             conn.close()
 
     def _sync_update(self, fact_id: str, text: str, now: str) -> bool:
         conn = sqlite3.connect(str(self._db_path))
         try:
+            enc_text = encrypt_value(text)
             cursor = conn.execute(
                 "UPDATE facts SET text = ?, updated_at = ? WHERE id = ?",
-                (text, now, fact_id),
+                (enc_text, now, fact_id),
             )
             conn.commit()
             return cursor.rowcount > 0
@@ -469,7 +529,7 @@ class MemoryStore:
             params.append(category)
         if tag:
             sql += " AND f.id IN (SELECT fact_id FROM fact_tags WHERE tag = ?)"
-            params.append(tag.lower())
+            params.append(encrypt_value(tag.lower()) or tag.lower())
         sql += " ORDER BY rank LIMIT ?"
         params.append(limit)
 
@@ -478,10 +538,10 @@ class MemoryStore:
         for row in rows:
             # row has extra 'rank' column at the end
             fact_row = row[:-1]
-            tags = [r[0] for r in conn.execute(
+            enc_tags = [r[0] for r in conn.execute(
                 "SELECT tag FROM fact_tags WHERE fact_id = ?", (fact_row[0],)
             ).fetchall()]
-            result.append(self._row_to_fact(fact_row, tags))
+            result.append(self._row_to_fact(fact_row, [decrypt_value(t) or t for t in enc_tags]))
         return result
 
     def _like_search(
@@ -495,17 +555,17 @@ class MemoryStore:
             params.append(category)
         if tag:
             sql += " AND id IN (SELECT fact_id FROM fact_tags WHERE tag = ?)"
-            params.append(tag.lower())
+            params.append(encrypt_value(tag.lower()) or tag.lower())
         sql += " ORDER BY updated_at DESC LIMIT ?"
         params.append(limit)
 
         rows = conn.execute(sql, params).fetchall()
         result = []
         for row in rows:
-            tags = [r[0] for r in conn.execute(
+            enc_tags = [r[0] for r in conn.execute(
                 "SELECT tag FROM fact_tags WHERE fact_id = ?", (row[0],)
             ).fetchall()]
-            result.append(self._row_to_fact(row, tags))
+            result.append(self._row_to_fact(row, [decrypt_value(t) or t for t in enc_tags]))
         return result
 
     # -- stats --------------------------------------------------------------
@@ -548,9 +608,11 @@ class MemoryStore:
         # Columns: id(0) text(1) category(2) source(3) language(4)
         # created_at(5) updated_at(6) access_count(7) last_accessed_at(8)
         # is_permanent(9) [tier(10) condensed_text(11)]
+        raw_text = row[1]
+        raw_condensed = row[11] if len(row) > 11 else None
         return Fact(
             id=row[0],
-            text=row[1],
+            text=decrypt_value(raw_text) or raw_text,
             category=row[2],
             source=row[3],
             language=row[4],
@@ -560,7 +622,9 @@ class MemoryStore:
             last_accessed_at=row[8],
             is_permanent=bool(row[9]),
             tier=row[10] if len(row) > 10 and row[10] else "hot",
-            condensed_text=row[11] if len(row) > 11 else None,
+            condensed_text=(
+                decrypt_value(raw_condensed) if raw_condensed else None
+            ),
             tags=tags,
         )
 
@@ -595,13 +659,13 @@ class MemoryStore:
             ).fetchall()
             result = []
             for row in rows:
-                tags = [
+                enc_tags = [
                     r[0]
                     for r in conn.execute(
                         "SELECT tag FROM fact_tags WHERE fact_id = ?", (row[0],)
                     ).fetchall()
                 ]
-                result.append(self._row_to_fact(row, tags))
+                result.append(self._row_to_fact(row, [decrypt_value(t) or t for t in enc_tags]))
             return result
         finally:
             conn.close()
@@ -619,6 +683,7 @@ class MemoryStore:
     ) -> None:
         conn = sqlite3.connect(str(self._db_path))
         try:
+            condensed = encrypt_value(condensed) or condensed
             conn.execute(
                 "UPDATE facts SET tier = ?, condensed_text = ? WHERE id = ?",
                 (new_tier, condensed, fact_id),

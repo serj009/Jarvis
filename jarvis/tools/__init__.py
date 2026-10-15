@@ -144,6 +144,12 @@ def setup_local_tools(
     from jarvis.tools.local.focus_mode import (
         StartFocusModeTool, StopFocusModeTool, FocusModeStatusTool,
     )
+    # Password vault tools
+    from jarvis.tools.local.auto_login import AutoLoginTool
+    from jarvis.tools.local.vault_manager import (
+        SaveCredentialTool, ListSavedSitesTool, RemoveCredentialTool,
+        UnlockVaultTool, LockVaultTool, ChangeVaultPasswordTool,
+    )
 
     weather_cfg = getattr(config, "weather", None)
     if weather_cfg is None:
@@ -269,6 +275,14 @@ def setup_local_tools(
         StartFocusModeTool(),
         StopFocusModeTool(),
         FocusModeStatusTool(),
+        # Password vault tools
+        AutoLoginTool(),
+        SaveCredentialTool(),
+        ListSavedSitesTool(),
+        RemoveCredentialTool(),
+        UnlockVaultTool(),
+        LockVaultTool(),
+        ChangeVaultPasswordTool(),
     ]
     # SeeScreenTool needs an OllamaClient to call /api/chat with images.
     # Tests that pass None happily register every text-only tool but skip

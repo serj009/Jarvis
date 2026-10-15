@@ -88,6 +88,7 @@ from jarvis.core.request_context import (
     turn_started_at,
 )
 from jarvis.core.state_machine import ConversationalState, Mode, StateMachine
+from jarvis.security.origin_tracker import OriginTracker, RequestOrigin, set_request_context
 
 log = logging.getLogger(__name__)
 
@@ -181,6 +182,9 @@ class AudioPipeline:
         self._frame_task: asyncio.Task | None = None
         self._response_task: asyncio.Task | None = None
         self._listening_timer: asyncio.Task | None = None
+        # Security Layer 1: per-session HMAC origin tracker.
+        # Signs every STT transcription so downstream can prove user origin.
+        self._origin_tracker = OriginTracker()
         self._loop: asyncio.AbstractEventLoop | None = None
         self._started = False
 
@@ -472,6 +476,13 @@ class AudioPipeline:
                 self._sm.set_conversational_state(ConversationalState.IDLE)
                 return
             text = result.text
+            # Security Layer 1: cryptographically sign the STT output so
+            # the IntentRouter (and ultimately ToolGuard) can distinguish
+            # a real user utterance from an LLM-fabricated instruction.
+            _sec_token = self._origin_tracker.sign_user_input(text)
+            set_request_context(self._origin_tracker.create_context(
+                RequestOrigin.USER_VOICE, original_text=text, token=_sec_token,
+            ))
             # T2.4: Log confidence and detected language.
             log.info(
                 "[stt] done at +%s ms: %d chars, confidence=%.2f, action=%s, lang=%s",

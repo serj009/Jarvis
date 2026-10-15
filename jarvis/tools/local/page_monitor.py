@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import json
 import logging
 import time
 from difflib import unified_diff
@@ -31,6 +30,7 @@ from typing import Any, Callable, ClassVar
 from pydantic import BaseModel, Field
 
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
+from jarvis.platform.encrypted_store import EncryptedJsonStore
 
 log = logging.getLogger(__name__)
 
@@ -134,22 +134,19 @@ class MonitorStore:
 
     def _save(self) -> None:
         try:
-            self._persist_path.parent.mkdir(parents=True, exist_ok=True)
+            store = EncryptedJsonStore(self._persist_path)
             active = {
                 url: m.to_dict() for url, m in self._monitors.items() if m.active
             }
-            self._persist_path.write_text(
-                json.dumps(active, indent=2, ensure_ascii=False), encoding="utf-8"
-            )
-        except OSError:
+            store.save(active)
+        except Exception:
             log.debug("Could not save page monitors", exc_info=True)
 
     def load(self) -> None:
         """Load monitors from disk (does NOT start periodic tasks)."""
-        if not self._persist_path.exists():
-            return
         try:
-            data = json.loads(self._persist_path.read_text(encoding="utf-8"))
+            store = EncryptedJsonStore(self._persist_path)
+            data = store.load(default={})
             for url, entry_data in data.items():
                 self._monitors[url] = _MonitorEntry(
                     url=entry_data["url"],
@@ -158,7 +155,7 @@ class MonitorStore:
                     last_hash=entry_data.get("last_hash", ""),
                     last_checked=entry_data.get("last_checked", 0.0),
                 )
-        except (json.JSONDecodeError, OSError):
+        except Exception:
             log.debug("Could not load page monitors", exc_info=True)
 
     # -- public API --------------------------------------------------------

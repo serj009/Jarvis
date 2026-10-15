@@ -433,6 +433,19 @@ class IntentRouter:
         if self._pctx.game_mode is None:
             self._pctx.game_mode = None  # explicit sentinel
 
+        # Security Layers 1+2: ToolGuard gates LLM-initiated network
+        # tool calls through the DataLeakScanner.  Created lazily from
+        # the personalization context so app.py needs no changes.
+        try:
+            from jarvis.security.tool_guard import ToolGuard
+            from jarvis.security.leak_scanner import DataLeakScanner
+
+            self._tool_guard: ToolGuard | None = ToolGuard(
+                leak_scanner=DataLeakScanner(user_profile=self._pctx.user_profile),
+            )
+        except Exception:
+            self._tool_guard = None
+
     def _current_tools(self) -> list[dict]:
         if self._registry is not None:
             return self._registry.as_openai_functions()
@@ -951,7 +964,37 @@ class IntentRouter:
         spoken: list[str] = []
         ends_turn = bool(intents)
         for intent in intents:
-            result = await registry.execute(intent.tool_name, intent.args)
+            # Security Layers 1+2: gate LLM-initiated calls through
+            # ToolGuard before execution.  The context is always
+            # LLM_TOOL_CALL here (the LLM chose the tool, not a
+            # voice-pattern match), so the leak scanner applies its
+            # strictest rules.
+            _sec_blocked = False
+            if self._tool_guard is not None:
+                from jarvis.security.origin_tracker import (
+                    RequestContext as _RC,
+                    RequestOrigin as _RO,
+                    get_request_context as _get_ctx,
+                )
+                _user_ctx = _get_ctx()
+                _llm_ctx = _RC(
+                    origin=_RO.LLM_TOOL_CALL,
+                    token="",
+                    timestamp=_user_ctx.timestamp,
+                    original_text=_user_ctx.original_text,
+                )
+                _guard = self._tool_guard.check(
+                    intent.tool_name, intent.args, _llm_ctx,
+                )
+                if not _guard.allowed:
+                    from jarvis.tools.registry import ToolResult
+                    result = ToolResult(
+                        success=False,
+                        error=f"Security: {_guard.reason}",
+                    )
+                    _sec_blocked = True
+            if not _sec_blocked:
+                result = await registry.execute(intent.tool_name, intent.args)
             tool = registry.get(intent.tool_name)
             ends_turn = ends_turn and result.success and bool(
                 getattr(tool, "ends_turn_on_success", False)

@@ -1,4 +1,4 @@
-"""Jarvis configuration: pydantic v2 schema, JSON persistence, migration hook.
+"""Jarvis configuration — data classes, load / save, migration chain.
 
 Design notes (kept here so future readers see the rationale without digging history):
 
@@ -17,7 +17,7 @@ Design notes (kept here so future readers see the rationale without digging hist
   (Settings UI, deep-research runner, MCP client) is unchanged. See
   `jarvis/platform/secrets.py` for the storage format and the documented
   non-Windows plaintext fallback. `_SECRET_FIELD_PATHS` below is the single
-  list of what counts as a secret — add to it, not to individual call sites.
+  list of what counts as a secret -- add to it, not to individual call sites.
 - Migrations are a chain of v(N) -> v(N+1) functions, applied in sequence.
   Today there is only one schema version, so MIGRATIONS is empty; the comment
   in MIGRATIONS is the template for adding the first real migration.
@@ -28,7 +28,6 @@ Design notes (kept here so future readers see the rationale without digging hist
   so any future caller (first-launch flow, migration completion, test
   fixtures) gets the event for free.
 """
-
 from __future__ import annotations
 
 import json
@@ -43,7 +42,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
-CURRENT_SCHEMA_VERSION = 30
+CURRENT_SCHEMA_VERSION = 31
 
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -500,6 +499,22 @@ def _default_idle_game_patterns() -> list[str]:
     ]
 
 
+
+
+class SecurityConfig(_Base):
+    """Encryption-at-rest settings for user data files.
+
+    When enabled, sensitive data in SQLite columns (memory text, relation
+    summaries) and JSON files (profile, bookmarks, aliases, etc.) is
+    encrypted with Windows DPAPI before writing to disk.  On non-Windows
+    platforms the setting is honoured but encryption is a no-op
+    (plaintext fallback with a warning, same as ``secrets.py``).
+    """
+
+    encrypt_memory: bool = True
+    encrypt_json_files: bool = True
+
+
 class GameModeConfig(_Base):
     """Settings for automatic VRAM management when games are running.
 
@@ -540,6 +555,7 @@ class JarvisConfig(_Base):
 
     sandbox: SandboxConfig = Field(default_factory=SandboxConfig)
     game_mode: GameModeConfig = Field(default_factory=GameModeConfig)
+    security: SecurityConfig = Field(default_factory=SecurityConfig)
 
 # --- secrets at rest -------------------------------------------------------
 

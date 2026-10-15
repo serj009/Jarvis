@@ -17,10 +17,10 @@ Storage: %APPDATA%/Jarvis/user_profile.json
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 from pathlib import Path
+from jarvis.platform.encrypted_store import EncryptedJsonStore
 
 log = logging.getLogger(__name__)
 
@@ -41,6 +41,7 @@ class UserProfile:
 
     def __init__(self, path: Path) -> None:
         self._path = path
+        self._store = EncryptedJsonStore(path)
         self._data: dict = {k: (list(v) if isinstance(v, list) else
                                 dict(v) if isinstance(v, dict) else v)
                             for k, v in DEFAULT_PROFILE.items()}
@@ -51,24 +52,20 @@ class UserProfile:
         return self._path
 
     def _load(self) -> None:
-        if self._path.exists():
-            try:
-                saved = json.loads(self._path.read_text(encoding="utf-8"))
+        try:
+            saved = self._store.load(default={})
+            if saved:
                 self._data.update(saved)
-            except (json.JSONDecodeError, OSError):
-                log.warning(
-                    "[user-profile] failed to load %s; using defaults",
-                    self._path,
-                    exc_info=True,
-                )
+        except Exception:
+            log.warning(
+                "[user-profile] failed to load %s; using defaults",
+                self._path,
+                exc_info=True,
+            )
 
     def _save(self) -> None:
         try:
-            self._path.parent.mkdir(parents=True, exist_ok=True)
-            self._path.write_text(
-                json.dumps(self._data, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
+            self._store.save(self._data)
         except OSError:
             log.warning(
                 "[user-profile] failed to save %s",

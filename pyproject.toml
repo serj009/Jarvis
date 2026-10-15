@@ -78,12 +78,19 @@ browser = [
   "selenium>=4,<5",
   "beautifulsoup4>=4,<5",
 ]
+# Password vault — crypto-grade password storage.
+# Install via: pip install -e ".[security]"
+security = [
+  "argon2-cffi>=21,<24",
+  "cryptography>=41,<44",
+]
 # All optional dependencies combined — for one-step full install.
 # Install via: pip install -e ".[all]"
 all = [
   "jarvis[dev]",
   "jarvis[embeddings]",
   "jarvis[browser]",
+  "jarvis[security]",
   "jarvis[aec]",
 ]
 

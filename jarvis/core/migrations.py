@@ -658,6 +658,21 @@ def _migrate_v29_to_v30(data: dict) -> dict:
     return data
 
 
+def _migrate_v30_to_v31(data: dict) -> dict:
+    """Schema v31: Add security section (encrypted storage at rest).
+
+    Adds ``security`` config section with ``encrypt_memory`` and
+    ``encrypt_json_files`` both defaulting to True.  Existing users
+    get encryption enabled automatically — legacy plaintext data is
+    migrated transparently on first read/write by EncryptedJsonStore
+    and the column-level encryption helpers in encrypted_db.py.
+    """
+    if "security" not in data:
+        data["security"] = {"encrypt_memory": True, "encrypt_json_files": True}
+    data["schema_version"] = 31
+    return data
+
+
 MIGRATIONS: dict[int, Migration] = {
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
@@ -688,6 +703,7 @@ MIGRATIONS: dict[int, Migration] = {
     27: _migrate_v27_to_v28,
     28: _migrate_v28_to_v29,
     29: _migrate_v29_to_v30,
+    30: _migrate_v30_to_v31,
 }
 
 
