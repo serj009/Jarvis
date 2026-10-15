@@ -1204,26 +1204,11 @@ async def _handle_config_changed(
 
         )
 
-        # ------------------------------------------------------------------
-        # 5c. Game Mode — intelligent VRAM management when games run
-        # ------------------------------------------------------------------
-        gm_cfg = self.cfg.game_mode
-        self.game_mode = GameMode(
-            vram_manager=self.vram_manager,
-            ollama_client=self.ollama,
-            stt=self.stt,
-            memory_store=self.memory_store,
-            scan_interval_seconds=gm_cfg.scan_interval_seconds,
-            steam_games={},  # populated at runtime by scan_steam_games()
-            idle_game_patterns=frozenset(gm_cfg.idle_game_patterns),
-            custom_main_games=gm_cfg.custom_main_games,
-            enabled=gm_cfg.enabled,
-        )
-        self.router._pctx.game_mode = self.game_mode
-        self.personalization.game_mode = self.game_mode
 
 
 
+
+        await pipeline.stop()
 
 
         await source.unload()
@@ -2732,6 +2717,24 @@ class JarvisApp:
 
 
         self.mcp_manager = MCPManager(self.registry)
+
+        # ------------------------------------------------------------------
+        # 6b. Game Mode — intelligent VRAM management when games run
+        # ------------------------------------------------------------------
+        gm_cfg = self.cfg.game_mode
+        self.game_mode = GameMode(
+            vram_manager=self.vram_manager,
+            ollama_client=self.ollama,
+            stt=self.stt,
+            memory_store=self.memory_store,
+            scan_interval_seconds=gm_cfg.scan_interval_seconds,
+            steam_games={},  # populated at runtime by scan_steam_games()
+            idle_game_patterns=frozenset(gm_cfg.idle_game_patterns),
+            custom_main_games=gm_cfg.custom_main_games,
+            enabled=gm_cfg.enabled,
+        )
+        self.personalization.game_mode = self.game_mode
+
 
 
         self.router = IntentRouter(

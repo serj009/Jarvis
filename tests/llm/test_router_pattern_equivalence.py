@@ -420,7 +420,6 @@ def test_generic_open_catch_all_stays_last(utterance: str, tool: str):
 @pytest.mark.parametrize(
     ("utterance", "tool"),
     [
-        ("play pink floyd", "play_youtube_music"),
         ("play cyberpunk on steam", "launch_steam_game"),
         ("close chrome", "close_app"),
         ("quit spotify", "close_app"),

@@ -82,27 +82,32 @@ class SystemStatsTool:
     #
     # Priority 85: high priority, no parameters, exact match.
     # "system stats" / "статистика системы" is unambiguous.
+    # NOTE: "show system stats" is handled by show_dashboard (priority 240)
+    # to open the visual panel.  The spoken report here matches only bare
+    # "system stats" / "cpu usage" etc. without a leading "show".
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
-        # EN: "system stats", "system status", "cpu usage"
+        # EN: "system stats", "system status", "cpu usage" (no "show" prefix)
         VoicePattern(
             regex=(
-                r"^(?:show\s+)?(?:system\s+(?:stats|status|info)"
+                r"^(?:system\s+(?:stats|status|info)"
                 r"|cpu\s+usage|memory\s+usage|ram\s+usage)$"
             ),
             priority=85,
         ),
         # RU: "статистика системы", "загрузка системы", "состояние пк"
+        # (no "покажи" prefix — "покажи статистику" → show_dashboard)
         VoicePattern(
             regex=(
-                r"^(?:покажи\s+)?(?:статистик[уа]|загрузк[уа]|состояние)"
+                r"^(?:статистик[уа]|загрузк[уа]|состояние)"
                 r"\s+(?:систем[ыу]|пк|компьютер[аы])$"
             ),
             priority=85,
         ),
         # UK: "статистика системи", "завантаження системи"
+        # (no "покажи" prefix)
         VoicePattern(
             regex=(
-                r"^(?:покажи\s+)?(?:статистик[уа]|завантаження)"
+                r"^(?:статистик[уа]|завантаження)"
                 r"\s+(?:систем[иі]|пк|комп'?ютер[аі])$"
             ),
             priority=85,
