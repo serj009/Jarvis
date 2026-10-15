@@ -15,6 +15,9 @@ htmlcov/
 
 # Virtual envs
 .venv/
+.test_venv/
+test_results*.txt
+test_work_results.txt
 venv/
 env/
 
