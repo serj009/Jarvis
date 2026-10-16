@@ -547,9 +547,89 @@ QGroupBox::title {{
     padding: 0 4px;
     color: {ACCENT};
 }}
+/* -- command tag colors (Commands tab) -------------------------------- */
+
+QLabel#cmdTagEN {{
+    background-color: rgba(59, 130, 246, 0.1);
+    color: #7cb3f4;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+}}
+
+QLabel#cmdTagRU {{
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #f87171;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+}}
+
+QLabel#cmdTagUK {{
+    background-color: rgba(34, 197, 94, 0.1);
+    color: #4ade80;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+}}
+
+QPushButton#langBtn {{
+    border: none;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    color: {TEXT_SECONDARY};
+    background-color: transparent;
+}}
+
+QPushButton#langBtn:checked {{
+    color: {ACCENT};
+    background-color: {ACCENT_DIM};
+}}
 """
 
 
 def apply_theme(window: QWidget) -> None:
-    """Apply the sidebar dark theme to *window* and all children."""
+    """Apply the sidebar dark theme to *window* and all children.
+/* ── command tag colors (Commands tab) ─────────────────────────── */
+
+QLabel#cmdTagEN {{
+    background-color: rgba(59, 130, 246, 0.1);
+    color: #7cb3f4;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+}}
+
+QLabel#cmdTagRU {{
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #f87171;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+}}
+
+QLabel#cmdTagUK {{
+    background-color: rgba(34, 197, 94, 0.1);
+    color: #4ade80;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+}}
+
+QPushButton#langBtn {{
+    border: none;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 500;
+    color: {TEXT_SECONDARY};
+    background-color: transparent;
+}}
+
+QPushButton#langBtn:checked {{
+    color: {ACCENT};
+    background-color: {ACCENT_DIM};
+}}
+"""
     window.setStyleSheet(_QSS)
+
