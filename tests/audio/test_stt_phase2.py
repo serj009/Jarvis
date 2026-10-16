@@ -1,4 +1,4 @@
-"""Tests for Phase 2 STT enhancements: multilingual, confidence, hotwords.
+"""Phase-2 STT tests (T2.1–T2.4).
 
 These tests cover T2.1-T2.4 without duplicating the Phase 1 test suite
 in test_stt.py.
@@ -10,8 +10,10 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from jarvis.audio.protocols import TranscriptionResult
-from jarvis.audio.stt import (
+pytest.importorskip("faster_whisper")
+
+from jarvis.audio.protocols import TranscriptionResult  # noqa: E402
+from jarvis.audio.stt import (  # noqa: E402
     HOTWORDS_AUTO,
     HOTWORDS_BY_LANG,
     HOTWORDS_EN,

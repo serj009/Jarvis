@@ -163,7 +163,6 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 
 
 
-from jarvis.audio.devices import AudioInputSource
 
 
 from jarvis.audio.aec import BargeInManager
@@ -2402,6 +2401,7 @@ class JarvisApp:
 
 
 
+        from jarvis.audio.devices import AudioInputSource  # lazy: sounddevice
         self.source = AudioInputSource(
 
 

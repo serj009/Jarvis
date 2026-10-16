@@ -19,9 +19,11 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from jarvis.audio.protocols import FRAME_BYTES, SAMPLE_RATE, WakeWordDetector, WakeWordResult
-from jarvis.audio.wake_word import OpenWakeWord, WakeWordModelMissingError
-from jarvis.core.lifecycle import Loadable
+pytest.importorskip("openwakeword")
+
+from jarvis.audio.protocols import FRAME_BYTES, SAMPLE_RATE, WakeWordDetector, WakeWordResult  # noqa: E402
+from jarvis.audio.wake_word import OpenWakeWord, WakeWordModelMissingError  # noqa: E402
+from jarvis.core.lifecycle import Loadable  # noqa: E402
 
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures" / "audio"
 HEY_JARVIS_FIXTURE = FIXTURES_DIR / "hey_jarvis.wav"

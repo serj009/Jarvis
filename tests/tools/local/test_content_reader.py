@@ -105,22 +105,28 @@ class TestExtractTitle:
 
 
 class TestHttpxFetch:
-    @patch("jarvis.tools.local.content_reader.httpx")
-    def test_success(self, mock_httpx):
+    def test_success(self, monkeypatch):
+        pytest.importorskip("httpx")
         mock_resp = MagicMock()
         mock_resp.text = "<html><body>OK</body></html>"
         mock_resp.url = "https://example.com"
         mock_resp.raise_for_status = MagicMock()
+        import httpx
+        mock_httpx = MagicMock()
         mock_httpx.get.return_value = mock_resp
+        mock_httpx.ConnectError = httpx.ConnectError
+        mock_httpx.TimeoutException = httpx.TimeoutException
+        monkeypatch.setitem(__import__("sys").modules, "httpx", mock_httpx)
         result = _httpx_fetch("https://example.com")
         assert result["success"] is True
 
-    @patch("jarvis.tools.local.content_reader.httpx")
-    def test_connect_error(self, mock_httpx):
-        import httpx as real_httpx
+    def test_connect_error(self, monkeypatch):
+        real_httpx = pytest.importorskip("httpx")
+        mock_httpx = MagicMock()
         mock_httpx.ConnectError = real_httpx.ConnectError
         mock_httpx.TimeoutException = real_httpx.TimeoutException
         mock_httpx.get.side_effect = real_httpx.ConnectError("no internet")
+        monkeypatch.setitem(__import__("sys").modules, "httpx", mock_httpx)
         result = _httpx_fetch("https://example.com")
         assert result["success"] is False
         assert "internet" in result["error"].lower() or "connect" in result["error"].lower()
@@ -136,11 +142,6 @@ def _mock_browser(monkeypatch):
     mock_bc.get_page_text.return_value = {"success": True, "text": "Hello page"}
     mock_bc.get_page_title.return_value = {"success": True, "title": "Test"}
     mock_bc.get_current_url.return_value = {"success": True, "url": "https://example.com"}
-    monkeypatch.setattr(
-        "jarvis.tools.local.content_reader._get_browser",
-        lambda: mock_bc,
-    )
-    # Also mock in browser_tabs where content_reader imports from
     monkeypatch.setattr(
         "jarvis.tools.local.browser_tabs._get_browser",
         lambda: mock_bc,
