@@ -34,6 +34,7 @@ from datetime import datetime
 from typing import ClassVar
 
 from typing import TYPE_CHECKING
+
 from pydantic import BaseModel, Field
 
 from jarvis.platform import windows as winplat
@@ -42,6 +43,7 @@ from jarvis.tools.registry import ToolResult, VoicePattern
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from jarvis.vision.ocr import ScreenOCR
     from jarvis.core.game_mode import GameMode
 
 
@@ -125,6 +127,7 @@ class SeeScreenTool:
         ollama_client,
         vision_config,
         game_mode: GameMode | None = None,
+        ocr: ScreenOCR | None = None,
     ) -> None:
         # `ollama_client` is the live OllamaClient instance. We use its
         # vision_chat() method (model name is per-call, not bound to the
@@ -134,6 +137,8 @@ class SeeScreenTool:
         # Game mode: when active, Ollama is evicted from VRAM.  Use
         # on_demand_vision_query() for temp load → answer → unload.
         self._game_mode = game_mode
+        # Optional OCR module — enriches the vision prompt with text.
+        self._ocr = ocr
 
     async def execute(self, args: SeeScreenArgs) -> ToolResult:
         model = (getattr(self._cfg, "model", "") or "").strip()
@@ -158,7 +163,7 @@ class SeeScreenTool:
                 error=f"I couldn't capture the screen, sir: {exc}",
             )
 
-        prompt = self._build_prompt(args.question)
+        prompt = self._build_prompt(args.question, image_b64=image_b64)
 
         # Game mode: Ollama is evicted from VRAM — use temp load cycle
         if self._game_mode is not None and self._game_mode.is_active:
@@ -213,15 +218,61 @@ class SeeScreenTool:
 
     # -- internal --
 
-    def _build_prompt(self, question: str) -> str:
-        q = (question or "").strip()
-        if not q:
-            return _DEFAULT_PROMPT
-        return (
-            f"{_DEFAULT_PROMPT}\n\nUser's specific question: {q}\n"
+    def _build_prompt(
+        self, question: str, *, image_b64: str = "",
+    ) -> str:
+        """Build the vision-model prompt, enriched with context when
+        available.
+
+        Context additions (all optional, all degrade gracefully):
+
+        1. **Game name** — when Game Mode is active and a game has been
+           detected, tells the model which game the user is playing so
+           it can give game-aware answers.
+        2. **OCR text** — when Tesseract is installed, feeds the first
+           ~500 characters of screen text into the prompt.  The vision
+           model (llava:7b) is weak at reading small UI text; OCR text
+           compensates by giving it a textual transcript to reason over.
+        """
+        base_question = (question or "").strip()
+
+        context_parts: list[str] = []
+
+        # 1. Game context
+        if self._game_mode and self._game_mode.is_active:
+            current = self._game_mode.current_game
+            if current and current.title:
+                context_parts.append(
+                    f"The user is currently playing {current.title}."
+                )
+
+        # 2. OCR text (helps the vision model read small UI text)
+        if self._ocr and self._ocr.is_available():
+            try:
+                from PIL import Image as _PILImage  # lazy
+                import io as _io
+                raw = base64.b64decode(image_b64)
+                img = _PILImage.open(_io.BytesIO(raw))
+                ocr_text = self._ocr.extract_text(img)
+                if ocr_text.strip():
+                    context_parts.append(
+                        f"Text visible on screen (OCR): {ocr_text[:500]}"
+                    )
+            except Exception:
+                log.debug("see_screen: OCR augmentation failed", exc_info=True)
+
+        if not base_question:
+            base_prompt = _DEFAULT_PROMPT
+        else:
+            base_prompt = (
+            f"{_DEFAULT_PROMPT}\n\nUser's specific question: {base_question}\n"
             "Answer the question directly using only what you see in the "
             "image. If the answer isn't visible, say so."
-        )
+            )
+
+        if context_parts:
+            return "\n".join(context_parts) + "\n\n" + base_prompt
+        return base_prompt
 
     @staticmethod
     def _capture_and_encode(max_dim: int) -> tuple[str, str]:
