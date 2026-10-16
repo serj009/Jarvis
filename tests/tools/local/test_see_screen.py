@@ -334,6 +334,7 @@ async def test_prompt_includes_ocr_text_when_available(tmp_path):
 
     # Patch PIL.Image.open inside _build_prompt — it decodes base64 → img
     fake_pil_open = MagicMock(return_value=MagicMock())
+    fakes["PIL.Image"].open = fake_pil_open
 
     tool = SeeScreenTool(
         ollama_client=ollama,

@@ -70,6 +70,7 @@ TOOL_DISPLAY_NAMES: dict[str, str] = {
     "play_youtube_music": "\U0001f3b5 Play YouTube Music",
     "read_more": "\U0001f4d6 Read More",
     "read_note": "\U0001f4d6 Read Note",
+    "read_screen_text": "\U0001f4d6 Read Screen Text",
     "report_cpu_and_memory_percentages": "\U0001f4ca CPU & Memory Usage",
     "research": "\U0001f50d Research",
     "resume_deep_research": "\u25b6\ufe0f Resume Deep Research",
@@ -81,6 +82,7 @@ TOOL_DISPLAY_NAMES: dict[str, str] = {
     "take_note": "\U0001f4dd Take Note",
     "type_into_active_window": "\u2328\ufe0f Type Into Window",
     "volume": "\U0001f50a Volume Control",
+    "watch_screen": "\U0001f441\ufe0f Watch Screen",
 }
 
 

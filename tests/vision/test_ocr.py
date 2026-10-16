@@ -104,9 +104,12 @@ def test_extract_text_returns_ocr_result():
     fake_pt = _make_fake_pytesseract(text="Error: file not found", available=True)
     fake_enhance = _make_enhance_module()
     image = _make_fake_pil_image()
+    fake_pil = types.ModuleType("PIL")
+    fake_pil.ImageEnhance = fake_enhance
 
     with patch.dict(sys.modules, {
         "pytesseract": fake_pt,
+        "PIL": fake_pil,
         "PIL.ImageEnhance": fake_enhance,
     }):
         from jarvis.vision.ocr import ScreenOCR
@@ -157,9 +160,12 @@ def test_extract_regions_returns_bounding_boxes():
     fake_pt = _make_fake_pytesseract(data=data, available=True)
     fake_enhance = _make_enhance_module()
     image = _make_fake_pil_image()
+    fake_pil = types.ModuleType("PIL")
+    fake_pil.ImageEnhance = fake_enhance
 
     with patch.dict(sys.modules, {
         "pytesseract": fake_pt,
+        "PIL": fake_pil,
         "PIL.ImageEnhance": fake_enhance,
     }):
         from jarvis.vision.ocr import ScreenOCR
@@ -202,9 +208,12 @@ def test_custom_languages_passed_to_tesseract():
     fake_pt = _make_fake_pytesseract(text="Привіт", available=True)
     fake_enhance = _make_enhance_module()
     image = _make_fake_pil_image()
+    fake_pil = types.ModuleType("PIL")
+    fake_pil.ImageEnhance = fake_enhance
 
     with patch.dict(sys.modules, {
         "pytesseract": fake_pt,
+        "PIL": fake_pil,
         "PIL.ImageEnhance": fake_enhance,
     }):
         from jarvis.vision.ocr import ScreenOCR

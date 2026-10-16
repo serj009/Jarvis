@@ -480,7 +480,7 @@ class TestOnDemandVisionQuery:
 
     @pytest.mark.asyncio
     async def test_vision_query_no_ollama(self):
-        gm = _make_game_mode(ollama_client=None)
+        gm = _make_game_mode()
         # Need to explicitly set _ollama to None (constructor sets it)
         gm._ollama = None
 
