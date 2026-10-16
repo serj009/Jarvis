@@ -40,39 +40,121 @@ from PySide6.QtWidgets import (
 )
 
 from jarvis.core.events import ConversationalStateChanged, EventBus
+from jarvis.ui.settings.theme import (
+    ACCENT,
+    BG,
+    BG_INPUT,
+    BORDER,
+    SUCCESS,
+    TEXT_MUTED,
+    TEXT_PRIMARY,
+    TEXT_SECONDARY,
+    WARNING,
+)
 
 if TYPE_CHECKING:
     from jarvis.ui.overlay import AmplitudeLatch
 
 log = logging.getLogger(__name__)
 
-_BG = "#0d0d0d"
-_BORDER = "#1f1f1f"
-_TEXT = "#ffffff"
-_TEXT_DIM = "#808080"
-_TEXT_MID = "#b0b0b0"
-_CYAN = "#38f4ff"
-_GREEN = "#3dd97a"
-_AMBER = "#e6b94a"
-
 _PANEL_W = 620
 _PANEL_H = 520
 
-_BTN_PRIMARY = (
-    f"QPushButton {{ color:#000; background:{_CYAN}; border:none; "
-    "padding:8px 18px; font-size:10pt; font-weight:500; }}"
-    f"QPushButton:hover {{ background:#7df8ff; }}"
-)
-_BTN_SECONDARY = (
-    f"QPushButton {{ color:{_TEXT}; background:transparent; "
-    f"border:1px solid {_BORDER}; padding:8px 18px; font-size:10pt; }}"
-    f"QPushButton:hover {{ border:1px solid {_CYAN}; color:{_CYAN}; }}"
-)
-_BTN_LINK = (
-    f"QPushButton {{ color:{_TEXT_DIM}; background:transparent; border:none; "
-    "font-size:9pt; }}"
-    f"QPushButton:hover {{ color:{_TEXT}; }}"
-)
+# ---------------------------------------------------------------------------
+# Consolidated stylesheet — one source of truth for every visual rule.
+# Widget targeting via objectName; no per-widget setStyleSheet calls.
+# ---------------------------------------------------------------------------
+
+_PANEL_QSS = f"""
+/* -- outer frame --------------------------------------------------- */
+QFrame#obFrame {{
+    background: {BG};
+    border: 1px solid {ACCENT};
+    border-radius: 8px;
+}}
+
+/* -- title --------------------------------------------------------- */
+QLabel#obTitle {{
+    color: {ACCENT};
+    font-size: 18pt;
+    font-weight: 300;
+    letter-spacing: 2px;
+    background: transparent;
+}}
+
+/* -- step label ---------------------------------------------------- */
+QLabel#obStepLabel {{
+    color: {TEXT_MUTED};
+    font-size: 8pt;
+    font-weight: 300;
+    letter-spacing: 3px;
+    background: transparent;
+}}
+
+/* -- body text ----------------------------------------------------- */
+QLabel#obIntro,
+QLabel#obExplain,
+QLabel#obSuggestions {{
+    color: {TEXT_SECONDARY};
+    font-size: 11pt;
+    background: transparent;
+}}
+QLabel#obSuggestions {{
+    font-size: 10pt;
+}}
+
+/* -- heading labels ------------------------------------------------ */
+QLabel#obHead {{
+    color: {TEXT_PRIMARY};
+    font-size: 14pt;
+    font-weight: 300;
+    background: transparent;
+}}
+
+/* -- tips / small text --------------------------------------------- */
+QLabel#obTip,
+QLabel#obMiss,
+QLabel#obOutro {{
+    color: {TEXT_MUTED};
+    font-size: 9pt;
+    background: transparent;
+}}
+
+/* -- buttons ------------------------------------------------------- */
+QPushButton#obBtnPrimary {{
+    color: #000;
+    background: {ACCENT};
+    border: none;
+    padding: 8px 18px;
+    font-size: 10pt;
+    font-weight: 500;
+}}
+QPushButton#obBtnPrimary:hover {{
+    background: #60a5fa;
+}}
+
+QPushButton#obBtnSecondary {{
+    color: {TEXT_PRIMARY};
+    background: transparent;
+    border: 1px solid {BORDER};
+    padding: 8px 18px;
+    font-size: 10pt;
+}}
+QPushButton#obBtnSecondary:hover {{
+    border: 1px solid {ACCENT};
+    color: {ACCENT};
+}}
+
+QPushButton#obBtnLink {{
+    color: {TEXT_MUTED};
+    background: transparent;
+    border: none;
+    font-size: 9pt;
+}}
+QPushButton#obBtnLink:hover {{
+    color: {TEXT_PRIMARY};
+}}
+"""
 
 
 class _MicBars(QWidget):
@@ -119,7 +201,7 @@ class _MicBars(QWidget):
         try:
             p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
             rect = self.rect()
-            p.fillRect(rect, QColor("#0a0a0a"))
+            p.fillRect(rect, QColor(BG_INPUT))
             n_bars = 24
             gap = 4
             bar_w = (rect.width() - gap * (n_bars + 1)) / n_bars
@@ -131,7 +213,7 @@ class _MicBars(QWidget):
                 weight = max(0.15, weight)
                 h = max(2.0, weight * self._level * rect.height())
                 x = gap + i * (bar_w + gap)
-                color = QColor(_CYAN)
+                color = QColor(ACCENT)
                 p.fillRect(int(x), int(center_y - h / 2), int(bar_w), int(h), color)
         finally:
             p.end()
@@ -188,31 +270,23 @@ class OnboardingPanel(QWidget):
 
     def _build_ui(self) -> None:
         self.setFixedSize(_PANEL_W, _PANEL_H)
+        self.setStyleSheet(_PANEL_QSS)
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
 
         frame = QFrame()
-        frame.setStyleSheet(
-            f"QFrame {{ background:{_BG}; border:1px solid {_CYAN}; "
-            "border-radius:8px; }}"
-        )
+        frame.setObjectName("obFrame")
         flay = QVBoxLayout(frame)
         flay.setContentsMargins(28, 24, 28, 20)
         flay.setSpacing(14)
 
         title = QLabel("Welcome to Jarvis")
-        title.setStyleSheet(
-            f"color:{_CYAN}; font-size:18pt; font-weight:300; "
-            "letter-spacing:2px; background:transparent;"
-        )
+        title.setObjectName("obTitle")
         flay.addWidget(title)
 
         self._step_label = QLabel("Step 1 of 3")
-        self._step_label.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:8pt; font-weight:300; "
-            "letter-spacing:3px; background:transparent;"
-        )
+        self._step_label.setObjectName("obStepLabel")
         flay.addWidget(self._step_label)
 
         self._stack = QStackedWidget()
@@ -224,16 +298,16 @@ class OnboardingPanel(QWidget):
         # Footer: Skip on the left, Back/Next/Finish on the right.
         footer = QHBoxLayout()
         self._skip_btn = QPushButton("Skip")
-        self._skip_btn.setStyleSheet(_BTN_LINK)
+        self._skip_btn.setObjectName("obBtnLink")
         self._skip_btn.clicked.connect(self._finish)
         footer.addWidget(self._skip_btn)
         footer.addStretch(1)
         self._back_btn = QPushButton("Back")
-        self._back_btn.setStyleSheet(_BTN_SECONDARY)
+        self._back_btn.setObjectName("obBtnSecondary")
         self._back_btn.clicked.connect(self._on_back)
         footer.addWidget(self._back_btn)
         self._next_btn = QPushButton("Next")
-        self._next_btn.setStyleSheet(_BTN_PRIMARY)
+        self._next_btn.setObjectName("obBtnPrimary")
         self._next_btn.clicked.connect(self._on_next)
         footer.addWidget(self._next_btn)
         flay.addLayout(footer)
@@ -250,27 +324,23 @@ class OnboardingPanel(QWidget):
         intro = QLabel(
             "Jarvis is a private, local voice assistant. Nothing leaves "
             "your computer unless you ask it to.\n\n"
-            "Let's make sure your microphone is working. Speak — the bars "
+            "Let\u2019s make sure your microphone is working. Speak \u2014 the bars "
             "below should react to your voice."
         )
         intro.setWordWrap(True)
-        intro.setStyleSheet(
-            f"color:{_TEXT_MID}; font-size:11pt; background:transparent;"
-        )
+        intro.setObjectName("obIntro")
         lay.addWidget(intro)
 
         self._bars = _MicBars(amplitude_latch=self._amplitude_latch)
         lay.addWidget(self._bars)
 
         tip = QLabel(
-            "Not reacting? Check Settings → Voice → Input device, or pick "
-            "your headset's microphone there. You can come back here from "
+            "Not reacting? Check Settings \u2192 Voice \u2192 Input device, or pick "
+            "your headset\u2019s microphone there. You can come back here from "
             "the tray menu."
         )
         tip.setWordWrap(True)
-        tip.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:9pt; background:transparent;"
-        )
+        tip.setObjectName("obTip")
         lay.addWidget(tip)
         lay.addStretch(1)
         return w
@@ -281,40 +351,35 @@ class OnboardingPanel(QWidget):
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(12)
 
-        head = QLabel("Say “Hey Jarvis”")
-        head.setStyleSheet(
-            f"color:{_TEXT}; font-size:14pt; font-weight:300; background:transparent;"
-        )
+        head = QLabel("Say \u201cHey Jarvis\u201d")
+        head.setObjectName("obHead")
         lay.addWidget(head)
 
         explain = QLabel(
             "Try saying it now. As soon as the wake-word detector hears "
             "you, the orb on your desktop will glow cyan and this step "
-            "will check off — meaning Jarvis is listening for your next "
+            "will check off \u2014 meaning Jarvis is listening for your next "
             "command."
         )
         explain.setWordWrap(True)
-        explain.setStyleSheet(
-            f"color:{_TEXT_MID}; font-size:11pt; background:transparent;"
-        )
+        explain.setObjectName("obExplain")
         lay.addWidget(explain)
 
-        self._wake_indicator = QLabel("Waiting for “Hey Jarvis”…")
+        self._wake_indicator = QLabel("Waiting for \u201cHey Jarvis\u201d\u2026")
+        self._wake_indicator.setObjectName("obWakeIndicator")
         self._wake_indicator.setStyleSheet(
-            f"color:{_AMBER}; font-size:11pt; font-style:italic; "
+            f"color:{WARNING}; font-size:11pt; font-style:italic; "
             "background:transparent;"
         )
         lay.addWidget(self._wake_indicator)
 
         miss = QLabel(
             "If nothing happens after a few tries, lower the wake-word "
-            "sensitivity in Settings → Voice and try again. You can also "
+            "sensitivity in Settings \u2192 Voice and try again. You can also "
             "Skip this step."
         )
         miss.setWordWrap(True)
-        miss.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:9pt; background:transparent;"
-        )
+        miss.setObjectName("obMiss")
         lay.addWidget(miss)
         lay.addStretch(1)
         return w
@@ -326,41 +391,35 @@ class OnboardingPanel(QWidget):
         lay.setSpacing(12)
 
         head = QLabel("Try a command")
-        head.setStyleSheet(
-            f"color:{_TEXT}; font-size:14pt; font-weight:300; background:transparent;"
-        )
+        head.setObjectName("obHead")
         lay.addWidget(head)
 
         intro = QLabel(
-            "You're all set. Here are two great ways to explore what "
+            "You\u2019re all set. Here are two great ways to explore what "
             "Jarvis can do:"
         )
         intro.setWordWrap(True)
-        intro.setStyleSheet(
-            f"color:{_TEXT_MID}; font-size:11pt; background:transparent;"
-        )
+        intro.setObjectName("obIntro")
         lay.addWidget(intro)
 
         suggestions = QLabel(
-            "•  Say <b>“what can you do”</b> for a plain-English list.<br>"
-            "•  Press <b>Ctrl+Shift+P</b> to open the command palette.<br>"
-            "•  Try one of these right now to see how it feels:"
+            "\u2022  Say <b>\u201cwhat can you do\u201d</b> for a plain-English list.<br>"
+            "\u2022  Press <b>Ctrl+Shift+P</b> to open the command palette.<br>"
+            "\u2022  Try one of these right now to see how it feels:"
         )
         suggestions.setWordWrap(True)
-        suggestions.setStyleSheet(
-            f"color:{_TEXT_MID}; font-size:10pt; background:transparent;"
-        )
+        suggestions.setObjectName("obSuggestions")
         suggestions.setTextFormat(Qt.TextFormat.RichText)
         lay.addWidget(suggestions)
 
         btn_row = QHBoxLayout()
-        help_btn = QPushButton("Open “What can I say?”")
-        help_btn.setStyleSheet(_BTN_SECONDARY)
+        help_btn = QPushButton("Open \u201cWhat can I say?\u201d")
+        help_btn.setObjectName("obBtnSecondary")
         help_btn.clicked.connect(self._open_help)
         btn_row.addWidget(help_btn)
 
         palette_btn = QPushButton("Open command palette")
-        palette_btn.setStyleSheet(_BTN_SECONDARY)
+        palette_btn.setObjectName("obBtnSecondary")
         palette_btn.clicked.connect(self._open_palette)
         btn_row.addWidget(palette_btn)
         btn_row.addStretch(1)
@@ -368,13 +427,11 @@ class OnboardingPanel(QWidget):
 
         lay.addStretch(1)
         outro = QLabel(
-            "When you're ready, click <b>Finish</b> below. You can re-open "
+            "When you\u2019re ready, click <b>Finish</b> below. You can re-open "
             "this tutorial any time from the tray menu."
         )
         outro.setWordWrap(True)
-        outro.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:9pt; background:transparent;"
-        )
+        outro.setObjectName("obOutro")
         outro.setTextFormat(Qt.TextFormat.RichText)
         lay.addWidget(outro)
         return w
@@ -385,9 +442,9 @@ class OnboardingPanel(QWidget):
     def _on_open(self) -> None:
         self._stack.setCurrentIndex(0)
         self._wake_detected = False
-        self._wake_indicator.setText("Waiting for “Hey Jarvis”…")
+        self._wake_indicator.setText("Waiting for \u201cHey Jarvis\u201d\u2026")
         self._wake_indicator.setStyleSheet(
-            f"color:{_AMBER}; font-size:11pt; font-style:italic; "
+            f"color:{WARNING}; font-size:11pt; font-style:italic; "
             "background:transparent;"
         )
         self._refresh_nav()
@@ -460,9 +517,9 @@ class OnboardingPanel(QWidget):
         if self._wake_detected:
             return
         self._wake_detected = True
-        self._wake_indicator.setText("✓ Heard you, sir.")
+        self._wake_indicator.setText("\u2713 Heard you, sir.")
         self._wake_indicator.setStyleSheet(
-            f"color:{_GREEN}; font-size:11pt; background:transparent;"
+            f"color:{SUCCESS}; font-size:11pt; background:transparent;"
         )
 
     def _cleanup_subscriptions(self) -> None:

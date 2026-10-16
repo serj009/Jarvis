@@ -405,11 +405,11 @@ class TestHelpMultilingual:
 
     @pytest.mark.parametrize("phrase", ["допомога", "покажи довідку", "довідка"])
     def test_uk_help(self, patterns, phrase):
-        _assert_pattern_matches(patterns[5], phrase)
+        _assert_pattern_matches(patterns[6], phrase)
 
     def test_uk_what_can_you_do(self, patterns):
-        _assert_pattern_matches(patterns[6], "що ти вмієш")
-        _assert_pattern_matches(patterns[6], "що ти можеш")
+        _assert_pattern_matches(patterns[7], "що ти вмієш")
+        _assert_pattern_matches(patterns[7], "що ти можеш")
 
 
 # -- research.py -----------------------------------------------------------

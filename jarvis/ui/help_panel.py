@@ -1,4 +1,13 @@
-"""Help panel — slide-in 'what can I say?' reference for non-technical users."""
+"""Standalone Commands panel — slide-in overlay wrapping CommandsWidget.
+
+Opened by voice ("help", "что ты умеешь", "допомога") or tray menu.
+Visually identical to the Settings → Commands tab: same theme tokens,
+same cards, same search + language filter.  The only additions are:
+
+* A thin header bar (title + close button)
+* Frameless, always-on-top, translucent-background window flags
+* Slide-in / slide-out animation on the right edge of the screen
+"""
 
 from __future__ import annotations
 
@@ -14,21 +23,22 @@ from PySide6.QtCore import (
 )
 from PySide6.QtWidgets import (
     QApplication,
-    QFrame,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QPushButton,
-    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
 
-from jarvis.ui.capabilities import (
-    CAPABILITY_CATEGORIES,
-    Capability,
-    CapabilityCategory,
-    search_capabilities,
+from jarvis.ui.commands_widget import CommandsWidget
+from jarvis.ui.settings.theme import (
+    ACCENT,
+    BG,
+    BORDER,
+    TEXT_MUTED,
+    TEXT_PRIMARY,
+    TEXT_SECONDARY,
+    apply_theme,
 )
 
 log = logging.getLogger(__name__)
@@ -37,72 +47,9 @@ _DEFAULT_PANEL_WIDTH = 520
 _SIDE_MARGIN = 16
 _ANIM_MS = 280
 
-_BG = "#0d0d0d"
-_BG_CARD = "#141414"
-_BORDER = "#1f1f1f"
-_TEXT = "#ffffff"
-_TEXT_DIM = "#808080"
-_TEXT_MID = "#b0b0b0"
-_CYAN = "#38f4ff"
-
-_HDR_BTN = (
-    f"QPushButton {{ color:{_TEXT_DIM}; background:transparent; border:none; "
-    "font-size:8pt; letter-spacing:2px; font-weight:300; padding:0 6px; }}"
-    f"QPushButton:hover {{ color:{_TEXT}; }}"
-)
-
-
-def _build_capability_card(
-    cap: Capability,
-    *,
-    on_phrase_click=None,
-) -> QFrame:
-    card = QFrame()
-    card.setStyleSheet(
-        f"QFrame {{ background:{_BG_CARD}; border:1px solid {_BORDER}; "
-        "border-radius:6px; padding:10px; }}"
-    )
-    lay = QVBoxLayout(card)
-    lay.setContentsMargins(12, 8, 12, 10)
-    lay.setSpacing(6)
-
-    name = QLabel(cap.name)
-    name.setStyleSheet(
-        f"color:{_TEXT}; font-size:11pt; font-weight:500; background:transparent;"
-    )
-    lay.addWidget(name)
-
-    desc = QLabel(cap.description)
-    desc.setWordWrap(True)
-    desc.setStyleSheet(
-        f"color:{_TEXT_MID}; font-size:9pt; background:transparent;"
-    )
-    lay.addWidget(desc)
-
-    say_row = QHBoxLayout()
-    say_row.setContentsMargins(0, 4, 0, 0)
-    say_row.setSpacing(6)
-    say_label = QLabel("Say:")
-    say_label.setStyleSheet(
-        f"color:{_TEXT_DIM}; font-size:8pt; font-weight:300; "
-        "letter-spacing:2px; background:transparent;"
-    )
-    say_row.addWidget(say_label)
-    say_row.addStretch(0)
-    lay.addLayout(say_row)
-
-    for example in cap.examples:
-        chip = QLabel(f"  “{example}”")
-        chip.setWordWrap(True)
-        chip.setStyleSheet(
-            f"color:{_CYAN}; font-size:9pt; font-style:italic; background:transparent;"
-        )
-        lay.addWidget(chip)
-    return card
-
 
 class HelpPanel(QWidget):
-    """Slide-in capabilities reference, with live search."""
+    """Slide-in commands reference, visually identical to Settings → Commands."""
 
     _sig_open = Signal()
     _sig_close = Signal()
@@ -126,12 +73,13 @@ class HelpPanel(QWidget):
         self._anim: QPropertyAnimation | None = None
 
         self._build_ui()
+        apply_theme(self)
         self._position_offscreen()
 
         self._sig_open.connect(self._on_open)
         self._sig_close.connect(self._on_close)
 
-    # -------------------------------------------------------- public api
+    # ------------------------------------------------------------------ public API
 
     def open_panel(self) -> None:
         self._sig_open.emit()
@@ -139,7 +87,7 @@ class HelpPanel(QWidget):
     def close_panel(self) -> None:
         self._sig_close.emit()
 
-    # -------------------------------------------------------------- UI
+    # ------------------------------------------------------------------ UI build
 
     def _build_ui(self) -> None:
         self.setFixedWidth(self._panel_width)
@@ -148,125 +96,60 @@ class HelpPanel(QWidget):
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
 
+        # Inner container (dark background + left border)
         inner = QWidget()
         inner.setStyleSheet(
-            f"QWidget {{ background:{_BG}; border-left:1px solid {_BORDER}; }}"
+            f"QWidget {{ background: {BG}; border-left: 1px solid {BORDER}; }}"
         )
-        il = QVBoxLayout(inner)
-        il.setContentsMargins(16, 16, 16, 16)
-        il.setSpacing(10)
+        inner_layout = QVBoxLayout(inner)
+        inner_layout.setContentsMargins(24, 20, 24, 20)
+        inner_layout.setSpacing(16)
 
-        # Header
-        hdr = QHBoxLayout()
-        title = QLabel("WHAT CAN I SAY?")
-        title.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:8pt; font-weight:300; "
-            "letter-spacing:4px; background:transparent;"
-        )
-        hdr.addWidget(title)
-        hdr.addStretch(1)
-        close_btn = QPushButton("×")
-        close_btn.setFixedSize(28, 24)
+        # -- Header: title + close button ----------------------------------
+        header = QHBoxLayout()
+        header.setSpacing(8)
+
+        title = QLabel("J.A.R.V.I.S. Commands")
+        title.setObjectName("pageTitle")
+        header.addWidget(title)
+
+        header.addStretch(1)
+
+        close_btn = QPushButton("\u00d7")
+        close_btn.setFixedSize(32, 32)
         close_btn.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:16pt; background:transparent; border:none;"
+            f"QPushButton {{ color: {TEXT_MUTED}; font-size: 18px; "
+            f"background: transparent; border: none; border-radius: 4px; }}"
+            f"QPushButton:hover {{ color: {TEXT_PRIMARY}; "
+            f"background: {BORDER}; }}"
         )
+        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         close_btn.clicked.connect(self._on_close)
-        hdr.addWidget(close_btn)
-        il.addLayout(hdr)
+        header.addWidget(close_btn)
 
-        tagline = QLabel(
-            "Every command Jarvis understands, in plain English. "
-            "Say “Hey Jarvis” first, then any of the example phrases below."
-        )
-        tagline.setWordWrap(True)
-        tagline.setStyleSheet(
-            f"color:{_TEXT_MID}; font-size:9pt; background:transparent;"
-        )
-        il.addWidget(tagline)
+        inner_layout.addLayout(header)
 
-        # Search
-        self._search = QLineEdit()
-        self._search.setPlaceholderText("Search (e.g. note, weather, music)…")
-        self._search.setStyleSheet(
-            f"QLineEdit {{ background:#0a0a0a; color:{_TEXT}; "
-            f"border:1px solid {_BORDER}; padding:6px 10px; font-size:10pt; }}"
-            f"QLineEdit:focus {{ border:1px solid {_CYAN}; }}"
+        # -- Subtitle ------------------------------------------------------
+        subtitle = QLabel(
+            "Everything JARVIS can do \u2014 "
+            'say \u201cHey Jarvis\u201d first, then any phrase below.'
         )
-        self._search.textChanged.connect(self._on_search_changed)
-        il.addWidget(self._search)
+        subtitle.setObjectName("pageDesc")
+        subtitle.setWordWrap(True)
+        inner_layout.addWidget(subtitle)
 
-        # Scroll area with cards
-        self._scroll = QScrollArea()
-        self._scroll.setWidgetResizable(True)
-        self._scroll.setStyleSheet(
-            f"QScrollArea {{ background:{_BG}; border:none; }}"
-        )
-
-        self._content = QWidget()
-        self._content_layout = QVBoxLayout(self._content)
-        self._content_layout.setContentsMargins(0, 0, 0, 0)
-        self._content_layout.setSpacing(8)
-        self._populate_full()
-        self._scroll.setWidget(self._content)
-        il.addWidget(self._scroll, 1)
+        # -- Shared commands widget (search + cards) -----------------------
+        self._commands = CommandsWidget()
+        inner_layout.addWidget(self._commands, 1)
 
         root.addWidget(inner)
 
-    def _clear_content(self) -> None:
-        while self._content_layout.count():
-            item = self._content_layout.takeAt(0)
-            w = item.widget() if item else None
-            if w:
-                w.deleteLater()
-
-    def _add_category_header(self, cat: CapabilityCategory) -> None:
-        header = QLabel(f"{cat.icon_glyph}  {cat.name.upper()}")
-        header.setStyleSheet(
-            f"color:{_CYAN}; font-size:9pt; font-weight:500; "
-            "letter-spacing:3px; background:transparent; "
-            "padding-top:8px; padding-bottom:2px;"
-        )
-        self._content_layout.addWidget(header)
-
-    def _populate_full(self) -> None:
-        self._clear_content()
-        for cat in CAPABILITY_CATEGORIES:
-            self._add_category_header(cat)
-            for cap in cat.capabilities:
-                self._content_layout.addWidget(_build_capability_card(cap))
-        self._content_layout.addStretch(1)
-
-    def _populate_filtered(self, results) -> None:
-        self._clear_content()
-        if not results:
-            empty = QLabel("No matches. Try a different word.")
-            empty.setStyleSheet(
-                f"color:{_TEXT_DIM}; font-size:9pt; padding:20px; background:transparent;"
-            )
-            self._content_layout.addWidget(empty)
-            self._content_layout.addStretch(1)
-            return
-        last_cat: CapabilityCategory | None = None
-        for cat, cap in results:
-            if cat is not last_cat:
-                self._add_category_header(cat)
-                last_cat = cat
-            self._content_layout.addWidget(_build_capability_card(cap))
-        self._content_layout.addStretch(1)
-
-    @Slot(str)
-    def _on_search_changed(self, text: str) -> None:
-        if not text.strip():
-            self._populate_full()
-            return
-        self._populate_filtered(search_capabilities(text))
-
-    # ---------------------------------------------------- slots / geom
+    # ------------------------------------------------------------------ slots / geometry
 
     @Slot()
     def _on_open(self) -> None:
         self._show_panel()
-        self._search.setFocus()
+        self._commands.focus_search()
 
     @Slot()
     def _on_close(self) -> None:
@@ -283,6 +166,8 @@ class HelpPanel(QWidget):
             self._on_close()
         else:
             super().keyPressEvent(event)
+
+    # -- screen geometry helpers -------------------------------------------
 
     def _screen_geometry(self):
         screen = QApplication.primaryScreen()
@@ -306,9 +191,13 @@ class HelpPanel(QWidget):
         if geo is not None:
             self.move(geo.right() + 10, 0)
 
+    # -- animations --------------------------------------------------------
+
     def _slide_in(self) -> None:
         target = self._panel_target_pos()
-        start = QPoint(target.x() + self._panel_width + _SIDE_MARGIN, target.y())
+        start = QPoint(
+            target.x() + self._panel_width + _SIDE_MARGIN, target.y()
+        )
         self.move(start)
         anim = QPropertyAnimation(self, b"pos", self)
         anim.setDuration(_ANIM_MS)
@@ -320,7 +209,9 @@ class HelpPanel(QWidget):
 
     def _slide_out(self) -> None:
         current = self.pos()
-        end = QPoint(current.x() + self._panel_width + _SIDE_MARGIN, current.y())
+        end = QPoint(
+            current.x() + self._panel_width + _SIDE_MARGIN, current.y()
+        )
 
         def _hide() -> None:
             self.hide()

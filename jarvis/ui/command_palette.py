@@ -31,19 +31,83 @@ from PySide6.QtWidgets import (
 )
 
 from jarvis.ui.capabilities import CAPABILITY_CATEGORIES
+from jarvis.ui.settings.theme import (
+    ACCENT,
+    ACCENT_DIM,
+    BG,
+    BG_INPUT,
+    BORDER,
+    TEXT_MUTED,
+    TEXT_PRIMARY,
+)
 
 log = logging.getLogger(__name__)
 
 _PANEL_WIDTH = 620
 _PANEL_HEIGHT = 480
-_BG = "#0d0d0d"
-_BG_INPUT = "#0a0a0a"
-_BORDER = "#1f1f1f"
-_BORDER_BRIGHT = "#38f4ff"
-_TEXT = "#ffffff"
-_TEXT_DIM = "#808080"
-_TEXT_MID = "#b0b0b0"
-_CYAN = "#38f4ff"
+
+# ---------------------------------------------------------------------------
+# Consolidated stylesheet — one source of truth for every visual rule.
+# Widget targeting via objectName; no per-widget setStyleSheet calls.
+# ---------------------------------------------------------------------------
+
+_PANEL_QSS = f"""
+/* -- outer frame --------------------------------------------------- */
+QFrame#cpFrame {{
+    background: {BG};
+    border: 1px solid {ACCENT};
+    border-radius: 8px;
+}}
+
+/* -- header labels ------------------------------------------------- */
+QLabel#cpTitle {{
+    color: {TEXT_MUTED};
+    font-size: 8pt;
+    font-weight: 300;
+    letter-spacing: 4px;
+    background: transparent;
+}}
+QLabel#cpHint {{
+    color: {TEXT_MUTED};
+    font-size: 8pt;
+    background: transparent;
+}}
+
+/* -- search input -------------------------------------------------- */
+QLineEdit#cpInput {{
+    color: {TEXT_PRIMARY};
+    background: {BG_INPUT};
+    border: 1px solid {BORDER};
+    padding: 8px 12px;
+    font-size: 12pt;
+}}
+QLineEdit#cpInput:focus {{
+    border: 1px solid {ACCENT};
+}}
+
+/* -- results list -------------------------------------------------- */
+QListWidget#cpList {{
+    background: {BG_INPUT};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {BORDER};
+    font-size: 10pt;
+    padding: 2px;
+}}
+QListWidget#cpList::item {{
+    padding: 6px 8px;
+}}
+QListWidget#cpList::item:selected {{
+    background: {ACCENT_DIM};
+    color: {ACCENT};
+}}
+
+/* -- footer -------------------------------------------------------- */
+QLabel#cpFooter {{
+    color: {TEXT_MUTED};
+    font-size: 9pt;
+    background: transparent;
+}}
+"""
 
 
 @dataclass
@@ -58,7 +122,7 @@ class PaletteEntry:
 
     @property
     def hint(self) -> str:
-        return f"{self.category_name} · {self.capability_name}"
+        return f"{self.category_name} \u00b7 {self.capability_name}"
 
 
 def _build_entries() -> list[PaletteEntry]:
@@ -139,15 +203,13 @@ class CommandPalette(QWidget):
 
     def _build_ui(self) -> None:
         self.setFixedSize(_PANEL_WIDTH, _PANEL_HEIGHT)
+        self.setStyleSheet(_PANEL_QSS)
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
 
         frame = QFrame()
-        frame.setStyleSheet(
-            f"QFrame {{ background:{_BG}; border:1px solid {_BORDER_BRIGHT}; "
-            "border-radius:8px; }}"
-        )
+        frame.setObjectName("cpFrame")
         flay = QVBoxLayout(frame)
         flay.setContentsMargins(14, 14, 14, 14)
         flay.setSpacing(8)
@@ -155,49 +217,33 @@ class CommandPalette(QWidget):
         # Header
         hdr = QHBoxLayout()
         title = QLabel("COMMAND PALETTE")
-        title.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:8pt; font-weight:300; "
-            "letter-spacing:4px; background:transparent;"
-        )
+        title.setObjectName("cpTitle")
         hdr.addWidget(title)
         hdr.addStretch(1)
         hint = QLabel("Enter: run    Esc: close")
-        hint.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:8pt; background:transparent;"
-        )
+        hint.setObjectName("cpHint")
         hdr.addWidget(hint)
         flay.addLayout(hdr)
 
         self._input = QLineEdit()
-        self._input.setPlaceholderText("Type a command or phrase…")
-        self._input.setStyleSheet(
-            f"QLineEdit {{ color:{_TEXT}; background:{_BG_INPUT}; "
-            f"border:1px solid {_BORDER}; padding:8px 12px; font-size:12pt; }}"
-            f"QLineEdit:focus {{ border:1px solid {_CYAN}; }}"
-        )
+        self._input.setObjectName("cpInput")
+        self._input.setPlaceholderText("Type a command or phrase\u2026")
         self._input.textChanged.connect(self._on_text_changed)
         self._input.returnPressed.connect(self._submit_current)
         flay.addWidget(self._input)
 
         self._list = QListWidget()
-        self._list.setStyleSheet(
-            f"QListWidget {{ background:{_BG_INPUT}; color:{_TEXT}; "
-            f"border:1px solid {_BORDER}; font-size:10pt; padding:2px; }}"
-            f"QListWidget::item {{ padding:6px 8px; }}"
-            f"QListWidget::item:selected {{ background:#1a2a2a; color:{_CYAN}; }}"
-        )
+        self._list.setObjectName("cpList")
         self._list.itemActivated.connect(lambda _it: self._submit_current())
         flay.addWidget(self._list, 1)
 
         footer = QLabel(
             "Tip: anything you can say to Jarvis works here too. "
-            "Examples — 'show dashboard', 'open my notes', "
-            "'research black holes', 'play some jazz'."
+            "Examples \u2014 \u2018show dashboard\u2019, \u2018open my notes\u2019, "
+            "\u2018research black holes\u2019, \u2018play some jazz\u2019."
         )
         footer.setWordWrap(True)
-        footer.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:9pt; background:transparent;"
-        )
+        footer.setObjectName("cpFooter")
         flay.addWidget(footer)
 
         root.addWidget(frame)
@@ -213,7 +259,7 @@ class CommandPalette(QWidget):
         scored.sort(key=lambda t: -t[0])
         self._list.clear()
         if not scored and query:
-            li = QListWidgetItem(f"↵  Run anyway: “{query}”")
+            li = QListWidgetItem(f"\u21b5  Run anyway: \u201c{query}\u201d")
             li.setData(Qt.ItemDataRole.UserRole, query)
             self._list.addItem(li)
             self._list.setCurrentRow(0)
