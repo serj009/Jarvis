@@ -110,6 +110,7 @@ _UNDOCUMENTED_TOOLS: dict[str, str] = {
     "process_info": "LLM-dispatched process inspection",
     "remove_credential": "LLM-dispatched vault management",
     "remove_from_startup": "LLM-dispatched startup management",
+    "read_screen_text": "OCR-based screen text extraction, LLM-dispatched",
     "run_command": "LLM-dispatched CLI runner",
     "save_credential": "LLM-dispatched vault management",
     "save_page_knowledge": "LLM-initiated knowledge extraction",
@@ -131,6 +132,7 @@ _UNDOCUMENTED_TOOLS: dict[str, str] = {
     "unlock_vault": "LLM-dispatched vault management",
     "unsubscribe_rss": "LLM-dispatched RSS management",
     "wait_for_process": "LLM-dispatched process monitoring",
+    "watch_screen": "Background screen watcher, LLM-dispatched",
     "window_action": "LLM-dispatched window management",
     "youtube_summary": "LLM-initiated YouTube summary helper",
 }
