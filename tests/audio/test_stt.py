@@ -21,9 +21,11 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from jarvis.audio.protocols import SAMPLE_RATE, SpeechToText, TranscriptionResult
-from jarvis.audio.stt import FasterWhisperSTT, STTLoadError, _resolve_model_id
-from jarvis.core.lifecycle import Loadable
+pytest.importorskip("faster_whisper")
+
+from jarvis.audio.protocols import SAMPLE_RATE, SpeechToText, TranscriptionResult  # noqa: E402
+from jarvis.audio.stt import FasterWhisperSTT, STTLoadError, _resolve_model_id  # noqa: E402
+from jarvis.core.lifecycle import Loadable  # noqa: E402
 
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures" / "audio"
 SPEECH_FIXTURE = FIXTURES_DIR / "hello_world.wav"

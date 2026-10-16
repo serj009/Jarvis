@@ -20,6 +20,8 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
+pytest.importorskip("onnxruntime")
+
 from jarvis.audio.protocols import (
     FRAME_BYTES,
     FRAME_SAMPLES,

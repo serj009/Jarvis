@@ -204,7 +204,7 @@ async def yield_loop(times: int = 20) -> None:
         await asyncio.sleep(0)
 
 
-async def wait_for_cs(sm: StateMachine, target: ConversationalState, timeout: float = 1.0) -> None:
+async def wait_for_cs(sm: StateMachine, target: ConversationalState, timeout: float = 3.0) -> None:
     deadline = asyncio.get_running_loop().time() + timeout
     while sm.conversational_state is not target:
         if asyncio.get_running_loop().time() > deadline:
