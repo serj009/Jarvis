@@ -436,3 +436,71 @@ class TestMonitoring:
         assert gm.enabled is True
         gm.enabled = False
         assert gm.enabled is False
+
+
+# ---------------------------------------------------------------------------
+# On-demand vision query
+# ---------------------------------------------------------------------------
+
+class TestOnDemandVisionQuery:
+    """Tests for on_demand_vision_query (game-mode temp load → answer → unload)."""
+
+    @pytest.mark.asyncio
+    async def test_vision_query_success(self):
+        gm = _make_game_mode()
+        gm._ollama.vision_chat = AsyncMock(return_value="A dark dungeon scene, sir.")
+        gm._active = True
+
+        result = await gm.on_demand_vision_query(
+            image_b64="AAAA", question="describe screen", model="llava:7b",
+        )
+
+        assert result == "A dark dungeon scene, sir."
+        gm._ollama.vision_chat.assert_awaited_once_with(
+            model="llava:7b",
+            image_b64="AAAA",
+            prompt="describe screen",
+        )
+        # Must unload after answering
+        gm._ollama.unload.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_vision_query_failure_still_unloads(self):
+        gm = _make_game_mode()
+        gm._ollama.vision_chat = AsyncMock(side_effect=RuntimeError("model fail"))
+        gm._active = True
+
+        result = await gm.on_demand_vision_query(
+            image_b64="AAAA", question="what is this", model="llava:7b",
+        )
+
+        assert result is None
+        # Should still attempt unload even on failure
+        gm._ollama.unload.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_vision_query_no_ollama(self):
+        gm = _make_game_mode(ollama_client=None)
+        # Need to explicitly set _ollama to None (constructor sets it)
+        gm._ollama = None
+
+        result = await gm.on_demand_vision_query(
+            image_b64="AAAA", question="describe", model="llava:7b",
+        )
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_vision_query_unload_failure_is_non_fatal(self):
+        """If unload fails after a vision_chat error, it should not raise."""
+        gm = _make_game_mode()
+        gm._ollama.vision_chat = AsyncMock(side_effect=RuntimeError("model fail"))
+        gm._ollama.unload = AsyncMock(side_effect=RuntimeError("unload fail"))
+        gm._active = True
+
+        result = await gm.on_demand_vision_query(
+            image_b64="AAAA", question="test", model="llava:7b",
+        )
+
+        # Should return None without raising
+        assert result is None

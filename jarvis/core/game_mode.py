@@ -577,6 +577,37 @@ class GameMode:
                 pass
             return None
 
+    async def on_demand_vision_query(self, image_b64: str, question: str, model: str) -> str | None:
+        """Temporarily load vision model, answer, unload.
+
+        Mirror of on_demand_llm_query but for vision/multimodal requests.
+        Used by SeeScreenTool when game mode is active — the vision model
+        is not resident in VRAM, so we do a temp load → answer → unload
+        cycle.  Slower than the normal path but functional.
+
+        Returns the vision model's description, or None on failure.
+        """
+        if self._ollama is None:
+            return None
+
+        try:
+            log.info("game mode: on-demand vision query (temporary load)")
+            description = await self._ollama.vision_chat(
+                model=model,
+                image_b64=image_b64,
+                prompt=question,
+            )
+            # Unload vision model after answering
+            await self._ollama.unload()
+            return description
+        except Exception:
+            log.warning("game mode: on-demand vision query failed", exc_info=True)
+            try:
+                await self._ollama.unload()
+            except Exception:
+                pass
+            return None
+
     # -- status info --------------------------------------------------------
 
     def get_game_session_info(self) -> str | None:

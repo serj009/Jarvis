@@ -45,6 +45,7 @@ def setup_local_tools(
     stt: object = None,
     tts_manager: object = None,
     personal_aliases: object = None,
+    game_mode: object = None,
 ) -> None:
     """Register every built-in local tool into `registry`.
 
@@ -293,7 +294,11 @@ def setup_local_tools(
     # vision — keeps the test harness from having to mock httpx everywhere.
     if ollama_client is not None:
         base_tools.append(
-            SeeScreenTool(ollama_client=ollama_client, vision_config=vision_cfg)
+            SeeScreenTool(
+                ollama_client=ollama_client,
+                vision_config=vision_cfg,
+                game_mode=game_mode,
+            )
         )
 
     for tool in base_tools:

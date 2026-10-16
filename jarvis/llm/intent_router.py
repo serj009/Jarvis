@@ -522,6 +522,27 @@ class IntentRouter:
 
         messages = self._conv.add_user_turn(transcription)
 
+        # Game mode: Ollama is evicted from VRAM.  Use the on-demand
+        # slow path (temp load → answer → unload) so LLM questions
+        # still work.  This is an early return BEFORE the streaming
+        # loop — the on_demand_llm_query response is not streamed,
+        # just returned whole.
+        if (
+            self._pctx.game_mode is not None
+            and self._pctx.game_mode.is_active
+        ):
+            answer = await self._pctx.game_mode.on_demand_llm_query(
+                transcription,
+            )
+            if answer:
+                yield SpeakIntent(text=answer)
+                self._conv.add_assistant_turn(answer)
+            else:
+                fallback = say("generic_fail")
+                yield SpeakIntent(text=fallback)
+            self._conv.clear_injected_context()
+            return
+
         # Dynamic tool filtering
         # utterance, freeing context for conversation history.  Computed
         # once before the loop so every iteration (including tool-result
