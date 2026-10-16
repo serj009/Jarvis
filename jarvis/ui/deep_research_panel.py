@@ -47,6 +47,15 @@ from jarvis.tools.local.deep_research_store import (
     load_state,
     read_report,
 )
+from jarvis.ui.settings.theme import (
+    BG,
+    BG_INPUT,
+    BORDER,
+    TEXT_PRIMARY,
+    TEXT_SECONDARY,
+    ACCENT,
+    ACCENT_DIM,
+)
 
 log = logging.getLogger(__name__)
 
@@ -56,22 +65,102 @@ _MAX_PANEL_WIDTH = 900
 _SIDE_MARGIN = 16
 _ANIM_MS = 300
 
-_BG = "#0d0d0d"
-_BORDER = "#1f1f1f"
-_TEXT = "#ffffff"
-_TEXT_DIM = "#808080"
-_CYAN = "#38f4ff"
+# ---------------------------------------------------------------------------
+# Consolidated QSS — applied once on the panel root in __init__
+# ---------------------------------------------------------------------------
 
-_HDR_BTN = (
-    f"QPushButton {{ color:{_TEXT_DIM}; background:transparent; border:none; "
-    "font-size:8pt; letter-spacing:2px; font-weight:300; padding:0 6px; }}"
-    f"QPushButton:hover {{ color:{_TEXT}; }}"
-)
-_HDR_BTN_ACTIVE = (
-    f"QPushButton {{ color:{_CYAN}; background:transparent; border:none; "
-    "font-size:8pt; letter-spacing:2px; font-weight:300; padding:0 6px; }}"
-    f"QPushButton:hover {{ color:{_TEXT}; }}"
-)
+_PANEL_QSS = f"""
+/* --- inner container -------------------------------------------------- */
+QWidget#drInner {{
+    background: {BG};
+    border-left: 1px solid {BORDER};
+}}
+
+/* --- header title ----------------------------------------------------- */
+QLabel#drTitle {{
+    color: {TEXT_SECONDARY};
+    font-size: 8pt;
+    font-weight: 300;
+    letter-spacing: 4px;
+    background: transparent;
+}}
+
+/* --- header buttons (normal) ------------------------------------------ */
+QPushButton#drHdrBtn {{
+    color: {TEXT_SECONDARY};
+    background: transparent;
+    border: none;
+    font-size: 8pt;
+    letter-spacing: 2px;
+    font-weight: 300;
+    padding: 0 6px;
+}}
+QPushButton#drHdrBtn:hover {{ color: {TEXT_PRIMARY}; }}
+
+/* --- header buttons (active / toggled) -------------------------------- */
+QPushButton#drHdrBtnActive {{
+    color: {ACCENT};
+    background: transparent;
+    border: none;
+    font-size: 8pt;
+    letter-spacing: 2px;
+    font-weight: 300;
+    padding: 0 6px;
+}}
+QPushButton#drHdrBtnActive:hover {{ color: {TEXT_PRIMARY}; }}
+
+/* --- close button ----------------------------------------------------- */
+QPushButton#drCloseBtn {{
+    color: {TEXT_SECONDARY};
+    font-size: 16pt;
+    background: transparent;
+    border: none;
+}}
+QPushButton#drCloseBtn:hover {{ color: {TEXT_PRIMARY}; }}
+
+/* --- query label ------------------------------------------------------ */
+QLabel#drQueryLabel {{
+    color: {ACCENT};
+    font-size: 12pt;
+    font-weight: 300;
+    background: transparent;
+}}
+
+/* --- progress label --------------------------------------------------- */
+QLabel#drProgressLabel {{
+    color: {TEXT_SECONDARY};
+    font-size: 9pt;
+    background: transparent;
+}}
+
+/* --- session list ----------------------------------------------------- */
+QListWidget#drSessionList {{
+    background: {BG};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {BORDER};
+    font-size: 9pt;
+}}
+QListWidget#drSessionList::item:selected {{
+    background: {ACCENT_DIM};
+    color: {ACCENT};
+}}
+
+/* --- report view ------------------------------------------------------ */
+QTextBrowser#drReportView {{
+    background: {BG_INPUT};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {BORDER};
+    font-size: 10pt;
+    padding: 8px;
+}}
+"""
+
+
+def _restyle(w: QWidget) -> None:
+    """Force QSS re-evaluation after an objectName change."""
+    w.style().unpolish(w)
+    w.style().polish(w)
+    w.update()
 
 
 class DeepResearchWorker(QThread):
@@ -219,80 +308,66 @@ class DeepResearchPanel(QWidget):
     def _build_ui(self) -> None:
         self.setFixedWidth(self._panel_width)
         self.setObjectName("DeepResearchPanel")
+        self.setStyleSheet(_PANEL_QSS)
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
 
         inner = QWidget()
-        inner.setStyleSheet(
-            f"QWidget {{ background:{_BG}; border-left:1px solid {_BORDER}; }}"
-        )
+        inner.setObjectName("drInner")
         il = QVBoxLayout(inner)
         il.setContentsMargins(16, 16, 16, 16)
         il.setSpacing(8)
 
         hdr = QHBoxLayout()
         title = QLabel("DEEP RESEARCH")
-        title.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:8pt; font-weight:300; "
-            "letter-spacing:4px; background:transparent;"
-        )
+        title.setObjectName("drTitle")
         hdr.addWidget(title)
         hdr.addStretch(1)
 
         self._open_folder_btn = QPushButton("FOLDER")
-        self._open_folder_btn.setStyleSheet(_HDR_BTN)
+        self._open_folder_btn.setObjectName("drHdrBtn")
         self._open_folder_btn.setToolTip("Open reports folder")
         self._open_folder_btn.clicked.connect(self._on_open_folder)
         hdr.addWidget(self._open_folder_btn)
 
         self._pause_btn = QPushButton("PAUSE")
-        self._pause_btn.setStyleSheet(_HDR_BTN)
+        self._pause_btn.setObjectName("drHdrBtn")
         self._pause_btn.clicked.connect(self._on_pause_clicked)
         hdr.addWidget(self._pause_btn)
 
         self._resume_btn = QPushButton("RESUME")
-        self._resume_btn.setStyleSheet(_HDR_BTN)
+        self._resume_btn.setObjectName("drHdrBtn")
         self._resume_btn.clicked.connect(self._on_resume_clicked)
         hdr.addWidget(self._resume_btn)
 
         self._delete_btn = QPushButton("DELETE")
-        self._delete_btn.setStyleSheet(_HDR_BTN)
+        self._delete_btn.setObjectName("drHdrBtn")
         self._delete_btn.setToolTip("Delete the selected session")
         self._delete_btn.clicked.connect(self._on_delete_clicked)
         hdr.addWidget(self._delete_btn)
 
         close_btn = QPushButton("×")
         close_btn.setFixedSize(28, 24)
-        close_btn.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:16pt; background:transparent; border:none;"
-        )
+        close_btn.setObjectName("drCloseBtn")
         close_btn.clicked.connect(self._on_close)
         hdr.addWidget(close_btn)
         il.addLayout(hdr)
 
         self._query_label = QLabel()
         self._query_label.setWordWrap(True)
-        self._query_label.setStyleSheet(
-            f"color:{_CYAN}; font-size:12pt; font-weight:300; background:transparent;"
-        )
+        self._query_label.setObjectName("drQueryLabel")
         il.addWidget(self._query_label)
 
         self._progress_label = QLabel("Idle")
-        self._progress_label.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:9pt; background:transparent;"
-        )
+        self._progress_label.setObjectName("drProgressLabel")
         il.addWidget(self._progress_label)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         self._session_list = QListWidget()
         self._session_list.setMinimumWidth(160)
         self._session_list.setMaximumWidth(220)
-        self._session_list.setStyleSheet(
-            f"QListWidget {{ background:{_BG}; color:{_TEXT}; border:1px solid {_BORDER}; "
-            "font-size:9pt; }}"
-            f"QListWidget::item:selected {{ background:#1a2a2a; color:{_CYAN}; }}"
-        )
+        self._session_list.setObjectName("drSessionList")
         self._session_list.currentItemChanged.connect(self._on_session_selected)
         self._session_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._session_list.customContextMenuRequested.connect(self._on_session_context_menu)
@@ -300,10 +375,7 @@ class DeepResearchPanel(QWidget):
 
         self._report_view = QTextBrowser()
         self._report_view.setOpenExternalLinks(True)
-        self._report_view.setStyleSheet(
-            f"QTextBrowser {{ background:#0a0a0a; color:{_TEXT}; border:1px solid {_BORDER}; "
-            "font-size:10pt; padding:8px; }}"
-        )
+        self._report_view.setObjectName("drReportView")
         self._report_view.setPlaceholderText("Report will appear here…")
         splitter.addWidget(self._report_view)
         splitter.setStretchFactor(1, 1)
@@ -369,7 +441,8 @@ class DeepResearchPanel(QWidget):
         if self._worker is None or not self._worker.isRunning():
             return
         self._pause_event.set()
-        self._pause_btn.setStyleSheet(_HDR_BTN_ACTIVE)
+        self._pause_btn.setObjectName("drHdrBtnActive")
+        _restyle(self._pause_btn)
         self._progress_label.setText("Pausing after current step…")
 
     @Slot()
@@ -392,7 +465,8 @@ class DeepResearchPanel(QWidget):
 
     @Slot(str)
     def _on_worker_paused(self, session_id: str) -> None:
-        self._pause_btn.setStyleSheet(_HDR_BTN)
+        self._pause_btn.setObjectName("drHdrBtn")
+        _restyle(self._pause_btn)
         self._progress_label.setText("Paused — resume anytime from RESUME or the list.")
         self._finish_queue(
             "Deep research paused, sir. Progress saved. "
@@ -404,7 +478,8 @@ class DeepResearchPanel(QWidget):
 
     @Slot(str)
     def _on_worker_finished(self, session_id: str) -> None:
-        self._pause_btn.setStyleSheet(_HDR_BTN)
+        self._pause_btn.setObjectName("drHdrBtn")
+        _restyle(self._pause_btn)
         self._progress_label.setText("Complete.")
         self._finish_queue(
             "Deep research complete, sir. The full report is in the panel."
