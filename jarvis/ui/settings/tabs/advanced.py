@@ -7,7 +7,6 @@ from collections.abc import Callable
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QCheckBox,
     QLabel,
     QSlider,
     QVBoxLayout,
@@ -15,7 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from jarvis.core.config import JarvisConfig, save_config
-from jarvis.ui.settings._widgets import Badge, SectionCard, slider_with_label
+from jarvis.ui.settings._widgets import Badge, SectionCard, ToggleSwitch, slider_with_label
 
 log = logging.getLogger(__name__)
 
@@ -96,8 +95,7 @@ class AdvancedTab(QWidget):
             "\U0001f41b", "Debug",
         )
 
-        self.log_wake = QCheckBox()
-        self.log_wake.setChecked(config.debug.log_wake_during_speaking)
+        self.log_wake = ToggleSwitch(checked=config.debug.log_wake_during_speaking)
         debug_card.add_row(
             "Log wake-word during speaking",
             "Diagnostic: log detection scores while JARVIS is speaking",
@@ -112,7 +110,7 @@ class AdvancedTab(QWidget):
         self.stt_timeout.valueChanged.connect(self._on_stt_timeout)
         self.llm_timeout.valueChanged.connect(self._on_llm_timeout)
         self.tts_timeout.valueChanged.connect(self._on_tts_timeout)
-        self.log_wake.stateChanged.connect(self._on_log_wake)
+        self.log_wake.toggled.connect(self._on_log_wake)
 
     def _on_stt_timeout(self, value: int) -> None:
         self._config.pipeline.stt_timeout_s = float(value)

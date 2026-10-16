@@ -15,7 +15,6 @@ from jarvis.ui.settings.tabs.advanced import AdvancedTab
 from jarvis.ui.settings.tabs.commands import CommandsTab
 from jarvis.ui.settings.tabs.gaming import GamingTab
 from jarvis.ui.settings.tabs.general import GeneralTab
-from jarvis.ui.settings.tabs.help import HelpTab
 from jarvis.ui.settings.tabs.hotkeys import HotkeysTab
 from jarvis.ui.settings.tabs.memory import MemoryTab
 from jarvis.ui.settings.tabs.models import ModelsTab
@@ -29,7 +28,6 @@ __all__ = [
     "CommandsTab",
     "GamingTab",
     "GeneralTab",
-    "HelpTab",
     "HotkeysTab",
     "MemoryTab",
     "ModelsTab",

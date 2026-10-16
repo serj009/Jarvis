@@ -9,7 +9,15 @@ Styling is done via objectName selectors defined in theme.py (QSS).
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import (
+    Property,
+    QEasingCurve,
+    QPropertyAnimation,
+    QRectF,
+    Qt,
+    Signal,
+)
+from PySide6.QtGui import QColor, QPainter, QPainterPath
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -283,3 +291,116 @@ def slider_with_label(
     h.addWidget(slider, 1)
     h.addWidget(label)
     return row
+
+
+# ---------------------------------------------------------------------------
+# ToggleSwitch — iOS-style toggle with animated thumb
+# ---------------------------------------------------------------------------
+
+class ToggleSwitch(QWidget):
+    """iOS-style toggle switch — pill track with sliding white thumb.
+
+    Drop-in replacement for ``QCheckBox()`` (no-text variant) in setting
+    rows. Provides :pyattr:`toggled(bool)` signal, :meth:`isChecked`,
+    and :meth:`setChecked` for the same save-config flow as QCheckBox.
+
+    Dimensions: 44 × 24 px.  Track is gray when off, accent-blue when on.
+    Thumb slides with a 150 ms ease-in-out animation.
+    """
+
+    toggled = Signal(bool)
+
+    # Geometry
+    _TRACK_W = 44
+    _TRACK_H = 24
+    _THUMB_D = 20       # diameter
+    _MARGIN  = 2        # gap between thumb edge and track edge
+
+    # Colors
+    _CLR_TRACK_OFF      = QColor("#333333")
+    _CLR_TRACK_ON       = QColor("#3b82f6")
+    _CLR_TRACK_DISABLED = QColor("#222222")
+    _CLR_THUMB          = QColor("#ffffff")
+    _CLR_THUMB_DISABLED = QColor("#666666")
+
+    def __init__(
+        self, checked: bool = False, parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._checked = checked
+
+        self._off_x = float(self._MARGIN)
+        self._on_x  = float(self._TRACK_W - self._MARGIN - self._THUMB_D)
+        self._thumb_x: float = self._on_x if checked else self._off_x
+
+        self.setFixedSize(self._TRACK_W, self._TRACK_H)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        self._anim = QPropertyAnimation(self, b"thumbPosition")
+        self._anim.setDuration(150)
+        self._anim.setEasingCurve(QEasingCurve.Type.InOutCubic)
+
+    # -- Qt property for QPropertyAnimation ---------------------------------
+
+    def _get_thumb(self) -> float:
+        return self._thumb_x
+
+    def _set_thumb(self, x: float) -> None:
+        self._thumb_x = x
+        self.update()
+
+    thumbPosition = Property(float, _get_thumb, _set_thumb)
+
+    # -- Public API (QCheckBox-compatible) ----------------------------------
+
+    def isChecked(self) -> bool:
+        return self._checked
+
+    def setChecked(self, checked: bool) -> None:
+        if self._checked == checked:
+            return
+        self._checked = checked
+        self._animate()
+        self.toggled.emit(self._checked)
+
+    # -- Input handling -----------------------------------------------------
+
+    def mousePressEvent(self, event) -> None:  # type: ignore[override]
+        if self.isEnabled():
+            self._checked = not self._checked
+            self._animate()
+            self.toggled.emit(self._checked)
+
+    def _animate(self) -> None:
+        self._anim.stop()
+        self._anim.setStartValue(self._thumb_x)
+        self._anim.setEndValue(self._on_x if self._checked else self._off_x)
+        self._anim.start()
+
+    # -- Painting -----------------------------------------------------------
+
+    def paintEvent(self, event) -> None:  # type: ignore[override]
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # Track (pill)
+        track = QPainterPath()
+        r = self._TRACK_H / 2.0
+        track.addRoundedRect(QRectF(0, 0, self._TRACK_W, self._TRACK_H), r, r)
+        if not self.isEnabled():
+            clr = self._CLR_TRACK_DISABLED
+        elif self._checked:
+            clr = self._CLR_TRACK_ON
+        else:
+            clr = self._CLR_TRACK_OFF
+        p.fillPath(track, clr)
+
+        # Thumb (white circle)
+        thumb_y = (self._TRACK_H - self._THUMB_D) / 2.0
+        p.setPen(Qt.PenStyle.NoPen)
+        p.setBrush(
+            self._CLR_THUMB_DISABLED if not self.isEnabled()
+            else self._CLR_THUMB,
+        )
+        p.drawEllipse(QRectF(self._thumb_x, thumb_y, self._THUMB_D, self._THUMB_D))
+        p.end()

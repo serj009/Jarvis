@@ -82,6 +82,12 @@ def _ollama_list_models() -> list[str]:
     return names
 
 
+# Ollama model-name prefixes that indicate a vision (multimodal) model.
+_VISION_PREFIXES: tuple[str, ...] = (
+    "llava", "moondream", "minicpm-v", "qwen2.5-vl", "qwen2-vl", "bakllava",
+)
+
+
 class ModelsTab(QWidget):
     def __init__(
         self,
@@ -159,7 +165,7 @@ class ModelsTab(QWidget):
         # LLM model dropdown + refresh.
         self.llm_model = QComboBox()
         self.llm_model.setEditable(True)
-        refresh_models = QPushButton("Refresh")
+        refresh_models = QPushButton("\U0001f504 Scan")
         refresh_models.clicked.connect(self._refresh_models)
         model_row = QWidget()
         mrl = QHBoxLayout(model_row)
@@ -219,14 +225,20 @@ class ModelsTab(QWidget):
             "(pull one with: ollama pull llava:7b)",
         )
 
-        self.vision_model = QLineEdit(config.vision.model)
-        self.vision_model.setPlaceholderText(
-            "e.g. llava:7b, moondream, minicpm-v"
-        )
+        self.vision_model = QComboBox()
+        self.vision_model.setEditable(True)
+        refresh_vision = QPushButton("\U0001f504 Scan")
+        refresh_vision.clicked.connect(self._refresh_vision_models)
+        vision_row = QWidget()
+        vrl = QHBoxLayout(vision_row)
+        vrl.setContentsMargins(0, 0, 0, 0)
+        vrl.addWidget(self.vision_model, 1)
+        vrl.addWidget(refresh_vision)
+        self._populate_vision_models()
         vision_card.add_setting(
             "Vision Model",
             "Used for 'see my screen'. Requires multimodal model",
-            self.vision_model,
+            vision_row,
         )
 
         self.vision_max_dim = QSpinBox()
@@ -304,7 +316,7 @@ class ModelsTab(QWidget):
         self.llm_temperature.valueChanged.connect(self._on_llm_temperature)
         self.llm_max_tokens.valueChanged.connect(self._on_llm_max_tokens)
         self.llm_keep_alive.valueChanged.connect(self._on_llm_keep_alive)
-        self.vision_model.editingFinished.connect(self._on_vision_model)
+        self.vision_model.currentTextChanged.connect(self._on_vision_model)
         self.vision_max_dim.valueChanged.connect(self._on_vision_max_dim)
         self.vision_max_tokens.valueChanged.connect(self._on_vision_max_tokens)
         self.vision_temperature.valueChanged.connect(
@@ -332,6 +344,32 @@ class ModelsTab(QWidget):
 
     def _refresh_models(self) -> None:
         self._populate_models()
+
+    def _populate_vision_models(self) -> None:
+        self.vision_model.blockSignals(True)
+        self.vision_model.clear()
+        self.vision_model.addItem("(disabled)")
+        names = _ollama_list_models()
+        vision_names = [
+            n for n in names
+            if any(n.startswith(p) for p in _VISION_PREFIXES)
+        ]
+        if vision_names:
+            self.vision_model.addItems(vision_names)
+        current = self._config.vision.model
+        if current:
+            idx = self.vision_model.findText(current)
+            if idx >= 0:
+                self.vision_model.setCurrentIndex(idx)
+            else:
+                # Model not in the scanned list — keep it as editable text.
+                self.vision_model.setEditText(current)
+        else:
+            self.vision_model.setCurrentIndex(0)  # (disabled)
+        self.vision_model.blockSignals(False)
+
+    def _refresh_vision_models(self) -> None:
+        self._populate_vision_models()
 
     # -- slots -----------------------------------------------------------
 
@@ -382,8 +420,11 @@ class ModelsTab(QWidget):
         self._config.llm.keep_alive_seconds = value
         self._persist()
 
-    def _on_vision_model(self) -> None:
-        self._config.vision.model = self.vision_model.text().strip()
+    def _on_vision_model(self, text: str) -> None:
+        value = text.strip()
+        if value == "(disabled)":
+            value = ""
+        self._config.vision.model = value
         self._persist()
 
     def _on_vision_max_dim(self, value: int) -> None:

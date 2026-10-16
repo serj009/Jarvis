@@ -7,7 +7,6 @@ from collections.abc import Callable
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QCheckBox,
     QLabel,
     QPlainTextEdit,
     QPushButton,
@@ -17,7 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from jarvis.core.config import JarvisConfig, save_config
-from jarvis.ui.settings._widgets import Badge, SectionCard, slider_with_label
+from jarvis.ui.settings._widgets import Badge, SectionCard, ToggleSwitch, slider_with_label
 
 log = logging.getLogger(__name__)
 
@@ -52,8 +51,7 @@ class GamingTab(QWidget):
             "\U0001f3ae", "Game Detection",
         )
 
-        self.enabled = QCheckBox()
-        self.enabled.setChecked(config.game_mode.enabled)
+        self.enabled = ToggleSwitch(checked=config.game_mode.enabled)
         detect_card.add_row(
             "Enable Game Mode",
             "Auto-detect games and free GPU memory",
@@ -84,8 +82,7 @@ class GamingTab(QWidget):
 
         # These are hardcoded behaviors (always happens in game mode)
         # Shown as info toggles
-        self.evict_llm = QCheckBox()
-        self.evict_llm.setChecked(True)
+        self.evict_llm = ToggleSwitch(checked=True)
         self.evict_llm.setEnabled(False)
         vram_card.add_row(
             "Evict LLM on game start",
@@ -93,8 +90,7 @@ class GamingTab(QWidget):
             self.evict_llm,
         )
 
-        self.switch_stt = QCheckBox()
-        self.switch_stt.setChecked(True)
+        self.switch_stt = ToggleSwitch(checked=True)
         self.switch_stt.setEnabled(False)
         vram_card.add_row(
             "Switch STT to CPU",
@@ -102,8 +98,7 @@ class GamingTab(QWidget):
             self.switch_stt,
         )
 
-        self.preload = QCheckBox()
-        self.preload.setChecked(True)
+        self.preload = ToggleSwitch(checked=True)
         self.preload.setEnabled(False)
         vram_card.add_row(
             "Preload game memories",
@@ -147,7 +142,7 @@ class GamingTab(QWidget):
         root.addStretch(1)
 
         # -- Connections --
-        self.enabled.stateChanged.connect(self._on_enabled)
+        self.enabled.toggled.connect(self._on_enabled)
         self.scan_interval.valueChanged.connect(self._on_scan_interval)
 
     def _on_enabled(self) -> None:
