@@ -88,6 +88,17 @@ from PySide6.QtWidgets import (
 )
 
 from jarvis.tools.registry import ConfirmationRequest
+from jarvis.ui.settings.theme import (
+    ACCENT,
+    BG,
+    BG_CARD,
+    BORDER,
+    BORDER_FOCUS,
+    TEXT_MUTED,
+    TEXT_PRIMARY,
+    TEXT_SECONDARY,
+    WARNING,
+)
 
 log = logging.getLogger(__name__)
 
@@ -119,28 +130,93 @@ _TICK_MS = 200
 # gets elided rather than pushing the buttons off screen.
 _MAX_ARGS_CHARS = 1500
 
-_BG = "#0d0d0d"
-_BG_CARD = "#141414"
-_BORDER = "#1f1f1f"
-_TEXT = "#ffffff"
-_TEXT_DIM = "#808080"
-_TEXT_MID = "#b0b0b0"
-_CYAN = "#38f4ff"
-_AMBER = "#ffb648"
+# ---------------------------------------------------------------------------
+# Consolidated stylesheet — one source of truth for every visual rule.
+# Widget targeting via objectName; no per-widget setStyleSheet calls.
+# ---------------------------------------------------------------------------
 
-_DENY_STYLE = (
-    f"QPushButton {{ color:{_TEXT}; background:{_BG_CARD}; "
-    f"border:1px solid {_BORDER}; border-radius:4px; padding:7px 22px; "
-    "font-size:10pt; }"
-    f"QPushButton:hover {{ border-color:{_TEXT_DIM}; }}"
-    f"QPushButton:focus {{ border-color:{_TEXT}; }}"
-)
-_APPROVE_STYLE = (
-    f"QPushButton {{ color:{_BG}; background:{_CYAN}; border:none; "
-    "border-radius:4px; padding:7px 22px; font-size:10pt; "
-    "font-weight:500; }"
-    "QPushButton:hover { background:#6bf8ff; }"
-)
+_DIALOG_QSS = f"""
+/* -- dialog base --------------------------------------------------- */
+QDialog#tcDialog {{
+    background: {BG};
+}}
+
+/* -- heading ------------------------------------------------------- */
+QLabel#tcHeading {{
+    color: {TEXT_MUTED};
+    font-size: 8pt;
+    letter-spacing: 2px;
+    background: transparent;
+}}
+
+/* -- tool name ----------------------------------------------------- */
+QLabel#tcName {{
+    color: {ACCENT};
+    font-size: 14pt;
+    font-weight: 500;
+    background: transparent;
+}}
+
+/* -- summary ------------------------------------------------------- */
+QLabel#tcSummary {{
+    color: {TEXT_SECONDARY};
+    font-size: 10pt;
+    background: transparent;
+}}
+
+/* -- arguments frame ----------------------------------------------- */
+QFrame#tcArgsFrame {{
+    background: {BG_CARD};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+}}
+
+/* -- arguments text ------------------------------------------------ */
+QPlainTextEdit#tcArgsView {{
+    background: transparent;
+    color: {TEXT_PRIMARY};
+    border: none;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 9pt;
+}}
+
+/* -- countdown ----------------------------------------------------- */
+QLabel#tcCountdown {{
+    color: {WARNING};
+    font-size: 9pt;
+    background: transparent;
+}}
+
+/* -- deny button --------------------------------------------------- */
+QPushButton#tcDeny {{
+    color: {TEXT_PRIMARY};
+    background: {BG_CARD};
+    border: 1px solid {BORDER};
+    border-radius: 4px;
+    padding: 7px 22px;
+    font-size: 10pt;
+}}
+QPushButton#tcDeny:hover {{
+    border-color: {TEXT_SECONDARY};
+}}
+QPushButton#tcDeny:focus {{
+    border-color: {BORDER_FOCUS};
+}}
+
+/* -- approve button ------------------------------------------------ */
+QPushButton#tcApprove {{
+    color: {BG};
+    background: {ACCENT};
+    border: none;
+    border-radius: 4px;
+    padding: 7px 22px;
+    font-size: 10pt;
+    font-weight: 500;
+}}
+QPushButton#tcApprove:hover {{
+    background: #60a5fa;
+}}
+"""
 
 
 def format_arguments(arguments: dict) -> str:
@@ -154,7 +230,7 @@ def format_arguments(arguments: dict) -> str:
     except (TypeError, ValueError):
         text = repr(arguments)
     if len(text) > _MAX_ARGS_CHARS:
-        return text[:_MAX_ARGS_CHARS] + "\n… (truncated)"
+        return text[:_MAX_ARGS_CHARS] + "\n\u2026 (truncated)"
     return text
 
 
@@ -181,73 +257,57 @@ class ToolConfirmationDialog(QDialog):
         self._timeout_seconds = max(0.0, float(timeout_seconds))
         self._elapsed = 0.0
 
-        self.setWindowTitle("Jarvis — confirm tool")
+        self.setWindowTitle("Jarvis \u2014 confirm tool")
         self.setModal(True)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
         self.setMinimumWidth(460)
-        self.setStyleSheet(f"QDialog {{ background:{_BG}; }}")
+        self.setObjectName("tcDialog")
+        self.setStyleSheet(_DIALOG_QSS)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(22, 20, 22, 18)
         layout.setSpacing(12)
 
         heading = QLabel("Confirm tool")
-        heading.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:8pt; letter-spacing:2px; "
-            "background:transparent;"
-        )
+        heading.setObjectName("tcHeading")
         layout.addWidget(heading)
 
         name = QLabel(tool_name)
-        name.setStyleSheet(
-            f"color:{_CYAN}; font-size:14pt; font-weight:500; "
-            "background:transparent;"
-        )
+        name.setObjectName("tcName")
         layout.addWidget(name)
 
         self.summary_label = QLabel(summary or "(no description)")
         self.summary_label.setWordWrap(True)
-        self.summary_label.setStyleSheet(
-            f"color:{_TEXT_MID}; font-size:10pt; background:transparent;"
-        )
+        self.summary_label.setObjectName("tcSummary")
         layout.addWidget(self.summary_label)
 
         args_frame = QFrame()
-        args_frame.setStyleSheet(
-            f"QFrame {{ background:{_BG_CARD}; border:1px solid {_BORDER}; "
-            "border-radius:6px; }"
-        )
+        args_frame.setObjectName("tcArgsFrame")
         args_layout = QVBoxLayout(args_frame)
         args_layout.setContentsMargins(2, 2, 2, 2)
 
         self.arguments_view = QPlainTextEdit(arguments_text)
         self.arguments_view.setReadOnly(True)
         self.arguments_view.setMaximumHeight(160)
-        self.arguments_view.setStyleSheet(
-            f"QPlainTextEdit {{ background:transparent; color:{_TEXT}; "
-            "border:none; font-family:Consolas,'Courier New',monospace; "
-            "font-size:9pt; }"
-        )
+        self.arguments_view.setObjectName("tcArgsView")
         args_layout.addWidget(self.arguments_view)
         layout.addWidget(args_frame)
 
         self.countdown_label = QLabel()
-        self.countdown_label.setStyleSheet(
-            f"color:{_AMBER}; font-size:9pt; background:transparent;"
-        )
+        self.countdown_label.setObjectName("tcCountdown")
         layout.addWidget(self.countdown_label)
 
         buttons = QHBoxLayout()
         buttons.addStretch(1)
         self.deny_button = QPushButton("Deny")
-        self.deny_button.setStyleSheet(_DENY_STYLE)
+        self.deny_button.setObjectName("tcDeny")
         self.deny_button.setDefault(True)
         self.deny_button.setAutoDefault(True)
         self.deny_button.clicked.connect(self.reject)
         buttons.addWidget(self.deny_button)
 
         self.approve_button = QPushButton("Approve")
-        self.approve_button.setStyleSheet(_APPROVE_STYLE)
+        self.approve_button.setObjectName("tcApprove")
         self.approve_button.setAutoDefault(False)
         self.approve_button.clicked.connect(self.accept)
         buttons.addWidget(self.approve_button)

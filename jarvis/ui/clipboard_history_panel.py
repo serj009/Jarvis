@@ -38,6 +38,19 @@ from jarvis.tools.local.clipboard_history import (
     load_history,
     save_history,
 )
+from jarvis.ui.settings.theme import (
+    BG,
+    BG_CARD,
+    BG_INPUT,
+    BORDER,
+    TEXT_PRIMARY,
+    TEXT_SECONDARY,
+    TEXT_MUTED,
+    ACCENT,
+    ACCENT_DIM,
+    WARNING,
+    CARD_RADIUS,
+)
 
 log = logging.getLogger(__name__)
 
@@ -46,18 +59,70 @@ _SIDE_MARGIN = 16
 _ANIM_MS = 280
 _POLL_MS = 700
 
-_BG = "#0d0d0d"
-_BORDER = "#1f1f1f"
-_TEXT = "#ffffff"
-_TEXT_DIM = "#808080"
-_CYAN = "#38f4ff"
-_PIN = "#e6b94a"
+# ---------------------------------------------------------------------------
+# Consolidated QSS — applied once to the inner wrapper widget.
+# ---------------------------------------------------------------------------
 
-_HDR_BTN = (
-    f"QPushButton {{ color:{_TEXT_DIM}; background:transparent; border:none; "
-    "font-size:8pt; letter-spacing:2px; font-weight:300; padding:0 6px; }}"
-    f"QPushButton:hover {{ color:{_TEXT}; }}"
-)
+_PANEL_QSS = f"""
+    /* panel background + left-edge border */
+    QWidget#panelInner {{
+        background: {BG};
+        border-left: 1px solid {BORDER};
+    }}
+
+    /* header title */
+    QLabel#panelTitle {{
+        color: {TEXT_SECONDARY};
+        font-size: 8pt;
+        font-weight: 300;
+        letter-spacing: 4px;
+        background: transparent;
+    }}
+
+    /* header action buttons (CLEAR) */
+    QPushButton#hdrBtn {{
+        color: {TEXT_SECONDARY};
+        background: transparent;
+        border: none;
+        font-size: 8pt;
+        letter-spacing: 2px;
+        font-weight: 300;
+        padding: 0 6px;
+    }}
+    QPushButton#hdrBtn:hover {{
+        color: {TEXT_PRIMARY};
+    }}
+
+    /* close × button */
+    QPushButton#closeBtn {{
+        color: {TEXT_SECONDARY};
+        font-size: 16pt;
+        background: transparent;
+        border: none;
+    }}
+    QPushButton#closeBtn:hover {{
+        color: {TEXT_PRIMARY};
+    }}
+
+    /* subtitle / hint label */
+    QLabel#subLabel {{
+        color: {TEXT_SECONDARY};
+        font-size: 9pt;
+        background: transparent;
+    }}
+
+    /* clipboard items list */
+    QListWidget#clipList {{
+        background: {BG_INPUT};
+        color: {TEXT_PRIMARY};
+        border: 1px solid {BORDER};
+        font-size: 9pt;
+    }}
+    QListWidget#clipList::item:selected {{
+        background: {ACCENT_DIM};
+        color: {ACCENT};
+    }}
+"""
 
 
 class ClipboardHistoryPanel(QWidget):
@@ -149,33 +214,27 @@ class ClipboardHistoryPanel(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
 
         inner = QWidget()
-        inner.setStyleSheet(
-            f"QWidget {{ background:{_BG}; border-left:1px solid {_BORDER}; }}"
-        )
+        inner.setObjectName("panelInner")
+        inner.setStyleSheet(_PANEL_QSS)
         il = QVBoxLayout(inner)
         il.setContentsMargins(16, 16, 16, 16)
         il.setSpacing(8)
 
         hdr = QHBoxLayout()
         title = QLabel("CLIPBOARD HISTORY")
-        title.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:8pt; font-weight:300; "
-            "letter-spacing:4px; background:transparent;"
-        )
+        title.setObjectName("panelTitle")
         hdr.addWidget(title)
         hdr.addStretch(1)
 
         self._clear_btn = QPushButton("CLEAR")
-        self._clear_btn.setStyleSheet(_HDR_BTN)
+        self._clear_btn.setObjectName("hdrBtn")
         self._clear_btn.setToolTip("Clear unpinned items")
         self._clear_btn.clicked.connect(self._on_clear_clicked)
         hdr.addWidget(self._clear_btn)
 
-        close_btn = QPushButton("×")
+        close_btn = QPushButton("\u00d7")
         close_btn.setFixedSize(28, 24)
-        close_btn.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:16pt; background:transparent; border:none;"
-        )
+        close_btn.setObjectName("closeBtn")
         close_btn.clicked.connect(self._on_close)
         hdr.addWidget(close_btn)
         il.addLayout(hdr)
@@ -185,17 +244,11 @@ class ClipboardHistoryPanel(QWidget):
             "Right-click for pin / delete."
         )
         sub.setWordWrap(True)
-        sub.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:9pt; background:transparent;"
-        )
+        sub.setObjectName("subLabel")
         il.addWidget(sub)
 
         self._list = QListWidget()
-        self._list.setStyleSheet(
-            f"QListWidget {{ background:#0a0a0a; color:{_TEXT}; "
-            f"border:1px solid {_BORDER}; font-size:9pt; }}"
-            f"QListWidget::item:selected {{ background:#1a2a2a; color:{_CYAN}; }}"
-        )
+        self._list.setObjectName("clipList")
         self._list.itemDoubleClicked.connect(self._on_double_click)
         self._list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._list.customContextMenuRequested.connect(self._on_context_menu)
@@ -243,12 +296,12 @@ class ClipboardHistoryPanel(QWidget):
     def _refresh_list(self) -> None:
         self._list.clear()
         if not self._history.items:
-            empty = QListWidgetItem("(empty — copy something while this is open)")
+            empty = QListWidgetItem("(empty \u2014 copy something while this is open)")
             empty.setFlags(Qt.ItemFlag.ItemIsEnabled)
             self._list.addItem(empty)
             return
         for idx, item in enumerate(self._history.items):
-            pin = "★ " if item.pinned else ""
+            pin = "\u2605 " if item.pinned else ""
             li = QListWidgetItem(f"{idx + 1}.  {pin}{item.preview(120)}")
             li.setData(Qt.ItemDataRole.UserRole, idx)
             if item.pinned:

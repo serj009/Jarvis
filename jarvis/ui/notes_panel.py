@@ -43,6 +43,18 @@ from jarvis.tools.local.notes_store import (
     notes_root,
     save_note,
 )
+from jarvis.ui.settings.theme import (
+    BG,
+    BG_CARD,
+    BG_INPUT,
+    BORDER,
+    TEXT_PRIMARY,
+    TEXT_SECONDARY,
+    TEXT_MUTED,
+    ACCENT,
+    ACCENT_DIM,
+    CARD_RADIUS,
+)
 
 log = logging.getLogger(__name__)
 
@@ -52,21 +64,107 @@ _MAX_PANEL_WIDTH = 900
 _SIDE_MARGIN = 16
 _ANIM_MS = 300
 
-_BG = "#0d0d0d"
-_BORDER = "#1f1f1f"
-_TEXT = "#ffffff"
-_TEXT_DIM = "#808080"
-_CYAN = "#38f4ff"
+# ---------------------------------------------------------------------------
+# Consolidated QSS — applied once to the inner wrapper widget.
+# ---------------------------------------------------------------------------
 
-_HDR_BTN = (
-    f"QPushButton {{ color:{_TEXT_DIM}; background:transparent; border:none; "
-    "font-size:8pt; letter-spacing:2px; font-weight:300; padding:0 6px; }}"
-    f"QPushButton:hover {{ color:{_TEXT}; }}"
-)
+_PANEL_QSS = f"""
+    /* panel background + left-edge border */
+    QWidget#panelInner {{
+        background: {BG};
+        border-left: 1px solid {BORDER};
+    }}
+
+    /* header title */
+    QLabel#panelTitle {{
+        color: {TEXT_SECONDARY};
+        font-size: 8pt;
+        font-weight: 300;
+        letter-spacing: 4px;
+        background: transparent;
+    }}
+
+    /* header action buttons (NEW, EDIT, FOLDER, DELETE) */
+    QPushButton#hdrBtn {{
+        color: {TEXT_SECONDARY};
+        background: transparent;
+        border: none;
+        font-size: 8pt;
+        letter-spacing: 2px;
+        font-weight: 300;
+        padding: 0 6px;
+    }}
+    QPushButton#hdrBtn:hover {{
+        color: {TEXT_PRIMARY};
+    }}
+
+    /* close × button */
+    QPushButton#closeBtn {{
+        color: {TEXT_SECONDARY};
+        font-size: 16pt;
+        background: transparent;
+        border: none;
+    }}
+    QPushButton#closeBtn:hover {{
+        color: {TEXT_PRIMARY};
+    }}
+
+    /* active-note title */
+    QLabel#noteTitle {{
+        color: {ACCENT};
+        font-size: 13pt;
+        font-weight: 300;
+        background: transparent;
+    }}
+
+    /* updated-at meta line */
+    QLabel#metaLabel {{
+        color: {TEXT_SECONDARY};
+        font-size: 9pt;
+        background: transparent;
+    }}
+
+    /* notes sidebar list */
+    QListWidget#notesList {{
+        background: {BG};
+        color: {TEXT_PRIMARY};
+        border: 1px solid {BORDER};
+        font-size: 9pt;
+    }}
+    QListWidget#notesList::item:selected {{
+        background: {ACCENT_DIM};
+        color: {ACCENT};
+    }}
+
+    /* read-only markdown viewer */
+    QTextBrowser#noteView {{
+        background: {BG_INPUT};
+        color: {TEXT_PRIMARY};
+        border: 1px solid {BORDER};
+        font-size: 10pt;
+        padding: 8px;
+    }}
+
+    /* editable text area */
+    QTextEdit#noteEdit {{
+        background: {BG_INPUT};
+        color: {TEXT_PRIMARY};
+        border: 1px solid {BORDER};
+        font-size: 10pt;
+        padding: 8px;
+    }}
+    QTextEdit#noteEdit:focus {{
+        border: 1px solid {ACCENT};
+    }}
+"""
+
+# Dynamic style for the EDIT button when edit-mode is active.
+# Applied/cleared via individual setStyleSheet so the consolidated QSS
+# (#hdrBtn) acts as the default.
 _HDR_BTN_ACTIVE = (
-    f"QPushButton {{ color:{_CYAN}; background:transparent; border:none; "
+    f"QPushButton {{ color:{ACCENT}; background:transparent; border:none; "
     "font-size:8pt; letter-spacing:2px; font-weight:300; padding:0 6px; }}"
-    f"QPushButton:hover {{ color:{_TEXT}; }}"
+    f"QPushButton:hover {{ color:{TEXT_PRIMARY}; }}"
 )
 
 
@@ -204,9 +302,8 @@ class NotesPanel(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
 
         inner = QWidget()
-        inner.setStyleSheet(
-            f"QWidget {{ background:{_BG}; border-left:1px solid {_BORDER}; }}"
-        )
+        inner.setObjectName("panelInner")
+        inner.setStyleSheet(_PANEL_QSS)
         il = QVBoxLayout(inner)
         il.setContentsMargins(16, 16, 16, 16)
         il.setSpacing(8)
@@ -214,65 +311,52 @@ class NotesPanel(QWidget):
         # Header
         hdr = QHBoxLayout()
         title = QLabel("NOTES")
-        title.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:8pt; font-weight:300; "
-            "letter-spacing:4px; background:transparent;"
-        )
+        title.setObjectName("panelTitle")
         hdr.addWidget(title)
         hdr.addStretch(1)
 
         self._new_btn = QPushButton("NEW")
-        self._new_btn.setStyleSheet(_HDR_BTN)
+        self._new_btn.setObjectName("hdrBtn")
         self._new_btn.clicked.connect(self._on_new_clicked)
         hdr.addWidget(self._new_btn)
 
         self._edit_btn = QPushButton("EDIT")
-        self._edit_btn.setStyleSheet(_HDR_BTN)
+        self._edit_btn.setObjectName("hdrBtn")
         self._edit_btn.clicked.connect(self._on_edit_clicked)
         hdr.addWidget(self._edit_btn)
 
         self._folder_btn = QPushButton("FOLDER")
-        self._folder_btn.setStyleSheet(_HDR_BTN)
+        self._folder_btn.setObjectName("hdrBtn")
         self._folder_btn.setToolTip("Open notes folder in Explorer")
         self._folder_btn.clicked.connect(self._on_open_folder)
         hdr.addWidget(self._folder_btn)
 
         self._delete_btn = QPushButton("DELETE")
-        self._delete_btn.setStyleSheet(_HDR_BTN)
+        self._delete_btn.setObjectName("hdrBtn")
         self._delete_btn.clicked.connect(self._on_delete_clicked)
         hdr.addWidget(self._delete_btn)
 
-        close_btn = QPushButton("×")
+        close_btn = QPushButton("\u00d7")
         close_btn.setFixedSize(28, 24)
-        close_btn.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:16pt; background:transparent; border:none;"
-        )
+        close_btn.setObjectName("closeBtn")
         close_btn.clicked.connect(self._on_close)
         hdr.addWidget(close_btn)
         il.addLayout(hdr)
 
         self._title_label = QLabel("Pick a note or say 'take a note'")
         self._title_label.setWordWrap(True)
-        self._title_label.setStyleSheet(
-            f"color:{_CYAN}; font-size:13pt; font-weight:300; background:transparent;"
-        )
+        self._title_label.setObjectName("noteTitle")
         il.addWidget(self._title_label)
 
         self._meta_label = QLabel("")
-        self._meta_label.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:9pt; background:transparent;"
-        )
+        self._meta_label.setObjectName("metaLabel")
         il.addWidget(self._meta_label)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
         self._notes_list = QListWidget()
         self._notes_list.setMinimumWidth(180)
         self._notes_list.setMaximumWidth(240)
-        self._notes_list.setStyleSheet(
-            f"QListWidget {{ background:{_BG}; color:{_TEXT}; border:1px solid {_BORDER}; "
-            "font-size:9pt; }}"
-            f"QListWidget::item:selected {{ background:#1a2a2a; color:{_CYAN}; }}"
-        )
+        self._notes_list.setObjectName("notesList")
         self._notes_list.currentItemChanged.connect(self._on_note_selected)
         self._notes_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._notes_list.customContextMenuRequested.connect(self._on_list_context)
@@ -283,18 +367,12 @@ class NotesPanel(QWidget):
 
         self._note_view = QTextBrowser()
         self._note_view.setOpenExternalLinks(True)
-        self._note_view.setStyleSheet(
-            f"QTextBrowser {{ background:#0a0a0a; color:{_TEXT}; border:1px solid {_BORDER}; "
-            "font-size:10pt; padding:8px; }}"
-        )
-        self._note_view.setPlaceholderText("Note will appear here…")
+        self._note_view.setObjectName("noteView")
+        self._note_view.setPlaceholderText("Note will appear here\u2026")
         self._stack.addWidget(self._note_view)
 
         self._note_edit = QTextEdit()
-        self._note_edit.setStyleSheet(
-            f"QTextEdit {{ background:#0a0a0a; color:{_TEXT}; border:1px solid {_CYAN}; "
-            "font-size:10pt; padding:8px; }}"
-        )
+        self._note_edit.setObjectName("noteEdit")
         self._note_edit.textChanged.connect(self._on_edit_text_changed)
         self._stack.addWidget(self._note_edit)
 
@@ -341,7 +419,7 @@ class NotesPanel(QWidget):
         self._notes_list.clear()
         notes = list_notes()
         for n in notes:
-            label = n.title[:60] + ("…" if len(n.title) > 60 else "")
+            label = n.title[:60] + ("\u2026" if len(n.title) > 60 else "")
             preview = n.preview
             text = f"{label}\n  {preview}" if preview else label
             item = QListWidgetItem(text)
@@ -351,7 +429,7 @@ class NotesPanel(QWidget):
                 self._notes_list.setCurrentItem(item)
         self._notes_list.blockSignals(False)
         if not notes:
-            self._title_label.setText("No notes yet — say 'take a note …'")
+            self._title_label.setText("No notes yet \u2014 say 'take a note \u2026'")
             self._meta_label.setText("")
             self._note_view.clear()
             self._note_edit.clear()
@@ -405,7 +483,7 @@ class NotesPanel(QWidget):
         else:
             self._persist_active_edits()
             self._stack.setCurrentIndex(0)
-            self._edit_btn.setStyleSheet(_HDR_BTN)
+            self._edit_btn.setStyleSheet("")  # revert to parent QSS
             self._edit_btn.setText("EDIT")
             note = load_note(self._active_note_id)
             if note:
@@ -455,7 +533,7 @@ class NotesPanel(QWidget):
         menu = QMenu(self)
         del_one = menu.addAction(f"Delete '{label[:60]}'")
         menu.addSeparator()
-        del_all = menu.addAction("Delete ALL notes…")
+        del_all = menu.addAction("Delete ALL notes\u2026")
         chosen = menu.exec(self._delete_btn.mapToGlobal(self._delete_btn.rect().bottomLeft()))
         if chosen is del_one:
             self._confirm_delete(note_id, label)

@@ -37,6 +37,10 @@ class OpenHelpTool:
         VoicePattern(
             regex=r"^что\s+ты\s+(?:умеешь|можешь)\??$", priority=370
         ),
+        # RU: "какие команды"
+        VoicePattern(
+            regex=r"^какие\s+команды\??$", priority=360,
+        ),
         # UK: "допомога", "покажи довідку", "що ти вмієш?"
         VoicePattern(
             regex=r"^(?:покажи\s+)?(?:допомог[уа]|довідк[уа])$", priority=350

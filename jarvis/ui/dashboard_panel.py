@@ -29,6 +29,22 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from jarvis.ui.settings.theme import (
+    BG,
+    BG_CARD,
+    BG_INPUT,
+    BORDER,
+    TEXT_PRIMARY,
+    TEXT_SECONDARY,
+    TEXT_MUTED,
+    ACCENT,
+    ACCENT_DIM,
+    SUCCESS,
+    WARNING,
+    ERROR,
+    CARD_RADIUS,
+)
+
 if TYPE_CHECKING:
     from jarvis.core.config import JarvisConfig
     from jarvis.ui.overlay import AmplitudeLatch
@@ -39,45 +55,88 @@ _DEFAULT_PANEL_WIDTH = 440
 _SIDE_MARGIN = 16
 _ANIM_MS = 280
 
-_BG = "#0d0d0d"
-_BG_CARD = "#141414"
-_BORDER = "#1f1f1f"
-_TEXT = "#ffffff"
-_TEXT_DIM = "#808080"
-_TEXT_MID = "#b0b0b0"
-_CYAN = "#38f4ff"
-_GREEN = "#3dd97a"
-_AMBER = "#e6b94a"
-_RED = "#ff5c5c"
+# ---------------------------------------------------------------------------
+# Consolidated QSS — one stylesheet applied to the inner wrapper widget.
+# Every child is targeted by objectName so no inline setStyleSheet is needed.
+# ---------------------------------------------------------------------------
 
-_HDR_BTN = (
-    f"QPushButton {{ color:{_TEXT_DIM}; background:transparent; border:none; "
-    "font-size:8pt; letter-spacing:2px; font-weight:300; padding:0 6px; }}"
-    f"QPushButton:hover {{ color:{_TEXT}; }}"
-)
+_PANEL_QSS = f"""
+    /* panel background + left-edge border */
+    QWidget#panelInner {{
+        background: {BG};
+        border-left: 1px solid {BORDER};
+    }}
 
-_SECTION_LABEL = (
-    f"color:{_TEXT_DIM}; font-size:8pt; font-weight:300; "
-    "letter-spacing:3px; background:transparent;"
-)
-_VALUE_LABEL = (
-    f"color:{_TEXT}; font-size:14pt; font-weight:300; background:transparent;"
-)
-_SUB_LABEL = (
-    f"color:{_TEXT_MID}; font-size:9pt; font-weight:300; background:transparent;"
-)
-_CARD_STYLE = (
-    f"QFrame {{ background:{_BG_CARD}; border:1px solid {_BORDER}; "
-    "border-radius:6px; padding:10px; }}"
-)
+    /* header title (e.g. "DASHBOARD") */
+    QLabel#panelTitle {{
+        color: {TEXT_SECONDARY};
+        font-size: 8pt;
+        font-weight: 300;
+        letter-spacing: 4px;
+        background: transparent;
+    }}
+
+    /* live clock */
+    QLabel#clockLabel {{
+        color: {ACCENT};
+        font-size: 11pt;
+        font-weight: 300;
+        letter-spacing: 2px;
+        background: transparent;
+    }}
+
+    /* close × button */
+    QPushButton#closeBtn {{
+        color: {TEXT_SECONDARY};
+        font-size: 16pt;
+        background: transparent;
+        border: none;
+    }}
+    QPushButton#closeBtn:hover {{
+        color: {TEXT_PRIMARY};
+    }}
+
+    /* card frames (mode, cpu/ram, mic, models, activity) */
+    QFrame#card {{
+        background: {BG_CARD};
+        border: 1px solid {BORDER};
+        border-radius: {CARD_RADIUS};
+        padding: 10px;
+    }}
+
+    /* small uppercase section headings inside cards */
+    QLabel#sectionLabel {{
+        color: {TEXT_SECONDARY};
+        font-size: 8pt;
+        font-weight: 300;
+        letter-spacing: 3px;
+        background: transparent;
+    }}
+
+    /* primary value readouts */
+    QLabel#valueLabel {{
+        color: {TEXT_PRIMARY};
+        font-size: 14pt;
+        font-weight: 300;
+        background: transparent;
+    }}
+
+    /* secondary / sub-value readouts */
+    QLabel#subLabel {{
+        color: {TEXT_SECONDARY};
+        font-size: 9pt;
+        font-weight: 300;
+        background: transparent;
+    }}
+"""
 
 
 def _color_for_percent(pct: float) -> str:
     if pct >= 85:
-        return _RED
+        return ERROR
     if pct >= 65:
-        return _AMBER
-    return _GREEN
+        return WARNING
+    return SUCCESS
 
 
 class _MeterBar(QWidget):
@@ -97,7 +156,7 @@ class _MeterBar(QWidget):
         p = QPainter(self)
         try:
             p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-            p.fillRect(self.rect(), QColor("#181818"))
+            p.fillRect(self.rect(), QColor(BG_CARD))
             w = int(self.rect().width() * (self._value / 100.0))
             color = QColor(_color_for_percent(self._value))
             p.fillRect(0, 0, w, self.rect().height(), color)
@@ -158,7 +217,7 @@ class DashboardPanel(QWidget):
         self._timer = QTimer(self)
         self._timer.setInterval(1500)
         self._timer.timeout.connect(self._refresh)
-        # Prime psutil's per-interval CPU sample.
+        # Prime psutil’s per-interval CPU sample.
         try:
             import psutil
 
@@ -184,57 +243,48 @@ class DashboardPanel(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
 
         inner = QWidget()
-        inner.setStyleSheet(
-            f"QWidget {{ background:{_BG}; border-left:1px solid {_BORDER}; }}"
-        )
+        inner.setObjectName("panelInner")
+        inner.setStyleSheet(_PANEL_QSS)
         il = QVBoxLayout(inner)
         il.setContentsMargins(16, 16, 16, 16)
         il.setSpacing(8)
 
         hdr = QHBoxLayout()
         title = QLabel("DASHBOARD")
-        title.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:8pt; font-weight:300; "
-            "letter-spacing:4px; background:transparent;"
-        )
+        title.setObjectName("panelTitle")
         hdr.addWidget(title)
         hdr.addStretch(1)
 
         self._clock_label = QLabel("--:--")
-        self._clock_label.setStyleSheet(
-            f"color:{_CYAN}; font-size:11pt; font-weight:300; "
-            "letter-spacing:2px; background:transparent;"
-        )
+        self._clock_label.setObjectName("clockLabel")
         hdr.addWidget(self._clock_label)
 
-        close_btn = QPushButton("×")
+        close_btn = QPushButton("\u00d7")
         close_btn.setFixedSize(28, 24)
-        close_btn.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:16pt; background:transparent; border:none;"
-        )
+        close_btn.setObjectName("closeBtn")
         close_btn.clicked.connect(self._on_close)
         hdr.addWidget(close_btn)
         il.addLayout(hdr)
 
         # --- Mode + uptime card -----------------------------------------
         mode_card = QFrame()
-        mode_card.setStyleSheet(_CARD_STYLE)
+        mode_card.setObjectName("card")
         mode_lay = QHBoxLayout(mode_card)
         mode_lay.setContentsMargins(12, 8, 12, 8)
         left_col = QVBoxLayout()
         left_label = QLabel("MODE")
-        left_label.setStyleSheet(_SECTION_LABEL)
-        self._mode_value = QLabel("—")
-        self._mode_value.setStyleSheet(_VALUE_LABEL)
+        left_label.setObjectName("sectionLabel")
+        self._mode_value = QLabel("\u2014")
+        self._mode_value.setObjectName("valueLabel")
         left_col.addWidget(left_label)
         left_col.addWidget(self._mode_value)
         mode_lay.addLayout(left_col, 1)
 
         right_col = QVBoxLayout()
         up_label = QLabel("UPTIME")
-        up_label.setStyleSheet(_SECTION_LABEL)
+        up_label.setObjectName("sectionLabel")
         self._uptime_value = QLabel("0 s")
-        self._uptime_value.setStyleSheet(_VALUE_LABEL)
+        self._uptime_value.setObjectName("valueLabel")
         right_col.addWidget(up_label)
         right_col.addWidget(self._uptime_value)
         mode_lay.addLayout(right_col, 1)
@@ -242,26 +292,26 @@ class DashboardPanel(QWidget):
 
         # --- CPU + RAM cards --------------------------------------------
         sys_card = QFrame()
-        sys_card.setStyleSheet(_CARD_STYLE)
+        sys_card.setObjectName("card")
         sys_lay = QGridLayout(sys_card)
         sys_lay.setContentsMargins(12, 8, 12, 8)
         sys_lay.setVerticalSpacing(4)
 
         cpu_label = QLabel("CPU")
-        cpu_label.setStyleSheet(_SECTION_LABEL)
+        cpu_label.setObjectName("sectionLabel")
         self._cpu_value = QLabel("0%")
-        self._cpu_value.setStyleSheet(_VALUE_LABEL)
+        self._cpu_value.setObjectName("valueLabel")
         self._cpu_meter = _MeterBar()
         sys_lay.addWidget(cpu_label, 0, 0)
         sys_lay.addWidget(self._cpu_value, 1, 0)
         sys_lay.addWidget(self._cpu_meter, 2, 0)
 
         ram_label = QLabel("RAM")
-        ram_label.setStyleSheet(_SECTION_LABEL)
+        ram_label.setObjectName("sectionLabel")
         self._ram_value = QLabel("0%")
-        self._ram_value.setStyleSheet(_VALUE_LABEL)
+        self._ram_value.setObjectName("valueLabel")
         self._ram_sub = QLabel("")
-        self._ram_sub.setStyleSheet(_SUB_LABEL)
+        self._ram_sub.setObjectName("subLabel")
         self._ram_meter = _MeterBar()
         sys_lay.addWidget(ram_label, 0, 1)
         sys_lay.addWidget(self._ram_value, 1, 1)
@@ -271,13 +321,13 @@ class DashboardPanel(QWidget):
 
         # --- Mic card ----------------------------------------------------
         mic_card = QFrame()
-        mic_card.setStyleSheet(_CARD_STYLE)
+        mic_card.setObjectName("card")
         mic_lay = QVBoxLayout(mic_card)
         mic_lay.setContentsMargins(12, 8, 12, 8)
         mic_label = QLabel("MIC LEVEL")
-        mic_label.setStyleSheet(_SECTION_LABEL)
+        mic_label.setObjectName("sectionLabel")
         self._mic_value = QLabel("idle")
-        self._mic_value.setStyleSheet(_VALUE_LABEL)
+        self._mic_value.setObjectName("valueLabel")
         self._mic_meter = _MeterBar()
         mic_lay.addWidget(mic_label)
         mic_lay.addWidget(self._mic_value)
@@ -286,19 +336,19 @@ class DashboardPanel(QWidget):
 
         # --- Models card -------------------------------------------------
         mdl_card = QFrame()
-        mdl_card.setStyleSheet(_CARD_STYLE)
+        mdl_card.setObjectName("card")
         mdl_lay = QGridLayout(mdl_card)
         mdl_lay.setContentsMargins(12, 8, 12, 8)
         mdl_lay.setVerticalSpacing(4)
         main_lbl = QLabel("MAIN MODEL")
-        main_lbl.setStyleSheet(_SECTION_LABEL)
-        self._main_model_value = QLabel("—")
-        self._main_model_value.setStyleSheet(_VALUE_LABEL)
+        main_lbl.setObjectName("sectionLabel")
+        self._main_model_value = QLabel("\u2014")
+        self._main_model_value.setObjectName("valueLabel")
         self._main_model_value.setWordWrap(True)
         plan_lbl = QLabel("RESEARCH PLANNER / WORKER")
-        plan_lbl.setStyleSheet(_SECTION_LABEL)
-        self._planner_value = QLabel("—")
-        self._planner_value.setStyleSheet(_SUB_LABEL)
+        plan_lbl.setObjectName("sectionLabel")
+        self._planner_value = QLabel("\u2014")
+        self._planner_value.setObjectName("subLabel")
         self._planner_value.setWordWrap(True)
         mdl_lay.addWidget(main_lbl, 0, 0)
         mdl_lay.addWidget(self._main_model_value, 1, 0)
@@ -308,32 +358,32 @@ class DashboardPanel(QWidget):
 
         # --- Activity card ----------------------------------------------
         act_card = QFrame()
-        act_card.setStyleSheet(_CARD_STYLE)
+        act_card.setObjectName("card")
         act_lay = QGridLayout(act_card)
         act_lay.setContentsMargins(12, 8, 12, 8)
         act_lay.setVerticalSpacing(4)
 
         act_lbl = QLabel("FOREGROUND APP")
-        act_lbl.setStyleSheet(_SECTION_LABEL)
-        self._fg_value = QLabel("—")
-        self._fg_value.setStyleSheet(_VALUE_LABEL)
+        act_lbl.setObjectName("sectionLabel")
+        self._fg_value = QLabel("\u2014")
+        self._fg_value.setObjectName("valueLabel")
         self._fg_value.setWordWrap(True)
         act_lay.addWidget(act_lbl, 0, 0, 1, 2)
         act_lay.addWidget(self._fg_value, 1, 0, 1, 2)
 
         notes_lbl = QLabel("NOTES")
-        notes_lbl.setStyleSheet(_SECTION_LABEL)
+        notes_lbl.setObjectName("sectionLabel")
         self._notes_value = QLabel("0")
-        self._notes_value.setStyleSheet(_VALUE_LABEL)
+        self._notes_value.setObjectName("valueLabel")
         act_lay.addWidget(notes_lbl, 2, 0)
         act_lay.addWidget(self._notes_value, 3, 0)
 
         dr_lbl = QLabel("DEEP RESEARCH")
-        dr_lbl.setStyleSheet(_SECTION_LABEL)
+        dr_lbl.setObjectName("sectionLabel")
         self._dr_value = QLabel("0")
-        self._dr_value.setStyleSheet(_VALUE_LABEL)
+        self._dr_value.setObjectName("valueLabel")
         self._dr_sub = QLabel("")
-        self._dr_sub.setStyleSheet(_SUB_LABEL)
+        self._dr_sub.setObjectName("subLabel")
         act_lay.addWidget(dr_lbl, 2, 1)
         act_lay.addWidget(self._dr_value, 3, 1)
         act_lay.addWidget(self._dr_sub, 4, 1)
@@ -383,7 +433,7 @@ class DashboardPanel(QWidget):
 
     def _refresh_mode(self) -> None:
         if self._sm is None:
-            self._mode_value.setText("—")
+            self._mode_value.setText("\u2014")
             return
         try:
             mode = getattr(self._sm, "mode", None)
@@ -391,7 +441,7 @@ class DashboardPanel(QWidget):
             mode_name = getattr(mode, "name", str(mode)) if mode else "?"
             cs_name = getattr(cs, "name", str(cs)) if cs else ""
             if cs_name and mode_name == "ACTIVE":
-                self._mode_value.setText(f"{mode_name.title()} · {cs_name.title()}")
+                self._mode_value.setText(f"{mode_name.title()} \u00b7 {cs_name.title()}")
             else:
                 self._mode_value.setText(mode_name.title())
         except Exception:  # noqa: BLE001
@@ -455,7 +505,7 @@ class DashboardPanel(QWidget):
             title = _foreground_window_title()
         except Exception:  # noqa: BLE001
             title = ""
-        self._fg_value.setText(title or "—")
+        self._fg_value.setText(title or "\u2014")
 
     def _refresh_activity(self) -> None:
         if self._notes_count_provider is not None:
