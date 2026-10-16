@@ -39,6 +39,7 @@ SILERO_PATH = MODELS_DIR / "silero_vad.onnx"
 
 OLLAMA_API = "http://127.0.0.1:11434"
 DEFAULT_OLLAMA_MODEL = "qwen3:8b"
+DEFAULT_VISION_MODEL = "llava:7b"
 
 MIN_PYTHON = (3, 10)
 
@@ -568,6 +569,50 @@ def step_ollama() -> tuple[str, str, str]:
     )
 
 
+def step_vision_model() -> tuple[str, str, str]:
+    """[optional] Download a vision-capable model for see_screen."""
+    ollama_exe = shutil.which("ollama")
+    data = _get_json(f"{OLLAMA_API}/api/tags")
+
+    if data is None:
+        return (
+            "Vision model",
+            WARN,
+            f"Ollama не запущен — пропуск. Позже: ollama pull {DEFAULT_VISION_MODEL}",
+        )
+
+    models = [m.get("name", "") for m in data.get("models", [])]
+    if DEFAULT_VISION_MODEL in models or any(
+        DEFAULT_VISION_MODEL.split(":")[0] in m for m in models
+    ):
+        return "Vision model", OK, f"({DEFAULT_VISION_MODEL})"
+
+    if ollama_exe:
+        print(
+            f"      Скачивание vision-модели {DEFAULT_VISION_MODEL} "
+            f"(~4.7 GB, это может занять несколько минут)..."
+        )
+        try:
+            proc = subprocess.run(
+                [ollama_exe, "pull", DEFAULT_VISION_MODEL],
+                timeout=1800,
+            )
+            if proc.returncode == 0:
+                return (
+                    "Vision model",
+                    OK,
+                    f"({DEFAULT_VISION_MODEL}, скачано)",
+                )
+        except (subprocess.SubprocessError, OSError) as exc:
+            print(f"      Ошибка скачивания: {exc}")
+
+    return (
+        "Vision model",
+        WARN,
+        f"Не удалось скачать. Запустите: ollama pull {DEFAULT_VISION_MODEL}",
+    )
+
+
 def step_embeddings() -> tuple[str, str, str]:
     """[9/9] Download sentence-transformers embedding model for semantic memory search."""
     try:
@@ -653,6 +698,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Skip the final smoke test",
     )
+    parser.add_argument(
+        "--with-vision",
+        action="store_true",
+        help="Also download vision model (llava:7b, ~4.7 GB) for 'see screen' feature",
+    )
     args = parser.parse_args(argv)
 
     _header()
@@ -669,6 +719,10 @@ def main(argv: list[str] | None = None) -> int:
         ("8/9", "Ollama + модель", step_ollama),
         ("9/9", "Embeddings (FAISS)", step_embeddings),
     ]
+    if args.with_vision:
+        steps.append(
+            ("10", "Vision model (llava)", step_vision_model),
+        )
 
     for step_num, label, func in steps:
         # Print step header without newline — the function fills in the status
