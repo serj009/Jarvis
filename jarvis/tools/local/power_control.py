@@ -17,6 +17,21 @@ from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# UAC / elevation helpers
+# ---------------------------------------------------------------------------
+
+_UAC_MSG = (
+    "I can't do that without administrator privileges, sir. "
+    "Try running JARVIS as admin, or do it manually."
+)
+
+
+def _is_access_denied(exc: OSError) -> bool:
+    """Return True if *exc* is a Windows ERROR_ACCESS_DENIED (winerror 5)."""
+    return getattr(exc, "winerror", None) == 5
+
+
 
 class PowerArgs(BaseModel):
     action: Literal[
@@ -215,6 +230,13 @@ class PowerControlTool:
             return ToolResult(success=True, output=msg)
         except NotImplementedError as e:
             return ToolResult(success=False, error=str(e))
+        except PermissionError:
+            return ToolResult(success=False, error=_UAC_MSG)
+        except OSError as e:
+            if _is_access_denied(e):
+                return ToolResult(success=False, error=_UAC_MSG)
+            log.exception("power_control %s failed", args.action)
+            return ToolResult(success=False, error=f"Power control failed: {e}")
         except Exception as e:
             log.exception("power_control %s failed", args.action)
             return ToolResult(success=False, error=f"Power control failed: {e}")

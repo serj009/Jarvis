@@ -15,6 +15,21 @@ from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# UAC / elevation helpers
+# ---------------------------------------------------------------------------
+
+_UAC_MSG = (
+    "I can't do that without administrator privileges, sir. "
+    "Try running JARVIS as admin, or do it manually."
+)
+
+
+def _is_access_denied(exc: OSError) -> bool:
+    """Return True if *exc* is a Windows ERROR_ACCESS_DENIED (winerror 5)."""
+    return getattr(exc, "winerror", None) == 5
+
+
 
 def _get_psutil():
     """Lazy import psutil."""
@@ -197,6 +212,12 @@ class ProcessInfoTool:
     async def execute(self, args: ProcessInfoArgs) -> ToolResult:
         try:
             result = await asyncio.to_thread(_get_process_info, args.name)
+        except PermissionError:
+            return ToolResult(success=False, error=_UAC_MSG)
+        except OSError as e:
+            if _is_access_denied(e):
+                return ToolResult(success=False, error=_UAC_MSG)
+            return ToolResult(success=False, error=f"Process query failed: {e}")
         except Exception as e:
             return ToolResult(success=False, error=f"Process query failed: {e}")
 
@@ -241,6 +262,12 @@ class HeavyProcessesTool:
     async def execute(self, args: HeavyProcessesArgs) -> ToolResult:
         try:
             result = await asyncio.to_thread(_list_heavy_processes, args.top_n)
+        except PermissionError:
+            return ToolResult(success=False, error=_UAC_MSG)
+        except OSError as e:
+            if _is_access_denied(e):
+                return ToolResult(success=False, error=_UAC_MSG)
+            return ToolResult(success=False, error=f"Failed: {e}")
         except Exception as e:
             return ToolResult(success=False, error=f"Failed: {e}")
 
@@ -288,6 +315,12 @@ class WaitForProcessTool:
             result = await asyncio.to_thread(
                 _wait_for_exit, args.name, args.timeout,
             )
+        except PermissionError:
+            return ToolResult(success=False, error=_UAC_MSG)
+        except OSError as e:
+            if _is_access_denied(e):
+                return ToolResult(success=False, error=_UAC_MSG)
+            return ToolResult(success=False, error=f"Wait failed: {e}")
         except Exception as e:
             return ToolResult(success=False, error=f"Wait failed: {e}")
 

@@ -18,6 +18,21 @@ from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# UAC / elevation helpers
+# ---------------------------------------------------------------------------
+
+_UAC_MSG = (
+    "I can't do that without administrator privileges, sir. "
+    "Try running JARVIS as admin, or do it manually."
+)
+
+
+def _is_access_denied(exc: OSError) -> bool:
+    """Return True if *exc* is a Windows ERROR_ACCESS_DENIED (winerror 5)."""
+    return getattr(exc, "winerror", None) == 5
+
+
 
 # ---------------------------------------------------------------------------
 # Lazy imports
@@ -231,6 +246,13 @@ class DiskSpaceTool:
             disks = await asyncio.to_thread(_disk_space_impl)
         except NotImplementedError as e:
             return ToolResult(success=False, error=str(e))
+        except PermissionError:
+            return ToolResult(success=False, error=_UAC_MSG)
+        except OSError as e:
+            if _is_access_denied(e):
+                return ToolResult(success=False, error=_UAC_MSG)
+            log.exception("disk_space failed")
+            return ToolResult(success=False, error=f"Failed to get disk space: {e}")
         except Exception as e:
             log.exception("disk_space failed")
             return ToolResult(success=False, error=f"Failed to get disk space: {e}")
@@ -302,7 +324,12 @@ class FindLargeFoldersTool:
         except FileNotFoundError as e:
             return ToolResult(success=False, error=str(e))
         except PermissionError as e:
-            return ToolResult(success=False, error=str(e))
+            return ToolResult(success=False, error=_UAC_MSG)
+        except OSError as e:
+            if _is_access_denied(e):
+                return ToolResult(success=False, error=_UAC_MSG)
+            log.exception("find_large_folders failed")
+            return ToolResult(success=False, error=f"Failed to scan: {e}")
         except Exception as e:
             log.exception("find_large_folders failed")
             return ToolResult(success=False, error=f"Failed to scan: {e}")
@@ -354,6 +381,13 @@ class CleanTempFilesTool:
     async def execute(self, args: EmptyArgs) -> ToolResult:
         try:
             result = await asyncio.to_thread(_clean_temp_impl)
+        except PermissionError:
+            return ToolResult(success=False, error=_UAC_MSG)
+        except OSError as e:
+            if _is_access_denied(e):
+                return ToolResult(success=False, error=_UAC_MSG)
+            log.exception("clean_temp_files failed")
+            return ToolResult(success=False, error=f"Temp cleanup failed: {e}")
         except Exception as e:
             log.exception("clean_temp_files failed")
             return ToolResult(success=False, error=f"Temp cleanup failed: {e}")

@@ -185,6 +185,28 @@ try {
 
 Set-Location $ProjectDir
 
+# --- Step 4b: run smoke test (if present) ----------------------------------
+$SmokeTest = Join-Path $ProjectDir 'jarvis\dev\smoke_test.py'
+if (Test-Path $SmokeTest) {
+    Write-Log 'Running smoke test...'
+    try {
+        $smokeResult = & python $SmokeTest 2>&1
+        $smokeExit = $LASTEXITCODE
+        if ($smokeExit -eq 0) {
+            Write-Log 'Smoke test passed.'
+        } else {
+            Write-Log ("Smoke test exited with code {0} (continuing anyway)." -f $smokeExit) 'WARN'
+            foreach ($line in $smokeResult) {
+                Write-Log ("  smoke: {0}" -f $line) 'WARN'
+            }
+        }
+    } catch {
+        Write-Log ("Smoke test error (continuing anyway): {0}" -f $_.Exception.Message) 'WARN'
+    }
+} else {
+    Write-Log 'Smoke test not found; skipping.'
+}
+
 # Jarvis is a long-lived GUI process. We launch it as a SEPARATE background
 # process (Start-Process) and let the launcher return immediately with exit
 # code 0 -- this is what Task Scheduler expects.
