@@ -7,7 +7,6 @@ from collections.abc import Callable
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QCheckBox,
     QLabel,
     QPushButton,
     QSlider,
@@ -16,7 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from jarvis.core.config import JarvisConfig, save_config
-from jarvis.ui.settings._widgets import Badge, SectionCard, slider_with_label
+from jarvis.ui.settings._widgets import Badge, SectionCard, ToggleSwitch, slider_with_label
 
 log = logging.getLogger(__name__)
 
@@ -51,24 +50,21 @@ class SecurityTab(QWidget):
             "\U0001f6e1\ufe0f", "Permissions",
         )
 
-        self.confirm_destructive = QCheckBox()
-        self.confirm_destructive.setChecked(config.sandbox.confirm_destructive)
+        self.confirm_destructive = ToggleSwitch(checked=config.sandbox.confirm_destructive)
         perm_card.add_row(
             "Confirm destructive actions",
             "Ask before deleting files, closing apps, running system commands",
             self.confirm_destructive,
         )
 
-        self.encrypt_memory = QCheckBox()
-        self.encrypt_memory.setChecked(config.security.encrypt_memory)
+        self.encrypt_memory = ToggleSwitch(checked=config.security.encrypt_memory)
         perm_card.add_row(
             "Encrypt memory at rest",
             "Encrypt stored facts with Windows DPAPI",
             self.encrypt_memory,
         )
 
-        self.encrypt_json = QCheckBox()
-        self.encrypt_json.setChecked(config.security.encrypt_json_files)
+        self.encrypt_json = ToggleSwitch(checked=config.security.encrypt_json_files)
         perm_card.add_row(
             "Encrypt JSON files",
             "Encrypt profile, bookmarks, aliases files",
@@ -116,9 +112,9 @@ class SecurityTab(QWidget):
         root.addStretch(1)
 
         # -- Connections --
-        self.confirm_destructive.stateChanged.connect(self._on_confirm)
-        self.encrypt_memory.stateChanged.connect(self._on_encrypt_memory)
-        self.encrypt_json.stateChanged.connect(self._on_encrypt_json)
+        self.confirm_destructive.toggled.connect(self._on_confirm)
+        self.encrypt_memory.toggled.connect(self._on_encrypt_memory)
+        self.encrypt_json.toggled.connect(self._on_encrypt_json)
 
     def _on_confirm(self) -> None:
         self._config.sandbox.confirm_destructive = self.confirm_destructive.isChecked()

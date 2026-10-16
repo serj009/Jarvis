@@ -7,7 +7,6 @@ from collections.abc import Callable
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QCheckBox,
     QComboBox,
     QLabel,
     QSlider,
@@ -16,7 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from jarvis.core.config import JarvisConfig, save_config
-from jarvis.ui.settings._widgets import Badge, SectionCard, slider_with_label
+from jarvis.ui.settings._widgets import Badge, SectionCard, ToggleSwitch, slider_with_label
 
 log = logging.getLogger(__name__)
 
@@ -53,8 +52,7 @@ class MemoryTab(QWidget):
             badge=Badge("FAISS", "info"),
         )
 
-        self.embeddings_enabled = QCheckBox()
-        self.embeddings_enabled.setChecked(config.memory.embeddings_enabled)
+        self.embeddings_enabled = ToggleSwitch(checked=config.memory.embeddings_enabled)
         embed_card.add_row(
             "Enable embeddings",
             "Use FAISS + multilingual model for semantic memory search (~420 MB)",
@@ -95,8 +93,7 @@ class MemoryTab(QWidget):
             badge=Badge("Always On", "ok"),
         )
 
-        self.auto_save = QCheckBox()
-        self.auto_save.setChecked(True)
+        self.auto_save = ToggleSwitch(checked=True)
         self.auto_save.setEnabled(False)  # Not configurable yet
         info_card.add_row(
             "Auto-save facts",
@@ -104,8 +101,7 @@ class MemoryTab(QWidget):
             self.auto_save,
         )
 
-        self.auto_recall = QCheckBox()
-        self.auto_recall.setChecked(True)
+        self.auto_recall = ToggleSwitch(checked=True)
         self.auto_recall.setEnabled(False)
         info_card.add_row(
             "Auto-recall",
@@ -113,8 +109,7 @@ class MemoryTab(QWidget):
             self.auto_recall,
         )
 
-        self.learn_examples = QCheckBox()
-        self.learn_examples.setChecked(True)
+        self.learn_examples = ToggleSwitch(checked=True)
         self.learn_examples.setEnabled(False)
         info_card.add_row(
             "Learn tool examples",
@@ -127,7 +122,7 @@ class MemoryTab(QWidget):
         root.addStretch(1)
 
         # -- Connections --
-        self.embeddings_enabled.stateChanged.connect(self._on_embeddings)
+        self.embeddings_enabled.toggled.connect(self._on_embeddings)
         self.embed_device.currentTextChanged.connect(self._on_embed_device)
         self.embed_top_k.valueChanged.connect(self._on_embed_top_k)
 
