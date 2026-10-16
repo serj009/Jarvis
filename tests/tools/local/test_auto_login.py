@@ -220,7 +220,7 @@ class TestAutoLoginSecurity:
         tool = AutoLoginTool(vault=mock_vault, browser_controller=mock_browser)
         result = await tool.execute(AutoLoginArgs(site="steam"))
 
-        password="s3cr3tP@ss",
+        password="s3cr3tP@ss"
         assert password not in str(result.output or "")
         assert password not in str(result.error or "")
         assert password not in str(result)

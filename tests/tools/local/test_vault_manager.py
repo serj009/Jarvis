@@ -364,7 +364,7 @@ class TestChangeVaultPasswordTool:
 
         tool = ChangeVaultPasswordTool(vault=vault)
         result = await tool.execute(
-            ChangeVaultPasswordArgs(old_password="old_pass", new_password="new_pass")
+            ChangeVaultPasswordArgs(old_password="", new_password="")
         )
 
         assert not result.success
