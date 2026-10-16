@@ -36,7 +36,6 @@ from jarvis.ui.settings.tabs import (
     CommandsTab,
     GamingTab,
     GeneralTab,
-    HelpTab,
     HotkeysTab,
     MemoryTab,
     ModelsTab,
@@ -111,7 +110,6 @@ class SettingsWindow(QMainWindow):
         self.commands = CommandsTab(config=config, on_change=_on_change_with_indicator)
         self.hotkeys = HotkeysTab(config=config, on_change=_on_change_with_indicator)
         self.advanced = AdvancedTab(config=config, on_change=_on_change_with_indicator)
-        self.help = HelpTab(config=config, on_change=_on_change_with_indicator)
         self.about = AboutTab(config=config, on_change=_on_change_with_indicator)
 
         self._pages: dict[str, QWidget] = {
@@ -125,7 +123,6 @@ class SettingsWindow(QMainWindow):
             "commands": self.commands,
             "hotkeys": self.hotkeys,
             "advanced": self.advanced,
-            "help": self.help,
             "about": self.about,
         }
 
