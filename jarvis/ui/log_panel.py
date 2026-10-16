@@ -30,6 +30,18 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from jarvis.ui.settings.theme import (
+    BG,
+    BG_CARD,
+    BG_INPUT,
+    BORDER,
+    TEXT_PRIMARY,
+    TEXT_SECONDARY,
+    ACCENT,
+    ERROR,
+    WARNING,
+)
+
 log = logging.getLogger(__name__)
 
 _DEFAULT_PANEL_WIDTH = 720
@@ -38,20 +50,91 @@ _ANIM_MS = 280
 _POLL_MS = 1000
 _MAX_TAIL_BYTES = 200_000  # initial read cap so a giant log file isn't yanked in whole
 
-_BG = "#0d0d0d"
-_BORDER = "#1f1f1f"
-_TEXT = "#e8e8e8"
-_TEXT_DIM = "#808080"
-_CYAN = "#38f4ff"
-
 _LEVELS = ("ALL", "DEBUG", "INFO", "WARNING", "ERROR")
 _LEVEL_RANK = {"DEBUG": 0, "INFO": 1, "WARNING": 2, "ERROR": 3, "CRITICAL": 4}
 
-_HDR_BTN = (
-    f"QPushButton {{ color:{_TEXT_DIM}; background:transparent; border:none; "
-    "font-size:8pt; letter-spacing:2px; font-weight:300; padding:0 6px; }}"
-    f"QPushButton:hover {{ color:{_TEXT}; }}"
-)
+# ---------------------------------------------------------------------------
+# Consolidated QSS — applied once on the panel root in __init__
+# ---------------------------------------------------------------------------
+
+_PANEL_QSS = f"""
+/* --- inner container -------------------------------------------------- */
+QWidget#lpInner {{
+    background: {BG};
+    border-left: 1px solid {BORDER};
+}}
+
+/* --- header title ----------------------------------------------------- */
+QLabel#lpTitle {{
+    color: {TEXT_SECONDARY};
+    font-size: 8pt;
+    font-weight: 300;
+    letter-spacing: 4px;
+    background: transparent;
+}}
+
+/* --- header buttons --------------------------------------------------- */
+QPushButton#lpHdrBtn {{
+    color: {TEXT_SECONDARY};
+    background: transparent;
+    border: none;
+    font-size: 8pt;
+    letter-spacing: 2px;
+    font-weight: 300;
+    padding: 0 6px;
+}}
+QPushButton#lpHdrBtn:hover {{ color: {TEXT_PRIMARY}; }}
+
+/* --- close button ----------------------------------------------------- */
+QPushButton#lpCloseBtn {{
+    color: {TEXT_SECONDARY};
+    font-size: 16pt;
+    background: transparent;
+    border: none;
+}}
+QPushButton#lpCloseBtn:hover {{ color: {TEXT_PRIMARY}; }}
+
+/* --- path label ------------------------------------------------------- */
+QLabel#lpPathLabel {{
+    color: {TEXT_SECONDARY};
+    font-size: 9pt;
+    background: transparent;
+}}
+
+/* --- level label ------------------------------------------------------ */
+QLabel#lpLevelLabel {{
+    color: {TEXT_SECONDARY};
+    font-size: 9pt;
+    background: transparent;
+}}
+
+/* --- level combo ------------------------------------------------------ */
+QComboBox#lpLevelCombo {{
+    color: {TEXT_PRIMARY};
+    background: {BG_CARD};
+    border: 1px solid {BORDER};
+    padding: 2px 6px;
+}}
+
+/* --- search box ------------------------------------------------------- */
+QLineEdit#lpSearchBox {{
+    color: {TEXT_PRIMARY};
+    background: {BG_INPUT};
+    border: 1px solid {BORDER};
+    padding: 4px 8px;
+}}
+QLineEdit#lpSearchBox:focus {{ border: 1px solid {ACCENT}; }}
+
+/* --- log text view ---------------------------------------------------- */
+QTextEdit#lpView {{
+    background: {BG_INPUT};
+    color: {TEXT_PRIMARY};
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 9pt;
+    border: 1px solid {BORDER};
+    padding: 6px;
+}}
+"""
 
 
 def default_log_path() -> Path:
@@ -65,7 +148,8 @@ def default_log_path() -> Path:
 
 def _line_level(line: str) -> str | None:
     """Best-effort: pull the level out of a logging line formatted as
-    ``HH:MM:SS [LEVEL] name: msg``. Returns None if no level found."""
+    ``HH:MM:SS [LEVEL] name: msg``. Returns None if no level found.
+    """
     if not line:
         return None
     # Find first '[' and the next ']' near the start.
@@ -134,14 +218,13 @@ class LogPanel(QWidget):
     def _build_ui(self) -> None:
         self.setFixedWidth(self._panel_width)
         self.setObjectName("LogPanel")
+        self.setStyleSheet(_PANEL_QSS)
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
 
         inner = QWidget()
-        inner.setStyleSheet(
-            f"QWidget {{ background:{_BG}; border-left:1px solid {_BORDER}; }}"
-        )
+        inner.setObjectName("lpInner")
         il = QVBoxLayout(inner)
         il.setContentsMargins(16, 16, 16, 16)
         il.setSpacing(8)
@@ -149,30 +232,25 @@ class LogPanel(QWidget):
         # --- header --------------------------------------------------------
         hdr = QHBoxLayout()
         title = QLabel("LOGS")
-        title.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:8pt; font-weight:300; "
-            "letter-spacing:4px; background:transparent;"
-        )
+        title.setObjectName("lpTitle")
         hdr.addWidget(title)
         hdr.addStretch(1)
 
         self._open_file_btn = QPushButton("OPEN FILE")
-        self._open_file_btn.setStyleSheet(_HDR_BTN)
+        self._open_file_btn.setObjectName("lpHdrBtn")
         self._open_file_btn.setToolTip("Open jarvis.log in Explorer")
         self._open_file_btn.clicked.connect(self._on_open_file)
         hdr.addWidget(self._open_file_btn)
 
         self._clear_btn = QPushButton("CLEAR VIEW")
-        self._clear_btn.setStyleSheet(_HDR_BTN)
+        self._clear_btn.setObjectName("lpHdrBtn")
         self._clear_btn.setToolTip("Clear what's shown (does NOT delete the log file)")
         self._clear_btn.clicked.connect(self._on_clear_view)
         hdr.addWidget(self._clear_btn)
 
         close_btn = QPushButton("×")
         close_btn.setFixedSize(28, 24)
-        close_btn.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:16pt; background:transparent; border:none;"
-        )
+        close_btn.setObjectName("lpCloseBtn")
         close_btn.clicked.connect(self._on_close)
         hdr.addWidget(close_btn)
         il.addLayout(hdr)
@@ -180,9 +258,7 @@ class LogPanel(QWidget):
         # --- path + filter row --------------------------------------------
         path_row = QHBoxLayout()
         self._path_label = QLabel(str(self._log_path))
-        self._path_label.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:9pt; background:transparent;"
-        )
+        self._path_label.setObjectName("lpPathLabel")
         self._path_label.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
         )
@@ -192,29 +268,20 @@ class LogPanel(QWidget):
 
         filt = QHBoxLayout()
         level_lbl = QLabel("Level:")
-        level_lbl.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:9pt; background:transparent;"
-        )
+        level_lbl.setObjectName("lpLevelLabel")
         filt.addWidget(level_lbl)
         self._level = QComboBox()
         for lv in _LEVELS:
             self._level.addItem(lv, lv)
         self._level.currentIndexChanged.connect(self._on_level_changed)
-        self._level.setStyleSheet(
-            f"QComboBox {{ color:{_TEXT}; background:#161616; "
-            f"border:1px solid {_BORDER}; padding:2px 6px; }}"
-        )
+        self._level.setObjectName("lpLevelCombo")
         filt.addWidget(self._level)
         filt.addSpacing(12)
 
         self._search_box = QLineEdit()
         self._search_box.setPlaceholderText("Search (substring)…")
         self._search_box.textChanged.connect(self._on_search_changed)
-        self._search_box.setStyleSheet(
-            f"QLineEdit {{ color:{_TEXT}; background:#0a0a0a; "
-            f"border:1px solid {_BORDER}; padding:4px 8px; }}"
-            f"QLineEdit:focus {{ border:1px solid {_CYAN}; }}"
-        )
+        self._search_box.setObjectName("lpSearchBox")
         filt.addWidget(self._search_box, 1)
         il.addLayout(filt)
 
@@ -222,11 +289,7 @@ class LogPanel(QWidget):
         self._view = QTextEdit()
         self._view.setReadOnly(True)
         self._view.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
-        self._view.setStyleSheet(
-            "QTextEdit { background:#0a0a0a; color:#d8d8d8; "
-            "font-family: Consolas, 'Courier New', monospace; "
-            f"font-size:9pt; border:1px solid {_BORDER}; padding:6px; }}"
-        )
+        self._view.setObjectName("lpView")
         il.addWidget(self._view, 1)
 
         root.addWidget(inner)
@@ -302,12 +365,12 @@ class LogPanel(QWidget):
     def _color_for_line(self, line: str) -> QColor:
         lvl = _line_level(line)
         if lvl == "ERROR" or lvl == "CRITICAL":
-            return QColor("#ff7070")
+            return QColor(ERROR)
         if lvl == "WARNING":
-            return QColor("#ffd060")
+            return QColor(WARNING)
         if lvl == "DEBUG":
-            return QColor("#888888")
-        return QColor("#d8d8d8")
+            return QColor(TEXT_SECONDARY)
+        return QColor(TEXT_PRIMARY)
 
     def _render(
         self,

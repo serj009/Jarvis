@@ -61,6 +61,16 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from jarvis.ui.settings.theme import (
+    BG,
+    BG_CARD,
+    BORDER,
+    TEXT_PRIMARY,
+    TEXT_SECONDARY,
+    ACCENT,
+    ACCENT_DIM,
+)
+
 log = logging.getLogger(__name__)
 
 _DEFAULT_PANEL_WIDTH = 420
@@ -71,28 +81,194 @@ _SIDE_MARGIN = 16
 _ANIM_MS = 300
 _MAX_HISTORY = 10
 
-_BG          = "#0d0d0d"
-_BG_CARD     = "#141414"
-_BORDER      = "#1f1f1f"
-_CHIP_BORDER = "#2a2a2a"
-_TEXT        = "#ffffff"
-_TEXT_DIM    = "#808080"
-_TEXT_MID    = "#b0b0b0"
-_CYAN        = "#38f4ff"
-
 _URL_RE = re.compile(r"https?://[^\s\)\"\']+")
 
-# Header button base style (shared by COPY and ≡)
-_HDR_BTN = (
-    f"QPushButton {{ color:{_TEXT_DIM}; background:transparent; border:none; "
-    "font-size:8pt; letter-spacing:2px; font-weight:300; padding:0 6px; }}"
-    f"QPushButton:hover {{ color:{_TEXT}; }}"
-)
-_HDR_BTN_ACTIVE = (
-    f"QPushButton {{ color:{_CYAN}; background:transparent; border:none; "
-    "font-size:8pt; letter-spacing:2px; font-weight:300; padding:0 6px; }}"
-    f"QPushButton:hover {{ color:{_TEXT}; }}"
-)
+# ---------------------------------------------------------------------------
+# Consolidated QSS — applied once on the panel root in __init__
+# ---------------------------------------------------------------------------
+
+_PANEL_QSS = f"""
+/* --- inner container -------------------------------------------------- */
+QWidget#rpInner {{
+    background: {BG};
+    border-left: 1px solid {BORDER};
+}}
+
+/* --- header title ----------------------------------------------------- */
+QLabel#rpTitle {{
+    color: {TEXT_SECONDARY};
+    font-size: 8pt;
+    font-weight: 300;
+    letter-spacing: 4px;
+    background: transparent;
+    border: none;
+}}
+
+/* --- header buttons (normal) ------------------------------------------ */
+QPushButton#rpHdrBtn {{
+    color: {TEXT_SECONDARY};
+    background: transparent;
+    border: none;
+    font-size: 8pt;
+    letter-spacing: 2px;
+    font-weight: 300;
+    padding: 0 6px;
+}}
+QPushButton#rpHdrBtn:hover {{ color: {TEXT_PRIMARY}; }}
+
+/* --- header buttons (active / toggled) -------------------------------- */
+QPushButton#rpHdrBtnActive {{
+    color: {ACCENT};
+    background: transparent;
+    border: none;
+    font-size: 8pt;
+    letter-spacing: 2px;
+    font-weight: 300;
+    padding: 0 6px;
+}}
+QPushButton#rpHdrBtnActive:hover {{ color: {TEXT_PRIMARY}; }}
+
+/* --- close button ----------------------------------------------------- */
+QPushButton#rpCloseBtn {{
+    color: {TEXT_SECONDARY};
+    font-size: 16pt;
+    background: transparent;
+    border: none;
+    padding: 0;
+}}
+QPushButton#rpCloseBtn:hover {{ color: {TEXT_PRIMARY}; }}
+
+/* --- query label ------------------------------------------------------ */
+QLabel#rpQueryLabel {{
+    color: {ACCENT};
+    font-size: 13pt;
+    font-weight: 300;
+    letter-spacing: 1px;
+    background: transparent;
+    border: none;
+}}
+
+/* --- streaming content (normal) --------------------------------------- */
+QPlainTextEdit#rpContent {{
+    background: {BG};
+    color: {TEXT_PRIMARY};
+    border: none;
+    font-size: 10pt;
+    font-weight: 300;
+}}
+
+/* --- streaming content (dim / loading) -------------------------------- */
+QPlainTextEdit#rpContentDim {{
+    background: {BG};
+    color: {TEXT_SECONDARY};
+    border: none;
+    font-size: 10pt;
+    font-weight: 300;
+}}
+
+/* --- section headers (RECENT SEARCHES, FOLLOW-UP, SOURCES) ----------- */
+QLabel#rpSectionHdr {{
+    color: {TEXT_SECONDARY};
+    font-size: 8pt;
+    font-weight: 300;
+    letter-spacing: 4px;
+    background: transparent;
+    border: none;
+}}
+
+/* --- divider ---------------------------------------------------------- */
+QFrame#rpDivider {{
+    background: {BORDER};
+    border: none;
+}}
+
+/* --- history / scroll containers -------------------------------------- */
+QWidget#rpHistoryContainer {{
+    background: {BG};
+}}
+QScrollArea#rpHistoryScroll {{
+    background: {BG};
+    border: none;
+}}
+
+/* --- sources area ----------------------------------------------------- */
+QWidget#rpSourcesContainer {{
+    background: {BG};
+}}
+QScrollArea#rpSourcesScroll {{
+    background: {BG};
+    border: none;
+}}
+
+/* --- follow-up chips -------------------------------------------------- */
+QPushButton#rpChip {{
+    background: transparent;
+    color: {TEXT_SECONDARY};
+    border: 1px solid {BORDER};
+    border-radius: 14px;
+    padding: 5px 14px;
+    font-size: 9pt;
+    font-weight: 300;
+    text-align: left;
+}}
+QPushButton#rpChip:hover {{
+    border-color: {ACCENT};
+    color: {TEXT_PRIMARY};
+    background: {ACCENT_DIM};
+}}
+QPushButton#rpChip:pressed {{
+    background: {ACCENT_DIM};
+}}
+
+/* --- history query buttons -------------------------------------------- */
+QPushButton#rpHistoryBtn {{
+    background: {BG_CARD};
+    color: {TEXT_SECONDARY};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 9pt;
+    font-weight: 300;
+    text-align: left;
+}}
+QPushButton#rpHistoryBtn:hover {{
+    border-color: {ACCENT};
+    color: {TEXT_PRIMARY};
+}}
+QPushButton#rpHistoryBtn:pressed {{
+    background: {ACCENT_DIM};
+}}
+
+/* --- source card ------------------------------------------------------ */
+QFrame#rpSourceCard {{
+    background: {BG_CARD};
+    border: 1px solid {BORDER};
+}}
+QLabel#rpFaviconLabel {{
+    background: transparent;
+    border: none;
+}}
+QLabel#rpDomainLabel {{
+    color: {TEXT_PRIMARY};
+    font-size: 9pt;
+    font-weight: 500;
+    background: transparent;
+    border: none;
+}}
+QLabel#rpPageLabel {{
+    color: {TEXT_SECONDARY};
+    font-size: 8pt;
+    background: transparent;
+    border: none;
+}}
+"""
+
+
+def _restyle(w: QWidget) -> None:
+    """Force QSS re-evaluation after an objectName change."""
+    w.style().unpolish(w)
+    w.style().polish(w)
+    w.update()
 
 
 # ---------------------------------------------------------------------------
@@ -322,9 +498,7 @@ class _SourceCard(QFrame):
         self._url = url
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFrameShape(QFrame.Shape.NoFrame)
-        self.setStyleSheet(
-            f"QFrame {{ background:{_BG_CARD}; border:1px solid {_BORDER}; }}"
-        )
+        self.setObjectName("rpSourceCard")
 
         row = QHBoxLayout(self)
         row.setContentsMargins(10, 8, 10, 8)
@@ -332,7 +506,7 @@ class _SourceCard(QFrame):
 
         self._favicon_lbl = QLabel()
         self._favicon_lbl.setFixedSize(16, 16)
-        self._favicon_lbl.setStyleSheet("background:transparent; border:none;")
+        self._favicon_lbl.setObjectName("rpFaviconLabel")
         row.addWidget(self._favicon_lbl, 0, Qt.AlignmentFlag.AlignVCenter)
 
         parsed = urlparse(url)
@@ -343,19 +517,14 @@ class _SourceCard(QFrame):
         text_col.setContentsMargins(0, 0, 0, 0)
 
         domain_lbl = QLabel(domain)
-        domain_lbl.setStyleSheet(
-            f"color:{_TEXT}; font-size:9pt; font-weight:500; "
-            "background:transparent; border:none;"
-        )
+        domain_lbl.setObjectName("rpDomainLabel")
         text_col.addWidget(domain_lbl)
 
         if title and title != url and title != domain:
             fm = domain_lbl.fontMetrics()
             elided = fm.elidedText(title, Qt.TextElideMode.ElideRight, elide_width)
             page_lbl = QLabel(elided)
-            page_lbl.setStyleSheet(
-                f"color:{_TEXT_DIM}; font-size:8pt; background:transparent; border:none;"
-            )
+            page_lbl.setObjectName("rpPageLabel")
             text_col.addWidget(page_lbl)
 
         row.addLayout(text_col)
@@ -505,15 +674,14 @@ class ResearchPanel(QWidget):
     def _build_ui(self) -> None:
         self._apply_panel_width(self._panel_width)
         self.setObjectName("ResearchPanel")
+        self.setStyleSheet(_PANEL_QSS)
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
         inner = QWidget()
-        inner.setStyleSheet(
-            f"QWidget {{ background:{_BG}; border-left:1px solid {_BORDER}; }}"
-        )
+        inner.setObjectName("rpInner")
         il = QVBoxLayout(inner)
         il.setContentsMargins(20, 20, 20, 20)
         il.setSpacing(0)
@@ -524,10 +692,7 @@ class ResearchPanel(QWidget):
         hdr.setSpacing(6)
 
         title_lbl = QLabel("RESEARCH")
-        title_lbl.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:8pt; font-weight:300; "
-            "letter-spacing:4px; background:transparent; border:none;"
-        )
+        title_lbl.setObjectName("rpTitle")
         hdr.addWidget(title_lbl)
         hdr.addStretch(1)
 
@@ -535,24 +700,21 @@ class ResearchPanel(QWidget):
         self._history_btn.setFixedHeight(24)
         self._history_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._history_btn.setToolTip("Query history")
-        self._history_btn.setStyleSheet(_HDR_BTN)
+        self._history_btn.setObjectName("rpHdrBtn")
         self._history_btn.clicked.connect(self._on_history_toggle)
         hdr.addWidget(self._history_btn)
 
         self._copy_btn = QPushButton("COPY")
         self._copy_btn.setFixedHeight(24)
         self._copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._copy_btn.setStyleSheet(_HDR_BTN)
+        self._copy_btn.setObjectName("rpHdrBtn")
         self._copy_btn.clicked.connect(self._on_copy)
         hdr.addWidget(self._copy_btn)
 
         close_btn = QPushButton("×")
         close_btn.setFixedSize(28, 24)
         close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        close_btn.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:16pt; background:transparent; "
-            "border:none; padding:0;"
-        )
+        close_btn.setObjectName("rpCloseBtn")
         close_btn.clicked.connect(self._on_close)
         hdr.addWidget(close_btn)
         il.addLayout(hdr)
@@ -561,10 +723,7 @@ class ResearchPanel(QWidget):
         # --- query label ---
         self._query_label = QLabel()
         self._query_label.setWordWrap(True)
-        self._query_label.setStyleSheet(
-            f"color:{_CYAN}; font-size:13pt; font-weight:300; "
-            "letter-spacing:1px; background:transparent; border:none;"
-        )
+        self._query_label.setObjectName("rpQueryLabel")
         il.addWidget(self._query_label)
         il.addSpacing(14)
         il.addWidget(self._divider())
@@ -578,10 +737,7 @@ class ResearchPanel(QWidget):
         self._content = QPlainTextEdit()
         self._content.setReadOnly(True)
         self._content.setFrameShape(QFrame.Shape.NoFrame)
-        self._content.setStyleSheet(
-            f"background:{_BG}; color:{_TEXT}; border:none; "
-            "font-size:10pt; font-weight:300;"
-        )
+        self._content.setObjectName("rpContent")
         self._content.setSizePolicy(
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
         )
@@ -606,15 +762,12 @@ class ResearchPanel(QWidget):
         layout.setSpacing(0)
 
         hdr_lbl = QLabel("RECENT SEARCHES")
-        hdr_lbl.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:8pt; font-weight:300; "
-            "letter-spacing:4px; background:transparent; border:none;"
-        )
+        hdr_lbl.setObjectName("rpSectionHdr")
         layout.addWidget(hdr_lbl)
         layout.addSpacing(10)
 
         self._history_list_container = QWidget()
-        self._history_list_container.setStyleSheet(f"background:{_BG};")
+        self._history_list_container.setObjectName("rpHistoryContainer")
         self._history_list_layout = QVBoxLayout(self._history_list_container)
         self._history_list_layout.setContentsMargins(0, 0, 0, 0)
         self._history_list_layout.setSpacing(6)
@@ -623,7 +776,7 @@ class ResearchPanel(QWidget):
         scroll = QScrollArea()
         scroll.setFrameShape(QFrame.Shape.NoFrame)
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setStyleSheet(f"background:{_BG}; border:none;")
+        scroll.setObjectName("rpHistoryScroll")
         scroll.setWidget(self._history_list_container)
         scroll.setWidgetResizable(True)
         layout.addWidget(scroll, stretch=1)
@@ -642,10 +795,7 @@ class ResearchPanel(QWidget):
         layout.addSpacing(10)
 
         hdr_lbl = QLabel("FOLLOW-UP")
-        hdr_lbl.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:8pt; font-weight:300; "
-            "letter-spacing:4px; background:transparent; border:none;"
-        )
+        hdr_lbl.setObjectName("rpSectionHdr")
         layout.addWidget(hdr_lbl)
         layout.addSpacing(6)
 
@@ -667,10 +817,7 @@ class ResearchPanel(QWidget):
         src_l.addSpacing(10)
 
         src_hdr = QLabel("SOURCES")
-        src_hdr.setStyleSheet(
-            f"color:{_TEXT_DIM}; font-size:8pt; font-weight:300; "
-            "letter-spacing:4px; background:transparent; border:none;"
-        )
+        src_hdr.setObjectName("rpSectionHdr")
         src_l.addWidget(src_hdr)
         src_l.addSpacing(6)
 
@@ -680,9 +827,9 @@ class ResearchPanel(QWidget):
         self._sources_scroll.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
-        self._sources_scroll.setStyleSheet(f"background:{_BG}; border:none;")
+        self._sources_scroll.setObjectName("rpSourcesScroll")
         self._sources_container = QWidget()
-        self._sources_container.setStyleSheet(f"background:{_BG};")
+        self._sources_container.setObjectName("rpSourcesContainer")
         self._sources_inner = QVBoxLayout(self._sources_container)
         self._sources_inner.setContentsMargins(0, 0, 0, 0)
         self._sources_inner.setSpacing(6)
@@ -699,7 +846,7 @@ class ResearchPanel(QWidget):
         line = QFrame()
         line.setFrameShape(QFrame.Shape.HLine)
         line.setFixedHeight(1)
-        line.setStyleSheet(f"background:{_BORDER}; border:none;")
+        line.setObjectName("rpDivider")
         return line
 
     # ------------------------------------------------------------------ #
@@ -723,16 +870,15 @@ class ResearchPanel(QWidget):
         self._history_visible = False
         self._history_section.hide()
         self._content.show()
-        self._history_btn.setStyleSheet(_HDR_BTN)
+        self._history_btn.setObjectName("rpHdrBtn")
+        _restyle(self._history_btn)
 
         # Reset content
         self._query_label.setText(query)
         self._content.clear()
         self._content.setPlainText("Searching the web…")
-        self._content.setStyleSheet(
-            f"background:{_BG}; color:{_TEXT_DIM}; border:none; "
-            "font-size:10pt; font-weight:300;"
-        )
+        self._content.setObjectName("rpContentDim")
+        _restyle(self._content)
         self._clear_source_cards()
         self._sources_section.hide()
         self._clear_chips()
@@ -759,10 +905,8 @@ class ResearchPanel(QWidget):
     def _on_chunk(self, chunk: str) -> None:
         if self._first_chunk:
             self._content.clear()
-            self._content.setStyleSheet(
-                f"background:{_BG}; color:{_TEXT}; border:none; "
-                "font-size:10pt; font-weight:300;"
-            )
+            self._content.setObjectName("rpContent")
+            _restyle(self._content)
             self._first_chunk = False
         self._summary_text += chunk
         self._content.moveCursor(self._content.textCursor().MoveOperation.End)
@@ -820,7 +964,8 @@ class ResearchPanel(QWidget):
             self._content.hide()
             self._followup_section.hide()
             self._sources_section.hide()
-            self._history_btn.setStyleSheet(_HDR_BTN_ACTIVE)
+            self._history_btn.setObjectName("rpHdrBtnActive")
+            _restyle(self._history_btn)
         else:
             self._history_section.hide()
             self._content.show()
@@ -828,7 +973,8 @@ class ResearchPanel(QWidget):
                 self._followup_section.show()
             if self._sources_was_visible:
                 self._sources_section.show()
-            self._history_btn.setStyleSheet(_HDR_BTN)
+            self._history_btn.setObjectName("rpHdrBtn")
+            _restyle(self._history_btn)
 
     def _on_history_query_clicked(self, query: str) -> None:
         """Re-run a query from the history list (main thread only)."""
@@ -841,15 +987,7 @@ class ResearchPanel(QWidget):
         for question in questions:
             chip = QPushButton(question)
             chip.setCursor(Qt.CursorShape.PointingHandCursor)
-            chip.setStyleSheet(
-                f"QPushButton {{ background:transparent; color:{_TEXT_MID}; "
-                f"border:1px solid {_CHIP_BORDER}; border-radius:14px; "
-                "padding:5px 14px; font-size:9pt; font-weight:300; "
-                "text-align:left; }}"
-                f"QPushButton:hover {{ border-color:{_CYAN}; color:{_TEXT}; "
-                "background:#0a1a1a; }}"
-                "QPushButton:pressed { background:#0d1a1a; }"
-            )
+            chip.setObjectName("rpChip")
             chip.clicked.connect(
                 lambda _checked=False, q=question: self._on_chip_click(q)
             )
@@ -921,14 +1059,7 @@ class ResearchPanel(QWidget):
             btn.setSizePolicy(
                 QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
             )
-            btn.setStyleSheet(
-                f"QPushButton {{ background:{_BG_CARD}; color:{_TEXT_MID}; "
-                f"border:1px solid {_BORDER}; border-radius:6px; "
-                "padding:8px 12px; font-size:9pt; font-weight:300; "
-                "text-align:left; }}"
-                f"QPushButton:hover {{ border-color:{_CYAN}; color:{_TEXT}; }}"
-                "QPushButton:pressed { background:#0a1515; }"
-            )
+            btn.setObjectName("rpHistoryBtn")
             btn.clicked.connect(
                 lambda _checked=False, q=query: self._on_history_query_clicked(q)
             )
