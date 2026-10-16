@@ -144,6 +144,8 @@ def setup_local_tools(
     from jarvis.tools.local.focus_mode import (
         StartFocusModeTool, StopFocusModeTool, FocusModeStatusTool,
     )
+    # Phase 8: Vision tools
+    from jarvis.tools.local.watch_screen import WatchScreenTool
     # Password vault tools
     from jarvis.tools.local.auto_login import AutoLoginTool
     from jarvis.tools.local.vault_manager import (
@@ -275,6 +277,8 @@ def setup_local_tools(
         StartFocusModeTool(),
         StopFocusModeTool(),
         FocusModeStatusTool(),
+        # Phase 8: Vision tools
+        WatchScreenTool(),
         # Password vault tools
         AutoLoginTool(),
         SaveCredentialTool(),
