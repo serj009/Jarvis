@@ -16,6 +16,21 @@ from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# UAC / elevation helpers
+# ---------------------------------------------------------------------------
+
+_UAC_MSG = (
+    "I can't do that without administrator privileges, sir. "
+    "Try running JARVIS as admin, or do it manually."
+)
+
+
+def _is_access_denied(exc: OSError) -> bool:
+    """Return True if *exc* is a Windows ERROR_ACCESS_DENIED (winerror 5)."""
+    return getattr(exc, "winerror", None) == 5
+
+
 
 # ---------------------------------------------------------------------------
 # Lazy imports
@@ -210,6 +225,13 @@ class ListStartupTool:
             entries = await asyncio.to_thread(_list_startup_impl)
         except NotImplementedError as e:
             return ToolResult(success=False, error=str(e))
+        except PermissionError:
+            return ToolResult(success=False, error=_UAC_MSG)
+        except OSError as e:
+            if _is_access_denied(e):
+                return ToolResult(success=False, error=_UAC_MSG)
+            log.exception("list_startup failed")
+            return ToolResult(success=False, error=f"Failed to list startup: {e}")
         except Exception as e:
             log.exception("list_startup failed")
             return ToolResult(success=False, error=f"Failed to list startup: {e}")
@@ -264,6 +286,13 @@ class RemoveFromStartupTool:
             return ToolResult(success=True, output=msg)
         except NotImplementedError as e:
             return ToolResult(success=False, error=str(e))
+        except PermissionError:
+            return ToolResult(success=False, error=_UAC_MSG)
+        except OSError as e:
+            if _is_access_denied(e):
+                return ToolResult(success=False, error=_UAC_MSG)
+            log.exception("remove_from_startup failed")
+            return ToolResult(success=False, error=f"Failed to remove from startup: {e}")
         except Exception as e:
             log.exception("remove_from_startup failed")
             return ToolResult(success=False, error=f"Failed to remove from startup: {e}")
@@ -308,6 +337,13 @@ class AddToStartupTool:
             return ToolResult(success=True, output=msg)
         except NotImplementedError as e:
             return ToolResult(success=False, error=str(e))
+        except PermissionError:
+            return ToolResult(success=False, error=_UAC_MSG)
+        except OSError as e:
+            if _is_access_denied(e):
+                return ToolResult(success=False, error=_UAC_MSG)
+            log.exception("add_to_startup failed")
+            return ToolResult(success=False, error=f"Failed to add to startup: {e}")
         except Exception as e:
             log.exception("add_to_startup failed")
             return ToolResult(success=False, error=f"Failed to add to startup: {e}")

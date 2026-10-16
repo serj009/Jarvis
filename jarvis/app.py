@@ -3,7 +3,6 @@
 
 
 
-
 Wires the audio stack (asyncio loop on a dedicated thread) with the Qt UI
 
 
@@ -212,6 +211,8 @@ from jarvis.core.config import (
 
 from jarvis.core.errors import ErrorHandler
 
+from jarvis.core.instance_lock import acquire_instance_lock, release_instance_lock
+from jarvis.core.ollama_check import check_ollama
 
 from jarvis.core.personalization import PersonalizationContext
 from jarvis.core.game_mode import GameMode
@@ -1899,6 +1900,10 @@ class JarvisApp:
 
         self._quit_called = False
 
+        # T1.5: singleton instance lock — held for the process lifetime.
+        # Acquired in start(), released in _on_quit / finally.
+        self._instance_lock: object | None = None
+
 
 
 
@@ -2014,6 +2019,20 @@ class JarvisApp:
         """
 
 
+        # ------------------------------------------------------------------
+        # T1.5 §1: Instance lock — prevent multiple Jarvis processes.
+        # ------------------------------------------------------------------
+        self._instance_lock = acquire_instance_lock()
+        if self._instance_lock is None:
+            _show_startup_error(
+                "JARVIS is already running.\n\n"
+                "Check the system tray for the existing instance."
+            )
+            return 1
+
+        # ------------------------------------------------------------------
+        # T1.5 §0: Load config (logging, paths, etc.)
+        # ------------------------------------------------------------------
         self._load_config()
 
 
@@ -2027,6 +2046,27 @@ class JarvisApp:
 
 
         self._start_app_index_refresh()
+
+
+        # ------------------------------------------------------------------
+        # T1.5 §2: Pre-flight Ollama check — before heavy model loads.
+        # Tries to auto-start if missing; warns (non-fatal) if still down.
+        # ------------------------------------------------------------------
+        ollama_result = check_ollama()
+        if not ollama_result.ok:
+            log.warning(
+                "Ollama pre-flight failed: %s", ollama_result.detail,
+            )
+            # Store the warning so _boot_audio_stack can show it after Qt
+            # is ready (QMessageBox needs a QApplication).  The existing
+            # ollama_warning: prefix is reused so the dialog code path that
+            # already exists in _boot_audio_stack fires.
+            self._preflight_ollama_warning = ollama_result.warning
+        else:
+            self._preflight_ollama_warning = ""
+
+        if ollama_result.auto_started:
+            log.info("Ollama was auto-started by pre-flight check")
 
 
 
@@ -2152,7 +2192,11 @@ class JarvisApp:
         # ------------------------------------------------------------------
 
 
-        return self.qt_app.exec()
+        try:
+            return self.qt_app.exec()
+        finally:
+            # T1.5: release singleton lock on exit (clean or crash).
+            release_instance_lock(self._instance_lock)
 
 
 
@@ -3117,6 +3161,15 @@ class JarvisApp:
 
 
         error = self.boot_error_holder[0]
+
+
+        # T1.5: If the pre-flight Ollama check found a problem but warm()
+        # didn't set one (i.e. Ollama came up between pre-flight and warm),
+        # no dialog is needed — Ollama is working.  But if warm() DID fail,
+        # the preflight warning is more user-friendly, so prefer it.
+        if not error and getattr(self, "_preflight_ollama_warning", ""):
+            # Ollama recovered between preflight and warm → no action needed.
+            log.info("Ollama was unreachable at pre-flight but recovered by warm()")
 
 
         if error:

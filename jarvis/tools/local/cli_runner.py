@@ -7,6 +7,9 @@ format, etc.) are explicitly blacklisted and will never execute.
 
 from __future__ import annotations
 
+# ---------------------------------------------------------------------------
+# UAC / elevation helpers
+
 import asyncio
 import logging
 import shlex
@@ -16,6 +19,21 @@ from typing import ClassVar
 from pydantic import BaseModel, Field
 
 from jarvis.tools.registry import ToolResult, VoicePattern
+
+# ---------------------------------------------------------------------------
+# UAC / elevation helpers
+# ---------------------------------------------------------------------------
+
+_UAC_MSG = (
+    "I can't do that without administrator privileges, sir. "
+    "Try running JARVIS as admin, or do it manually."
+)
+
+
+def _is_access_denied(exc: OSError) -> bool:
+    """Return True if *exc* is a Windows ERROR_ACCESS_DENIED (winerror 5)."""
+    return getattr(exc, "winerror", None) == 5
+
 
 log = logging.getLogger(__name__)
 
@@ -83,6 +101,11 @@ def _run_command(command: str, timeout: int = 30) -> dict:
         if len(output) > max_len:
             output = output[:max_len] + f"\n... (truncated, {len(output)} chars total)"
 
+        # Detect access-denied from the command's stderr (common for
+        # net, netstat -b, etc. that need elevation).
+        if result.returncode != 0 and stderr and "access is denied" in stderr.lower():
+            return {"success": False, "error": _UAC_MSG}
+
         return {
             "success": result.returncode == 0,
             "output": output,
@@ -93,6 +116,12 @@ def _run_command(command: str, timeout: int = 30) -> dict:
         return {"success": False, "error": f"Command timed out after {timeout}s."}
     except FileNotFoundError:
         return {"success": False, "error": f"Command not found: {command}"}
+    except PermissionError as e:
+        return {"success": False, "error": _UAC_MSG}
+    except OSError as e:
+        if _is_access_denied(e):
+            return {"success": False, "error": _UAC_MSG}
+        return {"success": False, "error": str(e)}
     except Exception as e:
         return {"success": False, "error": str(e)}
 

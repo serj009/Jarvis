@@ -596,12 +596,24 @@ class AudioPipeline:
             # Barge-in or shutdown. Re-raise so the outer awaiter sees it.
             raise
         except Exception:
-            log.exception("response chain crashed")
-            # Don't leave the SM stuck in THINKING/SPEAKING.
+            # T1.5: unified error handling — log full traceback, speak a
+            # user-friendly message via TTS, recover to IDLE.  The audio
+            # pipeline is NOT restarted: only the current turn is aborted.
+            log.exception("response chain crashed — recovering to IDLE")
+            # Best-effort TTS notification so the user knows something broke.
+            try:
+                from jarvis.core.phrases import say
+                await self._tts.speak(say("error_generic"))
+            except Exception:
+                log.warning("TTS error notification failed", exc_info=True)
+            # Don't leave the state machine stuck in THINKING/SPEAKING.
             try:
                 self._sm.set_conversational_state(ConversationalState.IDLE)
             except Exception:
                 log.exception("recovery to IDLE failed")
+            # Pipeline loop continues — the frame_loop and wake-word
+            # detection are still running; only this turn's response
+            # chain was affected.  No restart needed.
         finally:
             self._tts_started_at = None
             # T3.3: notify barge-in manager that TTS is done.

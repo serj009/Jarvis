@@ -32,12 +32,14 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import sys
 from collections.abc import Callable
 from os import environ
 from pathlib import Path
 from typing import Literal
 
+import logging
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
@@ -668,6 +670,8 @@ def default_config_path() -> Path:
     return Path.home() / ".jarvis" / "config.json"
 
 
+_log = logging.getLogger(__name__)
+
 def load_config(path: Path | None = None) -> JarvisConfig:
     """Load config from disk, applying migrations. If the file does not exist,
     write a default config to that path and return it."""
@@ -682,7 +686,25 @@ def load_config(path: Path | None = None) -> JarvisConfig:
         raise ConfigMigrationError(
             f"config root must be a JSON object, got {type(raw).__name__}"
         )
-    raw = migrate(raw)
+    # --- Config backup before migration (T0.4) ---
+    old_version = raw.get("schema_version", 0)
+    bak = p.with_suffix(p.suffix + ".bak")
+    if old_version < CURRENT_SCHEMA_VERSION:
+        try:
+            shutil.copy2(p, bak)
+            _log.info(
+                "Config backed up before migration v%s→v%s: %s",
+                old_version, CURRENT_SCHEMA_VERSION, bak,
+            )
+        except OSError as exc:
+            _log.warning("Failed to back up config before migration: %s", exc)
+    try:
+        raw = migrate(raw)
+    except Exception:
+        if bak.exists():
+            _log.warning("Migration failed — restoring config from %s", bak)
+            shutil.copy2(bak, p)
+        raise
     # Decrypt after migrating: migrations reason about the on-disk shape,
     # and everything downstream of here expects plaintext. Legacy plaintext
     # values survive this untouched and get encrypted on the next save.
