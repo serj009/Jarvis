@@ -172,9 +172,13 @@ def test_undocumented_allow_list_has_no_stale_entries():
 def test_every_voice_reachable_tool_is_documented():
     """Stricter than the check above: if a user can *say* something and
     reach a tool, the phrase belongs in Help. A voice pattern with no Help
-    card is a feature nobody can discover."""
+    card is a feature nobody can discover.
+
+    Tools in _UNDOCUMENTED_TOOLS are exempt — they are voice-reachable
+    but intentionally left out of the Help panel (e.g. LLM-dispatched
+    tools whose voice pattern triggers a secure UI dialog)."""
     reachable = {name for name, _vp in voice_pattern_catalogue()}
-    undocumented = reachable - _documented_tools()
+    undocumented = reachable - _documented_tools() - set(_UNDOCUMENTED_TOOLS)
     assert not undocumented, (
         f"tools reachable by voice but absent from Help: {sorted(undocumented)}"
     )

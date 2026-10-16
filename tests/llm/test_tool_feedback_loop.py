@@ -395,7 +395,8 @@ async def test_loop_disabled_without_a_registry():
     llm = ScriptedOllama([[_calls(("ping", {}))]])
     router, _ = _router(llm, None)
 
-    intents = await _collect(router.route("ping the thing"))
+    # Use a transcription that doesn't match any voice pattern.
+    intents = await _collect(router.route("frobnicate the widget"))
 
     assert llm.stream_calls == 1
     assert [type(i).__name__ for i in intents] == ["ToolIntent"]

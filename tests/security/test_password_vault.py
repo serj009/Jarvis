@@ -406,7 +406,7 @@ class TestEdgeCases:
         cred = vault.get_credential("rozetka.ua")
         assert cred is not None
         assert cred.username == "Сергій"
-        assert cred.password== "mypass"
+        assert cred.password== "s3cr3tP@ss"
 
         # Also find by alias
         cred2 = vault.get_credential("розетка")

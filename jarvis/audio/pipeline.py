@@ -166,6 +166,11 @@ class AudioPipeline:
         if barge_in_manager is not None and barge_in_manager.mode is BargeInMode.AEC:
             self._barge_in_enabled = True
             self._half_duplex = False
+        # Barge-in requires SPEAKING-state frames to reach VAD, but
+        # half_duplex drops ALL frames during SPEAKING. Force it off
+        # whenever barge-in is enabled (either via constructor arg or AEC).
+        if self._barge_in_enabled:
+            self._half_duplex = False
         self._stt_timeout_s = stt_timeout_s
         self._llm_timeout_s = llm_timeout_s
         self._tts_timeout_s = tts_timeout_s

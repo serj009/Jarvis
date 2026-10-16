@@ -163,7 +163,12 @@ class OriginTracker:
         except (ValueError, OverflowError):
             return False
         age = time.time() - ts
-        if age < 0 or age > _MAX_TOKEN_AGE_S:
+        # Allow a small negative age (-1 s) because sign_user_input
+        # formats time.time() with :.6f — the rounding can push the
+        # stored timestamp slightly above the true wall-clock value at
+        # the moment of signing, making `time.time() - ts` negative by
+        # up to a few microseconds.
+        if age < -1 or age > _MAX_TOKEN_AGE_S:
             return False
 
         # HMAC comparison (constant-time)
