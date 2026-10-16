@@ -93,6 +93,12 @@ extras = [
   "wmi>=1.5,<2; sys_platform == 'win32'",
   "pygetwindow>=0.0.9,<1; sys_platform == 'win32'",
 ]
+# OCR — Tesseract wrapper for read_screen_text tool.
+# Requires the Tesseract binary installed separately.
+# Install via: pip install -e ".[ocr]"
+ocr = [
+  "pytesseract>=0.3,<1",
+]
 
 # All optional dependencies combined — for one-step full install.
 # Install via: pip install -e ".[all]"
@@ -103,6 +109,7 @@ all = [
   "jarvis[security]",
   "jarvis[extras]",
   "jarvis[aec]",
+  "jarvis[ocr]",
 ]
 
 # T4.2: Semantic memory search — optional heavy dependencies.

@@ -117,6 +117,7 @@ def _local_tool_classes() -> tuple[type, ...]:
     from jarvis.tools.local.screenshot import ScreenshotTool
     from jarvis.tools.local.see_screen import SeeScreenTool
     from jarvis.tools.local.system_stats import SystemStatsTool
+    from jarvis.tools.local.read_screen_text import ReadScreenTextTool
     from jarvis.tools.local.type_into_active_window import TypeIntoActiveWindowTool
     from jarvis.tools.local.volume import VolumeTool
     from jarvis.tools.local.weather import WeatherTool
@@ -224,6 +225,7 @@ def _local_tool_classes() -> tuple[type, ...]:
         ResearchTool,
         ScreenshotTool,
         SeeScreenTool,
+        ReadScreenTextTool,
         SystemStatsTool,
         TypeIntoActiveWindowTool,
         VolumeTool,

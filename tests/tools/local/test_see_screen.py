@@ -9,6 +9,7 @@ from __future__ import annotations
 import sys
 import types
 from pathlib import Path
+from dataclasses import dataclass
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from jarvis.core.config import VisionConfig
@@ -268,3 +269,112 @@ async def test_game_mode_inactive_uses_normal_path(tmp_path):
     # Normal path used, NOT game mode
     ollama.vision_chat.assert_awaited_once()
     gm.on_demand_vision_query.assert_not_awaited()
+
+
+# --- context-aware prompt tests ----------------------------------------
+
+
+def _make_ocr_mock(*, available: bool = True, text: str = "OCR text") -> MagicMock:
+    """Build a mock ScreenOCR."""
+    ocr = MagicMock()
+    ocr.is_available.return_value = available
+    ocr.extract_text.return_value = text
+    return ocr
+
+
+@dataclass
+class _FakeDetectedGame:
+    """Minimal DetectedGame stand-in."""
+    title: str
+
+
+async def test_prompt_includes_game_name_when_game_mode_active(tmp_path):
+    """When game mode is active with a detected game, the prompt should
+    include the game's title for context."""
+    image = _FakeImage(size=(1920, 1080))
+    fakes = _install_fake_pyautogui_and_pil(image)
+    ollama = _make_ollama("Elden Ring menu, sir.")
+
+    gm = MagicMock()
+    gm.is_active = True
+    gm.current_game = _FakeDetectedGame(title="Elden Ring")
+    gm.on_demand_vision_query = AsyncMock(return_value="Elden Ring menu, sir.")
+
+    tool = SeeScreenTool(
+        ollama_client=ollama,
+        vision_config=VisionConfig(),
+        game_mode=gm,
+    )
+
+    with patch.dict(sys.modules, fakes), \
+         patch(
+             "jarvis.tools.local.see_screen.winplat.screenshots_dir",
+             return_value=tmp_path,
+         ):
+        result = await tool.execute(SeeScreenArgs())
+
+    assert result.success
+    # Game mode uses on_demand_vision_query — check the prompt it received
+    call_kwargs = gm.on_demand_vision_query.await_args.kwargs
+    prompt = call_kwargs.get("question", "")
+    assert "elden ring" in prompt.lower()
+
+
+async def test_prompt_includes_ocr_text_when_available(tmp_path):
+    """When OCR is available, the prompt should be enriched with
+    OCR-extracted text to compensate for llava's weak text reading."""
+    image = _FakeImage(size=(1920, 1080))
+    fakes = _install_fake_pyautogui_and_pil(image)
+    ollama = _make_ollama("Error dialog visible, sir.")
+
+    # Prepare a mock OCR that returns known text.  The OCR module
+    # re-decodes the base64 image inside _build_prompt, so we need to
+    # mock PIL.Image.open to return a fake image.
+    ocr = _make_ocr_mock(available=True, text="Error: file not found")
+
+    # Patch PIL.Image.open inside _build_prompt — it decodes base64 → img
+    fake_pil_open = MagicMock(return_value=MagicMock())
+
+    tool = SeeScreenTool(
+        ollama_client=ollama,
+        vision_config=VisionConfig(),
+        ocr=ocr,
+    )
+
+    with patch.dict(sys.modules, fakes), \
+         patch(
+             "jarvis.tools.local.see_screen.winplat.screenshots_dir",
+             return_value=tmp_path,
+         ):
+        result = await tool.execute(SeeScreenArgs())
+
+    assert result.success
+    prompt = ollama.vision_chat.await_args.kwargs["prompt"]
+    assert "error: file not found" in prompt.lower()
+
+
+async def test_prompt_no_ocr_when_unavailable(tmp_path):
+    """When OCR is not installed, the prompt should NOT contain any OCR
+    text — just the default."""
+    image = _FakeImage(size=(1920, 1080))
+    fakes = _install_fake_pyautogui_and_pil(image)
+    ollama = _make_ollama("Normal response, sir.")
+
+    ocr = _make_ocr_mock(available=False)
+
+    tool = SeeScreenTool(
+        ollama_client=ollama,
+        vision_config=VisionConfig(),
+        ocr=ocr,
+    )
+
+    with patch.dict(sys.modules, fakes), \
+         patch(
+             "jarvis.tools.local.see_screen.winplat.screenshots_dir",
+             return_value=tmp_path,
+         ):
+        result = await tool.execute(SeeScreenArgs())
+
+    assert result.success
+    prompt = ollama.vision_chat.await_args.kwargs["prompt"]
+    assert "ocr" not in prompt.lower()

@@ -750,6 +750,16 @@ def main(argv: list[str] | None = None) -> int:
 
     _summary(results)
 
+    # Optional-dependency hints (printed after the results summary)
+    print("  💡 Optional:")
+    print(
+        "     OCR (read_screen_text): install Tesseract separately, then"
+    )
+    print(
+        "     pip install pytesseract  — https://github.com/tesseract-ocr/tesseract"
+    )
+    print()
+
     # Run smoke test if all critical steps passed
     if not args.skip_smoke_test:
         smoke_test = ROOT / "jarvis" / "dev" / "smoke_test.py"
