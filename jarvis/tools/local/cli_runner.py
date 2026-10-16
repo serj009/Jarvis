@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import shlex
+import subprocess
 from typing import ClassVar
 
 from pydantic import BaseModel, Field
@@ -59,8 +60,6 @@ def is_command_allowed(command: str) -> bool:
 
 def _run_command(command: str, timeout: int = 30) -> dict:
     """Execute a whitelisted command and capture output."""
-    import subprocess
-
     if not is_command_allowed(command):
         return {
             "success": False,

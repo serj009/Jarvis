@@ -513,23 +513,10 @@ class TestPlayYoutubeMusicPatterns:
         from jarvis.tools.local.play_youtube_music import PlayYoutubeMusicTool
         return PlayYoutubeMusicTool.voice_patterns
 
-    # -- EN patterns -------------------------------------------------------
+    # NOTE: EN has no voice pattern — bare "play X" is ambiguous (song?
+    # game? video?) and is routed by the LLM, not a VoicePattern.
 
-    @pytest.mark.parametrize(
-        "phrase, expected_query",
-        [
-            ("play pink floyd", "pink floyd"),
-            ("play bohemian rhapsody", "bohemian rhapsody"),
-            ("put on some jazz", "some jazz"),
-            ("listen to bach", "bach"),
-            ("play hotel california on youtube", "hotel california"),
-        ],
-    )
-    def test_en_play_music(self, patterns, phrase, expected_query):
-        m = _assert_pattern_matches(patterns[0], phrase, expected_group=expected_query)
-        assert patterns[0].args(m) == {"query": expected_query}
-
-    # -- RU patterns (with music keyword) ----------------------------------
+    # -- RU patterns (index 0 — with music keyword) ------------------------
 
     @pytest.mark.parametrize(
         "phrase, expected_query",
@@ -542,10 +529,10 @@ class TestPlayYoutubeMusicPatterns:
         ],
     )
     def test_ru_play_music_with_keyword(self, patterns, phrase, expected_query):
-        m = _assert_pattern_matches(patterns[1], phrase, expected_group=expected_query)
-        assert patterns[1].args(m) == {"query": expected_query}
+        m = _assert_pattern_matches(patterns[0], phrase, expected_group=expected_query)
+        assert patterns[0].args(m) == {"query": expected_query}
 
-    # -- UK patterns (with music keyword) ----------------------------------
+    # -- UK patterns (index 1 — with music keyword) ------------------------
 
     @pytest.mark.parametrize(
         "phrase, expected_query",
@@ -558,21 +545,21 @@ class TestPlayYoutubeMusicPatterns:
         ],
     )
     def test_uk_play_music_with_keyword(self, patterns, phrase, expected_query):
-        m = _assert_pattern_matches(patterns[2], phrase, expected_group=expected_query)
-        assert patterns[2].args(m) == {"query": expected_query}
+        m = _assert_pattern_matches(patterns[1], phrase, expected_group=expected_query)
+        assert patterns[1].args(m) == {"query": expected_query}
 
     # -- disambiguation: must NOT match app names --------------------------
 
     def test_ru_no_match_without_music_keyword(self, patterns):
         """'включи хром' has no music keyword — must NOT match music patterns."""
-        _assert_no_match(patterns[1], "включи хром")
-        _assert_no_match(patterns[1], "включи джаз")
-        _assert_no_match(patterns[1], "включи стим")
+        _assert_no_match(patterns[0], "включи хром")
+        _assert_no_match(patterns[0], "включи джаз")
+        _assert_no_match(patterns[0], "включи стим")
 
     def test_uk_no_match_without_music_keyword(self, patterns):
         """'увімкни хром' has no music keyword — must NOT match music patterns."""
-        _assert_no_match(patterns[2], "увімкни хром")
-        _assert_no_match(patterns[2], "увімкни джаз")
+        _assert_no_match(patterns[1], "увімкни хром")
+        _assert_no_match(patterns[1], "увімкни джаз")
 
 
 # -- launch_steam_game.py --------------------------------------------------

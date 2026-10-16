@@ -611,13 +611,13 @@ class TestHttpxFallback:
         relations = _build_mock_relation_store()
 
         with patch(
-            "jarvis.tools.local.web_knowledge._httpx_fetch",
+            "jarvis.tools.local.content_reader._httpx_fetch",
             return_value={"success": True, "html": "<html><body>Test content</body></html>", "url": "https://example.com"},
         ), patch(
-            "jarvis.tools.local.web_knowledge._extract_readable",
+            "jarvis.tools.local.content_reader._extract_readable",
             return_value="Test content",
         ), patch(
-            "jarvis.tools.local.web_knowledge._extract_title",
+            "jarvis.tools.local.content_reader._extract_title",
             return_value="Test Page",
         ):
             tool = SavePageKnowledgeTool(

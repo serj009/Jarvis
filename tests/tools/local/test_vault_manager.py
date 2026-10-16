@@ -1,6 +1,7 @@
 """Tests for vault management tools.
 
 Verifies:
+- KDF is patched to be fast (avoids 128 MB scrypt in tests)
 - save/list/remove/unlock/lock lifecycle
 - list_saved_sites returns ONLY names
 - remove_credential requires confirmation (DESTRUCTIVE)
@@ -9,6 +10,7 @@ Verifies:
 
 from __future__ import annotations
 
+import hashlib
 import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -27,6 +29,25 @@ from jarvis.tools.registry import EmptyArgs, ToolResult
 def _mock_dpapi():
     """Patch DPAPI to passthrough so tests run on any platform."""
     with patch("jarvis.platform.secrets.dpapi_available", return_value=False):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def _fast_kdf():
+    """Replace the heavy Argon2/scrypt KDF with fast PBKDF2 for tests.
+
+    Without this, each ``_derive_key`` call allocates 128 MB and takes
+    several seconds, making the vault tests impractically slow.
+    """
+    def _fast_derive_key(password, salt):
+        return hashlib.pbkdf2_hmac(
+            "sha256", password.encode("utf-8"), salt, iterations=1, dklen=32,
+        )
+
+    with patch(
+        "jarvis.security.password_vault.PasswordVault._derive_key",
+        staticmethod(_fast_derive_key),
+    ):
         yield
 
 
