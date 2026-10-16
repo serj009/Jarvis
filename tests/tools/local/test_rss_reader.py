@@ -222,8 +222,7 @@ def _mock_httpx_get(url, **kwargs):
 class TestSubscribe:
     @pytest.mark.asyncio
     async def test_subscribe_success(self):
-        with patch("jarvis.tools.local.rss_reader.httpx") as mock_httpx:
-            mock_httpx.get = _mock_httpx_get
+        with patch("jarvis.tools.local.rss_reader._fetch_feed", return_value=(SAMPLE_RSS, None)):
             tool = SubscribeRssTool()
             result = await tool.execute(SubscribeRssArgs(
                 url="https://example.com/feed",
@@ -242,8 +241,7 @@ class TestSubscribe:
 
     @pytest.mark.asyncio
     async def test_subscribe_deduplicates(self):
-        with patch("jarvis.tools.local.rss_reader.httpx") as mock_httpx:
-            mock_httpx.get = _mock_httpx_get
+        with patch("jarvis.tools.local.rss_reader._fetch_feed", return_value=(SAMPLE_RSS, None)):
             tool = SubscribeRssTool()
             await tool.execute(SubscribeRssArgs(url="https://example.com/feed"))
             await tool.execute(SubscribeRssArgs(url="https://example.com/feed"))

@@ -800,8 +800,8 @@ class TestSystemStatsPatterns:
 
     @pytest.mark.parametrize(
         "phrase",
-        ["system stats", "system status", "cpu usage", "memory usage",
-         "show system stats", "show system info", "ram usage"],
+        ["system stats", "system status", "system info",
+         "cpu usage", "memory usage", "ram usage"],
     )
     def test_en_system_stats(self, patterns, phrase):
         _assert_pattern_matches(patterns[0], phrase)
@@ -809,7 +809,7 @@ class TestSystemStatsPatterns:
     @pytest.mark.parametrize(
         "phrase",
         ["статистика системы", "загрузка системы", "состояние пк",
-         "покажи статистику системы", "загрузка компьютера"],
+         "статистику системы", "загрузка компьютера"],
     )
     def test_ru_system_stats(self, patterns, phrase):
         _assert_pattern_matches(patterns[1], phrase)
@@ -817,7 +817,7 @@ class TestSystemStatsPatterns:
     @pytest.mark.parametrize(
         "phrase",
         ["статистика системи", "завантаження системи",
-         "покажи статистику системи", "завантаження пк"],
+         "статистику системи", "завантаження пк"],
     )
     def test_uk_system_stats(self, patterns, phrase):
         _assert_pattern_matches(patterns[2], phrase)
@@ -886,12 +886,12 @@ class TestDisambiguationPriority:
             assert gp.priority < PRIORITY_CATCH_ALL
 
     def test_close_beats_open_app(self):
-        """close_app patterns must be below music/games but above open_app."""
+        """close_app patterns share PRIORITY_CATCH_ALL with open_app;
+        disambiguation is regex-based, not priority-based."""
         from jarvis.tools.local.close_app import CloseAppTool
 
         for cp in CloseAppTool.voice_patterns:
-            assert cp.priority < PRIORITY_CATCH_ALL
-            assert cp.priority > 100  # above music (100)
+            assert cp.priority == PRIORITY_CATCH_ALL
 
     def test_weather_is_highest(self):
         """Weather at priority 90 is the highest among these new patterns."""

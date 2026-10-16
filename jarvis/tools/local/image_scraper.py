@@ -46,7 +46,7 @@ def _extract_image_urls(html: str, base_url: str) -> list[str]:
         # Lightweight regex fallback when beautifulsoup4 is not installed.
         urls: list[str] = []
         seen: set[str] = set()
-        for m in re.finditer(r'<img[^>]+src="([^"]+)"', html, re.IGNORECASE):
+        for m in re.finditer(r'<img\s[^>]*?src="([^"]+)"[^>]*/?>', html, re.IGNORECASE):
             tag = m.group(0)
             # Honour width/height attributes to skip tiny images.
             w_m = re.search(r'width="(\d+)', tag, re.IGNORECASE)
@@ -62,7 +62,7 @@ def _extract_image_urls(html: str, base_url: str) -> list[str]:
             if absolute not in seen:
                 seen.add(absolute)
                 urls.append(absolute)
-        for m in re.finditer(r'<img[^>]+srcset="([^"]+)"', html, re.IGNORECASE):
+        for m in re.finditer(r'<img\s[^>]*?srcset="([^"]+)"[^>]*/?>', html, re.IGNORECASE):
             for entry in m.group(1).split(","):
                 parts = entry.strip().split()
                 if parts:
