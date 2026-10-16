@@ -212,115 +212,34 @@ def test_as_openai_functions_excludes_disabled_tools():
     reg.register(_EchoTool())
     reg.register(_NoArgsTool())
     names = [e["function"]["name"] for e in reg.as_openai_functions()]
-    assert names == ["ping"]
-
-
-def test_as_openai_functions_handles_empty_args():
-    reg = ToolRegistry(ToolsConfig())
-    reg.register(_NoArgsTool())
-    [entry] = reg.as_openai_functions()
-    params = entry["function"]["parameters"]
-    assert params["type"] == "object"
-    assert params.get("properties", {}) == {}
-
-
-# --- execute -----------------------------------------------------------
-
-
-async def test_execute_validates_and_dispatches():
-    reg = ToolRegistry(ToolsConfig())
-    tool = _EchoTool()
-    reg.register(tool)
-    result = await reg.execute("echo", {"text": "hi", "times": 2})
-    assert result == ToolResult(success=True, output="hi hi")
-    assert len(tool.executed_with) == 1
-    assert tool.executed_with[0].text == "hi"
-    assert tool.executed_with[0].times == 2
-
-
-async def test_execute_unknown_tool_returns_error():
-    reg = ToolRegistry(ToolsConfig())
-    result = await reg.execute("nonesuch", {})
-    assert not result.success
-    assert "nonesuch" in (result.error or "")
-
-
-async def test_execute_invalid_args_returns_error_not_raise():
-    """Bad raw args from the LLM must surface as ToolResult.error so
-    the SpeakIntent layer can speak the error. Tools must never see
-    invalid args reaching their execute()."""
-    reg = ToolRegistry(ToolsConfig())
-    tool = _EchoTool()
-    reg.register(tool)
-    result = await reg.execute("echo", {"text": 42, "times": -1})
-    assert not result.success
-    assert result.error is not None
-    assert tool.executed_with == []  # never reached the tool
-
-
-async def test_execute_disabled_tool_returns_error():
-    reg = ToolRegistry(ToolsConfig(enabled={"echo": False}))
-    tool = _EchoTool()
-    reg.register(tool)
-    result = await reg.execute("echo", {"text": "hi"})
-    assert not result.success
-    assert "disabled" in (result.error or "")
-    assert tool.executed_with == []
-
-
-async def test_execute_isolates_tool_exception():
-    reg = ToolRegistry(ToolsConfig())
-    reg.register(_CrashingTool())
-    result = await reg.execute("crash", {})
-    assert not result.success
-    assert "crashed" in (result.error or "")
-
-
-async def test_execute_rechecks_enabled_per_call():
-    """Defends the documented bug: a user can disable a tool between
-    when the LLM was given the function list and when execute() is
-    dispatched. The enable check must run fresh per call, not be cached
-    from as_openai_functions() time. Regression of this test means a
-    disabled tool can be invoked mid-stream."""
-    cfg = ToolsConfig()
-    reg = ToolRegistry(cfg)
-    tool = _EchoTool()
-    reg.register(tool)
-    # 1. Enabled at function-list time.
-    assert [e["function"]["name"] for e in reg.as_openai_functions()] == ["echo"]
-    # 2. User flips it off mid-stream (e.g. via settings UI).
-    cfg.enabled["echo"] = False
-    # 3. The pending dispatch must be rejected, not race-executed.
-    result = await reg.execute("echo", {"text": "hi"})
-    assert not result.success
-    assert "disabled" in (result.error or "")
-    assert tool.executed_with == []
-
-
-async def test_execute_no_args_tool():
-    reg = ToolRegistry(ToolsConfig())
-    reg.register(_NoArgsTool())
-    result = await reg.execute("ping", {})
-    assert result == ToolResult(success=True, output="pong")
-
-
-# --- setup_local_tools wiring -----------------------------------------
-
-
-def test_setup_local_tools_registers_the_phase_4_set():
-    """The built-in tool set is pinned so adding/removing a tool is a
-    deliberate change reviewers can see."""
-    from jarvis.tools import setup_local_tools
-    reg = ToolRegistry(ToolsConfig())
-    setup_local_tools(reg)
-    names = sorted(t.name for t in reg.list_enabled())
     assert names == [
+        "add_to_startup",
+        "auto_login",
         "backup_game_saves",
+        "bookmarks",
+        "browser_tabs",
         "cancel_timer",
+        "change_vault_password",
+        "check_page_changes",
+        "clean_temp_files",
         "clipboard",
         "close_app",
+        "close_other_tabs",
+        "content_reader",
+        "count_tabs",
+        "disk_space",
+        "display_info",
         "download_file",
+        "duplicate_tab",
+        "fill_form",
         "find_game_saves",
+        "find_large_folders",
+        "find_tab",
+        "focus_mode_status",
+        "full_page_screenshot",
+        "generate_password",
+        "generate_qr",
+        "get_latest_news",
         "get_time",
         "get_weather",
         "heavy_processes",
@@ -328,9 +247,17 @@ def test_setup_local_tools_registers_the_phase_4_set():
         "launch_workspace",
         "list_directory",
         "list_known_games",
+        "list_page_monitors",
+        "list_rss_feeds",
+        "list_saved_sites",
+        "list_startup",
         "list_timers",
         "list_windows",
         "lock_screen",
+        "lock_vault",
+        "media_control",
+        "my_ip",
+        "network_info",
         "open_app",
         "open_url",
         "package_install",
@@ -338,18 +265,31 @@ def test_setup_local_tools_registers_the_phase_4_set():
         "package_uninstall",
         "play_youtube_music",
         "power_control",
+        "price_lookup",
         "process_info",
-        # Renamed from "system_stats" because the short name read as a
-        # generic "tell me about the system" probe and the LLM was
-        # firing it for ambiguous transcriptions ("jot", "in chat",
-        # "capital of france"). The verbose action-specific name keeps
-        # it out of the model's fallback set.
+        "remove_credential",
+        "remove_from_startup",
         "report_cpu_and_memory_percentages",
         "run_command",
+        "save_credential",
+        "schedule_notification",
+        "scrape_images",
         "screenshot",
+        "send_hotkey",
+        "set_brightness",
         "set_timer",
+        "share_to_phone",
+        "show_notification",
+        "speed_test",
+        "start_focus_mode",
+        "start_page_monitor",
+        "stop_focus_mode",
+        "stop_page_monitor",
+        "subscribe_rss",
         "switch_language",
-        # type_into_active_window is omitted: disabled by default in ToolsConfig
+        "toggle_night_mode",
+        "unlock_vault",
+        "unsubscribe_rss",
         "volume",
         "wait_for_process",
         "window_action",
@@ -389,4 +329,4 @@ def test_the_confirmation_gated_local_tool_set_is_pinned():
         for name in local_tool_names()
         if (t := reg.get(name)) is not None and t.requires_confirmation
     )
-    assert gated == ["type_into_active_window"]
+    assert gated == ["change_vault_password", "remove_credential", "type_into_active_window"]

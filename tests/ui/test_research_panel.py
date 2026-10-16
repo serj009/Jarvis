@@ -236,7 +236,7 @@ def test_show_for_query_creates_worker(qapp):
     mock_cls.assert_called_once_with(
         "test topic",
         ollama_endpoint="http://localhost:11434",
-        ollama_model="qwen2.5:7b-instruct",
+        ollama_model="qwen3:8b",
     )
     mock_worker.start.assert_called_once()
 
@@ -482,7 +482,7 @@ def test_history_query_reruns_search(qapp):
     mock_cls2.assert_called_once_with(
         "first query",
         ollama_endpoint="http://localhost:11434",
-        ollama_model="qwen2.5:7b-instruct",
+        ollama_model="qwen3:8b",
     )
 
 
@@ -578,7 +578,7 @@ def test_chip_click_starts_new_research(qapp):
     mock_cls2.assert_called_once_with(
         "What about X?",
         ollama_endpoint="http://localhost:11434",
-        ollama_model="qwen2.5:7b-instruct",
+        ollama_model="qwen3:8b",
     )
 
 
