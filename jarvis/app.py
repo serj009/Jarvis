@@ -3317,6 +3317,11 @@ class JarvisApp:
             panel.set_panel_width(new_cfg.ui.research_panel_width)
 
 
+        # Hotkey re-registration: HotkeyManager lives on the Qt thread
+        # (same as this method), so reload() is safe to call directly.
+        if any(f.startswith("hotkeys.") for f in changed):
+            self.hotkeys.reload(self.cfg.hotkeys)
+
         self.bus.publish(ConfigChanged(old=old_cfg, new=new_cfg, changed_fields=tuple(changed)))
 
 

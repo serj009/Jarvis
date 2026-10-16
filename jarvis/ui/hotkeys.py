@@ -230,6 +230,22 @@ class HotkeyManager:
             len(actions), ", ".join(actions),
         )
 
+    # -- hot-reload ------------------------------------------------------
+
+    def reload(self, hotkeys: HotkeysConfig) -> None:
+        """Stop the current listener, swap bindings, start a new one.
+
+        Designed to be called from the Qt main thread (where this
+        manager lives) when the user changes hotkeys in Settings.
+        If *register_all* fails after the old listener was stopped the
+        manager degrades gracefully — action handlers no-op because
+        ``_listener is None``, but ``_alive`` stays True so a later
+        reload can recover.
+        """
+        self._stop_listener()
+        self._hotkeys = hotkeys
+        self.register_all()
+
     # -- action handlers (pynput thread) --------------------------------
 
     def _on_mute_hotkey(self) -> None:
@@ -317,6 +333,17 @@ class HotkeyManager:
 
     # -- shutdown -------------------------------------------------------
 
+    def _stop_listener(self) -> None:
+        """Stop the pynput listener and clear the reference so
+        register_all() can create a fresh one. Does NOT flip _alive —
+        that is close()'s job (permanent shutdown)."""
+        if self._listener is not None:
+            try:
+                self._listener.stop()
+            except Exception:
+                log.exception("hotkey listener stop failed")
+            self._listener = None
+
     def close(self) -> None:
         """Stop the listener, flip _alive so any in-flight hook call
         no-ops. Idempotent. Mirrors TrayIcon.close() / OverlayOrb.close()
@@ -324,9 +351,4 @@ class HotkeyManager:
         if not self._alive:
             return
         self._alive = False
-        if self._listener is not None:
-            try:
-                self._listener.stop()
-            except Exception:
-                log.exception("hotkey listener stop failed")
-            self._listener = None
+        self._stop_listener()

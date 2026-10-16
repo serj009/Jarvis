@@ -409,3 +409,63 @@ def test_close_without_register_is_safe():
     UI deferred startup) must still close cleanly."""
     mgr, *_ = _make_mgr()
     mgr.close()  # must not raise
+
+
+# --- reload (hot-reload) ------------------------------------------------
+
+
+def test_reload_stops_old_listener_and_starts_new(fake_pynput):
+    """reload() must stop the existing listener and create a brand-new
+    one with the updated bindings.  The manager stays alive."""
+    hk_old = HotkeysConfig(
+        mute="ctrl+shift+m",
+        push_to_talk=None,
+        open_settings="ctrl+shift+,",
+        command_palette="",
+    )
+    mgr, *_ = _make_mgr(hotkeys=hk_old)
+    mgr.register_all()
+
+    old_inst = fake_pynput.instances[0]
+    assert old_inst.start_calls == 1
+    assert old_inst.stop_calls == 0
+
+    # Reload with the same bindings — the old listener must be stopped
+    # and a fresh one started.
+    mgr.reload(hk_old)
+
+    assert old_inst.stop_calls == 1
+    assert len(fake_pynput.instances) == 2
+    new_inst = fake_pynput.instances[1]
+    assert new_inst.start_calls == 1
+    # Manager is still alive (not permanently shut down).
+    assert mgr._alive is True
+
+
+def test_reload_with_changed_bindings(fake_pynput):
+    """After reload() with new bindings, the new listener must honour
+    them — the old binding must not fire and the new one must."""
+    hk_old = HotkeysConfig(
+        mute="ctrl+shift+m",
+        push_to_talk=None,
+        open_settings="ctrl+shift+,",
+        command_palette="",
+    )
+    mgr, *_ = _make_mgr(hotkeys=hk_old)
+    mgr.register_all()
+    old_inst = fake_pynput.instances[0]
+
+    hk_new = HotkeysConfig(
+        mute="ctrl+shift+n",        # changed key
+        push_to_talk="ctrl+space",   # newly enabled
+        open_settings="ctrl+shift+,",
+        command_palette="",
+    )
+    mgr.reload(hk_new)
+
+    assert old_inst.stop_calls == 1
+    new_inst = fake_pynput.instances[1]
+    new_keys = set(new_inst.actions.keys())
+    assert "<ctrl>+<shift>+n" in new_keys       # new mute binding
+    assert "<ctrl>+<space>" in new_keys          # PTT now active
+    assert "<ctrl>+<shift>+m" not in new_keys    # old mute gone
