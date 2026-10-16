@@ -1,4 +1,4 @@
-"""SettingsWindow — the QMainWindow that hosts the seven-tab QTabWidget.
+"""SettingsWindow — sidebar navigation + stacked content pages.
 
 Opens from the tray "Settings…" menu item (and the open_settings
 hotkey). Non-modal: closing it doesn't quit Jarvis. The composition
@@ -13,7 +13,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QMainWindow, QStatusBar, QTabWidget, QWidget
+from PySide6.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QPushButton,
+    QScrollArea,
+    QStackedWidget,
+    QStatusBar,
+    QVBoxLayout,
+    QWidget,
+)
 
 from jarvis.core.config import JarvisConfig, save_config
 
@@ -22,10 +32,15 @@ if TYPE_CHECKING:
 
 from jarvis.ui.settings.tabs import (
     AboutTab,
+    AdvancedTab,
+    CommandsTab,
+    GamingTab,
     GeneralTab,
     HelpTab,
     HotkeysTab,
+    MemoryTab,
     ModelsTab,
+    SecurityTab,
     ToolsTab,
     VoiceTab,
 )
@@ -33,17 +48,21 @@ from jarvis.ui.settings.theme import apply_theme
 
 log = logging.getLogger(__name__)
 
-_DEFAULT_SIZE = (780, 560)
+_DEFAULT_SIZE = (900, 640)
 
-# Tab labels with emoji prefixes for quick visual scanning.
-_TAB_LABELS: tuple[tuple[str, str], ...] = (
-    ("general", "\u2699\ufe0f  General"),
-    ("voice", "\U0001f3a4  Voice"),
-    ("models", "\U0001f9e0  AI Models"),
-    ("tools", "\U0001f527  Tools"),
-    ("hotkeys", "\u2328\ufe0f  Hotkeys"),
-    ("help", "\u2753  Help"),
-    ("about", "\u2139\ufe0f  About"),
+# Navigation items: (page_key, icon_emoji, display_label, section_header_or_None)
+_NAV_ITEMS: tuple[tuple[str, str, str, str | None], ...] = (
+    ("general",  "\u2699\ufe0f",  "General",       "System"),
+    ("voice",    "\U0001f3a4",    "Voice & Audio", None),
+    ("models",   "\U0001f9e0",    "AI Models",     None),
+    ("tools",    "\U0001f9e9",    "Tools",         "Features"),
+    ("memory",   "\U0001f4be",    "Memory",        None),
+    ("gaming",   "\U0001f3ae",    "Game Mode",     None),
+    ("security", "\U0001f6e1\ufe0f", "Security",   None),
+    ("commands", "\U0001f4d6",    "Commands",      "Other"),
+    ("hotkeys",  "\u2328\ufe0f",  "Hotkeys",       None),
+    ("advanced", "\u2699\ufe0f",  "Advanced",      None),
+    ("about",    "\u2139\ufe0f",  "About",         None),
 )
 
 
@@ -62,22 +81,13 @@ class SettingsWindow(QMainWindow):
         self.setWindowTitle("Jarvis Settings")
         self.resize(*_DEFAULT_SIZE)
 
-        # Non-modal: open from tray, leave Jarvis running on close. The
-        # composition root keeps the instance alive across opens; closing
-        # just hides it. (Setting WA_DeleteOnClose would defeat that
-        # pattern, so we explicitly don't.)
         self.setAttribute(
             Qt.WidgetAttribute.WA_DeleteOnClose, on=False
         )
 
-        # Apply the minimal black/white theme before building child widgets
-        # so the stylesheet cascades into every QWidget created below.
         apply_theme(self)
 
-        self._tabs = QTabWidget(self)
-        self.setCentralWidget(self._tabs)
-
-        # Status bar: shows "✓ Saved" for 1.5 s after any tab saves config.
+        # ── Status bar ─────────────────────────────────────────────
         self._status_bar = QStatusBar(self)
         self.setStatusBar(self._status_bar)
 
@@ -85,7 +95,7 @@ class SettingsWindow(QMainWindow):
             self._status_bar.showMessage("\u2713 Saved", 1500)
             on_change()
 
-        # Construct each tab. Constructor order is also display order.
+        # ── Build tabs ─────────────────────────────────────────────
         self.general = GeneralTab(config=config, on_change=_on_change_with_indicator)
         self.voice = VoiceTab(
             config=config,
@@ -95,19 +105,144 @@ class SettingsWindow(QMainWindow):
         )
         self.models = ModelsTab(config=config, on_change=_on_change_with_indicator)
         self.tools = ToolsTab(config=config, on_change=_on_change_with_indicator)
+        self.memory = MemoryTab(config=config, on_change=_on_change_with_indicator)
+        self.gaming = GamingTab(config=config, on_change=_on_change_with_indicator)
+        self.security = SecurityTab(config=config, on_change=_on_change_with_indicator)
+        self.commands = CommandsTab(config=config, on_change=_on_change_with_indicator)
         self.hotkeys = HotkeysTab(config=config, on_change=_on_change_with_indicator)
+        self.advanced = AdvancedTab(config=config, on_change=_on_change_with_indicator)
         self.help = HelpTab(config=config, on_change=_on_change_with_indicator)
         self.about = AboutTab(config=config, on_change=_on_change_with_indicator)
 
-        _tab_widgets = [
-            self.general, self.voice, self.models,
-            self.tools, self.hotkeys, self.help, self.about,
-        ]
-        for (_key, label), widget in zip(_TAB_LABELS, _tab_widgets):
-            self._tabs.addTab(widget, label)
+        self._pages: dict[str, QWidget] = {
+            "general": self.general,
+            "voice": self.voice,
+            "models": self.models,
+            "tools": self.tools,
+            "memory": self.memory,
+            "gaming": self.gaming,
+            "security": self.security,
+            "commands": self.commands,
+            "hotkeys": self.hotkeys,
+            "advanced": self.advanced,
+            "help": self.help,
+            "about": self.about,
+        }
+
+        # ── Stacked widget for pages ───────────────────────────────
+        self._stack = QStackedWidget()
+        for key, _icon, _label, _sec in _NAV_ITEMS:
+            widget = self._pages[key]
+            # Wrap in scroll area
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.setWidget(widget)
+            scroll.setHorizontalScrollBarPolicy(
+                Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+            )
+            self._stack.addWidget(scroll)
+
+        # ── Sidebar ────────────────────────────────────────────────
+        sidebar = self._build_sidebar()
+
+        # ── Central layout ─────────────────────────────────────────
+        central = QWidget()
+        layout = QHBoxLayout(central)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        layout.addWidget(sidebar)
+        layout.addWidget(self._stack, 1)
+        self.setCentralWidget(central)
+
+        # Select first page
+        self._select_page("general")
+
+    # ── Sidebar builder ────────────────────────────────────────────
+
+    def _build_sidebar(self) -> QWidget:
+        sidebar = QWidget()
+        sidebar.setObjectName("settingsSidebar")
+        sidebar.setFixedWidth(220)
+
+        layout = QVBoxLayout(sidebar)
+        layout.setContentsMargins(0, 24, 0, 0)
+        layout.setSpacing(0)
+
+        # Header
+        header = QWidget()
+        header.setObjectName("sidebarHeader")
+        header_layout = QVBoxLayout(header)
+        header_layout.setContentsMargins(20, 0, 20, 16)
+
+        title = QLabel("\U0001f916  J.A.R.V.I.S.")
+        title.setObjectName("sidebarTitle")
+        version = QLabel("v1.0.0 \u00b7 Schema v30")
+        version.setObjectName("sidebarVersion")
+
+        header_layout.addWidget(title)
+        header_layout.addWidget(version)
+        layout.addWidget(header)
+        layout.addSpacing(8)
+
+        # Nav items
+        self._nav_buttons: dict[str, QPushButton] = {}
+        for key, icon, label, section in _NAV_ITEMS:
+            if section is not None:
+                sec_label = QLabel(section.upper())
+                sec_label.setObjectName("navSection")
+                sec_label.setContentsMargins(12, 8, 12, 4)
+                layout.addWidget(sec_label)
+
+            btn = QPushButton(f"  {icon}  {label}")
+            btn.setObjectName("navItem")
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.clicked.connect(lambda checked, k=key: self._select_page(k))
+            layout.addWidget(btn)
+            self._nav_buttons[key] = btn
+
+        layout.addStretch()
+
+        # Footer with status
+        footer = QWidget()
+        footer.setObjectName("sidebarFooter")
+        footer_layout = QHBoxLayout(footer)
+        footer_layout.setContentsMargins(20, 12, 20, 12)
+
+        status_dot = QLabel("\u25cf")
+        status_dot.setStyleSheet("color: #22c55e; font-size: 10px;")
+        status_label = QLabel("Ollama connected")
+        status_label.setObjectName("statusLabel")
+
+        footer_layout.addWidget(status_dot)
+        footer_layout.addWidget(status_label)
+        footer_layout.addStretch()
+        layout.addWidget(footer)
+
+        return sidebar
+
+    # ── Page selection ─────────────────────────────────────────────
+
+    def _select_page(self, key: str) -> None:
+        """Switch to the named page and update nav button styles."""
+        idx = next(
+            (i for i, (k, *_) in enumerate(_NAV_ITEMS) if k == key),
+            0,
+        )
+        self._stack.setCurrentIndex(idx)
+
+        # Update button styles
+        for bkey, btn in self._nav_buttons.items():
+            if bkey == key:
+                btn.setObjectName("navItemActive")
+            else:
+                btn.setObjectName("navItem")
+            # Force style recalculation
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+
+    # ── Persistence ────────────────────────────────────────────────
 
     def _autosave(self) -> None:
-        """Persist config immediately (tabs also save on each change)."""
         try:
             save_config(self._config)
             self._status_bar.showMessage("\u2713 Saved", 1500)

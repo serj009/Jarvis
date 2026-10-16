@@ -1,9 +1,7 @@
 """Visual design tokens and Qt stylesheet for the Settings window.
 
-Palette: near-black background, white primary text, subtle gray secondary
-text. Accent is pure white. Inspired by the sparse, high-contrast minimal
-aesthetic of the spiral-animation reference — letterSpacing, thin fonts,
-no heavy chrome.
+Palette: near-black background, subtle gray secondary text. Blue accent.
+Sidebar navigation with card-based content areas.
 
 Usage
 -----
@@ -19,23 +17,32 @@ from PySide6.QtWidgets import QWidget
 # Color tokens
 # ---------------------------------------------------------------------------
 
-BG            = "#0a0a0a"
-TEXT_PRIMARY  = "#ffffff"
-TEXT_SECONDARY = "#a0a0a0"
-ACCENT        = "#ffffff"
-BORDER        = "#1f1f1f"
-INPUT_BG      = "#141414"
-HOVER_BG      = "#181818"
+BG             = "#0c0c0c"
+BG_CARD        = "#151515"
+BG_CARD_HOVER  = "#1a1a1a"
+BG_INPUT       = "#111111"
+TEXT_PRIMARY   = "#e8e8e8"
+TEXT_SECONDARY = "#888888"
+TEXT_MUTED     = "#555555"
+ACCENT         = "#3b82f6"
+ACCENT_DIM     = "rgba(59, 130, 246, 0.15)"
+SUCCESS        = "#22c55e"
+SUCCESS_DIM    = "rgba(34, 197, 94, 0.15)"
+WARNING        = "#f59e0b"
+WARNING_DIM    = "rgba(245, 158, 11, 0.15)"
+ERROR          = "#ef4444"
+BORDER         = "#222222"
+BORDER_FOCUS   = "#444444"
+HOVER_BG       = "#1a1a1a"
 
-# Section card / setting card tokens
-CARD_BG       = "#111111"
-CARD_RADIUS   = "8px"
-CARD_PADDING  = "16px"
+# Section card tokens
+CARD_RADIUS    = "12px"
+CARD_PADDING   = "20px 24px"
 
 # Hint / description tokens
-HINT_COLOR    = "#606060"
-DESC_COLOR    = "#707070"
-DIVIDER_COLOR = "#1a1a1a"
+HINT_COLOR     = "#555555"
+DESC_COLOR     = "#707070"
+DIVIDER_COLOR  = "#1a1a1a"
 
 # ---------------------------------------------------------------------------
 # Stylesheet
@@ -49,37 +56,80 @@ QDialog,
 QWidget {{
     background-color: {BG};
     color: {TEXT_PRIMARY};
-    font-family: "Segoe UI", "Inter", sans-serif;
-    font-weight: 300;
-    font-size: 11pt;
+    font-family: "Segoe UI", -apple-system, system-ui, sans-serif;
+    font-weight: 400;
+    font-size: 13px;
+    line-height: 1.5;
 }}
 
-/* ── tabs ──────────────────────────────────────────────────────────── */
+/* ── sidebar ──────────────────────────────────────────────────────── */
 
-QTabWidget::pane {{
-    border: 1px solid {BORDER};
+QWidget#settingsSidebar {{
     background-color: {BG};
+    border-right: 1px solid {BORDER};
 }}
 
-QTabBar::tab {{
+QWidget#sidebarHeader {{
+    background-color: transparent;
+    border-bottom: 1px solid {BORDER};
+}}
+
+QLabel#sidebarTitle {{
+    color: {TEXT_PRIMARY};
+    font-size: 16px;
+    font-weight: 600;
+    background-color: transparent;
+}}
+
+QLabel#sidebarVersion {{
+    color: {TEXT_MUTED};
+    font-size: 11px;
+    background-color: transparent;
+}}
+
+QLabel#navSection {{
+    color: {TEXT_MUTED};
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    background-color: transparent;
+}}
+
+QPushButton#navItem {{
     background-color: transparent;
     color: {TEXT_SECONDARY};
-    padding: 12px 24px;
-    font-size: 10pt;
-    letter-spacing: 3px;
     border: none;
-    border-bottom: 1px solid transparent;
-    text-transform: uppercase;
+    border-left: 3px solid transparent;
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 400;
+    text-align: left;
 }}
 
-QTabBar::tab:selected {{
+QPushButton#navItem:hover {{
     color: {TEXT_PRIMARY};
-    border-bottom: 1px solid {TEXT_PRIMARY};
-    background-color: transparent;
+    background-color: {BG_CARD};
 }}
 
-QTabBar::tab:hover:!selected {{
-    color: #d0d0d0;
+QPushButton#navItemActive {{
+    background-color: {BG_CARD};
+    color: {TEXT_PRIMARY};
+    border: none;
+    border-left: 3px solid {ACCENT};
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 400;
+    text-align: left;
+}}
+
+QWidget#sidebarFooter {{
+    background-color: transparent;
+    border-top: 1px solid {BORDER};
+}}
+
+QLabel#statusLabel {{
+    color: {TEXT_SECONDARY};
+    font-size: 12px;
     background-color: transparent;
 }}
 
@@ -87,26 +137,95 @@ QTabBar::tab:hover:!selected {{
 
 QLabel {{
     color: {TEXT_PRIMARY};
-    font-size: 11pt;
-    font-weight: 300;
+    font-size: 13px;
+    font-weight: 400;
+    background-color: transparent;
+}}
+
+/* ── page title/desc ──────────────────────────────────────────────── */
+
+QLabel#pageTitle {{
+    color: {TEXT_PRIMARY};
+    font-size: 22px;
+    font-weight: 600;
+    background-color: transparent;
+}}
+
+QLabel#pageDesc {{
+    color: {TEXT_SECONDARY};
+    font-size: 13px;
     background-color: transparent;
 }}
 
 /* ── section cards (objectName=sectionCard) ────────────────────────── */
 
 QWidget#sectionCard {{
-    background-color: {CARD_BG};
+    background-color: {BG_CARD};
+    border: 1px solid {BORDER};
     border-radius: {CARD_RADIUS};
-    padding: {CARD_PADDING};
+}}
+
+QWidget#sectionCard:hover {{
+    border-color: #333333;
+}}
+
+/* ── card header (objectName=cardTitle) ─────────────────────────────── */
+
+QLabel#cardTitle {{
+    color: {TEXT_PRIMARY};
+    font-size: 14px;
+    font-weight: 600;
+    background-color: transparent;
+}}
+
+/* ── card icon (objectName=cardIcon) ───────────────────────────────── */
+
+QWidget#cardIcon {{
+    background-color: {ACCENT_DIM};
+    border-radius: 8px;
+}}
+
+QLabel#cardIconLabel {{
+    color: {ACCENT};
+    font-size: 15px;
+    background-color: transparent;
+}}
+
+/* ── badge ─────────────────────────────────────────────────────────── */
+
+QLabel#badgeOk {{
+    background-color: {SUCCESS_DIM};
+    color: {SUCCESS};
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 10px;
+}}
+
+QLabel#badgeWarn {{
+    background-color: {WARNING_DIM};
+    color: {WARNING};
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 10px;
+}}
+
+QLabel#badgeInfo {{
+    background-color: {ACCENT_DIM};
+    color: {ACCENT};
+    font-size: 11px;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 10px;
 }}
 
 /* ── section title (objectName=sectionTitle) ───────────────────────── */
 
 QLabel#sectionTitle {{
     color: {TEXT_PRIMARY};
-    font-size: 12pt;
-    font-weight: 400;
-    letter-spacing: 1px;
+    font-size: 14px;
+    font-weight: 600;
     background-color: transparent;
 }}
 
@@ -114,8 +233,7 @@ QLabel#sectionTitle {{
 
 QLabel#sectionDesc {{
     color: {DESC_COLOR};
-    font-size: 9pt;
-    font-weight: 300;
+    font-size: 11px;
     background-color: transparent;
 }}
 
@@ -123,8 +241,8 @@ QLabel#sectionDesc {{
 
 QLabel#settingLabel {{
     color: {TEXT_PRIMARY};
-    font-size: 11pt;
-    font-weight: 400;
+    font-size: 13px;
+    font-weight: 500;
     background-color: transparent;
 }}
 
@@ -132,8 +250,8 @@ QLabel#settingLabel {{
 
 QLabel#settingHint {{
     color: {HINT_COLOR};
-    font-size: 8pt;
-    font-weight: 300;
+    font-size: 11px;
+    font-weight: 400;
     background-color: transparent;
 }}
 
@@ -146,30 +264,44 @@ QFrame#divider {{
     border: none;
 }}
 
+/* ── setting row divider ──────────────────────────────────────────── */
+
+QFrame#settingDivider {{
+    background-color: #1a1a1a;
+    max-height: 1px;
+    min-height: 1px;
+    border: none;
+}}
+
 /* ── text inputs ───────────────────────────────────────────────────── */
 
 QLineEdit,
 QPlainTextEdit,
 QSpinBox,
 QDoubleSpinBox {{
-    background-color: {INPUT_BG};
+    background-color: {BG_INPUT};
     color: {TEXT_PRIMARY};
-    border: none;
-    border-bottom: 1px solid {BORDER};
-    padding: 8px 4px;
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 13px;
     selection-background-color: {ACCENT};
     selection-color: #000000;
+}}
+
+QLineEdit:hover,
+QSpinBox:hover,
+QDoubleSpinBox:hover {{
+    border-color: {BORDER_FOCUS};
 }}
 
 QLineEdit:focus,
 QPlainTextEdit:focus,
 QSpinBox:focus,
 QDoubleSpinBox:focus {{
-    border-bottom: 1px solid {ACCENT};
-    background-color: {INPUT_BG};
+    border-color: {ACCENT};
 }}
 
-/* hide the spin-box up/down buttons — keep it minimal */
 QSpinBox::up-button,
 QSpinBox::down-button,
 QDoubleSpinBox::up-button,
@@ -182,16 +314,21 @@ QDoubleSpinBox::down-button {{
 /* ── combo boxes ───────────────────────────────────────────────────── */
 
 QComboBox {{
-    background-color: {INPUT_BG};
+    background-color: {BG_INPUT};
     color: {TEXT_PRIMARY};
     border: 1px solid {BORDER};
-    padding: 7px 12px;
-    selection-background-color: {ACCENT};
-    selection-color: #000000;
+    border-radius: 8px;
+    padding: 8px 32px 8px 12px;
+    font-size: 13px;
+    min-width: 180px;
 }}
 
 QComboBox:hover {{
-    border-color: #404040;
+    border-color: {BORDER_FOCUS};
+}}
+
+QComboBox:focus {{
+    border-color: {ACCENT};
 }}
 
 QComboBox::drop-down {{
@@ -213,7 +350,7 @@ QComboBox QAbstractItemView {{
 QCheckBox {{
     color: {TEXT_PRIMARY};
     spacing: 10px;
-    font-weight: 300;
+    font-weight: 400;
     background-color: transparent;
 }}
 
@@ -221,6 +358,7 @@ QCheckBox::indicator {{
     width: 16px;
     height: 16px;
     border: 1px solid #404040;
+    border-radius: 3px;
     background-color: transparent;
 }}
 
@@ -237,26 +375,28 @@ QCheckBox::indicator:hover {{
 /* ── sliders ───────────────────────────────────────────────────────── */
 
 QSlider::groove:horizontal {{
-    height: 2px;
-    background-color: {BORDER};
+    height: 4px;
+    background-color: #333333;
+    border-radius: 2px;
     margin: 0;
 }}
 
 QSlider::sub-page:horizontal {{
     background-color: {ACCENT};
-    height: 2px;
+    height: 4px;
+    border-radius: 2px;
 }}
 
 QSlider::handle:horizontal {{
     background-color: {ACCENT};
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
     margin: -6px 0;
-    border-radius: 7px;
+    border-radius: 8px;
 }}
 
 QSlider::handle:horizontal:hover {{
-    background-color: #e0e0e0;
+    background-color: #5b9cf7;
 }}
 
 /* ── push buttons ──────────────────────────────────────────────────── */
@@ -264,16 +404,15 @@ QSlider::handle:horizontal:hover {{
 QPushButton {{
     background-color: transparent;
     color: {TEXT_PRIMARY};
-    border: 1px solid #404040;
-    padding: 10px 24px;
-    font-size: 10pt;
-    letter-spacing: 3px;
-    font-weight: 300;
-    text-transform: uppercase;
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 500;
 }}
 
 QPushButton:hover {{
-    border-color: {ACCENT};
+    border-color: {BORDER_FOCUS};
     background-color: {HOVER_BG};
 }}
 
@@ -286,32 +425,38 @@ QPushButton:disabled {{
     border-color: #282828;
 }}
 
-/* ── group boxes ───────────────────────────────────────────────────── */
+/* ── small button (objectName=btnSmall) ────────────────────────────── */
 
-QGroupBox {{
-    color: {ACCENT};
-    border: none;
-    border-radius: 0;
-    margin-top: 24px;
-    padding-top: 24px;
-    font-size: 10pt;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    font-weight: 400;
+QPushButton#btnSmall {{
+    padding: 5px 10px;
+    font-size: 11px;
 }}
 
-QGroupBox::title {{
-    subcontrol-origin: margin;
-    subcontrol-position: top left;
-    left: 4px;
-    padding: 0 4px;
-    color: {ACCENT};
+/* ── hotkey capture button ─────────────────────────────────────────── */
+
+QPushButton#hotkeyCapture {{
+    font-family: Consolas, "SF Mono", monospace;
+    font-size: 12px;
+    padding: 6px 16px;
+    min-width: 120px;
+    letter-spacing: 0.5px;
+}}
+
+/* ── scroll area (transparent background for card containers) ──────── */
+
+QScrollArea {{
+    background-color: {BG};
+    border: none;
+}}
+
+QScrollArea > QWidget > QWidget {{
+    background-color: {BG};
 }}
 
 /* ── scrollbars ────────────────────────────────────────────────────── */
 
 QScrollBar:vertical {{
-    background: {BG};
+    background: transparent;
     width: 6px;
     margin: 0;
 }}
@@ -332,7 +477,7 @@ QScrollBar::sub-line:vertical {{
 }}
 
 QScrollBar:horizontal {{
-    background: {BG};
+    background: transparent;
     height: 6px;
     margin: 0;
 }}
@@ -341,10 +486,6 @@ QScrollBar::handle:horizontal {{
     background: #333333;
     border-radius: 3px;
     min-width: 20px;
-}}
-
-QScrollBar::handle:horizontal:hover {{
-    background: #555555;
 }}
 
 QScrollBar::add-line:horizontal,
@@ -358,12 +499,22 @@ QStatusBar {{
     color: {TEXT_SECONDARY};
     background-color: {BG};
     border-top: 1px solid {BORDER};
-    font-size: 9pt;
-    font-weight: 300;
+    font-size: 11px;
 }}
 
 QStatusBar::item {{
     border: none;
+}}
+
+/* ── tooltips ──────────────────────────────────────────────────────── */
+
+QToolTip {{
+    background-color: {BG_INPUT};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {BORDER};
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 12px;
 }}
 
 /* ── message boxes ─────────────────────────────────────────────────── */
@@ -377,29 +528,28 @@ QMessageBox QPushButton {{
     min-width: 80px;
 }}
 
-/* ── tooltips ──────────────────────────────────────────────────────── */
+/* ── group boxes (legacy compatibility) ────────────────────────────── */
 
-QToolTip {{
-    background-color: {INPUT_BG};
-    color: {TEXT_PRIMARY};
-    border: 1px solid {BORDER};
-    padding: 4px 8px;
-    font-size: 9pt;
-}}
-
-/* ── scroll area (transparent background for card containers) ──────── */
-
-QScrollArea {{
-    background-color: {BG};
+QGroupBox {{
+    color: {ACCENT};
     border: none;
+    border-radius: 0;
+    margin-top: 24px;
+    padding-top: 24px;
+    font-size: 12px;
+    font-weight: 600;
 }}
 
-QScrollArea > QWidget > QWidget {{
-    background-color: {BG};
+QGroupBox::title {{
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 4px;
+    padding: 0 4px;
+    color: {ACCENT};
 }}
 """
 
 
 def apply_theme(window: QWidget) -> None:
-    """Apply the minimal black/white stylesheet to *window* and any children."""
+    """Apply the sidebar dark theme to *window* and all children."""
     window.setStyleSheet(_QSS)
