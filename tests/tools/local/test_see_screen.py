@@ -209,3 +209,62 @@ async def test_screenshot_failure_returns_error(tmp_path):
 def test_requires_confirmation_false():
     tool = SeeScreenTool(ollama_client=MagicMock(), vision_config=VisionConfig())
     assert tool.requires_confirmation is False
+
+
+# --- game mode tests --------------------------------------------------
+
+
+def _make_game_mode_mock(*, active: bool, vision_result: str | None = "Game screen, sir."):
+    """Build a minimal GameMode mock for SeeScreenTool tests."""
+    gm = MagicMock()
+    gm.is_active = active
+    gm.on_demand_vision_query = AsyncMock(return_value=vision_result)
+    return gm
+
+
+async def test_game_mode_active_uses_on_demand_vision(tmp_path):
+    """When game mode is active, see_screen should use on_demand_vision_query."""
+    image = _FakeImage(size=(1920, 1080))
+    fakes = _install_fake_pyautogui_and_pil(image)
+    ollama = _make_ollama("Normal path — should NOT be called")
+    gm = _make_game_mode_mock(active=True, vision_result="Elden Ring boss fight, sir.")
+    tool = SeeScreenTool(
+        ollama_client=ollama, vision_config=VisionConfig(), game_mode=gm,
+    )
+
+    with patch.dict(sys.modules, fakes), \
+         patch(
+             "jarvis.tools.local.see_screen.winplat.screenshots_dir",
+             return_value=tmp_path,
+         ):
+        result = await tool.execute(SeeScreenArgs())
+
+    assert result.success
+    assert result.output == "Elden Ring boss fight, sir."
+    # Game mode vision query called, NOT the regular ollama path
+    gm.on_demand_vision_query.assert_awaited_once()
+    ollama.vision_chat.assert_not_awaited()
+
+
+async def test_game_mode_inactive_uses_normal_path(tmp_path):
+    """When game mode exists but is NOT active, normal ollama path is used."""
+    image = _FakeImage(size=(1920, 1080))
+    fakes = _install_fake_pyautogui_and_pil(image)
+    ollama = _make_ollama("Normal vision response, sir.")
+    gm = _make_game_mode_mock(active=False)
+    tool = SeeScreenTool(
+        ollama_client=ollama, vision_config=VisionConfig(), game_mode=gm,
+    )
+
+    with patch.dict(sys.modules, fakes), \
+         patch(
+             "jarvis.tools.local.see_screen.winplat.screenshots_dir",
+             return_value=tmp_path,
+         ):
+        result = await tool.execute(SeeScreenArgs())
+
+    assert result.success
+    assert result.output == "Normal vision response, sir."
+    # Normal path used, NOT game mode
+    ollama.vision_chat.assert_awaited_once()
+    gm.on_demand_vision_query.assert_not_awaited()

@@ -2736,6 +2736,12 @@ class JarvisApp:
         )
         self.personalization.game_mode = self.game_mode
 
+        # Wire game_mode into SeeScreenTool so it can use
+        # on_demand_vision_query when Ollama is evicted from VRAM.
+        _see_screen_tool = self.registry.get("see_screen")
+        if _see_screen_tool is not None:
+            _see_screen_tool._game_mode = self.game_mode
+
 
 
         self.router = IntentRouter(

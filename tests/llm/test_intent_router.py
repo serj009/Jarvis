@@ -1195,3 +1195,94 @@ async def test_stop_takes_precedence_over_pattern_table():
     assert len(intents) == 1
     assert isinstance(intents[0], StopIntent)
     assert llm.stream_calls == 0
+
+
+# --- game mode LLM fallback -----------------------------------------
+
+
+class _FakeGameMode:
+    """Minimal GameMode stand-in for intent_router tests."""
+
+    def __init__(self, *, active: bool, answer: str | None = "Answer from game mode"):
+        self._active = active
+        self._answer = answer
+        self.on_demand_calls: list[str] = []
+
+    @property
+    def is_active(self) -> bool:
+        return self._active
+
+    @property
+    def preloaded_context(self) -> str:
+        return ""
+
+    async def on_demand_llm_query(self, question: str) -> str | None:
+        self.on_demand_calls.append(question)
+        return self._answer
+
+    def get_game_session_info(self) -> str | None:
+        if self._active:
+            return "Game mode active: Test Game, 5 minutes played."
+        return None
+
+    async def force_activate(self, game_title: str = "Manual") -> None:
+        pass
+
+    async def force_deactivate(self) -> None:
+        pass
+
+
+async def test_game_mode_llm_fallback_uses_on_demand():
+    """When game mode is active the router should skip streaming and
+    use on_demand_llm_query instead (since Ollama is evicted)."""
+    from jarvis.core.personalization import PersonalizationContext
+
+    gm = _FakeGameMode(active=True, answer="The boss is weak to fire, sir.")
+    pctx = PersonalizationContext(game_mode=gm)
+
+    llm = FakeOllama(chunks=[_content_chunk("This should NOT appear", done=True)])
+    conv = _Conv()
+    router = IntentRouter(
+        llm=cast(OllamaClient, llm),
+        conversation=cast(Conversation, conv),
+        personalization=pctx,
+    )
+
+    intents = await _collect(router.route("how do I beat this boss"))
+
+    assert len(intents) == 1
+    assert isinstance(intents[0], SpeakIntent)
+    assert intents[0].text == "The boss is weak to fire, sir."
+    # On-demand was called, NOT the streaming LLM
+    assert gm.on_demand_calls == ["how do I beat this boss"]
+    assert llm.stream_calls == 0
+    # Assistant turn recorded
+    assert "The boss is weak to fire, sir." in conv.assistant_turns
+
+
+async def test_game_mode_llm_fallback_returns_generic_fail_on_none():
+    """When on_demand_llm_query returns None the router should speak
+    a generic failure instead of going silent."""
+    from jarvis.core.personalization import PersonalizationContext
+
+    gm = _FakeGameMode(active=True, answer=None)
+    pctx = PersonalizationContext(game_mode=gm)
+
+    llm = FakeOllama()
+    conv = _Conv()
+    router = IntentRouter(
+        llm=cast(OllamaClient, llm),
+        conversation=cast(Conversation, conv),
+        personalization=pctx,
+    )
+
+    intents = await _collect(router.route("complex question"))
+
+    assert len(intents) == 1
+    assert isinstance(intents[0], SpeakIntent)
+    # Should be a non-empty generic fail message
+    assert intents[0].text
+    # LLM was NOT called
+    assert llm.stream_calls == 0
+    # No assistant turn recorded for None answer
+    assert len(conv.assistant_turns) == 0

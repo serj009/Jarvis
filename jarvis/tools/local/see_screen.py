@@ -33,12 +33,16 @@ import logging
 from datetime import datetime
 from typing import ClassVar
 
+from typing import TYPE_CHECKING
 from pydantic import BaseModel, Field
 
 from jarvis.platform import windows as winplat
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from jarvis.core.game_mode import GameMode
 
 
 _DEFAULT_PROMPT = (
@@ -120,12 +124,16 @@ class SeeScreenTool:
         *,
         ollama_client,
         vision_config,
+        game_mode: GameMode | None = None,
     ) -> None:
         # `ollama_client` is the live OllamaClient instance. We use its
         # vision_chat() method (model name is per-call, not bound to the
         # client's text-model config).
         self._ollama = ollama_client
         self._cfg = vision_config
+        # Game mode: when active, Ollama is evicted from VRAM.  Use
+        # on_demand_vision_query() for temp load → answer → unload.
+        self._game_mode = game_mode
 
     async def execute(self, args: SeeScreenArgs) -> ToolResult:
         model = (getattr(self._cfg, "model", "") or "").strip()
@@ -151,37 +159,57 @@ class SeeScreenTool:
             )
 
         prompt = self._build_prompt(args.question)
-        try:
-            description = await self._ollama.vision_chat(
-                model=model,
-                prompt=prompt,
-                image_b64=image_b64,
-                max_tokens=int(getattr(self._cfg, "max_tokens", 512)),
-                temperature=float(getattr(self._cfg, "temperature", 0.2)),
-            )
-        except Exception as exc:
-            log.warning("see_screen: vision_chat failed: %s", exc)
-            msg = str(exc)
-            if "not found" in msg.lower():
+
+        # Game mode: Ollama is evicted from VRAM — use temp load cycle
+        if self._game_mode is not None and self._game_mode.is_active:
+            try:
+                description = await self._game_mode.on_demand_vision_query(
+                    image_b64=image_b64,
+                    question=prompt,
+                    model=model,
+                )
+            except Exception as exc:
+                log.warning("see_screen: game-mode vision query failed: %s", exc)
                 return ToolResult(
                     success=False,
-                    error=(
-                        f"The vision model {model!r} isn't pulled, sir. "
-                        f"Run: ollama pull {model}"
-                    ),
+                    error="I couldn't reach the vision model in game mode, sir.",
                 )
-            return ToolResult(
-                success=False,
-                error="I couldn't reach the vision model, sir.",
-            )
+            if not description:
+                return ToolResult(success=True, output="I'm not sure what I'm looking at, sir.")
+            log.info("see_screen: game-mode snapshot saved to %s", saved_path)
+            return ToolResult(success=True, output=description)
+        else:
+            try:
+                description = await self._ollama.vision_chat(
+                    model=model,
+                    prompt=prompt,
+                    image_b64=image_b64,
+                    max_tokens=int(getattr(self._cfg, "max_tokens", 512)),
+                    temperature=float(getattr(self._cfg, "temperature", 0.2)),
+                )
+            except Exception as exc:
+                log.warning("see_screen: vision_chat failed: %s", exc)
+                msg = str(exc)
+                if "not found" in msg.lower():
+                    return ToolResult(
+                        success=False,
+                        error=(
+                            f"The vision model {model!r} isn't pulled, sir. "
+                            f"Run: ollama pull {model}"
+                        ),
+                    )
+                return ToolResult(
+                    success=False,
+                    error="I couldn't reach the vision model, sir.",
+                )
 
-        if not description:
-            return ToolResult(
-                success=True,
-                output="I'm not sure what I'm looking at, sir.",
-            )
-        log.info("see_screen: snapshot saved to %s", saved_path)
-        return ToolResult(success=True, output=description)
+            if not description:
+                return ToolResult(
+                    success=True,
+                    output="I'm not sure what I'm looking at, sir.",
+                )
+            log.info("see_screen: snapshot saved to %s", saved_path)
+            return ToolResult(success=True, output=description)
 
     # -- internal --
 
