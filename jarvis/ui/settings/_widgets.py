@@ -1,11 +1,10 @@
 """Reusable helper widgets for the redesigned Settings UI.
 
-Provides visual building blocks — section headers with icons, setting
-cards with label + hint + control, and divider lines — so each tab can
-compose a clean, card-based layout without duplicating style logic.
+Provides visual building blocks — section cards with icon headers and
+badges, setting rows with label + hint + control, toggle switches,
+badges, and divider lines. All tabs compose from these primitives.
 
-All styling is done via objectName selectors defined in theme.py (QSS),
-not via CSS class syntax (which Qt does not support).
+Styling is done via objectName selectors defined in theme.py (QSS).
 """
 
 from __future__ import annotations
@@ -20,62 +19,134 @@ from PySide6.QtWidgets import (
 )
 
 
-class SectionHeader(QWidget):
-    """Section heading with emoji icon, uppercase title, and description.
+# ---------------------------------------------------------------------------
+# Badge — colored pill label (e.g. "Connected", "GPU", "~4.7 GB")
+# ---------------------------------------------------------------------------
 
-    Parameters
-    ----------
-    icon:
-        Emoji string shown before the title (e.g. "🎤").
-    title:
-        Section name rendered as uppercase text with letter-spacing.
-    description:
-        Gray subtitle explaining what the section controls.
+class Badge(QLabel):
+    """Small pill-shaped label with colored background.
+
+    Variants:
+        "ok"   → green (success/connected)
+        "warn" → yellow (warning)
+        "info" → blue (informational)
     """
+
+    _OBJECT_NAMES = {"ok": "badgeOk", "warn": "badgeWarn", "info": "badgeInfo"}
+
+    def __init__(
+        self, text: str, variant: str = "info", parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(text, parent)
+        obj_name = self._OBJECT_NAMES.get(variant, "badgeInfo")
+        self.setObjectName(obj_name)
+
+
+# ---------------------------------------------------------------------------
+# SectionHeader — icon + title (used inside SectionCard)
+# ---------------------------------------------------------------------------
+
+class SectionHeader(QWidget):
+    """Card header with icon badge, title, and optional right-side badge."""
 
     def __init__(
         self,
         icon: str,
         title: str,
-        description: str,
+        description: str = "",
+        badge: Badge | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
 
-        # Title row: emoji + text
-        title_label = QLabel(f"{icon}  {title.upper()}")
-        title_label.setObjectName("sectionTitle")
+        # Icon container (32×32 rounded square with accent background)
+        icon_container = QWidget()
+        icon_container.setObjectName("cardIcon")
+        icon_container.setFixedSize(32, 32)
+        icon_label = QLabel(icon)
+        icon_label.setObjectName("cardIconLabel")
+        icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_layout = QVBoxLayout(icon_container)
+        icon_layout.setContentsMargins(0, 0, 0, 0)
+        icon_layout.addWidget(icon_label)
 
-        # Description
-        desc_label = QLabel(description)
-        desc_label.setObjectName("sectionDesc")
-        desc_label.setWordWrap(True)
+        # Title
+        title_label = QLabel(title)
+        title_label.setObjectName("cardTitle")
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(4)
-        layout.addWidget(title_label)
-        layout.addWidget(desc_label)
+        # Left side: icon + title
+        left = QHBoxLayout()
+        left.setSpacing(10)
+        left.addWidget(icon_container)
+        left.addWidget(title_label)
+        left.addStretch()
 
+        # Main row
+        row = QHBoxLayout(self)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.addLayout(left, 1)
+        if badge is not None:
+            row.addWidget(badge)
+
+
+# ---------------------------------------------------------------------------
+# SettingRow — label+hint left, control right, with bottom divider
+# ---------------------------------------------------------------------------
+
+class SettingRow(QWidget):
+    """A single setting row: label + hint on the left, control on the right.
+
+    Includes a bottom divider line. Use `last=True` on the final row in
+    a card to suppress the divider.
+    """
+
+    def __init__(
+        self,
+        label: str,
+        hint: str,
+        control: QWidget,
+        *,
+        last: bool = False,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+
+        # Left: label + hint
+        lbl = QLabel(label)
+        lbl.setObjectName("settingLabel")
+
+        ht = QLabel(hint)
+        ht.setObjectName("settingHint")
+        ht.setWordWrap(True)
+
+        left = QVBoxLayout()
+        left.setContentsMargins(0, 0, 0, 0)
+        left.setSpacing(2)
+        left.addWidget(lbl)
+        left.addWidget(ht)
+
+        # Row layout
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 12, 0, 12)
+        row.addLayout(left, 1)
+        row.addWidget(control, 0, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        outer.addLayout(row)
+        if not last:
+            outer.addWidget(make_setting_divider())
+
+
+# ---------------------------------------------------------------------------
+# SettingCard (legacy compatibility name)
+# ---------------------------------------------------------------------------
 
 class SettingCard(QWidget):
-    """A single setting: human-readable label, the actual control widget,
-    and a small hint explaining what it does.
+    """A single setting: label, control, hint. Legacy layout (vertical).
 
-    Layout (vertical):
-        [Label]          (11pt, white)
-        [Control]        (combo/slider/etc. — full width)
-        [Hint]           (8pt, gray)
-
-    Parameters
-    ----------
-    title:
-        Friendly setting name (e.g. "Recognition Model").
-    hint:
-        One-liner explanation (e.g. "Larger models are more accurate").
-    control:
-        The interactive widget (QComboBox, QSlider, QWidget with
-        sub-layout, etc.).
+    For new code prefer SettingRow (horizontal label+control layout).
     """
 
     def __init__(
@@ -102,49 +173,62 @@ class SettingCard(QWidget):
         layout.addWidget(hint_label)
 
 
+# ---------------------------------------------------------------------------
+# SectionCard — container card with rounded borders
+# ---------------------------------------------------------------------------
+
 class SectionCard(QWidget):
-    """A card container wrapping a SectionHeader and several SettingCards
-    with a slightly lighter background (#111111), rounded corners, and
-    internal padding.
+    """A card container with dark background, rounded corners, and
+    1px border. Contains a header and setting rows.
 
     Usage::
 
         card = SectionCard()
-        card.add_header("🎤", "Speech Recognition", "How Jarvis hears you")
-        card.add_setting("Model", "Larger = better", my_combo)
-        card.add_setting("Language", "auto recommended", my_line)
+        card.add_header("🎤", "Speech Recognition", badge=Badge("GPU", "info"))
+        card.add_row("Model", "Larger = better", my_combo)
+        card.add_row("Language", "auto recommended", my_line, last=True)
         parent_layout.addWidget(card)
     """
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("sectionCard")
-        # Inline style reinforces the QSS (objectName selector sometimes
-        # needs the widget to have an explicit background role).
-        self.setStyleSheet(
-            """
-            QWidget#sectionCard {
-                background-color: #111111;
-                border-radius: 8px;
-            }
-            """
-        )
         self._layout = QVBoxLayout(self)
-        self._layout.setContentsMargins(16, 16, 16, 16)
-        self._layout.setSpacing(12)
+        self._layout.setContentsMargins(20, 20, 24, 20)
+        self._layout.setSpacing(0)
 
-    # Convenience methods --------------------------------------------------
+    # -- Convenience methods ------------------------------------------------
 
     def add_header(
-        self, icon: str, title: str, description: str
+        self,
+        icon: str,
+        title: str,
+        description: str = "",
+        badge: Badge | None = None,
     ) -> SectionHeader:
-        header = SectionHeader(icon, title, description)
+        header = SectionHeader(icon, title, description, badge)
         self._layout.addWidget(header)
+        # Spacing after header
+        self._layout.addSpacing(16)
         return header
+
+    def add_row(
+        self,
+        label: str,
+        hint: str,
+        control: QWidget,
+        *,
+        last: bool = False,
+    ) -> SettingRow:
+        """Add a horizontal setting row (label+hint left, control right)."""
+        row = SettingRow(label, hint, control, last=last)
+        self._layout.addWidget(row)
+        return row
 
     def add_setting(
         self, title: str, hint: str, control: QWidget
     ) -> SettingCard:
+        """Legacy vertical setting card. Prefer add_row() for new code."""
         card = SettingCard(title, hint, control)
         self._layout.addWidget(card)
         return card
@@ -159,8 +243,12 @@ class SectionCard(QWidget):
         return div
 
 
+# ---------------------------------------------------------------------------
+# Divider helpers
+# ---------------------------------------------------------------------------
+
 def make_divider(parent: QWidget | None = None) -> QFrame:
-    """Create a thin horizontal divider line (#1a1a1a)."""
+    """Create a thin horizontal divider line."""
     line = QFrame(parent)
     line.setObjectName("divider")
     line.setFrameShape(QFrame.Shape.HLine)
@@ -168,6 +256,20 @@ def make_divider(parent: QWidget | None = None) -> QFrame:
     line.setFixedHeight(1)
     return line
 
+
+def make_setting_divider(parent: QWidget | None = None) -> QFrame:
+    """Lighter divider for between setting rows."""
+    line = QFrame(parent)
+    line.setObjectName("settingDivider")
+    line.setFrameShape(QFrame.Shape.HLine)
+    line.setFrameShadow(QFrame.Shadow.Plain)
+    line.setFixedHeight(1)
+    return line
+
+
+# ---------------------------------------------------------------------------
+# slider_with_label — slider + value display
+# ---------------------------------------------------------------------------
 
 def slider_with_label(
     slider: "QWidget",  # QSlider
@@ -177,6 +279,7 @@ def slider_with_label(
     row = QWidget()
     h = QHBoxLayout(row)
     h.setContentsMargins(0, 0, 0, 0)
+    h.setSpacing(12)
     h.addWidget(slider, 1)
     h.addWidget(label)
     return row

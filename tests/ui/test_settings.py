@@ -61,22 +61,19 @@ def test_repeated_close_show_cycles(qapp):
         assert not win.isVisible()
 
 
-def test_main_window_has_seven_tabs_in_order(qapp):
+def test_main_window_has_nav_items(qapp):
+    """Sidebar navigation contains expected page keys."""
     cfg = _cfg()
     on_change = MagicMock()
     with patch("jarvis.ui.settings.tabs.about.AboutTab._refresh_status"):
         win = SettingsWindow(config=cfg, on_change=on_change)
     try:
-        labels = [win._tabs.tabText(i) for i in range(win._tabs.count())]
-        assert labels == [
-            "\u2699\ufe0f  General",
-            "\U0001f3a4  Voice",
-            "\U0001f9e0  AI Models",
-            "\U0001f527  Tools",
-            "\u2328\ufe0f  Hotkeys",
-            "\u2753  Help",
-            "\u2139\ufe0f  About",
-        ]
+        # Sidebar nav has at least the core pages
+        nav_keys = set(win._nav_buttons.keys())
+        for key in ("general", "voice", "models", "tools", "hotkeys", "about"):
+            assert key in nav_keys, f"Missing nav key: {key}"
+        # Stacked widget has the same count
+        assert win._stack.count() == len(win._nav_buttons)
     finally:
         win.close()
 
@@ -106,9 +103,9 @@ def test_main_window_title_and_default_size(qapp):
         # resize() is a hint; the actual size may differ on platform but
         # the request value should be retained as a default sizeHint
         # baseline.
-        size = win.size()
-        assert size.width() == 780
-        assert size.height() == 560
+        # Sidebar layout uses 900x640
+        assert win.size().width() == 900
+        assert win.size().height() == 640
     finally:
         win.close()
 

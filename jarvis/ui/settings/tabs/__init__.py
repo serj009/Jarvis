@@ -1,4 +1,4 @@
-"""Per-section tabs that compose into SettingsWindow's QTabWidget.
+"""Per-section tabs that compose into SettingsWindow's sidebar + stacked widget.
 
 Every tab follows the same contract:
   - Constructor: (*, config: JarvisConfig, on_change: Callable[[], None],
@@ -8,27 +8,32 @@ Every tab follows the same contract:
     persists via save_config(config), then invokes on_change() so the
     composition root can republish the ConfigChanged events the audio
     loop subscribes to.
-
-The ConfigManager wrapper noted in core/config.py header (debounced
-writes, ConfigChanged event publishing) is the Phase 6 wiring target.
-For Phase 5 the tabs call save_config + on_change directly; the
-composition root's on_change implementation is what bridges to the
-audio loop's event bus."""
+"""
 
 from jarvis.ui.settings.tabs.about import AboutTab
+from jarvis.ui.settings.tabs.advanced import AdvancedTab
+from jarvis.ui.settings.tabs.commands import CommandsTab
+from jarvis.ui.settings.tabs.gaming import GamingTab
 from jarvis.ui.settings.tabs.general import GeneralTab
 from jarvis.ui.settings.tabs.help import HelpTab
 from jarvis.ui.settings.tabs.hotkeys import HotkeysTab
+from jarvis.ui.settings.tabs.memory import MemoryTab
 from jarvis.ui.settings.tabs.models import ModelsTab
+from jarvis.ui.settings.tabs.security_tab import SecurityTab
 from jarvis.ui.settings.tabs.tools import ToolsTab
 from jarvis.ui.settings.tabs.voice import VoiceTab
 
 __all__ = [
     "AboutTab",
+    "AdvancedTab",
+    "CommandsTab",
+    "GamingTab",
     "GeneralTab",
     "HelpTab",
     "HotkeysTab",
+    "MemoryTab",
     "ModelsTab",
+    "SecurityTab",
     "ToolsTab",
     "VoiceTab",
 ]
