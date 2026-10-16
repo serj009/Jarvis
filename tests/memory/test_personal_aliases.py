@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import json
-
 import pytest
 
 from jarvis.memory.personal_aliases import MAX_ALIASES, PersonalAliasStore
@@ -48,8 +46,7 @@ class TestPersonalAliasStore:
         store.learn("браузер", "chrome")
         store.learn("браузер", "chrome")
         assert store.alias_count() == 1
-        # Resolve also bumps count
-        data = json.loads(store.path.read_text(encoding="utf-8"))
+        data = store._store.load(default={})
         assert data["браузер"]["count"] == 3
 
     def test_learn_different_target_replaces(self, store) -> None:
@@ -58,17 +55,15 @@ class TestPersonalAliasStore:
         store.learn("браузер", "firefox")
         assert store.resolve("браузер") == "firefox"
         # Count resets to 1 on replacement
-        data = json.loads(store.path.read_text(encoding="utf-8"))
-        # count is 1 (learn) + 1 (resolve) = 2
-        assert data["браузер"]["count"] == 2
+        data = store._store.load(default={})
+        assert data["браузер"]["count"] == 2  # 1 (learn) + 1 (resolve)
 
     def test_resolve_increments_count(self, store) -> None:
         store.learn("браузер", "chrome")
         store.resolve("браузер")
         store.resolve("браузер")
-        data = json.loads(store.path.read_text(encoding="utf-8"))
-        # 1 (learn) + 2 (resolves) = 3
-        assert data["браузер"]["count"] == 3
+        data = store._store.load(default={})
+        assert data["браузер"]["count"] == 3  # 1 (learn) + 2 (resolves)
 
     def test_get_all(self, store) -> None:
         store.learn("браузер", "chrome")

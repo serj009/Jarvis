@@ -43,7 +43,34 @@ def _extract_image_urls(html: str, base_url: str) -> list[str]:
     try:
         from bs4 import BeautifulSoup
     except ImportError:
-        return []
+        # Lightweight regex fallback when beautifulsoup4 is not installed.
+        urls: list[str] = []
+        seen: set[str] = set()
+        for m in re.finditer(r'<img[^>]+src="([^"]+)"', html, re.IGNORECASE):
+            tag = m.group(0)
+            # Honour width/height attributes to skip tiny images.
+            w_m = re.search(r'width="(\d+)', tag, re.IGNORECASE)
+            h_m = re.search(r'height="(\d+)', tag, re.IGNORECASE)
+            w = int(w_m.group(1)) if w_m else None
+            h = int(h_m.group(1)) if h_m else None
+            if (w is not None and w < _MIN_DIMENSION) or (h is not None and h < _MIN_DIMENSION):
+                continue
+            src = m.group(1)
+            if src.startswith("data:"):
+                continue
+            absolute = urljoin(base_url, src)
+            if absolute not in seen:
+                seen.add(absolute)
+                urls.append(absolute)
+        for m in re.finditer(r'<img[^>]+srcset="([^"]+)"', html, re.IGNORECASE):
+            for entry in m.group(1).split(","):
+                parts = entry.strip().split()
+                if parts:
+                    src_url = urljoin(base_url, parts[0])
+                    if src_url not in seen:
+                        seen.add(src_url)
+                        urls.append(src_url)
+        return urls
 
     soup = BeautifulSoup(html, "html.parser")
     urls: list[str] = []

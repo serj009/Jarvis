@@ -7,7 +7,6 @@ content is encrypted (not readable plaintext) when DPAPI is available.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import sqlite3
 from pathlib import Path
@@ -103,17 +102,14 @@ class TestJsonFilesEncrypted:
 class TestSqliteColumnsEncrypted:
     """Verify that MemoryStore encrypts sensitive columns."""
 
-    def test_fact_text_encrypted_in_db(self, tmp_path: Path, dpapi_mock):
+    async def test_fact_text_encrypted_in_db(self, tmp_path: Path, dpapi_mock):
         """After add(), the text column in SQLite contains dpapi: ciphertext."""
         from jarvis.memory.store import MemoryStore
 
         db_path = tmp_path / "memory.db"
         store = MemoryStore(db_path=db_path)
-        asyncio.get_event_loop().run_until_complete(store.open())
-
-        fact_id = asyncio.get_event_loop().run_until_complete(
-            store.add("My secret fact", category="personal", tags=["test"])
-        )
+        await store.open()
+        fact_id = await store.add("My secret fact", category="personal", tags=["test"])
 
         # Read raw from SQLite to verify encryption
         conn = sqlite3.connect(str(db_path))
@@ -132,35 +128,27 @@ class TestSqliteColumnsEncrypted:
         # Original plaintext must NOT be in the raw value
         assert "My secret fact" not in raw_text
 
-    def test_fact_text_decrypted_on_get(self, tmp_path: Path, dpapi_mock):
+    async def test_fact_text_decrypted_on_get(self, tmp_path: Path, dpapi_mock):
         """get() returns decrypted plaintext."""
         from jarvis.memory.store import MemoryStore
 
         db_path = tmp_path / "memory.db"
         store = MemoryStore(db_path=db_path)
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(store.open())
-
-        fact_id = loop.run_until_complete(
-            store.add("Decrypted test", category="test")
-        )
-        fact = loop.run_until_complete(store.get(fact_id))
+        await store.open()
+        fact_id = await store.add("Decrypted test", category="test")
+        fact = await store.get(fact_id)
 
         assert fact is not None
         assert fact.text == "Decrypted test"
 
-    def test_fact_tags_encrypted_in_db(self, tmp_path: Path, dpapi_mock):
+    async def test_fact_tags_encrypted_in_db(self, tmp_path: Path, dpapi_mock):
         """Tags are encrypted in the fact_tags table."""
         from jarvis.memory.store import MemoryStore
 
         db_path = tmp_path / "memory.db"
         store = MemoryStore(db_path=db_path)
-        loop = asyncio.get_event_loop()
-        loop.run_until_complete(store.open())
-
-        fact_id = loop.run_until_complete(
-            store.add("Tag test", tags=["secret_tag"])
-        )
+        await store.open()
+        fact_id = await store.add("Tag test", tags=["secret_tag"])
 
         conn = sqlite3.connect(str(db_path))
         rows = conn.execute(

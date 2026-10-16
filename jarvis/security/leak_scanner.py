@@ -26,7 +26,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import parse_qs, unquote_plus, urlparse
 
 from jarvis.security.origin_tracker import RequestContext
 
@@ -202,7 +202,7 @@ class DataLeakScanner:
         matched: list[str] = []
 
         # Decode percent-encoding so %53erhii → Serhii
-        decoded_url = unquote(url)
+        decoded_url = unquote_plus(url)
 
         # 1. Personal data in URL
         personal = self._check_personal_data(decoded_url)
@@ -363,8 +363,8 @@ class DataLeakScanner:
 # Regex patterns (module-level compilation)
 # ---------------------------------------------------------------------------
 
-# Base64: at least 12 chars of base64 alphabet (catches encoded names).
-_B64_RE = re.compile(r"[A-Za-z0-9+/\-_]{12,}={0,2}")
+# Base64: at least 8 chars of base64 alphabet (catches encoded names ≥6 bytes).
+_B64_RE = re.compile(r"[A-Za-z0-9+/\-_]{8,}={0,2}")
 
 # Hex: at least 6 hex-char pairs (12 chars = 6 bytes, shortest useful name).
 _HEX_RE = re.compile(r"(?:[0-9a-fA-F]{2}){6,}")

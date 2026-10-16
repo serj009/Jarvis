@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 import pytest
 
+from jarvis.platform.encrypted_store import EncryptedJsonStore
 from jarvis.tools.local.focus_mode import (
     StartFocusModeTool,
     StartFocusModeArgs,
@@ -127,6 +128,9 @@ def _temp_state(tmp_path, monkeypatch):
     state_file = tmp_path / "data" / "focus_mode.json"
     monkeypatch.setattr("jarvis.tools.local.focus_mode._FOCUS_DIR", tmp_path / "data")
     monkeypatch.setattr("jarvis.tools.local.focus_mode._FOCUS_FILE", state_file)
+    monkeypatch.setattr(
+        "jarvis.tools.local.focus_mode._FOCUS_STORE", EncryptedJsonStore(state_file),
+    )
 
 
 class TestStorage:

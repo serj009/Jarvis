@@ -16,6 +16,16 @@ import pytest
 
 from jarvis.platform import secrets as sec
 
+
+# Override root conftest's autouse _disable_dpapi_for_tests so that
+# test_dpapi_available_tracks_platform sees the REAL function, and
+# the dpapi / no_dpapi fixtures here are the only dpapi_available
+# mutations in play.
+@pytest.fixture(autouse=True)
+def _disable_dpapi_for_tests():
+    yield
+
+
 FAKE_MARKER = b"FAKEDPAPI"
 
 

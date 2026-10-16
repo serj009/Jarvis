@@ -1,0 +1,102 @@
+﻿
+FAILED tests/audio/test_pipeline.py::test_barge_in_after_grace_cancels_tts_and_returns_to_listening
+FAILED tests/audio/test_wake_word.py::test_load_failure_raises_with_recovery_hint
+FAILED tests/llm/test_tool_feedback_loop.py::test_loop_disabled_without_a_registry
+FAILED tests/memory/test_personal_aliases.py::TestPersonalAliasStore::test_learn_same_target_bumps_count
+FAILED tests/memory/test_personal_aliases.py::TestPersonalAliasStore::test_learn_different_target_replaces
+FAILED tests/memory/test_personal_aliases.py::TestPersonalAliasStore::test_resolve_increments_count
+FAILED tests/security/test_leak_scanner.py::TestPersonalDataDetection::test_city_in_url
+FAILED tests/security/test_leak_scanner.py::TestEncodedDataDetection::test_base64_encoded_name
+FAILED tests/security/test_origin_tracker.py::TestOriginTrackerSignVerify::test_unicode_text_signing
+FAILED tests/security/test_password_vault.py::TestEdgeCases::test_unicode_credentials
+FAILED tests/security/test_tool_guard.py::TestLLMInitiated::test_llm_city_in_url_blocked
+FAILED tests/security/test_tool_guard.py::TestFullFlow::test_signed_user_input_allows_personal_search
+FAILED tests/tools/local/test_auto_login.py::TestAutoLoginSecurity::test_password_not_in_any_result_field
+FAILED tests/tools/local/test_bookmarks.py::TestStorage::test_save_and_load
+FAILED tests/tools/local/test_bookmarks.py::TestExecute::test_save_with_url
+FAILED tests/tools/local/test_bookmarks.py::TestExecute::test_list_empty - As...
+FAILED tests/tools/local/test_cli_runner.py::test_allowed_command_executes - ...
+FAILED tests/tools/local/test_cli_runner.py::test_command_timeout - Attribute...
+FAILED tests/tools/local/test_cli_runner.py::test_command_not_found - Attribu...
+FAILED tests/tools/local/test_cli_runner.py::test_long_output_truncated - Att...
+FAILED tests/tools/local/test_focus_mode.py::TestIsSiteBlocked::test_not_blocked_when_inactive
+FAILED tests/tools/local/test_image_scraper.py::test_extract_image_urls_basic
+FAILED tests/tools/local/test_image_scraper.py::test_extract_image_urls_skips_base64
+FAILED tests/tools/local/test_image_scraper.py::test_extract_image_urls_skips_tiny_images
+FAILED tests/tools/local/test_image_scraper.py::test_extract_image_urls_srcset
+FAILED tests/tools/local/test_image_scraper.py::test_extract_image_urls_deduplicates
+FAILED tests/tools/local/test_image_scraper.py::test_execute_success - Assert...
+FAILED tests/tools/local/test_image_scraper.py::test_execute_some_downloads_fail
+FAILED tests/tools/local/test_qr_share.py::TestQrGeneration::test_generate_fallback_httpx
+FAILED tests/tools/local/test_rss_reader.py::TestSubscribe::test_subscribe_success
+FAILED tests/tools/local/test_rss_reader.py::TestSubscribe::test_subscribe_deduplicates
+FAILED tests/tools/local/test_rss_reader.py::TestGetNews::test_get_news_empty
+FAILED tests/tools/local/test_vault_manager.py::TestSaveCredentialTool::test_save_credential_success
+FAILED tests/tools/local/test_vault_manager.py::TestListSavedSitesTool::test_list_sites_only_names
+FAILED tests/tools/local/test_vault_manager.py::TestListSavedSitesTool::test_list_sites_empty_vault
+FAILED tests/tools/local/test_vault_manager.py::TestRemoveCredentialTool::test_remove_credential_success
+FAILED tests/tools/local/test_vault_manager.py::TestRemoveCredentialTool::test_remove_nonexistent
+FAILED tests/tools/local/test_vault_manager.py::TestUnlockVaultTool::test_unlock_creates_new_vault
+FAILED tests/tools/local/test_vault_manager.py::TestUnlockVaultTool::test_unlock_existing_vault
+FAILED tests/tools/local/test_vault_manager.py::TestUnlockVaultTool::test_unlock_wrong_password
+FAILED tests/tools/local/test_vault_manager.py::TestUnlockVaultTool::test_already_unlocked
+FAILED tests/tools/local/test_vault_manager.py::TestLockVaultTool::test_lock_vault
+FAILED tests/tools/local/test_vault_manager.py::TestChangeVaultPasswordTool::test_change_password_success
+FAILED tests/tools/local/test_vault_manager.py::TestChangeVaultPasswordTool::test_change_password_empty_prompts_ui
+FAILED tests/tools/local/test_web_knowledge.py::TestHttpxFallback::test_uses_httpx_when_no_browser
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestPlayYoutubeMusicPatterns::test_en_play_music[play pink 
+floyd-pink floyd]
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestPlayYoutubeMusicPatterns::test_en_play_music[play bohemian 
+rhapsody-bohemian rhapsody]
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestPlayYoutubeMusicPatterns::test_en_play_music[put on some 
+jazz-some jazz]
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestPlayYoutubeMusicPatterns::test_en_play_music[listen to 
+bach-bach]
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestPlayYoutubeMusicPatterns::test_en_play_music[play hotel 
+california on youtube-hotel california]
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestPlayYoutubeMusicPatterns::test_ru_play_music_with_keyword[\
+u043f\u043e\u0441\u0442\u0430\u0432\u044c \u043c\u0443\u0437\u044b\u043a\u0443 
+\u0434\u0436\u0430\u0437-\u0434\u0436\u0430\u0437]
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestPlayYoutubeMusicPatterns::test_ru_play_music_with_keyword[\
+u0432\u043a\u043b\u044e\u0447\u0438 \u043c\u0443\u0437\u044b\u043a\u0443 \u0440\u043e\u043a-\u0440\u043e\u043a]
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestPlayYoutubeMusicPatterns::test_ru_play_music_with_keyword[\
+u0437\u0430\u043f\u0443\u0441\u0442\u0438 \u043f\u0435\u0441\u043d\u044e imagine-imagine]
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestPlayYoutubeMusicPatterns::test_ru_play_music_with_keyword[\
+u0432\u043e\u0441\u043f\u0440\u043e\u0438\u0437\u0432\u0435\u0434\u0438 \u0442\u0440\u0435\u043a believer-believer]
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestPlayYoutubeMusicPatterns::test_ru_play_music_with_keyword[\
+u0432\u043a\u043b\u044e\u0447\u0438 \u043c\u0443\u0437\u044b\u043a\u0443 \u0448\u043e\u043f\u0435\u043d \u043d\u0430 
+\u044e\u0442\u0443\u0431\u0435-\u0448\u043e\u043f\u0435\u043d]
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestPlayYoutubeMusicPatterns::test_uk_play_music_with_keyword[\
+u043f\u043e\u0441\u0442\u0430\u0432 \u043c\u0443\u0437\u0438\u043a\u0443 
+\u0434\u0436\u0430\u0437-\u0434\u0436\u0430\u0437]
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestPlayYoutubeMusicPatterns::test_uk_play_music_with_keyword[\
+u0443\u0432\u0456\u043c\u043a\u043d\u0438 \u043c\u0443\u0437\u0438\u043a\u0443 \u0440\u043e\u043a-\u0440\u043e\u043a]
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestPlayYoutubeMusicPatterns::test_uk_play_music_with_keyword[\
+u0437\u0430\u043f\u0443\u0441\u0442\u0438 \u043f\u0456\u0441\u043d\u044e imagine-imagine]
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestPlayYoutubeMusicPatterns::test_uk_play_music_with_keyword[\
+u0443\u0432\u0456\u043c\u043a\u043d\u0438 \u0442\u0440\u0435\u043a believer-believer]
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestPlayYoutubeMusicPatterns::test_uk_play_music_with_keyword[\
+u043f\u043e\u0441\u0442\u0430\u0432 \u043c\u0443\u0437\u0438\u043a\u0443 \u0448\u043e\u043f\u0435\u043d \u043d\u0430 
+\u044e\u0442\u0443\u0431\u0456-\u0448\u043e\u043f\u0435\u043d]
+FAILED 
+tests/tools/test_multilingual_voice_patterns.py::TestPlayYoutubeMusicPatterns::test_uk_no_match_without_music_keyword
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestSystemStatsPatterns::test_en_system_stats[show system 
+stats]
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestSystemStatsPatterns::test_en_system_stats[show system info]
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestSystemStatsPatterns::test_ru_system_stats[\u043f\u043e\u043
+a\u0430\u0436\u0438 \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0443 
+\u0441\u0438\u0441\u0442\u0435\u043c\u044b]
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestSystemStatsPatterns::test_uk_system_stats[\u043f\u043e\u043
+a\u0430\u0436\u0438 \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0443 
+\u0441\u0438\u0441\u0442\u0435\u043c\u0438]
+FAILED tests/tools/test_multilingual_voice_patterns.py::TestDisambiguationPriority::test_close_beats_open_app
+FAILED tests/tools/test_registry.py::test_setup_local_tools_registers_the_phase_4_set
+FAILED tests/tools/test_registry.py::test_the_confirmation_gated_local_tool_set_is_pinned
+FAILED tests/ui/test_capabilities.py::test_every_tool_is_documented_by_some_capability
+FAILED tests/ui/test_capabilities.py::test_every_voice_reachable_tool_is_documented
+FAILED tests/ui/test_research_panel.py::test_show_for_query_creates_worker - ...
+FAILED tests/ui/test_research_panel.py::test_history_query_reruns_search - As...
+FAILED tests/ui/test_research_panel.py::test_chip_click_starts_new_research
+FAILED tests/ui/test_settings.py::test_tools_tab_populates_checkboxes_for_phase_4_set
+
+

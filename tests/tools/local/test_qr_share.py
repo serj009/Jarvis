@@ -116,23 +116,20 @@ class TestQrGeneration:
         mock_resp.content = b"PNG_DATA"
         mock_resp.raise_for_status = MagicMock()
 
-        with patch.dict("sys.modules", {"qrcode": None}):
-            with patch("jarvis.tools.local.qr_share.httpx") as mock_httpx:
-                # Force ImportError for qrcode
-                import builtins
-                real_import = builtins.__import__
+        mock_httpx = MagicMock()
+        mock_httpx.get.return_value = mock_resp
+        mock_httpx.URL.return_value = "https://test.com"
 
-                def selective_import(name, *args, **kwargs):
-                    if name == "qrcode":
-                        raise ImportError("no qrcode")
-                    return real_import(name, *args, **kwargs)
+        # Make qrcode unavailable; inject mock httpx so the fallback
+        # path inside _generate_qr_image picks it up via ``import httpx``.
+        with patch.dict(
+            "sys.modules", {"qrcode": None, "httpx": mock_httpx},
+        ):
+            err = _generate_qr_image("https://test.com", out)
 
-                mock_httpx.get.return_value = mock_resp
-                mock_httpx.URL.return_value = "https://test.com"
-                with patch("builtins.__import__", side_effect=selective_import):
-                    err = _generate_qr_image("https://test.com", out)
-                    # Either succeeds via httpx mock or returns None
-                    # (depends on import patching depth)
+        # Either None (success via httpx) or an error string.
+        if err is None:
+            assert out.read_bytes() == b"PNG_DATA"
 
 
 # ---------------------------------------------------------------------------

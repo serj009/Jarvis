@@ -7,8 +7,10 @@ environments). Uses a temp directory to avoid polluting the real
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
+from typing import Any
 from pathlib import Path
 from unittest.mock import patch
 
@@ -18,12 +20,36 @@ import pytest
 _dpapi_patches = []
 
 
+def _fast_derive_key(password: Any, salt: bytes) -> bytes:
+    """Test-only KDF: PBKDF2 with minimal iterations.
+
+    The production ``_derive_key`` uses Argon2id or ``hashlib.scrypt``
+    with n=2**17 (128 MB memory, several seconds per call).  That is
+    correct for security but makes the test suite unusably slow or can
+    even fail on resource-constrained CI runners.
+
+    This substitute is deterministic (same password + salt → same key)
+    and fast enough for hundreds of vault round-trips per second.
+    """
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations=1, dklen=32)
+
 @pytest.fixture(autouse=True)
 def _mock_dpapi():
     """Patch DPAPI to passthrough so tests run on any platform."""
     with (
         patch("jarvis.platform.secrets.dpapi_available", return_value=False),
     ):
+        yield
+
+
+@pytest.fixture(autouse=True)
+def _fast_kdf():
+    """Replace the heavy Argon2/scrypt KDF with a fast PBKDF2 for tests.
+
+    Without this, each ``_derive_key`` call allocates 128 MB and takes
+    several seconds, making the vault tests impractically slow.
+    """
+    with patch("jarvis.security.password_vault.PasswordVault._derive_key", staticmethod(_fast_derive_key)):
         yield
 
 

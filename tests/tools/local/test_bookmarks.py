@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from jarvis.platform.encrypted_store import EncryptedJsonStore
 from jarvis.tools.local.bookmarks import (
     BookmarksTool,
     BookmarksArgs,
@@ -116,6 +117,9 @@ def _temp_bookmarks(tmp_path, monkeypatch):
     bm_file = tmp_path / "data" / "bookmarks.json"
     monkeypatch.setattr("jarvis.tools.local.bookmarks._BOOKMARKS_DIR", tmp_path / "data")
     monkeypatch.setattr("jarvis.tools.local.bookmarks._BOOKMARKS_FILE", bm_file)
+    monkeypatch.setattr(
+        "jarvis.tools.local.bookmarks._BOOKMARKS_STORE", EncryptedJsonStore(bm_file),
+    )
     # Mock browser
     mock_bc = MagicMock()
     mock_bc.driver_active = False
