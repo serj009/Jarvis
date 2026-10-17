@@ -195,6 +195,8 @@ def _local_tool_classes() -> tuple[type, ...]:
         SaveCredentialTool, ListSavedSitesTool, RemoveCredentialTool,
         UnlockVaultTool, LockVaultTool, ChangeVaultPasswordTool,
     )
+    # Phase 10: Image generation
+    from jarvis.tools.local.image_gen_tool import ImageGenTool
 
     return (
         BookmarksTool,
@@ -330,6 +332,8 @@ def _local_tool_classes() -> tuple[type, ...]:
         UnlockVaultTool,
         LockVaultTool,
         ChangeVaultPasswordTool,
+        # Phase 10: Image generation
+        ImageGenTool,
     )
 
 

@@ -66,6 +66,7 @@ TOOL_DISPLAY_NAMES: dict[str, str] = {
     "launch_workspace": "\U0001f4bc Launch Workspace",
     "git_tool": "\U0001f500 Git Version Control",
     "file_manager": "\U0001f4c1 File Manager",
+    "generate_image": "\U0001f3a8 Generate Image",
     "list_directory": "\U0001f4c2 List Directory",
     "lock_screen": "\U0001f512 Lock Screen",
     "open_app": "\U0001f4e6 Open App",

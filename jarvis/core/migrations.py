@@ -724,6 +724,62 @@ def _migrate_v32_to_v33(data: dict) -> dict:
     data["schema_version"] = 33
     return data
 
+
+def _migrate_v33_to_v34(data: dict) -> dict:
+    """Schema v34: Image Generation — multi-provider abstraction.
+
+    Adds the ``image_gen`` section with all defaults.  The ``provider``
+    defaults to ``"disabled"`` so the feature is inert until the user
+    explicitly configures a provider in Settings → Image Gen.  The
+    ``api_key`` field is covered by ``_SECRET_FIELD_PATHS`` and encrypted
+    at rest like the other API keys.
+
+    Local providers (ComfyUI, A1111) have ``nsfw_filter`` OFF by default
+    — the user controls what models they install, so no content filtering
+    from our side unless they opt in.
+    """
+    if "image_gen" not in data:
+        data["image_gen"] = {
+            "provider": "disabled",
+            "local_endpoint": "http://127.0.0.1:8188",
+            "local_model": "",
+            "nsfw_filter": False,
+            "api_key": "",
+            "api_model": "",
+            "width": 1024,
+            "height": 1024,
+            "steps": 20,
+            "cfg_scale": 7.0,
+            "save_directory": "",
+            "auto_vram_swap": True,
+        }
+    data["schema_version"] = 34
+    return data
+
+def _migrate_v34_to_v35(data: dict) -> dict:
+    """Schema v35: Image Model Isolation — separate model for image prompts.
+
+    Adds ``image_model_provider``, ``image_model_name``,
+    ``image_model_api_key``, and ``image_model_api_base_url`` to the
+    ``image_gen`` section.  When ``image_model_provider`` is anything other
+    than ``"main"``, image prompt engineering is handled by a dedicated
+    model and the main LLM never sees the prompt (full isolation).
+
+    Default ``"main"`` preserves current behaviour: the main LLM handles
+    prompt enhancement (when enhance_mode="llm"), so this is purely
+    additive with no breaking change.
+
+    ``image_model_api_key`` is covered by ``_SECRET_FIELD_PATHS`` and
+    encrypted at rest.
+    """
+    ig = data.setdefault("image_gen", {})
+    ig.setdefault("image_model_provider", "main")
+    ig.setdefault("image_model_name", "")
+    ig.setdefault("image_model_api_key", "")
+    ig.setdefault("image_model_api_base_url", "")
+    data["schema_version"] = 35
+    return data
+
 MIGRATIONS: dict[int, Migration] = {
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
@@ -757,6 +813,8 @@ MIGRATIONS: dict[int, Migration] = {
     30: _migrate_v30_to_v31,
     31: _migrate_v31_to_v32,
     32: _migrate_v32_to_v33,
+    33: _migrate_v33_to_v34,
+    34: _migrate_v34_to_v35,
 }
 
 

@@ -297,6 +297,8 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     "read_screen_text": RiskLevel.READ,
     # -- Repeat last (conversational) --------------------------------------
     "repeat_last": RiskLevel.READ,
+    # -- Image generation (Phase 10) ----------------------------------------
+    "generate_image": RiskLevel.WRITE,
 }
 
 

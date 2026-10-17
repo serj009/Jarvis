@@ -71,6 +71,21 @@ def _make_ollama_client(model: str = "qwen3:8b") -> MagicMock:
     return client
 
 
+def _make_image_gen_config(**overrides: Any) -> Any:
+    """Build a mock ImageGenConfig with the given overrides."""
+    defaults = {
+        "image_model_provider": "main",
+        "image_model_name": "",
+        "image_model_api_key": "",
+        "image_model_api_base_url": "",
+    }
+    defaults.update(overrides)
+    cfg = MagicMock()
+    for k, v in defaults.items():
+        setattr(cfg, k, v)
+    return cfg
+
+
 SAMPLE_MESSAGES = [
     ChatMessage(role="system", content="You are a coder."),
     ChatMessage(role="user", content="Write a hello world in Python."),
@@ -451,6 +466,73 @@ class TestGroqProvider:
             model="llama-3.3-70b-versatile", api_key="gsk-test",
         )
         assert "llama-3.3-70b-versatile" in provider.display_name()
+
+
+# ---------------------------------------------------------------------------
+# from_image_config factory
+# ---------------------------------------------------------------------------
+
+
+class TestFromImageConfig:
+    """ModelProvider.from_image_config() for image model isolation."""
+
+    def test_provider_main_returns_ollama(self) -> None:
+        cfg = _make_image_gen_config(image_model_provider="main")
+        client = _make_ollama_client()
+        provider = ModelProvider.from_image_config(cfg, client)
+        assert isinstance(provider, OllamaProvider)
+
+    def test_provider_main_without_client_raises(self) -> None:
+        cfg = _make_image_gen_config(image_model_provider="main")
+        with pytest.raises(ProviderError, match="OllamaClient"):
+            ModelProvider.from_image_config(cfg, None)
+
+    def test_provider_ollama_returns_ollama_with_model(self) -> None:
+        cfg = _make_image_gen_config(
+            image_model_provider="ollama",
+            image_model_name="dolphin-mistral:7b",
+        )
+        client = _make_ollama_client()
+        provider = ModelProvider.from_image_config(cfg, client)
+        assert isinstance(provider, OllamaProvider)
+        assert "dolphin-mistral:7b" in provider.display_name()
+
+    def test_provider_ollama_without_client_raises(self) -> None:
+        cfg = _make_image_gen_config(image_model_provider="ollama")
+        with pytest.raises(ProviderError, match="OllamaClient"):
+            ModelProvider.from_image_config(cfg, None)
+
+    def test_provider_openai(self) -> None:
+        cfg = _make_image_gen_config(
+            image_model_provider="openai",
+            image_model_name="gpt-4o",
+            image_model_api_key="sk-test",
+        )
+        provider = ModelProvider.from_image_config(cfg)
+        assert isinstance(provider, OpenAIProvider)
+
+    def test_provider_anthropic(self) -> None:
+        cfg = _make_image_gen_config(
+            image_model_provider="anthropic",
+            image_model_name="claude-3-5-sonnet-20241022",
+            image_model_api_key="ant-test",
+        )
+        provider = ModelProvider.from_image_config(cfg)
+        assert isinstance(provider, AnthropicProvider)
+
+    def test_provider_groq(self) -> None:
+        cfg = _make_image_gen_config(
+            image_model_provider="groq",
+            image_model_name="llama-3.3-70b-versatile",
+            image_model_api_key="gsk-test",
+        )
+        provider = ModelProvider.from_image_config(cfg)
+        assert isinstance(provider, GroqProvider)
+
+    def test_unknown_provider_raises(self) -> None:
+        cfg = _make_image_gen_config(image_model_provider="unknown_llm")
+        with pytest.raises(ValueError, match="Unknown image_model_provider"):
+            ModelProvider.from_image_config(cfg)
 
 
 # ---------------------------------------------------------------------------
