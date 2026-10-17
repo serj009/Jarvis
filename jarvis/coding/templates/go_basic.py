@@ -1,0 +1,138 @@
+"""Template: Go Basic Project."""
+
+TEMPLATE: dict = {
+    "name": "go_basic",
+    "language": "go",
+    "display_name": "Go Basic Project",
+    "description": "Simple Go project with standard library testing",
+    "keywords": [
+        "go", "golang", "го",
+    ],
+    "files": {
+        "main.go": (
+            "package main\n"
+            "\n"
+            "import (\n"
+            "\t\"fmt\"\n"
+            "\t\"os\"\n"
+            ")\n"
+            "\n"
+            "func main() {\n"
+            "\tname := \"World\"\n"
+            "\tif len(os.Args) > 1 {\n"
+            "\t\tname = os.Args[1]\n"
+            "\t}\n"
+            "\tfmt.Println(Greet(name))\n"
+            "\tfmt.Printf(\"2 + 3 = %d\\n\", Add(2, 3))\n"
+            "}\n"
+        ),
+        "utils.go": (
+            "package main\n"
+            "\n"
+            "import (\n"
+            "\t\"fmt\"\n"
+            "\t\"strings\"\n"
+            ")\n"
+            "\n"
+            "// Greet returns a greeting message for the given name.\n"
+            "func Greet(name string) string {\n"
+            "\tname = strings.TrimSpace(name)\n"
+            "\tif name == \"\" {\n"
+            "\t\treturn \"Hello, World!\"\n"
+            "\t}\n"
+            "\treturn fmt.Sprintf(\"Hello, %s!\", name)\n"
+            "}\n"
+            "\n"
+            "// Add returns the sum of two integers.\n"
+            "func Add(a, b int) int {\n"
+            "\treturn a + b\n"
+            "}\n"
+        ),
+        "go.mod": (
+            "module {project_name}\n"
+            "\n"
+            "go 1.21\n"
+        ),
+        "test_utils_test.go": (
+            "package main\n"
+            "\n"
+            "import \"testing\"\n"
+            "\n"
+            "func TestGreet(t *testing.T) {\n"
+            "\ttests := []struct {\n"
+            "\t\tname string\n"
+            "\t\twant string\n"
+            "\t}{\n"
+            "\t\t{\"Alice\", \"Hello, Alice!\"},\n"
+            "\t\t{\"\", \"Hello, World!\"},\n"
+            "\t\t{\"  Bob  \", \"Hello, Bob!\"},\n"
+            "\t}\n"
+            "\tfor _, tt := range tests {\n"
+            "\t\tgot := Greet(tt.name)\n"
+            "\t\tif got != tt.want {\n"
+            "\t\t\tt.Errorf(\"Greet(%q) = %q, want %q\", tt.name, got, tt.want)\n"
+            "\t\t}\n"
+            "\t}\n"
+            "}\n"
+            "\n"
+            "func TestAdd(t *testing.T) {\n"
+            "\tif got := Add(2, 3); got != 5 {\n"
+            "\t\tt.Errorf(\"Add(2, 3) = %d, want 5\", got)\n"
+            "\t}\n"
+            "\tif got := Add(-1, 1); got != 0 {\n"
+            "\t\tt.Errorf(\"Add(-1, 1) = %d, want 0\", got)\n"
+            "\t}\n"
+            "}\n"
+        ),
+        "README.md": (
+            "# {project_name}\n"
+            "\n"
+            "A simple Go project.\n"
+            "\n"
+            "## Prerequisites\n"
+            "\n"
+            "- [Go 1.21+](https://go.dev/dl/)\n"
+            "\n"
+            "## Run\n"
+            "\n"
+            "```bash\n"
+            "go run .\n"
+            "```\n"
+            "\n"
+            "## Test\n"
+            "\n"
+            "```bash\n"
+            "go test ./...\n"
+            "```\n"
+            "\n"
+            "## Build\n"
+            "\n"
+            "```bash\n"
+            "go build -o {project_name}\n"
+            "```\n"
+        ),
+        ".gitignore": (
+            "# Binaries\n"
+            "*.exe\n"
+            "*.exe~\n"
+            "*.dll\n"
+            "*.so\n"
+            "*.dylib\n"
+            "# Build output\n"
+            "/bin/\n"
+            "/dist/\n"
+            "# Test\n"
+            "*.test\n"
+            "*.out\n"
+            "coverage.txt\n"
+            "# IDE\n"
+            ".idea/\n"
+            ".vscode/\n"
+            "*.swp\n"
+            ".DS_Store\n"
+            "Thumbs.db\n"
+        ),
+    },
+    "post_create_commands": ["go mod tidy"],
+    "test_command": "go test ./...",
+}
