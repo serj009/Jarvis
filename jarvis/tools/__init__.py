@@ -68,6 +68,7 @@ def setup_local_tools(
     from jarvis.tools.local.clipboard import ClipboardTool
     from jarvis.core.config import SandboxConfig
     from jarvis.tools.local.close_app import CloseAppTool
+    from jarvis.tools.local.dictation import DictationTool
     from jarvis.tools.local.calculator import CalculatorTool
     from jarvis.tools.local.converter import ConverterTool
     from jarvis.tools.local.file_manager import FileManagerTool
@@ -82,6 +83,7 @@ def setup_local_tools(
     from jarvis.tools.local.open_url import OpenUrlTool
     from jarvis.tools.local.play_youtube_music import PlayYoutubeMusicTool
     from jarvis.tools.local.repeat_last import RepeatLastTool
+    from jarvis.tools.local.read_screen_text import ReadScreenTextTool
     from jarvis.tools.local.screenshot import ScreenshotTool
     from jarvis.tools.local.browser_tabs import BrowserTabsTool
     from jarvis.tools.local.content_reader import ContentReaderTool
@@ -167,6 +169,8 @@ def setup_local_tools(
         SaveCredentialTool, ListSavedSitesTool, RemoveCredentialTool,
         UnlockVaultTool, LockVaultTool, ChangeVaultPasswordTool,
     )
+    # Image generation
+    from jarvis.tools.local.image_gen_tool import ImageGenTool
 
     weather_cfg = getattr(config, "weather", None)
     if weather_cfg is None:
@@ -212,6 +216,11 @@ def setup_local_tools(
         from jarvis.core.config import VisionConfig
         vision_cfg = VisionConfig()
 
+    from jarvis.core.config import ImageGenConfig
+    image_gen_cfg = getattr(config, "image_gen", None) if config is not None else None
+    if image_gen_cfg is None:
+        image_gen_cfg = ImageGenConfig()
+
     # Timer store: when on_timer_done is provided, all timer tools share a
     # single TimerStore that fires the callback on expiry.  Otherwise the
     # tools fall back to the module-level lazy singleton (no notification).
@@ -222,6 +231,7 @@ def setup_local_tools(
     base_tools: list[Tool[Any]] = [
         ClipboardTool(),
         CalculatorTool(),
+        DictationTool(),
         ConverterTool(),
         BrowserTabsTool(),
         ContentReaderTool(),
@@ -240,6 +250,7 @@ def setup_local_tools(
         PlayYoutubeMusicTool(),
         ScreenshotTool(),
         SystemStatsTool(vram_manager=vram_manager),
+        ReadScreenTextTool(),
         RepeatLastTool(),
         TypeIntoActiveWindowTool(),
         SwitchLanguageTool(stt=stt, tts_manager=tts_manager),
@@ -320,6 +331,11 @@ def setup_local_tools(
         UnlockVaultTool(),
         LockVaultTool(),
         ChangeVaultPasswordTool(),
+        # Image generation
+        ImageGenTool(
+            image_gen_config=image_gen_cfg,
+            ollama_client=ollama_client,
+        ),
     ]
     # SeeScreenTool needs an OllamaClient to call /api/chat with images.
     # Tests that pass None happily register every text-only tool but skip
@@ -377,8 +393,8 @@ def setup_local_tools(
         from jarvis.tools.local.youtube_summary import YoutubeSummaryTool as _YSTool
         registry.register(_YSTool(ollama_client=ollama_client))
     else:
-        # Register without LLM — tool will fail-fast with a clear error.
-        pass
+        from jarvis.tools.local.youtube_summary import YoutubeSummaryTool as _YSTool
+        registry.register(_YSTool())
 
 
 __all__ = [
