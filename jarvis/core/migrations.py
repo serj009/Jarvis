@@ -673,6 +673,30 @@ def _migrate_v30_to_v31(data: dict) -> dict:
     return data
 
 
+def _migrate_v31_to_v32(data: dict) -> dict:
+    """Schema v32: Coding Agent — universal LLM provider for code generation.
+
+    Adds the ``coding`` section with sensible defaults.  The ``provider``
+    defaults to ``"main"`` (reuse the main Ollama model) so the feature
+    is inert until the user explicitly configures a coding model in
+    Settings → Coding.  The ``api_key`` field is covered by
+    ``_SECRET_FIELD_PATHS`` and encrypted at rest like the research keys.
+    """
+    if "coding" not in data:
+        data["coding"] = {
+            "provider": "main",
+            "ollama_model": "qwen2.5-coder:7b",
+            "api_model": "",
+            "api_key": "",
+            "api_base_url": "",
+            "max_iterations": 10,
+            "auto_commit": False,
+            "default_workspace": "",
+        }
+    data["schema_version"] = 32
+    return data
+
+
 MIGRATIONS: dict[int, Migration] = {
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
@@ -704,6 +728,7 @@ MIGRATIONS: dict[int, Migration] = {
     28: _migrate_v28_to_v29,
     29: _migrate_v29_to_v30,
     30: _migrate_v30_to_v31,
+    31: _migrate_v31_to_v32,
 }
 
 
