@@ -584,6 +584,10 @@ class CodingConfig(_Base):
     auto_commit: bool = False
     default_workspace: str = ""
 
+    # Preferred language: "" = auto-detect, or one of:
+    # python, javascript, typescript, csharp, java, go, rust, cpp
+    preferred_language: str = ""
+
 
 class JarvisConfig(_Base):
     schema_version: int = CURRENT_SCHEMA_VERSION

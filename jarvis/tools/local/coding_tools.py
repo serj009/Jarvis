@@ -151,14 +151,19 @@ class CodingAgentTool:
         coding_config: Any | None = None,
         provider: Any | None = None,
         workspace: str | Path | None = None,
+        speak_fn: Any | None = None,
+        listen_fn: Any | None = None,
     ) -> None:
         self._coding_config = coding_config
         self._provider = provider
         self._workspace = Path(workspace) if workspace else None
+        self._speak_fn = speak_fn
+        self._listen_fn = listen_fn
 
     async def execute(self, args: CodingAgentArgs) -> ToolResult:
         """Build a CodingAgent and run the task, collecting all progress."""
         from jarvis.coding.agent import CodingAgent
+        from jarvis.coding.voice_confirm import VoiceConfirm
 
         config = self._coding_config
         if config is None:
@@ -183,10 +188,19 @@ class CodingAgentTool:
             else:
                 workspace = Path.cwd()
 
+        # Build VoiceConfirm if TTS/STT callbacks are available.
+        confirm: VoiceConfirm | None = None
+        if self._speak_fn is not None and self._listen_fn is not None:
+            confirm = VoiceConfirm(
+                speak_fn=self._speak_fn,
+                listen_fn=self._listen_fn,
+            )
+
         agent = CodingAgent(
             provider=provider,
             workspace=workspace,
             config=config,
+            confirm=confirm,
         )
 
         messages: list[str] = []

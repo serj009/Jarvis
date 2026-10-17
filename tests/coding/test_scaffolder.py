@@ -229,7 +229,10 @@ class TestAllTemplatesHaveTestFile:
         for tpl in TEMPLATES:
             test_files = [
                 f for f in tpl["files"]
-                if "test_" in f or f.endswith("_test.py")
+                if "test_" in f
+                or "_test." in f
+                or ".test." in f
+                or ".spec." in f
             ]
             assert len(test_files) > 0, (
                 f"Template '{tpl['name']}' has no test files"
@@ -257,26 +260,63 @@ class TestAllTemplatesHaveReadme:
 
 
 class TestAllTemplatesHaveRequirements:
-    """Every template must include requirements.txt."""
+    """Every template must include a dependency / package file."""
 
     def test_all_templates_have_requirements(self):
         for tpl in TEMPLATES:
-            assert "requirements.txt" in tpl["files"], (
-                f"Template '{tpl['name']}' missing requirements.txt"
-            )
+            lang = tpl.get("language", "python")
+            if lang == "python":
+                assert "requirements.txt" in tpl["files"], (
+                    f"Template '{tpl['name']}' missing requirements.txt"
+                )
+            elif lang in ("javascript", "typescript"):
+                assert "package.json" in tpl["files"], (
+                    f"Template '{tpl['name']}' missing package.json"
+                )
+            elif lang == "go":
+                assert "go.mod" in tpl["files"], (
+                    f"Template '{tpl['name']}' missing go.mod"
+                )
+            elif lang == "rust":
+                assert "Cargo.toml" in tpl["files"], (
+                    f"Template '{tpl['name']}' missing Cargo.toml"
+                )
+            elif lang == "csharp":
+                has_csproj = any(f.endswith(".csproj") for f in tpl["files"])
+                assert has_csproj, (
+                    f"Template '{tpl['name']}' missing .csproj file"
+                )
 
 
 class TestAllTemplatesHaveProjectConfig:
-    """Every template must include pyproject.toml or setup.py."""
+    """Every template must include a project configuration file."""
 
     def test_all_templates_have_project_config(self):
         for tpl in TEMPLATES:
-            has_toml = "pyproject.toml" in tpl["files"]
-            has_setup = "setup.py" in tpl["files"]
-            assert has_toml or has_setup, (
-                f"Template '{tpl['name']}' missing pyproject.toml "
-                f"and setup.py"
-            )
+            lang = tpl.get("language", "python")
+            if lang == "python":
+                has_toml = "pyproject.toml" in tpl["files"]
+                has_setup = "setup.py" in tpl["files"]
+                assert has_toml or has_setup, (
+                    f"Template '{tpl['name']}' missing pyproject.toml and setup.py"
+                )
+            elif lang in ("javascript", "typescript"):
+                assert "package.json" in tpl["files"], (
+                    f"Template '{tpl['name']}' missing package.json"
+                )
+            elif lang == "rust":
+                assert "Cargo.toml" in tpl["files"], (
+                    f"Template '{tpl['name']}' missing Cargo.toml"
+                )
+            elif lang == "go":
+                assert "go.mod" in tpl["files"], (
+                    f"Template '{tpl['name']}' missing go.mod"
+                )
+            elif lang == "csharp":
+                has_csproj = any(f.endswith(".csproj") for f in tpl["files"])
+                assert has_csproj, (
+                    f"Template '{tpl['name']}' missing .csproj file"
+                )
 
 
 # ── list_templates / get_template ───────────────────────────────────
