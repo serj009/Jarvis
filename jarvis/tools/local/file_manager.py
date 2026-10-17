@@ -190,7 +190,12 @@ class FileManagerTool:
             args=lambda m: {"action": "find", "path": m.group(1)},
         ),
         VoicePattern(
-            regex=r"^(?:search\s+(?:for\s+)?|look\s+for\s+)files?\s+(.+)$",
+            regex=r"^(?:search\s+for\s+|look\s+for\s+)files?\s+(.+)$",
+            priority=300,
+            args=lambda m: {"action": "find", "path": m.group(1)},
+        ),
+        VoicePattern(
+            regex=r"^(?:search\s+for\s+|look\s+for\s+)(.+\.\w{1,5})$",
             priority=300,
             args=lambda m: {"action": "find", "path": m.group(1)},
         ),
