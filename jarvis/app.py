@@ -166,6 +166,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 
 from jarvis.audio.aec import BargeInManager
 from jarvis.audio.pipeline import AudioPipeline
+from jarvis.audio.sound_effects import SoundEffects
 
 
 from jarvis.audio.stt import FasterWhisperSTT
@@ -224,6 +225,7 @@ from jarvis.core.vram_manager import VRAMManager
 
 from jarvis.memory.store import MemoryStore
 from jarvis.memory.relations import RelationStore
+from jarvis.memory.scheduled_reminders import ReminderScheduler, ReminderStore
 from jarvis.memory.embeddings import EmbeddingIndex
 from jarvis.memory.tool_examples import ToolExampleStore
 from jarvis.memory.personal_aliases import PersonalAliasStore
@@ -254,6 +256,8 @@ from jarvis.core.events import (
 
     ModeChanged,
 
+
+    ProactiveSpeech,
 
     TranscriptionReady,
 
@@ -1400,6 +1404,8 @@ async def _audio_main(
     memory_store: MemoryStore,
     conversation_memory: ConversationMemory,
     game_mode: GameMode | None = None,
+    reminder_store: ReminderStore | None = None,
+    reminder_scheduler: ReminderScheduler | None = None,
 
 ) -> None:
 
@@ -1626,6 +1632,17 @@ async def _audio_main(
     if game_mode is not None:
         game_mode.start_monitoring()
 
+    # Start scheduled-reminder subsystem (persistent, survives restart).
+    _reminder_task: asyncio.Task | None = None
+    if reminder_store is not None:
+        try:
+            reminder_store.open()
+            log.info("reminder store ready: %s", reminder_store.db_path)
+        except Exception:
+            log.warning("reminder store open failed (non-fatal)", exc_info=True)
+    if reminder_scheduler is not None:
+        _reminder_task = asyncio.create_task(reminder_scheduler.run())
+        log.info("reminder scheduler started")
 
     log.info('ready — say "hey jarvis".')
 
@@ -1655,6 +1672,17 @@ async def _audio_main(
     # Stop game mode monitoring before pipeline teardown
     if game_mode is not None:
         game_mode.stop_monitoring()
+    # Stop reminder scheduler and close store before pipeline teardown.
+    if reminder_scheduler is not None:
+        reminder_scheduler.stop()
+    if _reminder_task is not None and not _reminder_task.done():
+        _reminder_task.cancel()
+        try:
+            await _reminder_task
+        except asyncio.CancelledError:
+            pass
+    if reminder_store is not None:
+        reminder_store.close()
 
 
 
@@ -2178,6 +2206,12 @@ class JarvisApp:
 
 
         self._build_ui()
+
+        # ------------------------------------------------------------------
+        # 15. First-run voice greeting (after UI + audio are fully ready)
+        # ------------------------------------------------------------------
+        self._maybe_first_run_greeting()
+
 
 
 
@@ -2734,6 +2768,28 @@ class JarvisApp:
         self.conversation.set_memory_store(self.memory_store)
 
 
+        # ------------------------------------------------------------------
+        # 5e. Proactive speech helper + Reminder / Timer stores
+        # ------------------------------------------------------------------
+        # _speak_proactive publishes a ProactiveSpeech event on the bus;
+        # the AudioPipeline subscribes and speaks the text (IDLE → SPEAKING
+        # → IDLE). Safe from any thread — EventBus.publish handles cross-
+        # thread dispatch.
+        def _speak_proactive(text: str) -> None:
+            self.bus.publish(ProactiveSpeech(text=text))
+
+        self._on_timer_done = lambda name: _speak_proactive(
+            f"Timer '{name}' is done, sir!"
+        )
+
+        self.reminder_store = ReminderStore()
+        self.reminder_scheduler = ReminderScheduler(
+            self.reminder_store,
+            on_fire=lambda r: _speak_proactive(
+                f"Reminder, sir: {r.text}"
+            ),
+        )
+
         self.registry = ToolRegistry(self.cfg.tools)
 
 
@@ -2750,6 +2806,8 @@ class JarvisApp:
 
             stt=self.stt, tts_manager=self.tts_manager,
             personal_aliases=self.personal_aliases,
+            on_timer_done=self._on_timer_done,
+            reminder_store=self.reminder_store,
 
 
         )
@@ -2869,6 +2927,14 @@ class JarvisApp:
             mode=self.cfg.pipeline.barge_in_mode,
         )
 
+        # ------------------------------------------------------------------
+        # 5e. Sound effects (auditory feedback)
+        # ------------------------------------------------------------------
+        self.sound_effects = SoundEffects(
+            enabled=self.cfg.general.sound_effects_enabled,
+            volume=self.cfg.general.sound_effects_volume,
+        )
+
 
 
 
@@ -2932,6 +2998,7 @@ class JarvisApp:
 
             tts_manager=self.tts_manager,
             barge_in_manager=self.barge_in_manager,
+            sound_effects=self.sound_effects,
         )
 
 
@@ -3297,6 +3364,8 @@ class JarvisApp:
 
                 conversation_memory=self.conversation_memory,
                 game_mode=self.game_mode,
+                reminder_store=self.reminder_store,
+                reminder_scheduler=self.reminder_scheduler,
 
             )
 
@@ -4628,6 +4697,56 @@ class JarvisApp:
 
             QTimer.singleShot(800, self.onboarding_panel.open_panel)
 
+
+    # ------------------------------------------------------------------
+    # First-run voice greeting
+    # ------------------------------------------------------------------
+
+    def _maybe_first_run_greeting(self) -> None:
+        """Speak a one-time voice greeting on the very first launch.
+
+        The sentinel file ``data/.first_run_done`` lives next to the
+        config (``%APPDATA%/Jarvis/data/`` on Windows,
+        ``~/.jarvis/data/`` elsewhere).  If the file does not exist
+        the greeting is dispatched to the audio loop via TTS and the
+        file is created so subsequent launches skip this path.
+
+        Language: ``stt.language`` when fixed (``"ru"``/``"uk"``/``"en"``),
+        otherwise ``"ru"`` (default audience).
+        """
+        from jarvis.core.config import default_config_path
+        from jarvis.core.phrases import Lang, say
+
+        data_dir = default_config_path().parent / "data"
+        sentinel = data_dir / ".first_run_done"
+
+        if sentinel.exists():
+            return
+
+        # Determine greeting language.
+        stt_lang = self.cfg.stt.language
+        if stt_lang in ("ru", "uk", "en"):
+            lang: Lang = stt_lang  # type: ignore[assignment]
+        else:
+            lang = "ru"
+
+        greeting = say("first_run_greeting", lang)
+        log.info("first-run greeting (%s): %s", lang, greeting)
+
+        # Dispatch TTS to the audio loop (non-blocking from Qt thread).
+        try:
+            asyncio.run_coroutine_threadsafe(
+                self.tts.speak(greeting), self.audio_loop,
+            )
+        except Exception:
+            log.warning("first-run greeting TTS failed", exc_info=True)
+
+        # Create sentinel so we never greet again.
+        try:
+            data_dir.mkdir(parents=True, exist_ok=True)
+            sentinel.write_text("done", encoding="utf-8")
+        except Exception:
+            log.warning("could not write sentinel %s", sentinel, exc_info=True)
 
 
 

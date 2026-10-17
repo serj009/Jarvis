@@ -184,6 +184,8 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     "power_control": RiskLevel.SYSTEM,
     # CLI runner — whitelisted read-only commands, but shell access = SYSTEM
     "run_command": RiskLevel.SYSTEM,
+    # Code runner — read_file is READ, run_script/run_tests execute code = WRITE
+    "code_runner": RiskLevel.WRITE,
     # Downloads — creates files, network I/O
     "download_file": RiskLevel.WRITE,
     # Package manager — install/uninstall are destructive
@@ -275,6 +277,10 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     # find/open/mkdir are WRITE; move/copy/rename are WRITE;
     # delete is DESTRUCTIVE (gated by the dispatch-level risk map below).
     "file_manager": RiskLevel.WRITE,
+    # -- Git tool ---------------------------------------------------------------
+    # status/diff/log are read-only; commit and push are WRITE (confirmation
+    # is handled per-action inside git_tool.py via _CONFIRM_ACTIONS).
+    "git_tool": RiskLevel.WRITE,
     # -- Calculator ---------------------------------------------------------
     "calculator": RiskLevel.READ,
     # -- Converter ----------------------------------------------------------
@@ -287,6 +293,8 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     # -- Vision tools (Phase 8) --------------------------------------------
     "watch_screen": RiskLevel.READ,
     "read_screen_text": RiskLevel.READ,
+    # -- Repeat last (conversational) --------------------------------------
+    "repeat_last": RiskLevel.READ,
 }
 
 

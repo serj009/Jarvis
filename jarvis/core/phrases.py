@@ -194,6 +194,15 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Языковая модель слишком долго отвечает, сэр. Попробую ещё раз.",
         "uk": "Мовна модель надто довго відповідає, сер. Спробую ще раз.",
     },
+    # First-run voice greeting — spoken once on very first launch.
+    "first_run_greeting": {
+        "en": "Hello, sir! I'm JARVIS, your voice assistant. "
+              "Say 'help' to see what I can do.",
+        "ru": "Привет, сэр! Я JARVIS, ваш голосовой ассистент. "
+              "Скажите 'помощь' чтобы узнать мои возможности.",
+        "uk": "Привіт, сер! Я JARVIS, ваш голосовий асистент. "
+              "Скажіть 'допомога' щоб дізнатись мої можливості.",
+    },
 }
 
 

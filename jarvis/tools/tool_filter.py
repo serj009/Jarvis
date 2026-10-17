@@ -323,6 +323,25 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
             "команд", "термінал", "пінг", "консоль",
         ],
     },
+    "git": {
+        "tools": [
+            "git_tool",
+        ],
+        "keywords_en": [
+            "git", "commit", "push", "pull", "branch", "checkout",
+            "diff", "repository", "repo",
+        ],
+        "keywords_ru": [
+            "гит", "коммит", "закоммит", "запуш", "пулл",
+            "ветк", "статус гит", "что изменилось",
+            "покажи коммиты",
+        ],
+        "keywords_uk": [
+            "гіт", "коміт", "закомміт", "запуш", "пул",
+            "гілк", "статус гіт", "що змінилось",
+            "покажи коміти",
+        ],
+    },
     "downloads": {
         "tools": [
             "download_file",
