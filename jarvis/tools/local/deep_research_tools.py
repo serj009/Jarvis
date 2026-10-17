@@ -41,6 +41,19 @@ class DeepResearchTool:
             priority=120,
             args=lambda m: {"query": m.group(1)},
         ),
+        # RU: "глубокое исследование X", "исследуй подробно X"
+        VoicePattern(
+            regex=r"^(?:глубокое\s+исследование(?:\s+на\s+тему)?|исследуй\s+подробно)"
+            r"\s+(.+)$",
+            priority=121,
+            args=lambda m: {"query": m.group(1)},
+        ),
+        # UK: "глибоке дослідження X", "дослідж детально X"
+        VoicePattern(
+            regex=r"^(?:глибоке\s+дослідження(?:\s+на\s+тему)?|дослідж\s+детально)\s+(.+)$",
+            priority=122,
+            args=lambda m: {"query": m.group(1)},
+        ),
     )
 
     def __init__(
@@ -101,6 +114,10 @@ class PauseDeepResearchTool:
     requires_confirmation: bool = False
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
         VoicePattern(regex=r"^pause\s+deep\s+research$", priority=130),
+        # RU: "пауза исследование", "поставь на паузу исследование"
+        VoicePattern(regex=r"^(?:пауза|поставь\s+на\s+паузу)\s+(?:глубокое\s+)?исследование$", priority=131),
+        # UK: "пауза дослідження", "постав на паузу дослідження"
+        VoicePattern(regex=r"^(?:пауза|постав\s+на\s+паузу)\s+(?:глибоке\s+)?дослідження$", priority=132),
     )
 
     def __init__(self, *, on_pause: Callable[[], None]) -> None:
@@ -125,6 +142,10 @@ class ResumeDeepResearchTool:
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
         VoicePattern(regex=r"^resume\s+deep\s+research$", priority=140),
         VoicePattern(regex=r"^continue\s+deep\s+research$", priority=150),
+        # RU: "продолжи исследование"
+        VoicePattern(regex=r"^продолжи\s+(?:глубокое\s+)?исследование$", priority=141),
+        # UK: "продовж дослідження"
+        VoicePattern(regex=r"^продовж\s+(?:глибоке\s+)?дослідження$", priority=142),
     )
 
     def __init__(
@@ -168,6 +189,10 @@ class CloseDeepResearchTool:
     requires_confirmation: bool = False
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
         VoicePattern(regex=r"^close\s+deep\s+research$", priority=160),
+        # RU: "закрой исследование", "закрой глубокое исследование"
+        VoicePattern(regex=r"^закрой\s+(?:глубокое\s+)?исследование$", priority=161),
+        # UK: "закрий дослідження", "закрий глибоке дослідження"
+        VoicePattern(regex=r"^закрий\s+(?:глибоке\s+)?дослідження$", priority=162),
     )
 
     def __init__(self, *, close_callback: Callable[[], None]) -> None:
@@ -207,9 +232,35 @@ class DeleteDeepResearchTool:
             priority=180,
             args=lambda m: {"query": m.group(1)},
         ),
+        # RU: "удали исследование на тему X"
+        VoicePattern(
+            regex=r"^удали\s+(?:глубокое\s+)?исследование"
+            r"(?:\s+(?:на\s+тему|про))?\s+(.+)$",
+            priority=181,
+            args=lambda m: {"query": m.group(1)},
+        ),
+        # UK: "видали дослідження на тему X"
+        VoicePattern(
+            regex=r"^видали\s+(?:глибоке\s+)?дослідження"
+            r"(?:\s+(?:на\s+тему|про))?\s+(.+)$",
+            priority=182,
+            args=lambda m: {"query": m.group(1)},
+        ),
         VoicePattern(
             regex=r"^(?:delete|remove)\s+(?:the\s+)?deep\s+research$",
             priority=190,
+            args=lambda m: {"query": ""},
+        ),
+        # RU: "удали исследование" (bare — deletes active)
+        VoicePattern(
+            regex=r"^удали\s+(?:глубокое\s+)?исследование$",
+            priority=191,
+            args=lambda m: {"query": ""},
+        ),
+        # UK: "видали дослідження" (bare — deletes active)
+        VoicePattern(
+            regex=r"^видали\s+(?:глибоке\s+)?дослідження$",
+            priority=192,
             args=lambda m: {"query": ""},
         ),
     )
@@ -265,6 +316,16 @@ class DeleteAllDeepResearchTool:
             regex=r"^(?:delete|remove|clear)\s+all\s+deep\s+research"
             r"(?:\s+(?:history|sessions))?$",
             priority=170,
+        ),
+        # RU: "удали все исследования"
+        VoicePattern(
+            regex=r"^удали\s+все\s+(?:глубокие\s+)?исследования(?:\s+(?:историю|сессии))?$",
+            priority=171,
+        ),
+        # UK: "видали всі дослідження"
+        VoicePattern(
+            regex=r"^видали\s+всі\s+(?:глибокі\s+)?дослідження(?:\s+(?:історію|сесії))?$",
+            priority=172,
         ),
     )
 

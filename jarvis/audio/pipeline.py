@@ -107,6 +107,9 @@ _FRAME_QUEUE_DEFAULT = 32
 BARGE_IN_ENABLED: bool = False
 
 
+# Time-of-day greeting: re-greet after this many seconds of silence.
+_GREETING_COOLDOWN_S: float = 3600.0  # 1 hour
+
 class AudioPipeline:
     def __init__(
         self,
@@ -197,6 +200,9 @@ class AudioPipeline:
         self._origin_tracker = OriginTracker()
         self._loop: asyncio.AbstractEventLoop | None = None
         self._started = False
+
+        # Time-of-day greeting: timestamp of the last greeting spoken.
+        self._last_greeting_time: float = 0.0
 
         # Unsubscribe handle for ProactiveSpeech bus subscription.
         self._unsub_proactive: Callable[[], None] | None = None
@@ -397,6 +403,25 @@ class AudioPipeline:
         # Auditory confirmation: short beep so the user knows Jarvis heard.
         if self._sound_effects is not None:
             self._sound_effects.play_wake()
+        # Time-of-day greeting: speak once on first wake or after a long gap.
+        now = time.monotonic()
+        if now - self._last_greeting_time >= _GREETING_COOLDOWN_S:
+            self._last_greeting_time = now
+            try:
+                from datetime import datetime
+                from jarvis.core.phrases import say
+                hour = datetime.now().hour
+                if 5 <= hour < 12:
+                    key = "good_morning"
+                elif 12 <= hour < 18:
+                    key = "good_afternoon"
+                else:
+                    key = "good_evening"
+                greeting = say(key)
+                await self._tts.speak(greeting)
+                log.info("[wake] time-of-day greeting: %s", key)
+            except Exception:
+                log.warning("[wake] greeting failed", exc_info=True)
         self._listen_buffer.clear()
         self._wake_word.reset()
         self._vad.reset()

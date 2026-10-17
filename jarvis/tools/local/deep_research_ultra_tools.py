@@ -30,6 +30,16 @@ class EnableDeepResearchUltraTool:
             r"|ultra\s+research)$",
             priority=90,
         ),
+        # RU: "включи ультра режим", "включи ультра исследование"
+        VoicePattern(
+            regex=r"^(?:включи|активируй)\s+ультра(?:\s+(?:режим|исследование|режим\s+исследования))?$",
+            priority=91,
+        ),
+        # UK: "увімкни ультра режим", "увімкни ультра дослідження"
+        VoicePattern(
+            regex=r"^(?:увімкни|активуй)\s+ультра(?:\s+(?:режим|дослідження|режим\s+дослідження))?$",
+            priority=92,
+        ),
     )
 
     def __init__(self, *, set_ultra: Callable[[bool], str]) -> None:
@@ -59,6 +69,16 @@ class DisableDeepResearchUltraTool:
         VoicePattern(
             regex=r"^(?:jarvis,?\s+)?(?:use\s+)?normal\s+deep\s+research$",
             priority=110,
+        ),
+        # RU: "выключи ультра", "обычное исследование"
+        VoicePattern(
+            regex=r"^(?:выключи|отключи)\s+ультра(?:\s+(?:режим|исследование))?$",
+            priority=101,
+        ),
+        # UK: "вимкни ультра", "звичайне дослідження"
+        VoicePattern(
+            regex=r"^(?:вимкни|відключи)\s+ультра(?:\s+(?:режим|дослідження))?$",
+            priority=102,
         ),
     )
 

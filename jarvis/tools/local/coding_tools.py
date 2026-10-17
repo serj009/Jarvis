@@ -150,15 +150,19 @@ class CodingAgentTool:
         *,
         coding_config: Any | None = None,
         provider: Any | None = None,
+        ollama_client: Any | None = None,
         workspace: str | Path | None = None,
         speak_fn: Any | None = None,
         listen_fn: Any | None = None,
+        coding_panel: Any | None = None,
     ) -> None:
         self._coding_config = coding_config
         self._provider = provider
+        self._ollama_client = ollama_client
         self._workspace = Path(workspace) if workspace else None
         self._speak_fn = speak_fn
         self._listen_fn = listen_fn
+        self._coding_panel = coding_panel
 
     async def execute(self, args: CodingAgentArgs) -> ToolResult:
         """Build a CodingAgent and run the task, collecting all progress."""
@@ -172,6 +176,20 @@ class CodingAgentTool:
 
         provider = self._provider
         if provider is None:
+            # Lazily build provider from config + ollama_client.
+            try:
+                from jarvis.llm.model_provider import ModelProvider
+                provider = ModelProvider.from_config(
+                    config, self._ollama_client,
+                )
+            except Exception:
+                pass
+
+        if provider is None:
+            if self._coding_panel is not None:
+                from jarvis.coding.task_storage import CodingTask
+                fail = CodingTask(name=args.task, status="failed")
+                self._coding_panel.sig_task_updated.emit(fail)
             return ToolResult(
                 success=False,
                 error=(
@@ -188,6 +206,16 @@ class CodingAgentTool:
             else:
                 workspace = Path.cwd()
 
+        # -- Panel: open and create a CodingTask --------------------------
+        panel = self._coding_panel
+        from jarvis.coding.task_storage import CodingTask, TaskStep
+        task_record = CodingTask(name=args.task, workspace_path=str(workspace))
+
+        if panel is not None:
+            panel.sig_open.emit()
+            panel.sig_task_updated.emit(task_record)
+
+        # -- VoiceConfirm --------------------------------------------------
         # Build VoiceConfirm if TTS/STT callbacks are available.
         confirm: VoiceConfirm | None = None
         if self._speak_fn is not None and self._listen_fn is not None:
@@ -205,10 +233,35 @@ class CodingAgentTool:
 
         messages: list[str] = []
         try:
+            step_idx = 0
             async for msg in agent.execute_task(args.task):
                 messages.append(msg)
+
+                # -- Push progress to panel --------------------------------
+                if panel is not None:
+                    step = TaskStep(
+                        title=msg,
+                        status="done",
+                    )
+                    # Append as a new completed step.
+                    task_record.steps.append(step)
+                    step_idx += 1
+                    panel.sig_task_updated.emit(task_record)
+
         except Exception as exc:
             log.exception("coding agent failed for task %r", args.task)
+
+            if panel is not None:
+                task_record.status = "failed"
+                task_record.steps.append(TaskStep(
+                    title=f"Error: {exc}",
+                    status="error",
+                ))
+                panel.sig_task_updated.emit(task_record)
+                panel.sig_notification.emit(
+                    "Coding Task Failed", f"{args.task}: {exc}",
+                )
+
             return ToolResult(
                 success=False,
                 error=f"Coding agent error: {exc}",
@@ -218,4 +271,106 @@ class CodingAgentTool:
         # Determine success from the last message.
         success = bool(messages) and "error" not in messages[-1].lower()
 
+        # -- Finalise task record -----------------------------------------
+        if panel is not None:
+            task_record.status = "done" if success else "failed"
+            panel.sig_task_updated.emit(task_record)
+            panel.sig_notification.emit(
+                "Coding Task Complete" if success else "Coding Task Failed",
+                args.task,
+            )
+
         return ToolResult(success=success, output=output)
+
+
+# ---------------------------------------------------------------------------
+# Panel open / close tools
+# ---------------------------------------------------------------------------
+
+
+class OpenCodingPanelArgs(BaseModel):
+    pass
+
+
+class OpenCodingPanelTool:
+    """Open the Coding Agent panel.
+
+    (RU: открой панель кода / UK: відкрий панель коду)
+    """
+
+    name: str = "open_coding_panel"
+    description: str = (
+        "Open the Coding Agent panel."
+    )
+    args_schema = OpenCodingPanelArgs
+    requires_confirmation: bool = False
+
+    voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        VoicePattern(
+            regex=r"^(?:open|show)\s+(?:the\s+)?coding\s+panel$",
+            priority=150,
+            args=lambda m: {},
+        ),
+        VoicePattern(
+            regex=r"^(?:открой|покажи)\s+панель\s+кода$",
+            priority=150,
+            args=lambda m: {},
+        ),
+        VoicePattern(
+            regex=r"^(?:відкрий|покажи)\s+панель\s+коду$",
+            priority=150,
+            args=lambda m: {},
+        ),
+    )
+
+    def __init__(self, *, on_open: Any = None) -> None:
+        self._on_open = on_open
+
+    async def execute(self, args: OpenCodingPanelArgs) -> ToolResult:
+        if self._on_open is not None:
+            self._on_open()
+        return ToolResult(success=True, output="Coding panel opened.")
+
+
+class CloseCodingPanelArgs(BaseModel):
+    pass
+
+
+class CloseCodingPanelTool:
+    """Close the Coding Agent panel.
+
+    (RU: закрой панель кода / UK: закрий панель коду)
+    """
+
+    name: str = "close_coding_panel"
+    description: str = (
+        "Close the Coding Agent panel."
+    )
+    args_schema = CloseCodingPanelArgs
+    requires_confirmation: bool = False
+
+    voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        VoicePattern(
+            regex=r"^(?:close|hide)\s+(?:the\s+)?coding\s+panel$",
+            priority=150,
+            args=lambda m: {},
+        ),
+        VoicePattern(
+            regex=r"^(?:закрой|скрой)\s+панель\s+кода$",
+            priority=150,
+            args=lambda m: {},
+        ),
+        VoicePattern(
+            regex=r"^(?:закрий|сховай)\s+панель\s+коду$",
+            priority=150,
+            args=lambda m: {},
+        ),
+    )
+
+    def __init__(self, *, on_close: Any = None) -> None:
+        self._on_close = on_close
+
+    async def execute(self, args: CloseCodingPanelArgs) -> ToolResult:
+        if self._on_close is not None:
+            self._on_close()
+        return ToolResult(success=True, output="Coding panel closed.")

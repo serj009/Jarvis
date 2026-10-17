@@ -247,6 +247,9 @@ class HotkeysConfig(_Base):
     # Opens the command palette — keyboard-driven fuzzy launcher for
     # every Jarvis capability. Set to "" to disable the binding.
     command_palette: str = "ctrl+shift+p"
+    # Opens / closes the text chat panel (alternative to voice).
+    # Set to "" to disable.
+    chat: str = "ctrl+enter"
 
 
 # Default Trayce MCP endpoint. The port is overridden at connect time by

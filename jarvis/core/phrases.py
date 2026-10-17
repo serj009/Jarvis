@@ -203,6 +203,102 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "uk": "Привіт, сер! Я JARVIS, ваш голосовий асистент. "
               "Скажіть 'допомога' щоб дізнатись мої можливості.",
     },
+    # ── TTS action / status phrases ──────────────────────────────────
+    "timer_expired": {
+        "en": "Timer is up, sir.",
+        "ru": "Таймер истёк, sir.",
+        "uk": "Таймер спрацював, sir.",
+    },
+    "reminder_fired": {
+        "en": "Reminder, sir: {text}",
+        "ru": "Напоминаю, sir: {text}",
+        "uk": "Нагадую, sir: {text}",
+    },
+    "coding_started": {
+        "en": "Working on the project, sir...",
+        "ru": "Работаю над проектом, sir...",
+        "uk": "Працюю над проектом, sir...",
+    },
+    "coding_completed": {
+        "en": "Project is ready, sir.",
+        "ru": "Проект готов, sir.",
+        "uk": "Проект готовий, sir.",
+    },
+    "coding_failed": {
+        "en": "I couldn't complete the task, sir.",
+        "ru": "Не удалось завершить задачу, sir.",
+        "uk": "Не вдалося завершити завдання, sir.",
+    },
+    "file_deleted": {
+        "en": "File deleted, sir.",
+        "ru": "Файл удалён, sir.",
+        "uk": "Файл видалено, sir.",
+    },
+    "file_created": {
+        "en": "File created, sir.",
+        "ru": "Файл создан, sir.",
+        "uk": "Файл створено, sir.",
+    },
+    "language_switched": {
+        "en": "Switched to English, sir.",
+        "ru": "Переключил на русский, sir.",
+        "uk": "Переключив на українську, sir.",
+    },
+    "dictation_started": {
+        "en": "Dictation mode on, sir. Speak and I'll type.",
+        "ru": "Режим диктовки включён, sir. Говорите.",
+        "uk": "Режим диктування увімкнено, sir. Говоріть.",
+    },
+    "dictation_stopped": {
+        "en": "Dictation mode off, sir.",
+        "ru": "Режим диктовки выключен, sir.",
+        "uk": "Режим диктування вимкнено, sir.",
+    },
+    "repeat_no_history": {
+        "en": "Nothing to repeat, sir.",
+        "ru": "Мне нечего повторить, sir.",
+        "uk": "Мені нічого повторити, sir.",
+    },
+    "goodbye": {
+        "en": "Goodbye, sir. See you later.",
+        "ru": "До свидания, sir. До встречи.",
+        "uk": "До побачення, sir. До зустрічі.",
+    },
+    "good_morning": {
+        "en": "Good morning, sir!",
+        "ru": "Доброе утро, sir!",
+        "uk": "Доброго ранку, sir!",
+    },
+    "good_afternoon": {
+        "en": "Good afternoon, sir!",
+        "ru": "Добрый день, sir!",
+        "uk": "Доброго дня, sir!",
+    },
+    "good_evening": {
+        "en": "Good evening, sir!",
+        "ru": "Добрый вечер, sir!",
+        "uk": "Доброго вечора, sir!",
+    },
+    "confirm_ask": {
+        "en": "Please confirm, sir.",
+        "ru": "Подтвердите, sir.",
+        "uk": "Підтвердіть, sir.",
+    },
+    "chat_opened": {
+        "en": "Chat is open. Type your command.",
+        "ru": "Чат открыт. Введите команду.",
+        "uk": "Чат відкрито. Введіть команду.",
+    },
+    "volume_set": {
+        "en": "Volume set to {level}%, sir.",
+        "ru": "Громкость: {level}%, sir.",
+        "uk": "Гучність: {level}%, sir.",
+    },
+    "screenshot_saved": {
+        "en": "Screenshot saved, sir.",
+        "ru": "Скриншот сохранён, sir.",
+        "uk": "Скриншот збережено, sir.",
+    },
 }
 
 
