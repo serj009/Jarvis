@@ -38,6 +38,7 @@ from jarvis.ui.settings.tabs import (
     GamingTab,
     GeneralTab,
     HotkeysTab,
+    ImageGenTab,
     MemoryTab,
     ModelsTab,
     SecurityTab,
@@ -59,6 +60,7 @@ _NAV_ITEMS: tuple[tuple[str, str, str, str | None], ...] = (
     ("coding",   "\U0001f4bb",    "Coding",        None),
     ("memory",   "\U0001f4be",    "Memory",        None),
     ("gaming",   "\U0001f3ae",    "Game Mode",     None),
+    ("image_gen","\U0001f3a8",    "Image Gen",     None),
     ("security", "\U0001f6e1\ufe0f", "Security",   None),
     ("commands", "\U0001f4d6",    "Commands",      "Other"),
     ("hotkeys",  "\u2328\ufe0f",  "Hotkeys",       None),
@@ -109,6 +111,7 @@ class SettingsWindow(QMainWindow):
         self.coding = CodingTab(config=config, on_change=_on_change_with_indicator)
         self.memory = MemoryTab(config=config, on_change=_on_change_with_indicator)
         self.gaming = GamingTab(config=config, on_change=_on_change_with_indicator)
+        self.image_gen = ImageGenTab(config=config, on_change=_on_change_with_indicator)
         self.security = SecurityTab(config=config, on_change=_on_change_with_indicator)
         self.commands = CommandsTab(config=config, on_change=_on_change_with_indicator)
         self.hotkeys = HotkeysTab(config=config, on_change=_on_change_with_indicator)
@@ -123,6 +126,7 @@ class SettingsWindow(QMainWindow):
             "coding": self.coding,
             "memory": self.memory,
             "gaming": self.gaming,
+            "image_gen": self.image_gen,
             "security": self.security,
             "commands": self.commands,
             "hotkeys": self.hotkeys,
@@ -177,7 +181,7 @@ class SettingsWindow(QMainWindow):
 
         title = QLabel("\U0001f916  J.A.R.V.I.S.")
         title.setObjectName("sidebarTitle")
-        version = QLabel("v1.0.0 \u00b7 Schema v32")
+        version = QLabel("v1.0.0 \u00b7 Schema v34")
         version.setObjectName("sidebarVersion")
 
         header_layout.addWidget(title)

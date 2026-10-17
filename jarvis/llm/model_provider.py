@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 
 if TYPE_CHECKING:
-    from jarvis.core.config import CodingConfig
+    from jarvis.core.config import CodingConfig, ImageGenConfig
     from jarvis.llm.ollama_client import OllamaClient
 
 log = logging.getLogger(__name__)
@@ -147,6 +147,71 @@ class ModelProvider(ABC):
             )
 
         raise ValueError(f"Unknown provider: {provider!r}")
+
+    @staticmethod
+    def from_image_config(
+        config: ImageGenConfig,
+        ollama_client: OllamaClient | None = None,
+    ) -> ModelProvider:
+        """Factory: build a provider for image prompt engineering.
+
+        Reads the ``image_model_*`` fields from an :class:`ImageGenConfig`
+        and returns the appropriate concrete provider.  The returned
+        provider is used *exclusively* for enhancing image prompts — it
+        is loaded, used, and discarded within a single image-generation
+        request so the main LLM never sees the prompt.
+
+        Parameters
+        ----------
+        config:
+            The ``image_gen`` section of :class:`JarvisConfig`.
+        ollama_client:
+            Required when ``image_model_provider`` is ``"ollama"`` or
+            ``"main"`` (delegates to the existing ``OllamaClient``).
+
+        Raises
+        ------
+        ProviderError
+            If ``provider="ollama"``/``"main"`` and *ollama_client* is None.
+        ValueError
+            If the provider string is unrecognised.
+        """
+        provider = config.image_model_provider
+
+        if provider == "main":
+            if ollama_client is None:
+                raise ProviderError(
+                    "image_model_provider='main' requires an OllamaClient instance"
+                )
+            return OllamaProvider(client=ollama_client, model=None)
+
+        if provider == "ollama":
+            if ollama_client is None:
+                raise ProviderError(
+                    "image_model_provider='ollama' requires an OllamaClient instance"
+                )
+            return OllamaProvider(client=ollama_client, model=config.image_model_name)
+
+        if provider == "openai":
+            return OpenAIProvider(
+                model=config.image_model_name or "gpt-4o",
+                api_key=config.image_model_api_key,
+                base_url=config.image_model_api_base_url or "https://api.openai.com/v1",
+            )
+
+        if provider == "anthropic":
+            return AnthropicProvider(
+                model=config.image_model_name or "claude-3-5-sonnet-20241022",
+                api_key=config.image_model_api_key,
+            )
+
+        if provider == "groq":
+            return GroqProvider(
+                model=config.image_model_name or "llama-3.3-70b-versatile",
+                api_key=config.image_model_api_key,
+            )
+
+        raise ValueError(f"Unknown image_model_provider: {provider!r}")
 
     @abstractmethod
     async def chat(

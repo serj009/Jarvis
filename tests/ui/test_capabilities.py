@@ -96,6 +96,7 @@ _UNDOCUMENTED_TOOLS: dict[str, str] = {
     "focus_mode_status": "LLM-dispatched focus mode",
     "full_page_screenshot": "Browser helper for full-page capture",
     "generate_password": "LLM-dispatched password generation",
+    "generate_image": "LLM-dispatched image generation (voice-triggered draw/generate)",
     "generate_qr": "LLM-dispatched QR code generation",
     "get_latest_news": "LLM-dispatched RSS news reader",
     "heavy_processes": "LLM-dispatched process monitoring",

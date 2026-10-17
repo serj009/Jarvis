@@ -44,7 +44,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
-CURRENT_SCHEMA_VERSION = 33
+CURRENT_SCHEMA_VERSION = 35
 
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -592,6 +592,51 @@ class CodingConfig(_Base):
     preferred_language: str = ""
 
 
+class ImageGenConfig(_Base):
+    """Image generation settings.
+
+    Supports local (ComfyUI, Automatic1111) and cloud (OpenAI, Stability,
+    Replicate). Local providers have NO content filtering — user controls
+    the model.
+    """
+
+    # Provider: "comfyui", "a1111", "openai", "stability", "replicate", "disabled"
+    provider: str = "disabled"
+
+    # Local settings
+    local_endpoint: str = "http://127.0.0.1:8188"  # ComfyUI default
+    local_model: str = ""  # SD model name (user selects from available)
+    nsfw_filter: bool = False  # user controls — default OFF for local
+
+    # API settings
+    api_key: str = ""  # encrypted via DPAPI
+    api_model: str = ""  # "dall-e-3", "stable-diffusion-xl", etc.
+
+    # Generation defaults
+    width: int = Field(default=1024, ge=256, le=2048)
+    height: int = Field(default=1024, ge=256, le=2048)
+    steps: int = Field(default=20, ge=1, le=100)
+    cfg_scale: float = Field(default=7.0, ge=1.0, le=30.0)
+    save_directory: str = ""  # default: ~/Pictures/Jarvis
+
+    # VRAM management
+    auto_vram_swap: bool = True  # evict LLM when generating
+
+    # Prompt enhancement
+    enhance_mode: str = "template"   # "off" / "template" / "llm"
+    default_style: str = "photorealistic"
+
+    # Separate model for image prompt engineering + generation control.
+    # When image_model_provider != "main", image prompts are processed by
+    # a dedicated model — main LLM never sees the prompt (full isolation).
+    # Use an uncensored model (e.g. "dolphin-mistral:7b") for unrestricted
+    # prompt engineering.  "main" = use same LLM (current behaviour).
+    image_model_provider: str = "main"  # "main", "ollama", "openai", "anthropic", "groq"
+    image_model_name: str = ""          # e.g. "dolphin-mistral:7b", "nous-hermes-2:7b"
+    image_model_api_key: str = ""       # API key when using cloud provider
+    image_model_api_base_url: str = ""  # custom endpoint (optional)
+
+
 class JarvisConfig(_Base):
     schema_version: int = CURRENT_SCHEMA_VERSION
     general: GeneralConfig = Field(default_factory=GeneralConfig)
@@ -617,6 +662,7 @@ class JarvisConfig(_Base):
     game_mode: GameModeConfig = Field(default_factory=GameModeConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
     coding: CodingConfig = Field(default_factory=CodingConfig)
+    image_gen: ImageGenConfig = Field(default_factory=ImageGenConfig)
 
 # --- secrets at rest -------------------------------------------------------
 
@@ -639,6 +685,8 @@ _SECRET_FIELD_PATHS: tuple[tuple[str, str], ...] = (
     ("coding", "api_key"),
     ("llm", "api_key"),
     ("vision", "api_key"),
+    ("image_gen", "api_key"),
+    ("image_gen", "image_model_api_key"),
 )
 
 # Secrets inside the mcp_servers list, keyed by field name. Handled

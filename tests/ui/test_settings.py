@@ -383,6 +383,7 @@ def test_tools_tab_populates_checkboxes_for_phase_4_set(qapp):
         "focus_mode_status",
         "full_page_screenshot",
         "generate_password",
+        "generate_image",
         "generate_qr",
         "get_latest_news",
         "get_weather",
