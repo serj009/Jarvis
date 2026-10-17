@@ -356,6 +356,7 @@ def test_tools_tab_populates_checkboxes_for_phase_4_set(qapp):
         "close_notes",
         "close_other_tabs",
         "close_research",
+        "coding_agent",
         "code_runner",
         "compare_pages",
         "converter",

@@ -299,6 +299,7 @@ from jarvis.llm.intent_router import IntentRouter, StopIntent, ToolIntent, execu
 
 
 from jarvis.llm.ollama_client import OllamaClient
+from jarvis.llm.llm_provider import APILLMClient
 
 
 from jarvis.tools import MCPManager, ToolRegistry, setup_local_tools
@@ -2728,26 +2729,23 @@ class JarvisApp:
         # ------------------------------------------------------------------
 
 
-        self.ollama = OllamaClient(
-
-
-            model=self.cfg.llm.model,
-
-
-            temperature=self.cfg.llm.temperature,
-
-
-            max_tokens=self.cfg.llm.max_tokens,
-
-
-            system_prompt=self.cfg.llm.system_prompt,
-
-
-            keep_alive_seconds=self.cfg.llm.keep_alive_seconds,
-            num_ctx=self.cfg.llm.num_ctx,
-
-
-        )
+        # Universal provider: choose between OllamaClient (local) and
+        # APILLMClient (cloud) based on config.  Both expose the same
+        # stream_chat / vision_chat interface so IntentRouter and all
+        # tools are unaware of the switch.
+        if self.cfg.llm.provider == "ollama":
+            self.ollama = OllamaClient(
+                model=self.cfg.llm.model,
+                temperature=self.cfg.llm.temperature,
+                max_tokens=self.cfg.llm.max_tokens,
+                system_prompt=self.cfg.llm.system_prompt,
+                keep_alive_seconds=self.cfg.llm.keep_alive_seconds,
+                num_ctx=self.cfg.llm.num_ctx,
+            )
+        else:
+            self.ollama = APILLMClient.from_config(
+                self.cfg.llm, self.cfg.vision,
+            )
 
 
         self.conversation = Conversation(

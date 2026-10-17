@@ -46,6 +46,7 @@ TOOL_DISPLAY_NAMES: dict[str, str] = {
     "close_app": "\u274c Close App",
     "close_clipboard_history": "\U0001f4cb Close Clipboard History",
     "code_runner": "\U0001f4bb Code Runner",
+    "coding_agent": "\U0001f916 Coding Agent",
     "converter": "\U0001f4b1 Converter",
     "close_dashboard": "\U0001f4ca Close Dashboard",
     "close_deep_research": "\U0001f50d Close Deep Research",

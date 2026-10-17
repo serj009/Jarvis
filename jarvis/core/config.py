@@ -44,7 +44,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
-CURRENT_SCHEMA_VERSION = 32
+CURRENT_SCHEMA_VERSION = 33
 
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -217,6 +217,16 @@ class LLMConfig(_Base):
     # one-shot dispatch — the tool's own output is spoken verbatim,
     # lowest latency, no follow-up reasoning.
     max_tool_iterations: int = Field(default=3, ge=1, le=10)
+
+    # Universal provider support: by default "ollama" for full backward
+    # compatibility. When set to "openai"/"anthropic"/"groq", the main
+    # LLM uses a cloud API instead of local Ollama. The `model` field
+    # stays as the Ollama model name for provider="ollama"; for API
+    # providers, `api_model` is used instead.
+    provider: str = "ollama"
+    api_model: str = ""
+    api_key: str = ""
+    api_base_url: str = ""
 
 
 class ToolsConfig(_Base):
@@ -432,6 +442,16 @@ class VisionConfig(_Base):
     # consistently rather than reinventing nouns each time.
     temperature: float = Field(default=0.2, ge=0.0, le=2.0)
 
+    # Universal provider support: by default "ollama" for full backward
+    # compatibility. When set to "openai"/"anthropic", the vision model
+    # uses a cloud API (GPT-4o, Claude 3.5 Sonnet, etc.) which have
+    # built-in vision capabilities. For API providers, `api_model` is
+    # the model name (e.g. "gpt-4o", "claude-3-5-sonnet-20241022").
+    provider: str = "ollama"
+    api_model: str = ""
+    api_key: str = ""
+    api_base_url: str = ""
+
 
 class MemoryConfig(_Base):
     """Settings for the memory subsystem embedding search (T4.1/T4.2).
@@ -610,6 +630,8 @@ _SECRET_FIELD_PATHS: tuple[tuple[str, str], ...] = (
     # consumer that does not exist.
     ("research", "api_key"),
     ("coding", "api_key"),
+    ("llm", "api_key"),
+    ("vision", "api_key"),
 )
 
 # Secrets inside the mcp_servers list, keyed by field name. Handled

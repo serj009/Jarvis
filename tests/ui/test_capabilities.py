@@ -77,6 +77,7 @@ _UNDOCUMENTED_TOOLS: dict[str, str] = {
     "close_other_tabs": "Tab management helper, LLM-dispatched",
     "compare_pages": "LLM-initiated page comparison helper",
     "content_reader": "LLM-initiated browser helper, no distinct voice command",
+    "coding_agent": "LLM-dispatched coding assistant (creates/edits files, runs tests, git)",
     "converter": "LLM-dispatched unit/currency converter",
     "count_tabs": "Tab management helper, LLM-dispatched",
     "delete_reminder": "LLM-dispatched reminder management",
