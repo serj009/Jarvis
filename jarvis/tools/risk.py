@@ -186,6 +186,8 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     "run_command": RiskLevel.SYSTEM,
     # Code runner — read_file is READ, run_script/run_tests execute code = WRITE
     "code_runner": RiskLevel.WRITE,
+    # Coding agent — creates/edits files, runs tests, git = WRITE
+    "coding_agent": RiskLevel.WRITE,
     # Downloads — creates files, network I/O
     "download_file": RiskLevel.WRITE,
     # Package manager — install/uninstall are destructive

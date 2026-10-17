@@ -61,6 +61,7 @@ def _local_tool_classes() -> tuple[type, ...]:
     from jarvis.tools.local.bookmarks import BookmarksTool
     from jarvis.tools.local.browser_tabs import BrowserTabsTool
     from jarvis.tools.local.clipboard import ClipboardTool
+    from jarvis.tools.local.coding_tools import CodingAgentTool
     from jarvis.tools.local.calculator import CalculatorTool
     from jarvis.tools.local.clipboard_history_tools import (
         ClearClipboardHistoryTool,
@@ -199,6 +200,7 @@ def _local_tool_classes() -> tuple[type, ...]:
         BookmarksTool,
         BrowserTabsTool,
         CalculatorTool,
+        CodingAgentTool,
         ClipboardTool,
         ClearClipboardHistoryTool,
         CloseClipboardHistoryTool,

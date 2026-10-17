@@ -56,6 +56,21 @@ _STT_DEVICE_ITEMS: tuple[tuple[str, str], ...] = (
 )
 _STT_DEVICE_VALUES: tuple[str, ...] = tuple(v for v, _ in _STT_DEVICE_ITEMS)
 
+# ── Provider dropdown items ────────────────────────────────────────────
+
+_LLM_PROVIDER_ITEMS: tuple[tuple[str, str], ...] = (
+    ("ollama", "Ollama (Local)"),
+    ("openai", "OpenAI"),
+    ("anthropic", "Anthropic"),
+    ("groq", "Groq"),
+)
+
+_VISION_PROVIDER_ITEMS: tuple[tuple[str, str], ...] = (
+    ("ollama", "Ollama (Local)"),
+    ("openai", "OpenAI"),
+    ("anthropic", "Anthropic"),
+)
+
 
 def _ollama_list_models() -> list[str]:
     """Shell out to `ollama list` and parse the model column. Returns []
@@ -159,25 +174,65 @@ class ModelsTab(QWidget):
         llm_card = SectionCard()
         llm_card.add_header(
             "\U0001f9e0", "AI Brain",
-            "The language model that thinks and responds. Runs on Ollama",
+            "The language model that thinks and responds",
         )
 
-        # LLM model dropdown + refresh.
+        # LLM Provider dropdown.
+        self.llm_provider = QComboBox()
+        for value, display in _LLM_PROVIDER_ITEMS:
+            self.llm_provider.addItem(display, value)
+        idx = self.llm_provider.findData(config.llm.provider)
+        if idx >= 0:
+            self.llm_provider.setCurrentIndex(idx)
+        llm_card.add_setting(
+            "Provider",
+            "Ollama = local (free), others = cloud API (requires key)",
+            self.llm_provider,
+        )
+
+        # LLM Ollama model dropdown + refresh (shown when provider=ollama).
         self.llm_model = QComboBox()
         self.llm_model.setEditable(True)
         refresh_models = QPushButton("\U0001f504 Scan")
         refresh_models.clicked.connect(self._refresh_models)
-        model_row = QWidget()
-        mrl = QHBoxLayout(model_row)
+        self._llm_ollama_row = QWidget()
+        mrl = QHBoxLayout(self._llm_ollama_row)
         mrl.setContentsMargins(0, 0, 0, 0)
         mrl.addWidget(self.llm_model, 1)
         mrl.addWidget(refresh_models)
         self._populate_models()
         llm_card.add_setting(
             "AI Model",
-            "The language model that thinks and responds. "
-            "Runs on Ollama",
-            model_row,
+            "Local Ollama model (scan to refresh list)",
+            self._llm_ollama_row,
+        )
+
+        # LLM API model name (shown when provider != ollama).
+        self.llm_api_model = QLineEdit(config.llm.api_model)
+        self.llm_api_model.setPlaceholderText("e.g. gpt-4o, claude-3.5-sonnet")
+        llm_card.add_setting(
+            "API Model",
+            "Model name for the cloud provider",
+            self.llm_api_model,
+        )
+
+        # LLM API key (shown when provider != ollama).
+        self.llm_api_key = QLineEdit(config.llm.api_key)
+        self.llm_api_key.setEchoMode(QLineEdit.EchoMode.Password)
+        self.llm_api_key.setPlaceholderText("sk-... or ant-...")
+        llm_card.add_setting(
+            "API Key",
+            "Encrypted at rest (DPAPI)",
+            self.llm_api_key,
+        )
+
+        # LLM API base URL (shown when provider != ollama).
+        self.llm_api_base_url = QLineEdit(config.llm.api_base_url)
+        self.llm_api_base_url.setPlaceholderText("(optional) custom endpoint")
+        llm_card.add_setting(
+            "API Base URL",
+            "Leave blank for the provider's default endpoint",
+            self.llm_api_base_url,
         )
 
         # LLM temperature.
@@ -205,7 +260,7 @@ class ModelsTab(QWidget):
             self.llm_max_tokens,
         )
 
-        # LLM keep alive.
+        # LLM keep alive (only relevant for Ollama).
         self.llm_keep_alive = QSpinBox()
         self.llm_keep_alive.setRange(60, 86400)
         self.llm_keep_alive.setSingleStep(60)
@@ -213,32 +268,79 @@ class ModelsTab(QWidget):
         self.llm_keep_alive.setSuffix(" s")
         llm_card.add_setting(
             "Keep Model Loaded",
-            "How long the model stays in memory after last use",
+            "How long the model stays in memory after last use (Ollama only)",
             self.llm_keep_alive,
         )
+
+        # Store references to the widgets that need show/hide toggling.
+        self._llm_api_widgets = [
+            self.llm_api_model, self.llm_api_key, self.llm_api_base_url,
+        ]
 
         # ── Vision section ─────────────────────────────────────────────
         vision_card = SectionCard()
         vision_card.add_header(
             "\U0001f441\ufe0f", "Vision",
-            "Used for \"see my screen\". Requires a multimodal Ollama model "
-            "(pull one with: ollama pull llava:7b)",
+            "Used for \"see my screen\". Ollama needs a multimodal model; "
+            "cloud APIs (GPT-4o, Claude) have vision built in",
         )
 
+        # Vision Provider dropdown.
+        self.vision_provider = QComboBox()
+        for value, display in _VISION_PROVIDER_ITEMS:
+            self.vision_provider.addItem(display, value)
+        idx = self.vision_provider.findData(config.vision.provider)
+        if idx >= 0:
+            self.vision_provider.setCurrentIndex(idx)
+        vision_card.add_setting(
+            "Provider",
+            "Ollama = local, others = cloud API (requires key)",
+            self.vision_provider,
+        )
+
+        # Vision Ollama model dropdown + scan (shown when provider=ollama).
         self.vision_model = QComboBox()
         self.vision_model.setEditable(True)
         refresh_vision = QPushButton("\U0001f504 Scan")
         refresh_vision.clicked.connect(self._refresh_vision_models)
-        vision_row = QWidget()
-        vrl = QHBoxLayout(vision_row)
+        self._vision_ollama_row = QWidget()
+        vrl = QHBoxLayout(self._vision_ollama_row)
         vrl.setContentsMargins(0, 0, 0, 0)
         vrl.addWidget(self.vision_model, 1)
         vrl.addWidget(refresh_vision)
         self._populate_vision_models()
         vision_card.add_setting(
             "Vision Model",
-            "Used for 'see my screen'. Requires multimodal model",
-            vision_row,
+            "Local Ollama multimodal model (scan to refresh)",
+            self._vision_ollama_row,
+        )
+
+        # Vision API model name.
+        self.vision_api_model = QLineEdit(config.vision.api_model)
+        self.vision_api_model.setPlaceholderText("e.g. gpt-4o, claude-3.5-sonnet")
+        vision_card.add_setting(
+            "API Model",
+            "Cloud model name (must support vision)",
+            self.vision_api_model,
+        )
+
+        # Vision API key.
+        self.vision_api_key = QLineEdit(config.vision.api_key)
+        self.vision_api_key.setEchoMode(QLineEdit.EchoMode.Password)
+        self.vision_api_key.setPlaceholderText("sk-... or ant-...")
+        vision_card.add_setting(
+            "API Key",
+            "Encrypted at rest (DPAPI)",
+            self.vision_api_key,
+        )
+
+        # Vision API base URL.
+        self.vision_api_base_url = QLineEdit(config.vision.api_base_url)
+        self.vision_api_base_url.setPlaceholderText("(optional) custom endpoint")
+        vision_card.add_setting(
+            "API Base URL",
+            "Leave blank for the provider's default endpoint",
+            self.vision_api_base_url,
         )
 
         self.vision_max_dim = QSpinBox()
@@ -283,6 +385,12 @@ class ModelsTab(QWidget):
             v_temp_row,
         )
 
+        # Store references for show/hide toggling.
+        self._vision_api_widgets = [
+            self.vision_api_model, self.vision_api_key,
+            self.vision_api_base_url,
+        ]
+
         # ── Assemble scrollable layout ─────────────────────────────────
         container = QWidget()
         vbox = QVBoxLayout(container)
@@ -312,16 +420,64 @@ class ModelsTab(QWidget):
         self.stt_language.textChanged.connect(self._stt_language_timer.start)
         self.stt_device.currentIndexChanged.connect(self._on_stt_device)
         self.stt_compute.currentIndexChanged.connect(self._on_stt_compute)
+
+        self.llm_provider.currentIndexChanged.connect(self._on_llm_provider)
         self.llm_model.currentTextChanged.connect(self._on_llm_model)
+        self.llm_api_model.editingFinished.connect(self._on_llm_api_model)
+        self.llm_api_key.editingFinished.connect(self._on_llm_api_key)
+        self.llm_api_base_url.editingFinished.connect(self._on_llm_api_base_url)
         self.llm_temperature.valueChanged.connect(self._on_llm_temperature)
         self.llm_max_tokens.valueChanged.connect(self._on_llm_max_tokens)
         self.llm_keep_alive.valueChanged.connect(self._on_llm_keep_alive)
+
+        self.vision_provider.currentIndexChanged.connect(
+            self._on_vision_provider,
+        )
         self.vision_model.currentTextChanged.connect(self._on_vision_model)
+        self.vision_api_model.editingFinished.connect(
+            self._on_vision_api_model,
+        )
+        self.vision_api_key.editingFinished.connect(self._on_vision_api_key)
+        self.vision_api_base_url.editingFinished.connect(
+            self._on_vision_api_base_url,
+        )
         self.vision_max_dim.valueChanged.connect(self._on_vision_max_dim)
         self.vision_max_tokens.valueChanged.connect(self._on_vision_max_tokens)
         self.vision_temperature.valueChanged.connect(
             self._on_vision_temperature
         )
+
+        # Set initial visibility based on current provider values.
+        self._sync_llm_visibility()
+        self._sync_vision_visibility()
+
+    # -- visibility toggling ---------------------------------------------
+
+    def _sync_llm_visibility(self) -> None:
+        """Show/hide LLM widgets based on the selected provider."""
+        is_ollama = (self.llm_provider.currentData() == "ollama")
+        self._llm_ollama_row.setVisible(is_ollama)
+        self.llm_keep_alive.setVisible(is_ollama)
+        # Also hide the keep_alive label (its parent row)
+        keep_alive_parent = self.llm_keep_alive.parentWidget()
+        if keep_alive_parent is not None:
+            keep_alive_parent.setVisible(is_ollama)
+        for w in self._llm_api_widgets:
+            w.setVisible(not is_ollama)
+            # Also toggle parent row visibility
+            p = w.parentWidget()
+            if p is not None and p is not self:
+                p.setVisible(not is_ollama)
+
+    def _sync_vision_visibility(self) -> None:
+        """Show/hide Vision widgets based on the selected provider."""
+        is_ollama = (self.vision_provider.currentData() == "ollama")
+        self._vision_ollama_row.setVisible(is_ollama)
+        for w in self._vision_api_widgets:
+            w.setVisible(not is_ollama)
+            p = w.parentWidget()
+            if p is not None and p is not self:
+                p.setVisible(not is_ollama)
 
     # -- population ------------------------------------------------------
 
@@ -399,11 +555,36 @@ class ModelsTab(QWidget):
         self._config.stt.compute_type = value  # type: ignore[assignment]
         self._persist()
 
+    # -- LLM provider slots ----------------------------------------------
+
+    def _on_llm_provider(self, _index: int) -> None:
+        value = self.llm_provider.currentData()
+        if not value:
+            return
+        self._config.llm.provider = value
+        self._sync_llm_visibility()
+        self._persist()
+
     def _on_llm_model(self, text: str) -> None:
         value = text.strip()
         if not value:
             return
         self._config.llm.model = value
+        self._persist()
+
+    def _on_llm_api_model(self) -> None:
+        value = self.llm_api_model.text().strip()
+        self._config.llm.api_model = value
+        self._persist()
+
+    def _on_llm_api_key(self) -> None:
+        value = self.llm_api_key.text().strip()
+        self._config.llm.api_key = value
+        self._persist()
+
+    def _on_llm_api_base_url(self) -> None:
+        value = self.llm_api_base_url.text().strip()
+        self._config.llm.api_base_url = value
         self._persist()
 
     def _on_llm_temperature(self, value: int) -> None:
@@ -420,11 +601,36 @@ class ModelsTab(QWidget):
         self._config.llm.keep_alive_seconds = value
         self._persist()
 
+    # -- Vision provider slots -------------------------------------------
+
+    def _on_vision_provider(self, _index: int) -> None:
+        value = self.vision_provider.currentData()
+        if not value:
+            return
+        self._config.vision.provider = value
+        self._sync_vision_visibility()
+        self._persist()
+
     def _on_vision_model(self, text: str) -> None:
         value = text.strip()
         if value == "(disabled)":
             value = ""
         self._config.vision.model = value
+        self._persist()
+
+    def _on_vision_api_model(self) -> None:
+        value = self.vision_api_model.text().strip()
+        self._config.vision.api_model = value
+        self._persist()
+
+    def _on_vision_api_key(self) -> None:
+        value = self.vision_api_key.text().strip()
+        self._config.vision.api_key = value
+        self._persist()
+
+    def _on_vision_api_base_url(self) -> None:
+        value = self.vision_api_base_url.text().strip()
+        self._config.vision.api_base_url = value
         self._persist()
 
     def _on_vision_max_dim(self, value: int) -> None:

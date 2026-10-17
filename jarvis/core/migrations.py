@@ -697,6 +697,33 @@ def _migrate_v31_to_v32(data: dict) -> dict:
     return data
 
 
+def _migrate_v32_to_v33(data: dict) -> dict:
+    """Schema v33: Universal Model Provider for LLM and Vision.
+
+    Adds provider/api fields to the ``llm`` and ``vision`` sections so
+    users can choose between Ollama (local, default) and cloud APIs
+    (OpenAI, Anthropic, Groq) for the main conversational model and
+    the vision model.
+
+    Existing configs get provider="ollama" and empty API fields, so
+    behaviour is identical to pre-v33 — purely additive, no breaking
+    change.
+    """
+    llm = data.setdefault("llm", {})
+    llm.setdefault("provider", "ollama")
+    llm.setdefault("api_model", "")
+    llm.setdefault("api_key", "")
+    llm.setdefault("api_base_url", "")
+
+    vision = data.setdefault("vision", {})
+    vision.setdefault("provider", "ollama")
+    vision.setdefault("api_model", "")
+    vision.setdefault("api_key", "")
+    vision.setdefault("api_base_url", "")
+
+    data["schema_version"] = 33
+    return data
+
 MIGRATIONS: dict[int, Migration] = {
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
@@ -729,6 +756,7 @@ MIGRATIONS: dict[int, Migration] = {
     29: _migrate_v29_to_v30,
     30: _migrate_v30_to_v31,
     31: _migrate_v31_to_v32,
+    32: _migrate_v32_to_v33,
 }
 
 
