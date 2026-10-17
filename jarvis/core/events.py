@@ -117,6 +117,17 @@ class NonFatalError:
     actual: str
 
 
+@dataclass(frozen=True, slots=True)
+class ProactiveSpeech:
+    """Request proactive TTS output outside the normal voice-turn flow.
+
+    Published by timer/reminder callbacks (any thread) via EventBus.publish();
+    the AudioPipeline subscribes and speaks the text, handling SM transitions
+    (IDLE → SPEAKING → IDLE) automatically.
+    """
+
+    text: str
+
 # --- bus -------------------------------------------------------------------
 
 # A handler may be sync (returns None) or async (returns Awaitable[None]).

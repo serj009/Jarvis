@@ -54,7 +54,9 @@ import random
 import time
 from collections.abc import Callable
 
+from jarvis.audio.sound_effects import SoundEffects
 from jarvis.audio.aec import BargeInManager, BargeInMode
+from jarvis.core.last_spoken import set_last_spoken
 from jarvis.audio.protocols import (
     FRAME_BYTES,
     FRAME_DURATION_MS,
@@ -78,6 +80,7 @@ from jarvis.core.events import (
     EventBus,
     LLMResponseChunk,
     LLMResponseComplete,
+    ProactiveSpeech,
     TranscriptionReady,
     WakeWordDetected,
 )
@@ -131,6 +134,7 @@ class AudioPipeline:
         llm_timeout_s: float = 20.0,
         tts_timeout_s: float = 15.0,
         barge_in_manager: BargeInManager | None = None,
+        sound_effects: SoundEffects | None = None,
     ) -> None:
         # T3.3: AEC / barge-in manager (optional — backwards compatible).
         self._source = source
@@ -163,6 +167,7 @@ class AudioPipeline:
         # available via the manager, override barge_in and half_duplex
         # so the pipeline uses the manager instead of the legacy flag.
         self._barge_in_manager = barge_in_manager
+        self._sound_effects = sound_effects
         if barge_in_manager is not None and barge_in_manager.mode is BargeInMode.AEC:
             self._barge_in_enabled = True
             self._half_duplex = False
@@ -193,12 +198,17 @@ class AudioPipeline:
         self._loop: asyncio.AbstractEventLoop | None = None
         self._started = False
 
+        # Unsubscribe handle for ProactiveSpeech bus subscription.
+        self._unsub_proactive: Callable[[], None] | None = None
+
     # -- lifecycle --
 
     async def start(self) -> None:
         if self._started:
             return
         self._loop = asyncio.get_running_loop()
+        self._unsub_proactive = self._bus.subscribe(
+            ProactiveSpeech, self._handle_proactive_speech)
         # Note: we deliberately do not subscribe to ConversationalStateChanged
         # for timer management. The pipeline is the single CS-mutator (per
         # design note) so timer start/cancel is wired directly into the
@@ -211,6 +221,9 @@ class AudioPipeline:
     async def stop(self) -> None:
         if not self._started:
             return
+        if self._unsub_proactive is not None:
+            self._unsub_proactive()
+            self._unsub_proactive = None
         self._started = False
         try:
             await self._source.stop()
@@ -381,6 +394,9 @@ class AudioPipeline:
             if self._sm.conversational_state is ConversationalState.THINKING:
                 self._sm.set_conversational_state(ConversationalState.IDLE)
         self._bus.publish(WakeWordDetected(confidence=result.confidence))
+        # Auditory confirmation: short beep so the user knows Jarvis heard.
+        if self._sound_effects is not None:
+            self._sound_effects.play_wake()
         self._listen_buffer.clear()
         self._wake_word.reset()
         self._vad.reset()
@@ -452,6 +468,36 @@ class AudioPipeline:
         # SPEAKING -> LISTENING: legal, and the user clearly wants to talk.
         self._sm.set_conversational_state(ConversationalState.LISTENING)
         self._start_listening_timer()
+
+    # -- proactive speech (timer/reminder callbacks) --
+
+    async def _handle_proactive_speech(self, event: ProactiveSpeech) -> None:
+        """Speak *event.text* outside the normal voice-turn flow.
+
+        Called by the EventBus when a ``ProactiveSpeech`` event is published
+        (e.g. timer expiry, scheduled reminder).  Only speaks when the
+        pipeline is IDLE — if the user is mid-conversation the speech is
+        logged-and-dropped to avoid interrupting the flow.
+        """
+        if not self._started:
+            return
+        cs = self._sm.conversational_state
+        if cs is not ConversationalState.IDLE:
+            log.info(
+                "[proactive] dropping speech while %s: %s",
+                cs.name,
+                event.text[:80],
+            )
+            return
+        log.info("[proactive] speaking: %s", event.text[:80])
+        try:
+            self._sm.set_conversational_state(ConversationalState.SPEAKING)
+            await self._tts.speak(event.text)
+        except Exception:
+            log.exception("[proactive] TTS failed")
+        finally:
+            if self._sm.conversational_state is ConversationalState.SPEAKING:
+                self._sm.set_conversational_state(ConversationalState.IDLE)
 
     # -- response chain --
 
@@ -588,9 +634,15 @@ class AudioPipeline:
                 self._sm.set_conversational_state(ConversationalState.IDLE)
                 return
 
+            full_text = "".join(full_text_parts)
+            # Capture the substantive response for "repeat that" / "повтори".
+            set_last_spoken(full_text)
             self._bus.publish(
-                LLMResponseComplete(full_text="".join(full_text_parts))
+                LLMResponseComplete(full_text=full_text)
             )
+            # Optional auditory confirmation: short ding after a full turn.
+            if self._sound_effects is not None:
+                self._sound_effects.play_success()
             self._sm.set_conversational_state(ConversationalState.IDLE)
         except asyncio.CancelledError:
             # Barge-in or shutdown. Re-raise so the outer awaiter sees it.

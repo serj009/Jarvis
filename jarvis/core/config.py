@@ -97,6 +97,11 @@ class GeneralConfig(_Base):
     # dismissed or finished. The Qt main thread auto-shows the
     # OnboardingPanel when this is False.
     first_run_completed: bool = False
+    # Play short synthesised tones (beep on wake, ding on success, etc.)
+    # via sounddevice. Requires numpy + sounddevice; falls back silently
+    # if either is missing. Volume is 0.0–1.0, default 0.3.
+    sound_effects_enabled: bool = True
+    sound_effects_volume: float = Field(default=0.3, ge=0.0, le=1.0)
 
 
 class AudioConfig(_Base):

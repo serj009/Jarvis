@@ -46,6 +46,8 @@ def setup_local_tools(
     tts_manager: object = None,
     personal_aliases: object = None,
     game_mode: object = None,
+    on_timer_done: Callable[[str], None] | None = None,
+    reminder_store: object = None,
 ) -> None:
     """Register every built-in local tool into `registry`.
 
@@ -71,6 +73,7 @@ def setup_local_tools(
     from jarvis.tools.local.file_manager import FileManagerTool
     from jarvis.tools.local.files import ListDirectoryTool
     from jarvis.tools.local.get_time import GetTimeTool
+    from jarvis.tools.local.git_tool import GitTool
     from jarvis.tools.local.web_knowledge import SavePageKnowledgeTool
     from jarvis.tools.local.launch_steam_game import LaunchSteamGameTool
     from jarvis.tools.local.launch_workspace import LaunchWorkspaceTool
@@ -78,6 +81,7 @@ def setup_local_tools(
     from jarvis.tools.local.open_app import OpenAppTool
     from jarvis.tools.local.open_url import OpenUrlTool
     from jarvis.tools.local.play_youtube_music import PlayYoutubeMusicTool
+    from jarvis.tools.local.repeat_last import RepeatLastTool
     from jarvis.tools.local.screenshot import ScreenshotTool
     from jarvis.tools.local.browser_tabs import BrowserTabsTool
     from jarvis.tools.local.content_reader import ContentReaderTool
@@ -92,9 +96,10 @@ def setup_local_tools(
 
     # Phase 6: Windows control modules
     from jarvis.tools.local.window_manager import WindowActionTool, ListWindowsTool
-    from jarvis.tools.local.timers import SetTimerTool, CancelTimerTool, ListTimersTool
+    from jarvis.tools.local.timers import SetTimerTool, CancelTimerTool, ListTimersTool, TimerStore
     from jarvis.tools.local.power_control import PowerControlTool
     from jarvis.tools.local.cli_runner import CLIRunnerTool
+    from jarvis.tools.local.code_runner import CodeRunnerTool
     from jarvis.tools.local.download_manager import DownloadFileTool
     from jarvis.tools.local.package_manager import (
         PackageSearchTool,
@@ -207,6 +212,13 @@ def setup_local_tools(
         from jarvis.core.config import VisionConfig
         vision_cfg = VisionConfig()
 
+    # Timer store: when on_timer_done is provided, all timer tools share a
+    # single TimerStore that fires the callback on expiry.  Otherwise the
+    # tools fall back to the module-level lazy singleton (no notification).
+    timer_store: TimerStore | None = None
+    if on_timer_done is not None:
+        timer_store = TimerStore(on_timer_done=on_timer_done)
+
     base_tools: list[Tool[Any]] = [
         ClipboardTool(),
         CalculatorTool(),
@@ -219,6 +231,7 @@ def setup_local_tools(
         GetTimeTool(),
         FileManagerTool(path_validator=path_validator),
         ListDirectoryTool(path_validator=path_validator),
+        GitTool(),
         LockScreenTool(),
         OpenAppTool(personal_aliases=personal_aliases),
         OpenUrlTool(),
@@ -227,6 +240,7 @@ def setup_local_tools(
         PlayYoutubeMusicTool(),
         ScreenshotTool(),
         SystemStatsTool(vram_manager=vram_manager),
+        RepeatLastTool(),
         TypeIntoActiveWindowTool(),
         SwitchLanguageTool(stt=stt, tts_manager=tts_manager),
         VolumeTool(),
@@ -234,11 +248,12 @@ def setup_local_tools(
         # Phase 6: Windows control tools
         WindowActionTool(),
         ListWindowsTool(),
-        SetTimerTool(),
-        CancelTimerTool(),
-        ListTimersTool(),
+        SetTimerTool(store=timer_store),
+        CancelTimerTool(store=timer_store),
+        ListTimersTool(store=timer_store),
         PowerControlTool(),
         CLIRunnerTool(),
+        CodeRunnerTool(path_validator=path_validator),
         DownloadFileTool(),
         PackageSearchTool(),
         PackageInstallTool(),
@@ -289,10 +304,10 @@ def setup_local_tools(
         ShareToPhoneTool(),
         StartFocusModeTool(),
         # Time-based persistent reminders
-        RemindMeTool(),
-        RemindMeAtTool(),
-        ListRemindersTool(),
-        DeleteReminderTool(),
+        RemindMeTool(store=reminder_store),
+        RemindMeAtTool(store=reminder_store),
+        ListRemindersTool(store=reminder_store),
+        DeleteReminderTool(store=reminder_store),
         StopFocusModeTool(),
         FocusModeStatusTool(),
         # Phase 8: Vision tools

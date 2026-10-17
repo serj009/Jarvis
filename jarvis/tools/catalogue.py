@@ -96,6 +96,7 @@ def _local_tool_classes() -> tuple[type, ...]:
     from jarvis.tools.local.file_manager import FileManagerTool
     from jarvis.tools.local.files import ListDirectoryTool
     from jarvis.tools.local.help_tools import OpenHelpTool
+    from jarvis.tools.local.git_tool import GitTool
     from jarvis.tools.local.launch_steam_game import LaunchSteamGameTool
     from jarvis.tools.local.launch_workspace import LaunchWorkspaceTool
     from jarvis.tools.local.lock_screen import LockScreenTool
@@ -112,6 +113,7 @@ def _local_tool_classes() -> tuple[type, ...]:
     from jarvis.tools.local.open_app import OpenAppTool
     from jarvis.tools.local.open_url import OpenUrlTool
     from jarvis.tools.local.play_youtube_music import PlayYoutubeMusicTool
+    from jarvis.tools.local.repeat_last import RepeatLastTool
     from jarvis.tools.local.research import (
         CloseResearchTool,
         CopyResearchTool,
@@ -132,6 +134,7 @@ def _local_tool_classes() -> tuple[type, ...]:
     from jarvis.tools.local.timers import SetTimerTool, CancelTimerTool, ListTimersTool
     from jarvis.tools.local.power_control import PowerControlTool
     from jarvis.tools.local.cli_runner import CLIRunnerTool
+    from jarvis.tools.local.code_runner import CodeRunnerTool
     from jarvis.tools.local.download_manager import DownloadFileTool
     from jarvis.tools.local.package_manager import (
         PackageSearchTool, PackageInstallTool, PackageUninstallTool,
@@ -216,6 +219,7 @@ def _local_tool_classes() -> tuple[type, ...]:
         DisableDeepResearchUltraTool,
         EnableDeepResearchUltraTool,
         FileManagerTool,
+        GitTool,
         ListDirectoryTool,
         OpenHelpTool,
         LaunchSteamGameTool,
@@ -234,6 +238,7 @@ def _local_tool_classes() -> tuple[type, ...]:
         OpenUrlTool,
         PlayYoutubeMusicTool,
         CloseResearchTool,
+        RepeatLastTool,
         CopyResearchTool,
         ReadMoreTool,
         ResearchTool,
@@ -253,6 +258,7 @@ def _local_tool_classes() -> tuple[type, ...]:
         ListTimersTool,
         PowerControlTool,
         CLIRunnerTool,
+        CodeRunnerTool,
         DownloadFileTool,
         PackageSearchTool,
         PackageInstallTool,
