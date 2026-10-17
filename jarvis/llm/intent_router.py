@@ -491,6 +491,25 @@ class IntentRouter:
         without calling a tool. When the loop is disabled (no registry,
         or max_tool_iterations == 1) tool calls are yielded as
         ToolIntents for the caller to execute instead."""
+        # --- Dictation mode: bypass all routing, type directly --------
+        # Function-local import: avoids importing tool modules at
+        # router import time (same idiom as _build_patterns).
+        from jarvis.tools.local.dictation import (
+            is_dictation_active,
+            DICTATION_STOP_PATTERN,
+            process_dictation_text,
+            type_dictation_text,
+        )
+
+        if is_dictation_active():
+            normalized = _normalize(transcription)
+            if not DICTATION_STOP_PATTERN.match(normalized):
+                processed = process_dictation_text(transcription)
+                await type_dictation_text(processed)
+                return  # silent — no SpeakIntent
+            # Stop command: fall through to normal pattern matching
+            # so DictationTool.execute(stop) clears the flag.
+
         # Known open targets are decided in code: the local model picked
         # open_app vs open_url inconsistently for the same phrase. Unknown
         # names return None here and continue down the usual path.

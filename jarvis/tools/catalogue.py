@@ -61,6 +61,7 @@ def _local_tool_classes() -> tuple[type, ...]:
     from jarvis.tools.local.bookmarks import BookmarksTool
     from jarvis.tools.local.browser_tabs import BrowserTabsTool
     from jarvis.tools.local.clipboard import ClipboardTool
+    from jarvis.tools.local.calculator import CalculatorTool
     from jarvis.tools.local.clipboard_history_tools import (
         ClearClipboardHistoryTool,
         CloseClipboardHistoryTool,
@@ -72,6 +73,8 @@ def _local_tool_classes() -> tuple[type, ...]:
         StartPageMonitorTool, StopPageMonitorTool,
         CheckPageChangesTool, ListPageMonitorsTool,
     )
+    from jarvis.tools.local.dictation import DictationTool
+    from jarvis.tools.local.converter import ConverterTool
     from jarvis.tools.local.page_compare import ComparePagesTool
     from jarvis.tools.local.smart_form_fill import SmartFormFillTool
     from jarvis.tools.local.page_translate import TranslatePageTool
@@ -90,6 +93,7 @@ def _local_tool_classes() -> tuple[type, ...]:
         DisableDeepResearchUltraTool,
         EnableDeepResearchUltraTool,
     )
+    from jarvis.tools.local.file_manager import FileManagerTool
     from jarvis.tools.local.files import ListDirectoryTool
     from jarvis.tools.local.help_tools import OpenHelpTool
     from jarvis.tools.local.launch_steam_game import LaunchSteamGameTool
@@ -169,6 +173,12 @@ def _local_tool_classes() -> tuple[type, ...]:
         SubscribeRssTool, UnsubscribeRssTool,
         ListRssFeedsTool, GetLatestNewsTool,
     )
+    from jarvis.tools.local.remind_me import (
+        RemindMeTool,
+        RemindMeAtTool,
+        ListRemindersTool,
+        DeleteReminderTool,
+    )
     from jarvis.tools.local.qr_share import GenerateQrTool, ShareToPhoneTool
     from jarvis.tools.local.focus_mode import (
         StartFocusModeTool, StopFocusModeTool, FocusModeStatusTool,
@@ -185,6 +195,7 @@ def _local_tool_classes() -> tuple[type, ...]:
     return (
         BookmarksTool,
         BrowserTabsTool,
+        CalculatorTool,
         ClipboardTool,
         ClearClipboardHistoryTool,
         CloseClipboardHistoryTool,
@@ -193,8 +204,10 @@ def _local_tool_classes() -> tuple[type, ...]:
         CloseAppTool,
         CloseDashboardTool,
         ContentReaderTool,
+        ConverterTool,
         ShowDashboardTool,
         CloseDeepResearchTool,
+        DictationTool,
         DeepResearchTool,
         DeleteAllDeepResearchTool,
         DeleteDeepResearchTool,
@@ -202,6 +215,7 @@ def _local_tool_classes() -> tuple[type, ...]:
         ResumeDeepResearchTool,
         DisableDeepResearchUltraTool,
         EnableDeepResearchUltraTool,
+        FileManagerTool,
         ListDirectoryTool,
         OpenHelpTool,
         LaunchSteamGameTool,
@@ -290,6 +304,11 @@ def _local_tool_classes() -> tuple[type, ...]:
         GetLatestNewsTool,
         GenerateQrTool,
         ShareToPhoneTool,
+        # Time-based persistent reminders
+        RemindMeTool,
+        RemindMeAtTool,
+        ListRemindersTool,
+        DeleteReminderTool,
         StartFocusModeTool,
         StopFocusModeTool,
         FocusModeStatusTool,

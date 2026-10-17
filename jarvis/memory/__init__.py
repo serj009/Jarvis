@@ -49,4 +49,8 @@ Tiered Storage (T4.6):
 Event-Triggered Reminders (T4.8):
     reminders           -- parse_reminder, save_reminder, check_reminders:
                            event-bound reminders that fire on app/game launch
+
+Scheduled (Time-Based) Reminders:
+    scheduled_reminders  -- ScheduledReminder, ReminderStore, ReminderScheduler:
+                            persistent time-based reminders (SQLite, survives restart)
 """

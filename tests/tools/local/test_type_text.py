@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 import types
 from unittest.mock import MagicMock, patch
@@ -74,3 +75,19 @@ def test_confirmation_summary_says_what_and_where():
     )
     assert "8 character(s)" in summary
     assert "keyboard focus" in summary
+
+
+def test_voice_patterns_exist():
+    """The tool declares voice patterns for EN/RU/UK."""
+    assert hasattr(TypeIntoActiveWindowTool, "voice_patterns")
+    patterns = TypeIntoActiveWindowTool.voice_patterns
+    assert len(patterns) == 9  # 3 EN + 3 RU + 3 UK
+
+
+def test_voice_patterns_compile_and_capture():
+    """Every pattern compiles and captures the text argument."""
+    for vp in TypeIntoActiveWindowTool.voice_patterns:
+        compiled = re.compile(vp.regex)
+        assert compiled.groups >= 1, (
+            f"pattern {vp.regex!r} must have at least one capture group"
+        )

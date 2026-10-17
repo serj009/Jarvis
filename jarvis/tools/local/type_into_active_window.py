@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
-from jarvis.tools.registry import ToolResult
+from jarvis.tools.registry import ToolResult, VoicePattern
 
 # pyautogui.typewrite has an upper bound on practical input length —
 # very long strings tie up the loop and noticeably block other input.
@@ -27,9 +28,67 @@ class TypeIntoActiveWindowTool:
     description: str = (
         "Types text via simulated keystrokes into whatever application currently "
         "has keyboard focus. Only use when the user explicitly says 'type <text>' "
-        "or 'paste <text> into <app>'."
+        "or 'paste <text> into <app>'. "
+        "(RU: напечатай, напиши, введи / UK: надрукуй, напиши, введи)"
     )
     args_schema = TypeIntoActiveWindowArgs
+
+    # Voice patterns — deterministic dispatch for dictation-mode typing.
+    #
+    # Priority 800: CATCH_ALL territory.  "type X" / "напечатай X" are
+    # extremely broad ("<verb> <anything>") and MUST lose to every more-
+    # specific pattern.  In particular:
+    #   - notes_tools "запиши ..."   (priority 440) — note-taking, not typing
+    #   - auto_login  "введи пароль" (priority 200) — password entry
+    #   - open_url    "write this down" is notes, not keystrokes
+    # The patterns here only fire when nothing else matched first.
+    #
+    # "напиши" appears in both RU and UK blocks.  The UK copy carries
+    # priority 805 so that if both language blocks are scanned the RU one
+    # wins (first-match at lower priority number), while still being in
+    # the same catch-all band.
+    voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        # EN
+        VoicePattern(
+            regex=r"^type\s+(.+)$", priority=800,
+            args=lambda m: {"text": m.group(1)},
+        ),
+        VoicePattern(
+            regex=r"^write\s+(.+)$", priority=800,
+            args=lambda m: {"text": m.group(1)},
+        ),
+        VoicePattern(
+            regex=r"^enter\s+(.+)$", priority=810,
+            args=lambda m: {"text": m.group(1)},
+        ),
+        # RU
+        VoicePattern(
+            regex=r"^напечатай\s+(.+)$", priority=800,
+            args=lambda m: {"text": m.group(1)},
+        ),
+        VoicePattern(
+            regex=r"^напиши\s+(.+)$", priority=800,
+            args=lambda m: {"text": m.group(1)},
+        ),
+        VoicePattern(
+            regex=r"^введи\s+(.+)$", priority=800,
+            args=lambda m: {"text": m.group(1)},
+        ),
+        # UK
+        VoicePattern(
+            regex=r"^надрукуй\s+(.+)$", priority=800,
+            args=lambda m: {"text": m.group(1)},
+        ),
+        VoicePattern(
+            regex=r"^напиши\s+(.+)$", priority=805,
+            args=lambda m: {"text": m.group(1)},
+        ),
+        VoicePattern(
+            regex=r"^введи\s+(.+)$", priority=805,
+            args=lambda m: {"text": m.group(1)},
+        ),
+    )
+
     # The one tool in the built-in set that the user is asked about
     # before it runs. It synthesises arbitrary keystrokes into whatever
     # window happens to hold focus at the moment of execution — which
