@@ -923,3 +923,160 @@ class TestDisambiguationPriority:
         assert priorities == sorted(priorities), (
             "voice_pattern_catalogue() must be sorted by priority"
         )
+
+
+# -- type_into_active_window.py --------------------------------------------
+
+
+class TestTypeIntoActiveWindowMultilingual:
+    """Voice patterns for type_into_active_window: EN/RU/UK dictation mode."""
+
+    @pytest.fixture()
+    def patterns(self):
+        from jarvis.tools.local.type_into_active_window import (
+            TypeIntoActiveWindowTool,
+        )
+        return TypeIntoActiveWindowTool.voice_patterns
+
+    # -- EN patterns (indices 0, 1, 2) ------------------------------------
+
+    @pytest.mark.parametrize(
+        "phrase, expected_text",
+        [
+            ("type hello world", "hello world"),
+            ("type my email address", "my email address"),
+            ("type some random text here", "some random text here"),
+        ],
+    )
+    def test_en_type(self, patterns, phrase, expected_text):
+        m = _assert_pattern_matches(patterns[0], phrase, expected_group=expected_text)
+        assert patterns[0].args(m) == {"text": expected_text}
+
+    @pytest.mark.parametrize(
+        "phrase, expected_text",
+        [
+            ("write meeting notes", "meeting notes"),
+            ("write hello there", "hello there"),
+        ],
+    )
+    def test_en_write(self, patterns, phrase, expected_text):
+        m = _assert_pattern_matches(patterns[1], phrase, expected_group=expected_text)
+        assert patterns[1].args(m) == {"text": expected_text}
+
+    @pytest.mark.parametrize(
+        "phrase, expected_text",
+        [
+            ("enter my password", "my password"),
+            ("enter the code 1234", "the code 1234"),
+        ],
+    )
+    def test_en_enter(self, patterns, phrase, expected_text):
+        m = _assert_pattern_matches(patterns[2], phrase, expected_group=expected_text)
+        assert patterns[2].args(m) == {"text": expected_text}
+
+    # -- RU patterns (indices 3, 4, 5) ------------------------------------
+
+    @pytest.mark.parametrize(
+        "phrase, expected_text",
+        [
+            ("\u043d\u0430\u043f\u0435\u0447\u0430\u0442\u0430\u0439 \u043f\u0440\u0438\u0432\u0435\u0442 \u043c\u0438\u0440", "\u043f\u0440\u0438\u0432\u0435\u0442 \u043c\u0438\u0440"),
+            ("\u043d\u0430\u043f\u0435\u0447\u0430\u0442\u0430\u0439 \u043c\u043e\u0439 \u0435\u043c\u0435\u0439\u043b", "\u043c\u043e\u0439 \u0435\u043c\u0435\u0439\u043b"),
+        ],
+    )
+    def test_ru_napechataj(self, patterns, phrase, expected_text):
+        m = _assert_pattern_matches(patterns[3], phrase, expected_group=expected_text)
+        assert patterns[3].args(m) == {"text": expected_text}
+
+    @pytest.mark.parametrize(
+        "phrase, expected_text",
+        [
+            ("\u043d\u0430\u043f\u0438\u0448\u0438 \u043f\u0440\u0438\u0432\u0435\u0442", "\u043f\u0440\u0438\u0432\u0435\u0442"),
+            ("\u043d\u0430\u043f\u0438\u0448\u0438 \u0434\u043e\u0431\u0440\u043e\u0435 \u0443\u0442\u0440\u043e", "\u0434\u043e\u0431\u0440\u043e\u0435 \u0443\u0442\u0440\u043e"),
+        ],
+    )
+    def test_ru_napishi(self, patterns, phrase, expected_text):
+        m = _assert_pattern_matches(patterns[4], phrase, expected_group=expected_text)
+        assert patterns[4].args(m) == {"text": expected_text}
+
+    @pytest.mark.parametrize(
+        "phrase, expected_text",
+        [
+            ("\u0432\u0432\u0435\u0434\u0438 \u043f\u0430\u0440\u043e\u043b\u044c 123", "\u043f\u0430\u0440\u043e\u043b\u044c 123"),
+            ("\u0432\u0432\u0435\u0434\u0438 \u0442\u0435\u043a\u0441\u0442", "\u0442\u0435\u043a\u0441\u0442"),
+        ],
+    )
+    def test_ru_vvedi(self, patterns, phrase, expected_text):
+        m = _assert_pattern_matches(patterns[5], phrase, expected_group=expected_text)
+        assert patterns[5].args(m) == {"text": expected_text}
+
+    # -- UK patterns (indices 6, 7, 8) ------------------------------------
+
+    @pytest.mark.parametrize(
+        "phrase, expected_text",
+        [
+            ("\u043d\u0430\u0434\u0440\u0443\u043a\u0443\u0439 \u043f\u0440\u0438\u0432\u0456\u0442 \u0441\u0432\u0456\u0442", "\u043f\u0440\u0438\u0432\u0456\u0442 \u0441\u0432\u0456\u0442"),
+            ("\u043d\u0430\u0434\u0440\u0443\u043a\u0443\u0439 \u043c\u0456\u0439 \u0435\u043c\u0435\u0439\u043b", "\u043c\u0456\u0439 \u0435\u043c\u0435\u0439\u043b"),
+        ],
+    )
+    def test_uk_nadrukuj(self, patterns, phrase, expected_text):
+        m = _assert_pattern_matches(patterns[6], phrase, expected_group=expected_text)
+        assert patterns[6].args(m) == {"text": expected_text}
+
+    @pytest.mark.parametrize(
+        "phrase, expected_text",
+        [
+            ("\u043d\u0430\u043f\u0438\u0448\u0438 \u043f\u0440\u0438\u0432\u0456\u0442", "\u043f\u0440\u0438\u0432\u0456\u0442"),
+            ("\u043d\u0430\u043f\u0438\u0448\u0438 \u0434\u043e\u0431\u0440\u0438\u0439 \u0440\u0430\u043d\u043e\u043a", "\u0434\u043e\u0431\u0440\u0438\u0439 \u0440\u0430\u043d\u043e\u043a"),
+        ],
+    )
+    def test_uk_napyshi(self, patterns, phrase, expected_text):
+        m = _assert_pattern_matches(patterns[7], phrase, expected_group=expected_text)
+        assert patterns[7].args(m) == {"text": expected_text}
+
+    @pytest.mark.parametrize(
+        "phrase, expected_text",
+        [
+            ("\u0432\u0432\u0435\u0434\u0438 \u043f\u0430\u0440\u043e\u043b\u044c", "\u043f\u0430\u0440\u043e\u043b\u044c"),
+            ("\u0432\u0432\u0435\u0434\u0438 \u043a\u043e\u0434 5678", "\u043a\u043e\u0434 5678"),
+        ],
+    )
+    def test_uk_vvedy(self, patterns, phrase, expected_text):
+        m = _assert_pattern_matches(patterns[8], phrase, expected_group=expected_text)
+        assert patterns[8].args(m) == {"text": expected_text}
+
+    # -- negative tests: must NOT match bare verbs or wrong tools ----------
+
+    def test_bare_type_no_match(self, patterns):
+        """'type' alone (no text) must not match."""
+        _assert_no_match(patterns[0], "type")
+
+    def test_bare_napechataj_no_match(self, patterns):
+        _assert_no_match(patterns[3], "\u043d\u0430\u043f\u0435\u0447\u0430\u0442\u0430\u0439")
+
+    def test_zapishi_does_not_match_type_pattern(self, patterns):
+        """\"\u0437\u0430\u043f\u0438\u0448\u0438 X\" is note-taking, not typing — must not match here."""
+        for p in patterns:
+            _assert_no_match(p, "\u0437\u0430\u043f\u0438\u0448\u0438 \u043a\u0443\u043f\u0438\u0442\u044c \u043c\u043e\u043b\u043e\u043a\u043e")
+
+    # -- priority ordering -------------------------------------------------
+
+    def test_all_priorities_in_catch_all_band(self, patterns):
+        """All type_into_active_window patterns live at 800-810,
+        well above notes (440), auto_login (200), and below CATCH_ALL (900)."""
+        for p in patterns:
+            assert 800 <= p.priority <= 810, (
+                f"priority {p.priority} outside expected 800..810 band"
+            )
+
+    def test_notes_beats_type_patterns(self):
+        """notes_tools \"запиши\" at 440 beats type \"напиши\" at 800."""
+        from jarvis.tools.local.notes_tools import TakeNoteTool
+        from jarvis.tools.local.type_into_active_window import (
+            TypeIntoActiveWindowTool,
+        )
+
+        notes_max = max(p.priority for p in TakeNoteTool.voice_patterns)
+        type_min = min(p.priority for p in TypeIntoActiveWindowTool.voice_patterns)
+        assert notes_max < type_min, (
+            f"notes priority {notes_max} must be < type priority {type_min}"
+        )

@@ -401,11 +401,16 @@ CAPABILITY_CATEGORIES: tuple[CapabilityCategory, ...] = (
                 name="Type into the focused window",
                 description=(
                     "Types whatever you dictate into whichever window "
-                    "currently has focus."
+                    "currently has focus. "
+                    "(RU: напечатай / напиши / введи · "
+                    "UK: надрукуй / напиши / введи)"
                 ),
                 examples=(
                     "type hello world",
                     "type my email address",
+                    "write meeting notes",
+                    "напечатай привет мир",
+                    "надрукуй привіт світ",
                 ),
                 tools=("type_into_active_window",),
             ),

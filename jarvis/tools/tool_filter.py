@@ -239,19 +239,25 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
     "system": {
         "tools": [
             "lock_screen", "type_into_active_window", "switch_language",
-            "clipboard", "list_directory",
+            "clipboard", "list_directory", "file_manager",
         ],
         "keywords_en": [
             "lock", "type", "switch language", "clipboard", "copy",
             "files", "directory", "folder", "list files",
+            "find file", "open file", "move file", "delete file",
+            "rename", "create folder", "make folder",
         ],
         "keywords_ru": [
             "заблокир", "набер", "переключ язык", "язык",
             "файл", "папк", "каталог", "скопир",
+            "найди", "открой файл", "перемести", "удали файл",
+            "переименуй", "создай папку",
         ],
         "keywords_uk": [
             "заблокуй", "набер", "переключ мов", "мов",
             "файл", "папк", "каталог", "скопіюй",
+            "знайди", "відкрий файл", "перемісти", "видали файл",
+            "перейменуй", "створи папку",
         ],
     },
     "windows_control": {

@@ -108,6 +108,9 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     "list_directory": RiskLevel.READ,
     "get_time": RiskLevel.READ,
     # Browser tools (Phase 7)
+    # Dictation — the tool itself just toggles a flag; actual typing
+    # is done via type_dictation_text() which bypasses the registry.
+    "dictation": RiskLevel.READ,
     "browser_tabs": RiskLevel.WRITE,
     "content_reader": RiskLevel.READ,
     "bookmarks": RiskLevel.WRITE,
@@ -268,6 +271,22 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     "lock_vault": RiskLevel.WRITE,
     # Change master password: DESTRUCTIVE (re-encrypts entire vault)
     "change_vault_password": RiskLevel.DESTRUCTIVE,
+    # -- File manager -------------------------------------------------------
+    # find/open/mkdir are WRITE; move/copy/rename are WRITE;
+    # delete is DESTRUCTIVE (gated by the dispatch-level risk map below).
+    "file_manager": RiskLevel.WRITE,
+    # -- Calculator ---------------------------------------------------------
+    "calculator": RiskLevel.READ,
+    # -- Converter ----------------------------------------------------------
+    "converter": RiskLevel.READ,
+    # -- Reminders ----------------------------------------------------------
+    "remind_me": RiskLevel.WRITE,
+    "remind_me_at": RiskLevel.WRITE,
+    "list_reminders": RiskLevel.READ,
+    "delete_reminder": RiskLevel.DESTRUCTIVE,
+    # -- Vision tools (Phase 8) --------------------------------------------
+    "watch_screen": RiskLevel.READ,
+    "read_screen_text": RiskLevel.READ,
 }
 
 

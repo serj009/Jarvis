@@ -66,6 +66,9 @@ def setup_local_tools(
     from jarvis.tools.local.clipboard import ClipboardTool
     from jarvis.core.config import SandboxConfig
     from jarvis.tools.local.close_app import CloseAppTool
+    from jarvis.tools.local.calculator import CalculatorTool
+    from jarvis.tools.local.converter import ConverterTool
+    from jarvis.tools.local.file_manager import FileManagerTool
     from jarvis.tools.local.files import ListDirectoryTool
     from jarvis.tools.local.get_time import GetTimeTool
     from jarvis.tools.local.web_knowledge import SavePageKnowledgeTool
@@ -141,6 +144,12 @@ def setup_local_tools(
         SubscribeRssTool, UnsubscribeRssTool,
         ListRssFeedsTool, GetLatestNewsTool,
     )
+    from jarvis.tools.local.remind_me import (
+        RemindMeTool,
+        RemindMeAtTool,
+        ListRemindersTool,
+        DeleteReminderTool,
+    )
     from jarvis.tools.local.qr_share import GenerateQrTool, ShareToPhoneTool
     from jarvis.tools.local.focus_mode import (
         StartFocusModeTool, StopFocusModeTool, FocusModeStatusTool,
@@ -200,12 +209,15 @@ def setup_local_tools(
 
     base_tools: list[Tool[Any]] = [
         ClipboardTool(),
+        CalculatorTool(),
+        ConverterTool(),
         BrowserTabsTool(),
         ContentReaderTool(),
         BookmarksTool(),
         MediaControlTool(),
         CloseAppTool(),
         GetTimeTool(),
+        FileManagerTool(path_validator=path_validator),
         ListDirectoryTool(path_validator=path_validator),
         LockScreenTool(),
         OpenAppTool(personal_aliases=personal_aliases),
@@ -276,6 +288,11 @@ def setup_local_tools(
         GenerateQrTool(),
         ShareToPhoneTool(),
         StartFocusModeTool(),
+        # Time-based persistent reminders
+        RemindMeTool(),
+        RemindMeAtTool(),
+        ListRemindersTool(),
+        DeleteReminderTool(),
         StopFocusModeTool(),
         FocusModeStatusTool(),
         # Phase 8: Vision tools
