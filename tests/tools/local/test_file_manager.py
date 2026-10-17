@@ -354,7 +354,7 @@ _EN_FIND = [
     "find files on desktop",
     "find report",
     "search for file budget",
-    "look for readme",
+    "look for file readme",
 ]
 
 
