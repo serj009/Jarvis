@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 from jarvis.ui.settings.tabs import (
     AboutTab,
     AdvancedTab,
+    CodingTab,
     CommandsTab,
     GamingTab,
     GeneralTab,
@@ -55,6 +56,7 @@ _NAV_ITEMS: tuple[tuple[str, str, str, str | None], ...] = (
     ("voice",    "\U0001f3a4",    "Voice & Audio", None),
     ("models",   "\U0001f9e0",    "AI Models",     None),
     ("tools",    "\U0001f9e9",    "Tools",         "Features"),
+    ("coding",   "\U0001f4bb",    "Coding",        None),
     ("memory",   "\U0001f4be",    "Memory",        None),
     ("gaming",   "\U0001f3ae",    "Game Mode",     None),
     ("security", "\U0001f6e1\ufe0f", "Security",   None),
@@ -104,6 +106,7 @@ class SettingsWindow(QMainWindow):
         )
         self.models = ModelsTab(config=config, on_change=_on_change_with_indicator)
         self.tools = ToolsTab(config=config, on_change=_on_change_with_indicator)
+        self.coding = CodingTab(config=config, on_change=_on_change_with_indicator)
         self.memory = MemoryTab(config=config, on_change=_on_change_with_indicator)
         self.gaming = GamingTab(config=config, on_change=_on_change_with_indicator)
         self.security = SecurityTab(config=config, on_change=_on_change_with_indicator)
@@ -117,6 +120,7 @@ class SettingsWindow(QMainWindow):
             "voice": self.voice,
             "models": self.models,
             "tools": self.tools,
+            "coding": self.coding,
             "memory": self.memory,
             "gaming": self.gaming,
             "security": self.security,
@@ -173,7 +177,7 @@ class SettingsWindow(QMainWindow):
 
         title = QLabel("\U0001f916  J.A.R.V.I.S.")
         title.setObjectName("sidebarTitle")
-        version = QLabel("v1.0.0 \u00b7 Schema v30")
+        version = QLabel("v1.0.0 \u00b7 Schema v32")
         version.setObjectName("sidebarVersion")
 
         header_layout.addWidget(title)

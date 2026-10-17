@@ -44,7 +44,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
-CURRENT_SCHEMA_VERSION = 31
+CURRENT_SCHEMA_VERSION = 32
 
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -539,6 +539,32 @@ class GameModeConfig(_Base):
     custom_main_games: list[str] = Field(default_factory=list)
 
 
+class CodingConfig(_Base):
+    """Settings for the Coding Agent — a separate LLM for code generation.
+
+    The coding model can be:
+    - "main" provider → same as llm.model (Ollama, no extra download)
+    - "ollama" provider → local coding model (e.g. qwen2.5-coder:7b)
+    - "openai"/"anthropic"/"groq" → cloud API
+    """
+
+    # Provider: "main" (use main LLM), "ollama", "openai", "anthropic", "groq"
+    provider: Literal["main", "ollama", "openai", "anthropic", "groq"] = "main"
+
+    # Ollama model (when provider="ollama")
+    ollama_model: str = "qwen2.5-coder:7b"
+
+    # API settings (when provider is openai/anthropic/groq)
+    api_model: str = ""
+    api_key: str = ""
+    api_base_url: str = ""
+
+    # Agent behavior
+    max_iterations: int = Field(default=10, ge=1, le=50)
+    auto_commit: bool = False
+    default_workspace: str = ""
+
+
 class JarvisConfig(_Base):
     schema_version: int = CURRENT_SCHEMA_VERSION
     general: GeneralConfig = Field(default_factory=GeneralConfig)
@@ -563,6 +589,7 @@ class JarvisConfig(_Base):
     sandbox: SandboxConfig = Field(default_factory=SandboxConfig)
     game_mode: GameModeConfig = Field(default_factory=GameModeConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
+    coding: CodingConfig = Field(default_factory=CodingConfig)
 
 # --- secrets at rest -------------------------------------------------------
 
@@ -582,6 +609,7 @@ _SECRET_FIELD_PATHS: tuple[tuple[str, str], ...] = (
     # it defaults to None, so covering it costs nothing and cannot break a
     # consumer that does not exist.
     ("research", "api_key"),
+    ("coding", "api_key"),
 )
 
 # Secrets inside the mcp_servers list, keyed by field name. Handled
