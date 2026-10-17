@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 from jarvis.core.config import JarvisConfig, save_config
 from jarvis.ui.settings._widgets import SectionCard, ToggleSwitch, slider_with_label
 
+from jarvis.coding.languages import LANGUAGES
 log = logging.getLogger(__name__)
 
 _PROVIDERS = [
@@ -30,6 +31,21 @@ _PROVIDERS = [
 
 _PROVIDER_INDEX = {key: i for i, (key, _) in enumerate(_PROVIDERS)}
 
+# Preferred-language choices: "" → Auto-detect, then one entry per
+# language in LANGUAGES (display_name used as the UI label, .name as
+# the config value).  Order is explicit so the dropdown reads well.
+_LANG_ORDER = ("python", "javascript", "typescript", "csharp", "go", "rust", "java", "cpp")
+
+_PREFERRED_LANGUAGES: list[tuple[str, str]] = [("", "Auto-detect")]
+for _k in _LANG_ORDER:
+    if _k in LANGUAGES:
+        _PREFERRED_LANGUAGES.append((_k, LANGUAGES[_k].display_name))
+# Catch any new languages added to LANGUAGES but missing from _LANG_ORDER.
+for _k, _v in LANGUAGES.items():
+    if _k not in _LANG_ORDER:
+        _PREFERRED_LANGUAGES.append((_k, _v.display_name))
+
+_PREFERRED_LANG_INDEX = {key: i for i, (key, _) in enumerate(_PREFERRED_LANGUAGES)}
 
 class CodingTab(QWidget):
     def __init__(
@@ -147,6 +163,18 @@ class CodingTab(QWidget):
             "Default workspace",
             "Working directory for the coding agent",
             self._default_workspace,
+        )
+
+        # Preferred language
+        self._lang_combo = QComboBox()
+        for _key, label in _PREFERRED_LANGUAGES:
+            self._lang_combo.addItem(label)
+        current_lang_idx = _PREFERRED_LANG_INDEX.get(config.coding.preferred_language, 0)
+        self._lang_combo.setCurrentIndex(current_lang_idx)
+        behavior_card.add_row(
+            "Preferred language",
+            "Default language for new coding tasks (Auto-detect uses project files)",
+            self._lang_combo,
             last=True,
         )
 
@@ -165,6 +193,7 @@ class CodingTab(QWidget):
         self._iter_slider.valueChanged.connect(self._on_max_iterations)
         self._auto_commit.toggled.connect(self._on_auto_commit)
         self._default_workspace.editingFinished.connect(self._on_default_workspace)
+        self._lang_combo.currentIndexChanged.connect(self._on_preferred_language)
 
     # -- Visibility helpers --
 
@@ -218,6 +247,11 @@ class CodingTab(QWidget):
         self._config.coding.default_workspace = (
             self._default_workspace.text().strip()
         )
+        self._persist()
+
+    def _on_preferred_language(self, index: int) -> None:
+        lang_key = _PREFERRED_LANGUAGES[index][0]
+        self._config.coding.preferred_language = lang_key
         self._persist()
 
     def _persist(self) -> None:

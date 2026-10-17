@@ -100,7 +100,6 @@ def setup_local_tools(
     from jarvis.tools.local.power_control import PowerControlTool
     from jarvis.tools.local.cli_runner import CLIRunnerTool
     from jarvis.tools.local.code_runner import CodeRunnerTool
-    from jarvis.tools.local.coding_tools import CodingAgentTool
     from jarvis.tools.local.download_manager import DownloadFileTool
     from jarvis.tools.local.package_manager import (
         PackageSearchTool,
@@ -255,7 +254,6 @@ def setup_local_tools(
         PowerControlTool(),
         CLIRunnerTool(),
         CodeRunnerTool(path_validator=path_validator),
-        CodingAgentTool(),
         DownloadFileTool(),
         PackageSearchTool(),
         PackageInstallTool(),

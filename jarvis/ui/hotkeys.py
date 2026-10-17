@@ -146,6 +146,7 @@ class HotkeyManager:
         on_open_settings: Callable[[], None],
         on_mode_request: Callable[[Mode], Any] | None = None,
         on_open_command_palette: Callable[[], None] | None = None,
+        on_open_chat: Callable[[], None] | None = None,
     ) -> None:
         self._sm = sm
         self._bus = bus
@@ -155,6 +156,7 @@ class HotkeyManager:
         self._on_open_command_palette = on_open_command_palette
         # See TrayIcon: optional coroutine-returning hook that routes
         # mode requests through ModeCoordinator. None preserves legacy
+        self._on_open_chat = on_open_chat
         # direct-sm.set_mode dispatch.
         self._on_mode_request = on_mode_request
         self._alive: bool = True
@@ -189,6 +191,11 @@ class HotkeyManager:
                 getattr(self._hotkeys, "command_palette", None),
                 "command_palette",
                 self._on_command_palette_hotkey,
+            ),
+            (
+                getattr(self._hotkeys, "chat", None),
+                "chat",
+                self._on_chat_hotkey,
             ),
         ):
             if not raw:
@@ -306,6 +313,18 @@ class HotkeyManager:
             self._on_open_command_palette()
         except Exception:
             log.exception("on_open_command_palette callback raised")
+
+    def _on_chat_hotkey(self) -> None:
+        """Toggle the text chat panel open/closed. The composition root
+        marshals onto the Qt thread."""
+        if not self._alive:
+            return
+        if self._on_open_chat is None:
+            return
+        try:
+            self._on_open_chat()
+        except Exception:
+            log.exception("on_open_chat callback raised")
 
     # -- audio-loop marshalling -----------------------------------------
 

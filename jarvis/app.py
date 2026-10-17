@@ -307,6 +307,10 @@ from jarvis.tools import MCPManager, ToolRegistry, setup_local_tools
 
 from jarvis.ui.clipboard_history_panel import ClipboardHistoryPanel
 
+from jarvis.ui.chat_panel import ChatPanel
+from jarvis.ui.chat_storage import ChatStorage
+from jarvis.ui.coding_panel import CodingPanel
+
 
 from jarvis.ui.command_palette import CommandPalette
 
@@ -1650,6 +1654,18 @@ async def _audio_main(
 
     await stop_event.wait()
 
+    # Goodbye phrase: speak before any cleanup so TTS is still alive.
+    try:
+        from jarvis.core.phrases import say, Lang
+        stt_lang = getattr(stt, "language", None)
+        if stt_lang in ("ru", "uk", "en"):
+            lang: Lang = stt_lang  # type: ignore[assignment]
+        else:
+            lang = "en"
+        await tts.speak(say("goodbye", lang))
+        log.info("shutdown: spoke goodbye (%s)", lang)
+    except Exception:
+        log.warning("shutdown: goodbye TTS failed", exc_info=True)
 
 
 
@@ -1973,8 +1989,13 @@ class JarvisApp:
         self.log_panel: LogPanel | None = None
 
 
+        self.coding_panel: CodingPanel | None = None
+
+
         self.command_palette: CommandPalette | None = None
 
+
+        self.chat_panel: ChatPanel | None = None
 
         self.onboarding_panel: OnboardingPanel | None = None
 
@@ -3667,12 +3688,22 @@ class JarvisApp:
             self.log_panel.close_panel()
 
 
+        if self.coding_panel is not None:
+
+
+            self.coding_panel.close_panel()
+
+
         if self.command_palette is not None:
 
 
             self.command_palette.close_palette()
 
 
+        if self.chat_panel is not None:
+
+
+            self.chat_panel.close_panel()
         if self.onboarding_panel is not None:
 
 
@@ -3912,6 +3943,56 @@ class JarvisApp:
 
 
 
+    # ------------------------------------------------------------------
+    # Chat panel text submission (same pattern as command palette)
+    # ------------------------------------------------------------------
+
+    async def _consume_chat_text(self, text: str) -> None:
+        """Drive the router from the audio loop, streaming chunks back to
+        the ChatPanel via its cross-thread Signals."""
+        panel = self.chat_panel
+        if panel is None:
+            return
+        chunks: list[str] = []
+        try:
+            async for chunk in self._chat_producer(text):
+                chunks.append(chunk)
+                panel.response_chunk_received.emit(chunk)
+        except Exception:
+            log.exception("chat text execution failed")
+        finally:
+            panel.response_complete.emit("".join(chunks))
+
+    def _submit_chat_text(self, text: str) -> None:
+        """Schedule chat text onto the audio loop (Qt thread → audio)."""
+        try:
+            asyncio.run_coroutine_threadsafe(
+                self._consume_chat_text(text), self.audio_loop
+            )
+        except Exception:
+            log.exception("could not schedule chat text onto audio loop")
+
+    def _speak_chat_text(self, text: str) -> None:
+        """TTS callback for the chat panel's 'Also speak' toggle.
+        Schedules tts.speak on the audio loop from the Qt thread."""
+        try:
+            asyncio.run_coroutine_threadsafe(
+                self.tts.speak(text), self.audio_loop
+            )
+        except Exception:
+            log.debug("chat TTS dispatch failed", exc_info=True)
+
+    def _toggle_chat_panel(self) -> None:
+        """Toggle the chat panel open/closed. Called by the hotkey
+        handler on the Qt main thread."""
+        panel = self.chat_panel
+        if panel is None:
+            return
+        if panel.isVisible():
+            panel.close_panel()
+        else:
+            panel.open_panel()
+
 
     def _on_onboarding_finished(self) -> None:
 
@@ -4006,8 +4087,13 @@ class JarvisApp:
         self._build_log_panel()
 
 
+        self._build_coding_panel()
+
+
         self._build_command_palette()
 
+
+        self._build_chat_panel()
 
         self._build_onboarding_panel()
 
@@ -4065,6 +4151,8 @@ class JarvisApp:
 
             on_open_tutorial=lambda: self._tray_open(self.onboarding_panel),
 
+
+            on_open_chat=lambda: self._tray_open(self.chat_panel),
 
         )
 
@@ -4608,6 +4696,122 @@ class JarvisApp:
 
 
 
+    def _build_coding_panel(self) -> None:
+
+
+        # --- Coding Agent panel + voice tools ---------------------------------
+
+
+        from jarvis.coding.task_storage import TaskStorage
+
+
+
+
+
+        storage = TaskStorage()
+
+
+        self.coding_panel = CodingPanel(
+
+
+            storage=storage,
+
+
+            speak_fn=self._on_test_voice,
+
+
+        )
+
+
+
+
+
+        from jarvis.tools.local.coding_tools import (
+
+
+            CodingAgentTool,
+
+
+            CloseCodingPanelTool,
+
+
+            OpenCodingPanelTool,
+
+
+        )
+
+
+
+
+
+        self.registry.register(CodingAgentTool(
+
+
+            coding_config=self.cfg.coding,
+
+
+            ollama_client=self.ollama,
+
+
+            coding_panel=self.coding_panel,
+
+
+        ))
+
+
+        self.registry.register(OpenCodingPanelTool(on_open=self.coding_panel.open_panel))
+
+
+        self.registry.register(CloseCodingPanelTool(on_close=self.coding_panel.close_panel))
+
+
+        # Wire the panel's input bar → audio-loop intent router, so typed
+        # tasks are dispatched the same way as voice commands.
+        self.coding_panel.task_submitted.connect(self._submit_palette_text)
+
+
+
+
+
+    def _build_chat_panel(self) -> None:
+
+
+        # --- Chat panel + voice tools ----------------------------------------
+
+
+        # Same router adapter as the command palette. Chunks are routed
+
+
+        # back to the ChatPanel via its cross-thread Signals so the audio
+
+
+        # loop never touches Qt widgets directly.
+
+
+        self._chat_producer = _make_router_adapter(
+            self.router, self.conversation, self.registry
+        )
+
+
+        self.chat_panel = ChatPanel(
+            submit_text=self._submit_chat_text,
+            tts_speak=self._speak_chat_text,
+            storage=ChatStorage(),
+        )
+
+
+        from jarvis.tools.local.chat_tools import CloseChatTool, OpenChatTool
+
+
+        self.registry.register(OpenChatTool(
+            on_open=self.chat_panel.open_panel,
+        ))
+
+
+        self.registry.register(CloseChatTool(
+            on_close=self.chat_panel.close_panel,
+        ))
+
 
     def _build_command_palette(self) -> None:
 
@@ -4788,6 +4992,10 @@ class JarvisApp:
                 0, palette.open_palette
 
 
+            ),
+
+            on_open_chat=lambda: QTimer.singleShot(
+                0, self._toggle_chat_panel
             ),
 
 

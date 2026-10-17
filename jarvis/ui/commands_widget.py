@@ -39,7 +39,7 @@ log = logging.getLogger(__name__)
 # Extra commands (not in capabilities.py — pipeline / state-machine behaviours)
 # ---------------------------------------------------------------------------
 
-_EXTRA_COMMANDS: tuple[tuple[str, str, tuple[str, str, str]], ...] = (
+_SPECIAL_COMMANDS: tuple[tuple[str, str, tuple[str, str, str]], ...] = (
     (
         "\U0001f310 Switch language",
         "Change JARVIS response language",
@@ -74,6 +74,94 @@ _EXTRA_COMMANDS: tuple[tuple[str, str, tuple[str, str, str]], ...] = (
             "Вимкни ігровий режим",
         ),
     ),
+)
+
+_CODING_COMMANDS: tuple[tuple[str, str, tuple[str, str, str]], ...] = (
+    (
+        "\U0001f4c1 Create project",
+        "Scaffold a new project from a template",
+        ("Create a project", "Создай проект", "Створи проєкт"),
+    ),
+    (
+        "\U0001f9ea Run tests",
+        "Run the test suite for the current project",
+        ("Run tests", "Запусти тесты", "Запусти тести"),
+    ),
+    (
+        "\u25b6\ufe0f Run script",
+        "Execute a script or the main entry point",
+        ("Run the script", "Запусти скрипт", "Запусти скрипт"),
+    ),
+    (
+        "\U0001f41b Fix errors",
+        "Analyse and fix errors in the project",
+        ("Fix the errors", "Почини ошибки", "Полагодь помилки"),
+    ),
+    (
+        "\U0001f4c4 Read file",
+        "Read and display contents of a source file",
+        ("Read file main.py", "Прочитай файл main.py", "Прочитай файл main.py"),
+    ),
+)
+
+_GIT_COMMANDS: tuple[tuple[str, str, tuple[str, str, str]], ...] = (
+    (
+        "\U0001f4cb Git status",
+        "Show working-tree status and staged changes",
+        ("Git status", "Git статус", "Git статус"),
+    ),
+    (
+        "\U0001f50d Git diff",
+        "Show uncommitted changes",
+        ("Git diff", "Git diff", "Git diff"),
+    ),
+    (
+        "\U0001f4dc Git log",
+        "Show recent commit history",
+        ("Git log", "Git лог", "Git лог"),
+    ),
+    (
+        "\u2705 Git commit",
+        "Stage and commit current changes",
+        ("Git commit", "Git коммит", "Git коміт"),
+    ),
+    (
+        "\u2b06\ufe0f Git push",
+        "Push local commits to the remote",
+        ("Git push", "Git пуш", "Git пуш"),
+    ),
+    (
+        "\u2b07\ufe0f Git pull",
+        "Pull latest changes from the remote",
+        ("Git pull", "Git пулл", "Git пулл"),
+    ),
+    (
+        "\U0001f33f Git branch",
+        "List, create, or delete branches",
+        ("Git branch", "Git ветка", "Git гілка"),
+    ),
+    (
+        "\U0001f500 Git checkout",
+        "Switch to another branch or commit",
+        ("Git checkout main", "Git checkout main", "Git checkout main"),
+    ),
+)
+
+_SYSTEM_EXTRA_COMMANDS: tuple[tuple[str, str, tuple[str, str, str]], ...] = (
+    (
+        "\U0001f4ac Open chat",
+        "Open the JARVIS chat window",
+        ("Open chat", "Открой чат", "Відкрий чат"),
+    ),
+)
+
+# Grouped extra commands — each entry is (icon, group_name, commands).
+# _build_extras iterates this in order, creating one SectionCard per group.
+_EXTRA_GROUPS: tuple[tuple[str, str, tuple[tuple[str, str, tuple[str, str, str]], ...]], ...] = (
+    ("\U0001f4bb", "Coding", _CODING_COMMANDS),
+    ("\U0001f5c3\ufe0f", "Git", _GIT_COMMANDS),
+    ("\U0001f3ae", "Special Commands", _SPECIAL_COMMANDS),
+    ("\u2699\ufe0f", "System", _SYSTEM_EXTRA_COMMANDS),
 )
 
 
@@ -174,7 +262,7 @@ class CommandsWidget(QWidget):
 
     * A header row with a search box and All / EN / RU / UK toggle buttons.
     * A scrollable area of ``SectionCard`` groups populated from
-      ``CAPABILITY_CATEGORIES`` + ``_EXTRA_COMMANDS``.
+      ``CAPABILITY_CATEGORIES`` + ``_EXTRA_GROUPS``.
     * Real-time search filtering and per-language tag visibility.
     """
 
@@ -252,14 +340,15 @@ class CommandsWidget(QWidget):
             self._content_layout.addWidget(card)
 
     def _build_extras(self) -> None:
-        """Populate the 'Special Commands' card (not in capabilities.py)."""
-        card = SectionCard()
-        card.add_header("\U0001f3ae", "Special Commands")
-        for name, desc, (en, ru, uk) in _EXTRA_COMMANDS:
-            row = _CommandRow(name, desc, en, ru, uk)
-            card.add_widget(row)
-            self._all_rows.append(row)
-        self._content_layout.addWidget(card)
+        """Populate extra command cards (not in capabilities.py)."""
+        for icon, group_name, commands in _EXTRA_GROUPS:
+            card = SectionCard()
+            card.add_header(icon, group_name)
+            for name, desc, (en, ru, uk) in commands:
+                row = _CommandRow(name, desc, en, ru, uk)
+                card.add_widget(row)
+                self._all_rows.append(row)
+            self._content_layout.addWidget(card)
 
     # -- slots -------------------------------------------------------------
 

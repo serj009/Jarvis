@@ -1080,3 +1080,312 @@ class TestTypeIntoActiveWindowMultilingual:
         assert notes_max < type_min, (
             f"notes priority {notes_max} must be < type priority {type_min}"
         )
+
+
+# -- deep_research_tools.py ------------------------------------------------
+
+
+class TestDeepResearchMultilingual:
+    """RU/UK voice patterns for DeepResearchTool."""
+
+    @pytest.fixture()
+    def patterns(self):
+        from jarvis.tools.local.deep_research_tools import DeepResearchTool
+        return DeepResearchTool.voice_patterns
+
+    def test_en_pattern_unchanged(self, patterns):
+        m = _assert_pattern_matches(
+            patterns[0], "deep research quantum computing",
+            expected_group="quantum computing",
+        )
+        assert patterns[0].args(m) == {"query": "quantum computing"}
+
+    @pytest.mark.parametrize(
+        "phrase, expected_query",
+        [
+            ("глубокое исследование квантовые компьютеры", "квантовые компьютеры"),
+            ("глубокое исследование на тему ии", "ии"),
+            ("исследуй подробно машинное обучение", "машинное обучение"),
+        ],
+    )
+    def test_ru_deep_research(self, patterns, phrase, expected_query):
+        m = _assert_pattern_matches(patterns[1], phrase, expected_group=expected_query)
+        assert patterns[1].args(m) == {"query": expected_query}
+
+    @pytest.mark.parametrize(
+        "phrase, expected_query",
+        [
+            ("глибоке дослідження квантові комп'ютери", "квантові комп'ютери"),
+            ("глибоке дослідження на тему шi", "шi"),
+            ("дослідж детально машинне навчання", "машинне навчання"),
+        ],
+    )
+    def test_uk_deep_research(self, patterns, phrase, expected_query):
+        m = _assert_pattern_matches(patterns[2], phrase, expected_group=expected_query)
+        assert patterns[2].args(m) == {"query": expected_query}
+
+
+class TestPauseDeepResearchMultilingual:
+    """RU/UK voice patterns for PauseDeepResearchTool."""
+
+    @pytest.fixture()
+    def patterns(self):
+        from jarvis.tools.local.deep_research_tools import PauseDeepResearchTool
+        return PauseDeepResearchTool.voice_patterns
+
+    def test_en_pattern_unchanged(self, patterns):
+        _assert_pattern_matches(patterns[0], "pause deep research")
+
+    @pytest.mark.parametrize(
+        "phrase",
+        [
+            "пауза исследование",
+            "поставь на паузу исследование",
+            "поставь на паузу глубокое исследование",
+        ],
+    )
+    def test_ru_pause(self, patterns, phrase):
+        _assert_pattern_matches(patterns[1], phrase)
+
+    @pytest.mark.parametrize(
+        "phrase",
+        [
+            "пауза дослідження",
+            "постав на паузу дослідження",
+            "постав на паузу глибоке дослідження",
+        ],
+    )
+    def test_uk_pause(self, patterns, phrase):
+        _assert_pattern_matches(patterns[2], phrase)
+
+
+class TestResumeDeepResearchMultilingual:
+    """RU/UK voice patterns for ResumeDeepResearchTool."""
+
+    @pytest.fixture()
+    def patterns(self):
+        from jarvis.tools.local.deep_research_tools import ResumeDeepResearchTool
+        return ResumeDeepResearchTool.voice_patterns
+
+    def test_en_patterns_unchanged(self, patterns):
+        _assert_pattern_matches(patterns[0], "resume deep research")
+        _assert_pattern_matches(patterns[1], "continue deep research")
+
+    @pytest.mark.parametrize(
+        "phrase",
+        ["продолжи исследование", "продолжи глубокое исследование"],
+    )
+    def test_ru_resume(self, patterns, phrase):
+        _assert_pattern_matches(patterns[2], phrase)
+
+    @pytest.mark.parametrize(
+        "phrase",
+        ["продовж дослідження", "продовж глибоке дослідження"],
+    )
+    def test_uk_resume(self, patterns, phrase):
+        _assert_pattern_matches(patterns[3], phrase)
+
+
+class TestCloseDeepResearchMultilingual:
+    """RU/UK voice patterns for CloseDeepResearchTool."""
+
+    @pytest.fixture()
+    def patterns(self):
+        from jarvis.tools.local.deep_research_tools import CloseDeepResearchTool
+        return CloseDeepResearchTool.voice_patterns
+
+    def test_en_pattern_unchanged(self, patterns):
+        _assert_pattern_matches(patterns[0], "close deep research")
+
+    @pytest.mark.parametrize(
+        "phrase",
+        ["закрой исследование", "закрой глубокое исследование"],
+    )
+    def test_ru_close(self, patterns, phrase):
+        _assert_pattern_matches(patterns[1], phrase)
+
+    @pytest.mark.parametrize(
+        "phrase",
+        ["закрий дослідження", "закрий глибоке дослідження"],
+    )
+    def test_uk_close(self, patterns, phrase):
+        _assert_pattern_matches(patterns[2], phrase)
+
+
+class TestDeleteDeepResearchMultilingual:
+    """RU/UK voice patterns for DeleteDeepResearchTool."""
+
+    @pytest.fixture()
+    def patterns(self):
+        from jarvis.tools.local.deep_research_tools import DeleteDeepResearchTool
+        return DeleteDeepResearchTool.voice_patterns
+
+    def test_en_query_pattern_unchanged(self, patterns):
+        m = _assert_pattern_matches(
+            patterns[0], "delete deep research on quantum computing",
+            expected_group="quantum computing",
+        )
+        assert patterns[0].args(m) == {"query": "quantum computing"}
+
+    def test_en_bare_pattern_unchanged(self, patterns):
+        m = _assert_pattern_matches(patterns[3], "delete deep research")
+        assert patterns[3].args(m) == {"query": ""}
+
+    @pytest.mark.parametrize(
+        "phrase, expected_query",
+        [
+            ("удали исследование квантовые компьютеры", "квантовые компьютеры"),
+            ("удали исследование на тему ии", "ии"),
+            ("удали исследование про блокчейн", "блокчейн"),
+            ("удали глубокое исследование ии", "ии"),
+        ],
+    )
+    def test_ru_delete_query(self, patterns, phrase, expected_query):
+        m = _assert_pattern_matches(patterns[1], phrase, expected_group=expected_query)
+        assert patterns[1].args(m) == {"query": expected_query}
+
+    @pytest.mark.parametrize(
+        "phrase, expected_query",
+        [
+            ("видали дослідження квантові комп'ютери", "квантові комп'ютери"),
+            ("видали дослідження на тему шi", "шi"),
+            ("видали глибоке дослідження блокчейн", "блокчейн"),
+        ],
+    )
+    def test_uk_delete_query(self, patterns, phrase, expected_query):
+        m = _assert_pattern_matches(patterns[2], phrase, expected_group=expected_query)
+        assert patterns[2].args(m) == {"query": expected_query}
+
+    @pytest.mark.parametrize(
+        "phrase",
+        ["удали исследование", "удали глубокое исследование"],
+    )
+    def test_ru_delete_bare(self, patterns, phrase):
+        m = _assert_pattern_matches(patterns[4], phrase)
+        assert patterns[4].args(m) == {"query": ""}
+
+    @pytest.mark.parametrize(
+        "phrase",
+        ["видали дослідження", "видали глибоке дослідження"],
+    )
+    def test_uk_delete_bare(self, patterns, phrase):
+        m = _assert_pattern_matches(patterns[5], phrase)
+        assert patterns[5].args(m) == {"query": ""}
+
+
+class TestDeleteAllDeepResearchMultilingual:
+    """RU/UK voice patterns for DeleteAllDeepResearchTool."""
+
+    @pytest.fixture()
+    def patterns(self):
+        from jarvis.tools.local.deep_research_tools import DeleteAllDeepResearchTool
+        return DeleteAllDeepResearchTool.voice_patterns
+
+    def test_en_pattern_unchanged(self, patterns):
+        _assert_pattern_matches(patterns[0], "delete all deep research")
+        _assert_pattern_matches(patterns[0], "clear all deep research history")
+
+    @pytest.mark.parametrize(
+        "phrase",
+        [
+            "удали все исследования",
+            "удали все глубокие исследования",
+            "удали все исследования историю",
+        ],
+    )
+    def test_ru_delete_all(self, patterns, phrase):
+        _assert_pattern_matches(patterns[1], phrase)
+
+    @pytest.mark.parametrize(
+        "phrase",
+        [
+            "видали всі дослідження",
+            "видали всі глибокі дослідження",
+            "видали всі дослідження історію",
+        ],
+    )
+    def test_uk_delete_all(self, patterns, phrase):
+        _assert_pattern_matches(patterns[2], phrase)
+
+
+# -- deep_research_ultra_tools.py ------------------------------------------
+
+
+class TestEnableDeepResearchUltraMultilingual:
+    """RU/UK voice patterns for EnableDeepResearchUltraTool."""
+
+    @pytest.fixture()
+    def patterns(self):
+        from jarvis.tools.local.deep_research_ultra_tools import (
+            EnableDeepResearchUltraTool,
+        )
+        return EnableDeepResearchUltraTool.voice_patterns
+
+    def test_en_pattern_unchanged(self, patterns):
+        _assert_pattern_matches(patterns[0], "enable ultra")
+        _assert_pattern_matches(patterns[0], "turn on ultra research")
+
+    @pytest.mark.parametrize(
+        "phrase",
+        [
+            "включи ультра",
+            "включи ультра режим",
+            "включи ультра исследование",
+            "включи ультра режим исследования",
+            "активируй ультра",
+        ],
+    )
+    def test_ru_enable_ultra(self, patterns, phrase):
+        _assert_pattern_matches(patterns[1], phrase)
+
+    @pytest.mark.parametrize(
+        "phrase",
+        [
+            "увімкни ультра",
+            "увімкни ультра режим",
+            "увімкни ультра дослідження",
+            "увімкни ультра режим дослідження",
+            "активуй ультра",
+        ],
+    )
+    def test_uk_enable_ultra(self, patterns, phrase):
+        _assert_pattern_matches(patterns[2], phrase)
+
+
+class TestDisableDeepResearchUltraMultilingual:
+    """RU/UK voice patterns for DisableDeepResearchUltraTool."""
+
+    @pytest.fixture()
+    def patterns(self):
+        from jarvis.tools.local.deep_research_ultra_tools import (
+            DisableDeepResearchUltraTool,
+        )
+        return DisableDeepResearchUltraTool.voice_patterns
+
+    def test_en_patterns_unchanged(self, patterns):
+        _assert_pattern_matches(patterns[0], "disable ultra")
+        _assert_pattern_matches(patterns[1], "normal deep research")
+
+    @pytest.mark.parametrize(
+        "phrase",
+        [
+            "выключи ультра",
+            "выключи ультра режим",
+            "выключи ультра исследование",
+            "отключи ультра",
+        ],
+    )
+    def test_ru_disable_ultra(self, patterns, phrase):
+        _assert_pattern_matches(patterns[2], phrase)
+
+    @pytest.mark.parametrize(
+        "phrase",
+        [
+            "вимкни ультра",
+            "вимкни ультра режим",
+            "вимкни ультра дослідження",
+            "відключи ультра",
+        ],
+    )
+    def test_uk_disable_ultra(self, patterns, phrase):
+        _assert_pattern_matches(patterns[3], phrase)

@@ -123,6 +123,7 @@ class TrayIcon(QSystemTrayIcon):
         on_open_logs: Callable[[], None] | None = None,
         on_open_command_palette: Callable[[], None] | None = None,
         on_open_tutorial: Callable[[], None] | None = None,
+        on_open_chat: Callable[[], None] | None = None,
         parent=None,
     ) -> None:
         super().__init__(parent)
@@ -139,6 +140,7 @@ class TrayIcon(QSystemTrayIcon):
         self._on_open_logs = on_open_logs
         self._on_open_command_palette = on_open_command_palette
         self._on_open_tutorial = on_open_tutorial
+        self._on_open_chat = on_open_chat
         # Optional coroutine-returning hook the composition root uses to
         # route mode requests through ModeCoordinator. When None (tests,
         # legacy callers) we fall back to direct sm.set_mode, preserving
@@ -161,6 +163,7 @@ class TrayIcon(QSystemTrayIcon):
         self._help_action: QAction = QAction("What can I say?", self._menu)
         self._tutorial_action: QAction = QAction("Show tutorial", self._menu)
         self._about_action: QAction = QAction("About", self._menu)
+        self._chat_action: QAction = QAction("Open chat", self._menu)
         self._quit_action: QAction = QAction("Quit Jarvis", self._menu)
 
         self._mode_action.triggered.connect(self._on_mode_action_clicked)
@@ -173,6 +176,7 @@ class TrayIcon(QSystemTrayIcon):
         self._logs_action.triggered.connect(self._on_logs_clicked)
         self._help_action.triggered.connect(self._on_help_clicked)
         self._tutorial_action.triggered.connect(self._on_tutorial_clicked)
+        self._chat_action.triggered.connect(self._on_chat_clicked)
         self._about_action.triggered.connect(self._on_about_clicked)
         self._quit_action.triggered.connect(self._on_quit_clicked)
 
@@ -252,6 +256,12 @@ class TrayIcon(QSystemTrayIcon):
                 _with_shortcut("Command palette…", cp_hk)
             )
             m.addAction(self._command_palette_action)
+        if self._on_open_chat is not None:
+            chat_hk = _format_hotkey(getattr(self._hotkeys, "chat", "") or "")
+            self._chat_action.setText(
+                _with_shortcut("Open chat", chat_hk)
+            )
+            m.addAction(self._chat_action)
         if self._on_open_dashboard is not None:
             m.addAction(self._dashboard_action)
         if self._on_open_notes is not None:
@@ -269,6 +279,7 @@ class TrayIcon(QSystemTrayIcon):
                 self._on_open_command_palette,
                 self._on_open_dashboard,
                 self._on_open_notes,
+                self._on_open_chat,
                 self._on_open_clipboard_history,
                 self._on_open_logs,
                 self._on_open_tutorial,
@@ -363,6 +374,14 @@ class TrayIcon(QSystemTrayIcon):
             self._on_open_tutorial()
         except Exception:
             log.exception("on_open_tutorial callback raised")
+
+    def _on_chat_clicked(self) -> None:
+        if self._on_open_chat is None:
+            return
+        try:
+            self._on_open_chat()
+        except Exception:
+            log.exception("on_open_chat callback raised")
 
     def _on_about_clicked(self) -> None:
         QMessageBox.about(
