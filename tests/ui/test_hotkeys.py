@@ -132,12 +132,13 @@ def test_register_all_starts_listener_with_configured_bindings(fake_pynput):
     assert len(fake_pynput.instances) == 1
     inst = fake_pynput.instances[0]
     assert inst.start_calls == 1
-    # Default config: mute + open_settings + command_palette
-    # (push_to_talk is None).
+    # Default config: mute + open_settings + command_palette + chat
+    # (push_to_talk is None, chat defaults to "ctrl+enter").
     assert set(inst.actions.keys()) == {
         "<ctrl>+<shift>+m",
         "<ctrl>+<shift>+,",
         "<ctrl>+<shift>+p",
+        "<ctrl>+<enter>",
     }
 
 
@@ -168,7 +169,7 @@ def test_register_all_logs_and_skips_unparseable_binding(
     """A bad binding must NOT block the others from registering."""
     import logging
     hk = HotkeysConfig(mute="", push_to_talk=None,
-                       open_settings="ctrl+shift+,", command_palette="")
+                       open_settings="ctrl+shift+,", command_palette="", chat="")
     mgr, *_ = _make_mgr(hotkeys=hk)
     with caplog.at_level(logging.WARNING, logger="jarvis.ui.hotkeys"):
         mgr.register_all()
@@ -185,7 +186,7 @@ def test_register_all_with_no_valid_bindings_skips_listener(
     does nothing."""
     import logging
     hk = HotkeysConfig(mute="", push_to_talk=None, open_settings="",
-                       command_palette="")
+                       command_palette="", chat="")
     mgr, *_ = _make_mgr(hotkeys=hk)
     with caplog.at_level(logging.INFO, logger="jarvis.ui.hotkeys"):
         mgr.register_all()

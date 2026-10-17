@@ -202,7 +202,7 @@ class AudioPipeline:
         self._started = False
 
         # Time-of-day greeting: timestamp of the last greeting spoken.
-        self._last_greeting_time: float = 0.0
+        self._last_greeting_time: float = time.monotonic()
 
         # Unsubscribe handle for ProactiveSpeech bus subscription.
         self._unsub_proactive: Callable[[], None] | None = None
