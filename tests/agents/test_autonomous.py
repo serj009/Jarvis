@@ -30,6 +30,9 @@ from jarvis.agents.autonomous import (
     AgentAction,
     AgentStep,
     AutonomousAgent,
+    DETAILED_HISTORY_SIZE,
+    MAX_RETRIES,
+    REPLAN_INTERVAL,
     _extract_json,
 )
 from jarvis.tools.registry import ToolResult
@@ -897,3 +900,473 @@ class TestMultiStepExecution:
         output_msgs = [m for m in messages if m.startswith("✓")]
         assert output_msgs
         assert len(output_msgs[0]) <= 210  # 200 + "✓ " + "…"
+
+
+# ---------------------------------------------------------------------------
+# Feature 1: Scratchpad integration tests
+# ---------------------------------------------------------------------------
+
+class TestScratchpadIntegration:
+    """Tests for scratchpad context passing."""
+
+    @pytest.mark.asyncio
+    async def test_scratchpad_populated_after_tool_call(self):
+        """Tool output is stored in scratchpad and injected into next prompt."""
+        agent, provider = _make_agent(
+            responses=[
+                '["call test_tool", "finish"]',
+                '{"type": "tool_call", "tool": "test_tool", "args": {}, '
+                '"reasoning": "go", "description": "Step 1"}',
+                '{"type": "done", "reasoning": "done"}',
+            ],
+            tools={"test_tool": FakeTool()},
+        )
+        await _collect(agent, "test task")
+        # The third LLM call (_decide at iteration 1) should contain
+        # scratchpad context from step 0.
+        assert len(provider.calls) >= 3
+        last_prompt = provider.calls[2][0].content
+        assert "Available data from previous steps" in last_prompt
+        assert "step_0" in last_prompt
+
+    @pytest.mark.asyncio
+    async def test_scratchpad_cleared_after_run(self):
+        """Scratchpad is cleared at end of run()."""
+        agent, _ = _make_agent(
+            responses=[
+                '["step"]',
+                '{"type": "tool_call", "tool": "test_tool", "args": {}, '
+                '"reasoning": "go", "description": "Step 1"}',
+                '{"type": "done", "reasoning": "done"}',
+            ],
+            tools={"test_tool": FakeTool()},
+        )
+        await _collect(agent, "first run")
+        assert len(agent.scratchpad) == 0
+
+    @pytest.mark.asyncio
+    async def test_scratchpad_property_accessible(self):
+        """scratchpad property is exposed for inspection."""
+        agent, _ = _make_agent(responses=[
+            '["x"]', '{"type": "done", "reasoning": "ok"}',
+        ])
+        assert agent.scratchpad is not None
+        assert len(agent.scratchpad) == 0
+
+
+# ---------------------------------------------------------------------------
+# Feature 2: Sliding window tests
+# ---------------------------------------------------------------------------
+
+class TestSlidingWindow:
+    """Tests for the sliding window history compression."""
+
+    @pytest.mark.asyncio
+    async def test_sliding_window_activates(self):
+        """After >DETAILED_HISTORY_SIZE steps, prompt uses summary+detail."""
+        tool = FakeTool()
+        responses = [
+            '["s1","s2","s3","s4"]',
+        ] + [
+            '{"type": "tool_call", "tool": "test_tool", "args": {}, '
+            '"reasoning": "step %d", "description": "Step %d"}' % (i, i)
+            for i in range(1, 5)
+        ] + [
+            '{"type": "done", "reasoning": "done"}',
+        ]
+        agent, provider = _make_agent(
+            responses=responses,
+            tools={"test_tool": tool},
+            max_iterations=10,
+        )
+        await _collect(agent, "multi-step task")
+        # After 4 tool calls, the 5th _decide call has 4 log entries.
+        # 4 > DETAILED_HISTORY_SIZE (3) -> sliding window format.
+        assert len(provider.calls) >= 6
+        fifth_prompt = provider.calls[5][0].content
+        assert "Previous steps (summary)" in fifth_prompt
+        assert "Recent steps (detail)" in fifth_prompt
+
+    def test_build_history_empty(self):
+        """Empty log returns default text."""
+        agent, _ = _make_agent(
+            responses=['["x"]', '{"type":"done","reasoning":"ok"}'],
+        )
+        result = agent._build_history_context()
+        assert result == "(no actions yet)"
+
+    def test_constants_defined(self):
+        """New constants are importable and have correct defaults."""
+        assert DETAILED_HISTORY_SIZE == 3
+        assert REPLAN_INTERVAL == 5
+        assert MAX_RETRIES == 3
+
+
+# ---------------------------------------------------------------------------
+# Feature 3: Re-planning tests
+# ---------------------------------------------------------------------------
+
+class TestReplanning:
+    """Tests for periodic re-planning."""
+
+    @pytest.mark.asyncio
+    async def test_replan_triggered_at_interval(self):
+        """'Reviewing plan...' message appears at REPLAN_INTERVAL boundary."""
+        tool = FakeTool()
+        # Need 6 iterations (0-5) to trigger replan at iteration 5
+        responses = [
+            '["s1","s2","s3","s4","s5","s6"]',
+        ] + [
+            '{"type": "tool_call", "tool": "test_tool", "args": {}, '
+            '"reasoning": "step %d", "description": "Step %d"}' % (i, i)
+            for i in range(1, 7)
+        ] + [
+            '"Updated remaining plan"',   # _replan response
+            '{"type": "done", "reasoning": "done"}',
+        ]
+        agent, _ = _make_agent(
+            responses=responses,
+            tools={"test_tool": tool},
+            max_iterations=10,
+        )
+        messages = await _collect(agent, "long task")
+        assert any("Reviewing plan" in m for m in messages)
+
+    @pytest.mark.asyncio
+    async def test_replan_not_triggered_before_interval(self):
+        """No re-planning within the first REPLAN_INTERVAL iterations."""
+        tool = FakeTool()
+        responses = [
+            '["s1","s2"]',
+            '{"type": "tool_call", "tool": "test_tool", "args": {}, '
+            '"reasoning": "go", "description": "Step 1"}',
+            '{"type": "done", "reasoning": "done"}',
+        ]
+        agent, _ = _make_agent(
+            responses=responses,
+            tools={"test_tool": tool},
+        )
+        messages = await _collect(agent, "short task")
+        assert not any("Reviewing plan" in m for m in messages)
+
+
+# ---------------------------------------------------------------------------
+# Feature 4: Sub-agent delegation tests
+# ---------------------------------------------------------------------------
+
+class TestSubAgentDelegation:
+    """Tests for sub-task delegation."""
+
+    @pytest.mark.asyncio
+    async def test_subtask_delegation(self):
+        """sub_task action spawns a sub-agent with [sub] prefixed messages."""
+        responses = [
+            '["delegate"]',
+            '{"type": "sub_task", "description": "handle sub-goal"}',
+            # Sub-agent plan:
+            '["sub step"]',
+            # Sub-agent decision (done):
+            '{"type": "done", "reasoning": "sub done", '
+            '"description": "Sub-goal complete"}',
+            # Back to parent decision:
+            '{"type": "done", "reasoning": "all done", '
+            '"description": "Everything complete"}',
+        ]
+        agent, _ = _make_agent(
+            responses=responses,
+            max_iterations=5,
+        )
+        messages = await _collect(agent, "complex task")
+        assert any("[sub]" in m for m in messages)
+        assert any("Delegating" in m for m in messages)
+        assert any("Everything complete" in m for m in messages)
+
+    @pytest.mark.asyncio
+    async def test_subtask_result_stored_in_scratchpad(self):
+        """Sub-task results are stored in parent scratchpad and injected."""
+        responses = [
+            '["delegate"]',
+            '{"type": "sub_task", "description": "fetch data"}',
+            '["sub step"]',
+            '{"type": "done", "reasoning": "sub done"}',
+            '{"type": "done", "reasoning": "parent done"}',
+        ]
+        agent, provider = _make_agent(
+            responses=responses,
+            max_iterations=5,
+        )
+        await _collect(agent, "task")
+        # The last parent _decide call should have scratchpad context
+        last_prompt = provider.calls[-1][0].content
+        assert "Available data from previous steps" in last_prompt
+
+    @pytest.mark.asyncio
+    async def test_subtask_logged(self):
+        """Sub-task delegation is recorded in reasoning log."""
+        responses = [
+            '["delegate"]',
+            '{"type": "sub_task", "description": "sub-goal"}',
+            '["x"]',
+            '{"type": "done", "reasoning": "sub done"}',
+            '{"type": "done", "reasoning": "parent done"}',
+        ]
+        agent, _ = _make_agent(responses=responses, max_iterations=5)
+        await _collect(agent, "task")
+        log = agent.reasoning_log
+        assert any(s.action.type == "sub_task" for s in log)
+
+
+# ---------------------------------------------------------------------------
+# Feature 5: Partial results tests
+# ---------------------------------------------------------------------------
+
+class TestPartialResults:
+    """Tests for partial results on cancel / timeout / iteration limit."""
+
+    @pytest.mark.asyncio
+    async def test_partial_results_on_cancel(self):
+        """Partial results summary appears after cancellation."""
+        responses = [
+            '["step1", "step2", "step3"]',
+        ] + [
+            '{"type": "tool_call", "tool": "test_tool", "args": {}, '
+            '"reasoning": "go", "description": "Action N"}'
+        ] * 10
+        agent, _ = _make_agent(
+            responses=responses,
+            max_iterations=20,
+            tools={"test_tool": FakeTool()},
+        )
+        messages: list[str] = []
+        count = 0
+        async for msg in agent.run("partial task"):
+            messages.append(msg)
+            count += 1
+            if count >= 4:
+                agent.cancel()
+        assert any("Completed" in m and "/" in m for m in messages)
+
+    @pytest.mark.asyncio
+    async def test_partial_results_on_iteration_limit(self):
+        """Partial results appear when iteration limit is hit."""
+        responses = [
+            '["step1", "step2"]',
+        ] + [
+            '{"type": "tool_call", "tool": "test_tool", "args": {}, '
+            '"reasoning": "go", "description": "Doing stuff"}'
+        ] * 10
+        agent, _ = _make_agent(
+            responses=responses,
+            max_iterations=2,
+            tools={"test_tool": FakeTool()},
+        )
+        messages = await _collect(agent, "limited task")
+        assert any("\u043b\u0438\u043c\u0438\u0442 \u0438\u0442\u0435\u0440\u0430\u0446\u0438\u0439" in m for m in messages)
+        assert any("Completed" in m for m in messages)
+
+    @pytest.mark.asyncio
+    async def test_save_partial_no_steps(self):
+        """_save_partial_results returns empty when nothing was done."""
+        agent, _ = _make_agent(responses=[
+            '["x"]', '{"type": "done", "reasoning": "ok"}',
+        ])
+        result = await agent._save_partial_results()
+        assert result == ""
+
+
+# ---------------------------------------------------------------------------
+# Feature 6: Error recovery (LLM-based) tests
+# ---------------------------------------------------------------------------
+
+class TestErrorRecoveryWithLLM:
+    """Tests for LLM-based error recovery (retry / skip / abort)."""
+
+    @pytest.mark.asyncio
+    async def test_error_recovery_skip_preserves_cross_mark(self):
+        """On skip, the cross mark message is still yielded (backward compat)."""
+        agent, _ = _make_agent(
+            responses=[
+                '["call fail_tool"]',
+                '{"type": "tool_call", "tool": "fail_tool", "args": {}, '
+                '"reasoning": "try it", "description": "Try failing"}',
+                'skip',
+                '{"type": "done", "reasoning": "moved on"}',
+            ],
+            tools={"fail_tool": FailingTool()},
+        )
+        messages = await _collect(agent, "test task")
+        assert any("\u2717" in m for m in messages)
+
+    @pytest.mark.asyncio
+    async def test_error_recovery_retry_yields_message(self):
+        """When LLM says retry, the retrying message appears."""
+        agent, _ = _make_agent(
+            responses=[
+                '["call fail_tool"]',
+                '{"type": "tool_call", "tool": "fail_tool", "args": {}, '
+                '"reasoning": "try it", "description": "Try failing"}',
+                'retry',   # 1st recovery -> retry
+                'skip',    # 2nd recovery -> skip
+                '{"type": "done", "reasoning": "gave up"}',
+            ],
+            tools={"fail_tool": FailingTool()},
+        )
+        messages = await _collect(agent, "test task")
+        assert any("Retrying" in m for m in messages)
+        assert any("\u2717" in m for m in messages)
+
+    @pytest.mark.asyncio
+    async def test_error_recovery_abort(self):
+        """When LLM says abort, the agent stops with partial info."""
+        agent, _ = _make_agent(
+            responses=[
+                '["call fail_tool"]',
+                '{"type": "tool_call", "tool": "fail_tool", "args": {}, '
+                '"reasoning": "try it", "description": "Critical step"}',
+                'abort',
+            ],
+            tools={"fail_tool": FailingTool()},
+        )
+        messages = await _collect(agent, "critical task")
+        assert any("Aborting" in m for m in messages)
+
+    @pytest.mark.asyncio
+    async def test_error_recovery_invalid_defaults_to_skip(self):
+        """Invalid recovery response defaults to skip."""
+        agent, _ = _make_agent(
+            responses=[
+                '["call fail_tool"]',
+                '{"type": "tool_call", "tool": "fail_tool", "args": {}, '
+                '"reasoning": "try it", "description": "Failing step"}',
+                'banana',
+                '{"type": "done", "reasoning": "skipped and done"}',
+            ],
+            tools={"fail_tool": FailingTool()},
+        )
+        messages = await _collect(agent, "test task")
+        assert any("\u2717" in m for m in messages)
+
+    @pytest.mark.asyncio
+    async def test_max_retries_exhausted(self):
+        """After MAX_RETRIES retries, step is treated as failed-skip."""
+        responses = [
+            '["call fail_tool"]',
+            '{"type": "tool_call", "tool": "fail_tool", "args": {}, '
+            '"reasoning": "try", "description": "Persistent fail"}',
+        ] + ['retry'] * (MAX_RETRIES + 1) + [
+            '{"type": "done", "reasoning": "exhausted"}',
+        ]
+        agent, _ = _make_agent(
+            responses=responses,
+            tools={"fail_tool": FailingTool()},
+            max_iterations=5,
+        )
+        messages = await _collect(agent, "task")
+        retrying_msgs = [m for m in messages if "Retrying" in m]
+        # Should see exactly MAX_RETRIES retry messages
+        assert len(retrying_msgs) == MAX_RETRIES
+        assert any("\u2717" in m for m in messages)
+
+
+# ---------------------------------------------------------------------------
+# Feature 7: Human-in-the-loop tests
+# ---------------------------------------------------------------------------
+
+class TestHumanInTheLoop:
+    """Tests for the ask_user capability."""
+
+    @pytest.mark.asyncio
+    async def test_ask_user_with_ask_fn(self):
+        """ask_user action uses ask_fn callback."""
+        async def my_ask_fn(question, options):
+            return "Option A"
+
+        provider = FakeProvider(responses=[
+            '["ask user"]',
+            '{"type": "ask_user", "question": "Which option?", '
+            '"options": ["Option A", "Option B"]}',
+            '{"type": "done", "reasoning": "got answer"}',
+        ])
+        config = FakeAgentConfig(max_iterations=5)
+        registry = FakeRegistry(tools={"test_tool": FakeTool()})
+        agent = AutonomousAgent(
+            provider=provider,
+            registry=registry,
+            config=config,
+            ask_fn=my_ask_fn,
+        )
+        messages = await _collect(agent, "interactive task")
+        assert any("Question: Which option?" in m for m in messages)
+        assert any("Option A, Option B" in m for m in messages)
+        assert any("Answer: Option A" in m for m in messages)
+
+    @pytest.mark.asyncio
+    async def test_ask_user_without_fn_returns_default(self):
+        """Without ask_fn or confirm_fn, returns 'default'."""
+        agent, _ = _make_agent(
+            responses=[
+                '["ask"]',
+                '{"type": "ask_user", "question": "Pick one?", '
+                '"options": ["X", "Y"]}',
+                '{"type": "done", "reasoning": "used default"}',
+            ],
+            confirm_fn=None,
+        )
+        messages = await _collect(agent, "test task")
+        assert any("Answer: default" in m for m in messages)
+
+    @pytest.mark.asyncio
+    async def test_ask_user_with_confirm_fn_fallback(self):
+        """Falls back to confirm_fn when ask_fn is not provided."""
+        agent, _ = _make_agent(
+            responses=[
+                '["ask"]',
+                '{"type": "ask_user", "question": "Continue?", "options": []}',
+                '{"type": "done", "reasoning": "confirmed"}',
+            ],
+            confirm_fn=lambda action: "yes",
+        )
+        messages = await _collect(agent, "test task")
+        assert any("Answer: yes" in m for m in messages)
+
+    @pytest.mark.asyncio
+    async def test_ask_user_stored_in_scratchpad(self):
+        """User answer is stored in scratchpad for subsequent steps."""
+        async def my_ask_fn(question, options):
+            return "red"
+
+        provider = FakeProvider(responses=[
+            '["ask then do"]',
+            '{"type": "ask_user", "question": "Color?", "options": ["red","blue"]}',
+            '{"type": "tool_call", "tool": "test_tool", "args": {}, '
+            '"reasoning": "use color", "description": "Using color"}',
+            '{"type": "done", "reasoning": "done"}',
+        ])
+        config = FakeAgentConfig(max_iterations=5)
+        registry = FakeRegistry(tools={"test_tool": FakeTool()})
+        agent = AutonomousAgent(
+            provider=provider, registry=registry, config=config,
+            ask_fn=my_ask_fn,
+        )
+        await _collect(agent, "task")
+        # The tool_call _decide prompt should contain the user answer
+        # provider.calls: [0]=plan, [1]=ask_user, [2]=tool_call_decide, [3]=done_decide
+        assert len(provider.calls) >= 3
+        prompt = provider.calls[2][0].content
+        assert "user_answer_0" in prompt
+        assert "red" in prompt
+
+    @pytest.mark.asyncio
+    async def test_ask_user_logged_in_reasoning(self):
+        """ask_user steps appear in reasoning log."""
+        agent, _ = _make_agent(
+            responses=[
+                '["ask"]',
+                '{"type": "ask_user", "question": "Ready?", "options": []}',
+                '{"type": "done", "reasoning": "ok"}',
+            ],
+            confirm_fn=None,
+        )
+        await _collect(agent, "task")
+        log = agent.reasoning_log
+        assert any(s.action.type == "ask_user" for s in log)
