@@ -110,6 +110,25 @@ BARGE_IN_ENABLED: bool = False
 # Time-of-day greeting: re-greet after this many seconds of silence.
 _GREETING_COOLDOWN_S: float = 3600.0  # 1 hour
 
+
+# ---------------------------------------------------------------------------
+# Fire-and-forget task safety
+# ---------------------------------------------------------------------------
+
+def _task_exception_handler(task: asyncio.Task) -> None:
+    """Log unhandled exceptions from fire-and-forget tasks."""
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc is not None:
+        log.error(
+            "Background task %s crashed: %s",
+            task.get_name(),
+            exc,
+            exc_info=exc,
+        )
+
+
 class AudioPipeline:
     def __init__(
         self,
@@ -221,8 +240,31 @@ class AudioPipeline:
         # transition handlers below; subscriber-based wiring would race with
         # the synchronous SM state update vs. async bus dispatch.
         await self._source.start(self._on_audio_frame)
-        self._frame_task = asyncio.create_task(self._frame_loop())
+        self._frame_task = asyncio.create_task(
+            self._frame_loop(), name="pipeline-frame-loop",
+        )
+        self._frame_task.add_done_callback(self._restart_frame_loop_on_crash)
         self._started = True
+
+    def _restart_frame_loop_on_crash(self, task: asyncio.Task) -> None:
+        """Auto-restart the frame loop if it crashes unexpectedly.
+
+        The frame loop is critical: without it JARVIS is deaf.  A crash
+        that isn't a deliberate cancellation (i.e. ``stop()`` was NOT
+        called) is logged and the loop is immediately restarted so the
+        user never notices a hang.
+        """
+        if task.cancelled() or not self._started:
+            return
+        exc = task.exception()
+        if exc is not None:
+            log.error(
+                "frame loop crashed — auto-restarting: %s", exc, exc_info=exc,
+            )
+            self._frame_task = asyncio.create_task(
+                self._frame_loop(), name="pipeline-frame-loop",
+            )
+            self._frame_task.add_done_callback(self._restart_frame_loop_on_crash)
 
     async def stop(self) -> None:
         if not self._started:
@@ -278,7 +320,10 @@ class AudioPipeline:
 
     def _start_listening_timer(self) -> None:
         self._cancel_listening_timer()
-        self._listening_timer = asyncio.create_task(self._listening_timeout_coro())
+        self._listening_timer = asyncio.create_task(
+            self._listening_timeout_coro(), name="pipeline-listening-timeout",
+        )
+        self._listening_timer.add_done_callback(_task_exception_handler)
 
     def _cancel_listening_timer(self) -> None:
         if self._listening_timer is not None:
@@ -463,7 +508,10 @@ class AudioPipeline:
         self._sm.set_conversational_state(ConversationalState.THINKING)
         # The response chain runs as a separate task so the frame loop keeps
         # processing barge-in candidates while STT/LLM/TTS execute.
-        self._response_task = asyncio.create_task(self._run_response_chain(audio))
+        self._response_task = asyncio.create_task(
+            self._run_response_chain(audio), name="pipeline-response-chain",
+        )
+        self._response_task.add_done_callback(_task_exception_handler)
 
     async def _handle_barge_in(self) -> None:
         # Re-check CS at decision time. VAD events can land here after the

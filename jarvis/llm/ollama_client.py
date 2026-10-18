@@ -30,11 +30,11 @@ audio/protocols.py for Phase 3.
 
 Timeouts
 --------
-We use httpx.Timeout(connect=10, read=None, write=10, pool=10):
+We use httpx.Timeout(connect=10, read=120, write=10, pool=10):
   - connect bounded (10 s) so a dead daemon fails fast.
-  - read=None (unlimited) because an LLM stream can take arbitrarily
-    long, especially on the first inference after model load (cold
-    weights → can be 30+ seconds before the first token).
+  - read=120 s (2 min) prevents an infinite hang when the daemon
+    wedges mid-stream.  Still generous for cold-start first-token
+    latency on 8B-class models (typically 30-60 s).
   - write/pool bounded for symmetry.
 """
 
@@ -95,7 +95,7 @@ class ChatChunk:
 
 
 def _default_timeout() -> httpx.Timeout:
-    return httpx.Timeout(connect=10.0, read=None, write=10.0, pool=10.0)
+    return httpx.Timeout(connect=10.0, read=120.0, write=10.0, pool=10.0)
 
 
 class OllamaClient:

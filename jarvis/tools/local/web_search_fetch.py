@@ -139,3 +139,14 @@ def format_snippets_for_prompt(snippets: list[dict[str, str]]) -> str:
             f"{s.get('content', '')}"
         )
     return "\n\n".join(parts)
+
+
+def fetch_search_snippets_safe(
+    query: str, *, max_results: int = 5
+) -> list[dict[str, str]]:
+    """Like fetch_search_snippets but returns [] on network errors instead of raising."""
+    try:
+        return fetch_search_snippets(query, max_results=max_results)
+    except (httpx.ConnectError, httpx.TimeoutException, OSError) as exc:
+        log.warning("web search unavailable (network): %s", exc)
+        return []

@@ -171,6 +171,12 @@ class WeatherTool:
                     return await self._fetch_weather(client, lat, lon, city=city_name)
                 lat, lon = await self._resolve_location(client)
                 return await self._fetch_weather(client, lat, lon)
+        except (httpx.ConnectError, httpx.TimeoutException, OSError) as exc:
+            log.warning("weather: no network: %s", exc)
+            return ToolResult(
+                success=False,
+                output="I can't check the weather right now, sir. No internet connection.",
+            )
         except Exception as exc:
             log.warning("weather fetch failed: %s", exc)
             return ToolResult(

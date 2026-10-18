@@ -188,7 +188,7 @@ class PowerControlTool:
             args=lambda m: {"action": "shutdown"},
         ),
         VoicePattern(
-            regex=r"^перезавантаж(?:ся|ення)(?:\s+комп'?ютер)?$",
+            regex=r"^перезавантаж(?:ся|ення)?(?:\s+комп'?ютер)?$",
             priority=50,
             args=lambda m: {"action": "restart"},
         ),

@@ -38,7 +38,11 @@ def fetch_search_snippets(
         except Exception as exc:
             log.warning("Brave search failed for %r, falling back to DDG: %s", q, exc)
 
-    return fetch_ddg(q, max_results=max_results)
+    try:
+        return fetch_ddg(q, max_results=max_results)
+    except (httpx.ConnectError, httpx.TimeoutException, OSError) as exc:
+        log.warning("search unavailable (network): %s", exc)
+        return []
 
 
 def _fetch_brave(query: str, *, max_results: int, api_key: str) -> list[dict[str, str]]:

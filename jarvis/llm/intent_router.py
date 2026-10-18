@@ -139,6 +139,12 @@ DEFAULT_MAX_TOOL_ITERATIONS = 3
 MAX_TOOL_RESULT_CHARS = 4000
 _TRUNCATION_NOTE = "\n... (result truncated)"
 
+# Per-chunk read timeout for the streaming loop in _stream_round().
+# If Ollama stops sending chunks for this many seconds the round is
+# aborted and an error message is returned to the caller.  Distinct
+# from PipelineConfig.llm_timeout_s which caps the entire LLM stage.
+_STREAM_CHUNK_TIMEOUT_S: float = 60.0
+
 
 # --- Intent types ----------------------------------------------------
 
@@ -912,23 +918,42 @@ class IntentRouter:
         would have got streaming.
 
         CancelledError propagates out untouched: no try/except here,
-        and the caller has written nothing to history yet."""
+        and the caller has written nothing to history yet.
+
+        Per-chunk timeout: if Ollama stops sending data for
+        _STREAM_CHUNK_TIMEOUT_S seconds the stream is abandoned and
+        an error message is returned so the user always hears
+        something rather than hanging forever."""
         text_parts: list[str] = []
         tool_calls: list[dict] = []
-        async for chunk in self._llm.stream_chat(
-            messages, tools=tools if tools is not None else self._current_tools()
-        ):
-            if chunk.content:
-                text_parts.append(chunk.content)
-            if chunk.tool_calls:
-                # Per current Ollama behavior, tool_calls arrive complete
-                # on the final chunk. Defensive accumulation here is the
-                # hook point for future per-chunk streaming -- if Ollama
-                # adopts incremental tool-call emission, partial-call
-                # assembly logic plugs in around this list.
-                tool_calls.extend(chunk.tool_calls)
-            if chunk.done:
-                break
+        stream = self._llm.stream_chat(
+            messages, tools=tools if tools is not None else self._current_tools(),
+        )
+        try:
+            while True:
+                try:
+                    chunk = await asyncio.wait_for(
+                        stream.__anext__(), timeout=_STREAM_CHUNK_TIMEOUT_S,
+                    )
+                except StopAsyncIteration:
+                    break
+                except asyncio.TimeoutError:
+                    log.error("[router] LLM stream stalled for %.0fs — aborting round", _STREAM_CHUNK_TIMEOUT_S)
+                    text_parts.append(say("generic_fail"))
+                    break
+                if chunk.content:
+                    text_parts.append(chunk.content)
+                if chunk.tool_calls:
+                    # Per current Ollama behavior, tool_calls arrive complete
+                    # on the final chunk. Defensive accumulation here is the
+                    # hook point for future per-chunk streaming -- if Ollama
+                    # adopts incremental tool-call emission, partial-call
+                    # assembly logic plugs in around this list.
+                    tool_calls.extend(chunk.tool_calls)
+                if chunk.done:
+                    break
+        finally:
+            await stream.aclose()
         return text_parts, tool_calls
 
     def _tool_intents_from(
