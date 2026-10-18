@@ -12,6 +12,7 @@ Every tab follows the same contract:
 
 from jarvis.ui.settings.tabs.about import AboutTab
 from jarvis.ui.settings.tabs.advanced import AdvancedTab
+from jarvis.ui.settings.tabs.agent import AgentTab
 from jarvis.ui.settings.tabs.coding import CodingTab
 from jarvis.ui.settings.tabs.commands import CommandsTab
 from jarvis.ui.settings.tabs.gaming import GamingTab
@@ -27,6 +28,7 @@ from jarvis.ui.settings.tabs.voice import VoiceTab
 __all__ = [
     "AboutTab",
     "AdvancedTab",
+    "AgentTab",
     "CodingTab",
     "CommandsTab",
     "GamingTab",

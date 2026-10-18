@@ -65,6 +65,9 @@ def test_search_no_match():
 _UNDOCUMENTED_TOOLS: dict[str, str] = {
     "list_directory": "LLM-only helper, no voice phrasing to document",
     "add_to_startup": "LLM-dispatched startup management",
+    "autonomous_agent": "LLM-dispatched autonomous agent for complex multi-step tasks",
+    "open_agent_panel": "LLM-dispatched agent panel management",
+    "close_agent_panel": "LLM-dispatched agent panel management",
     "calculator": "LLM-dispatched math/unit/currency calculator",
     "auto_login": "LLM-dispatched vault auto-login",
     "backup_game_saves": "LLM-dispatched game save management",

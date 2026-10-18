@@ -197,6 +197,12 @@ def _local_tool_classes() -> tuple[type, ...]:
     )
     # Phase 10: Image generation
     from jarvis.tools.local.image_gen_tool import ImageGenTool
+    # Phase 11: Autonomous agent
+    from jarvis.tools.local.agent_tool import (
+        AgentTool,
+        OpenAgentPanelTool,
+        CloseAgentPanelTool,
+    )
 
     return (
         BookmarksTool,
@@ -334,6 +340,10 @@ def _local_tool_classes() -> tuple[type, ...]:
         ChangeVaultPasswordTool,
         # Phase 10: Image generation
         ImageGenTool,
+        # Phase 11: Autonomous agent
+        AgentTool,
+        OpenAgentPanelTool,
+        CloseAgentPanelTool,
     )
 
 

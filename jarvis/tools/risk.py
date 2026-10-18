@@ -299,6 +299,10 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     "repeat_last": RiskLevel.READ,
     # -- Image generation (Phase 10) ----------------------------------------
     "generate_image": RiskLevel.WRITE,
+    # -- Autonomous agent (Phase 11) ----------------------------------------
+    "autonomous_agent": RiskLevel.WRITE,
+    "open_agent_panel": RiskLevel.READ,
+    "close_agent_panel": RiskLevel.READ,
 }
 
 

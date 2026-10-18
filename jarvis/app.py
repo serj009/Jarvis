@@ -310,6 +310,7 @@ from jarvis.ui.clipboard_history_panel import ClipboardHistoryPanel
 from jarvis.ui.chat_panel import ChatPanel
 from jarvis.ui.chat_storage import ChatStorage
 from jarvis.ui.coding_panel import CodingPanel
+from jarvis.ui.agent_panel import AgentPanel
 
 
 from jarvis.ui.command_palette import CommandPalette
@@ -1990,6 +1991,9 @@ class JarvisApp:
 
 
         self.coding_panel: CodingPanel | None = None
+
+
+        self.agent_panel: AgentPanel | None = None
 
 
         self.command_palette: CommandPalette | None = None
@@ -3694,6 +3698,10 @@ class JarvisApp:
             self.coding_panel.close_panel()
 
 
+        if self.agent_panel is not None:
+            self.agent_panel.close_panel()
+
+
         if self.command_palette is not None:
 
 
@@ -4088,6 +4096,9 @@ class JarvisApp:
 
 
         self._build_coding_panel()
+
+
+        self._build_agent_panel()
 
 
         self._build_command_palette()
@@ -4768,6 +4779,37 @@ class JarvisApp:
         # Wire the panel's input bar → audio-loop intent router, so typed
         # tasks are dispatched the same way as voice commands.
         self.coding_panel.task_submitted.connect(self._submit_palette_text)
+
+
+    def _build_agent_panel(self) -> None:
+        # --- Autonomous Agent panel + voice tools ----------------------------
+
+        self.agent_panel = AgentPanel(
+            speak_fn=self._on_test_voice,
+        )
+
+        from jarvis.tools.local.agent_tool import (
+            AgentTool,
+            CloseAgentPanelTool,
+            OpenAgentPanelTool,
+        )
+
+        agent_tool = AgentTool(
+            agent_config=self.cfg.agent,
+            registry=self.registry,
+            ollama_client=self.ollama,
+            agent_panel=self.agent_panel,
+            speak_fn=self._on_test_voice,
+        )
+        self.agent_panel.set_cancel_fn(agent_tool.cancel)
+        self.registry.register(agent_tool)
+
+        self.registry.register(
+            OpenAgentPanelTool(on_open=self.agent_panel.open_panel)
+        )
+        self.registry.register(
+            CloseAgentPanelTool(on_close=self.agent_panel.close_panel)
+        )
 
 
 

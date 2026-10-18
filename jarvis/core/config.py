@@ -1,4 +1,4 @@
-"""Jarvis configuration — data classes, load / save, migration chain.
+"""
 
 Design notes (kept here so future readers see the rationale without digging history):
 
@@ -44,7 +44,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
-CURRENT_SCHEMA_VERSION = 35
+CURRENT_SCHEMA_VERSION = 36
 
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -53,16 +53,16 @@ DEFAULT_SYSTEM_PROMPT = (
     "\n"
     "RULES:\n"
     "1. Reply in the user's language (русский / українська / English).\n"
-    "2. ACTION request → CALL the matching tool. Never just SAY you did it.\n"
+    "2. ACTION request -> CALL the matching tool. Never just SAY you did it.\n"
     "3. QUESTION or chat (math, jokes, facts, advice, stories, counting) "
-    "→ answer in words. No tool call.\n"
-    "4. Unclear request → ask for clarification. Don't guess a tool.\n"
+    "-> answer in words. No tool call.\n"
+    "4. Unclear request -> ask for clarification. Don't guess a tool.\n"
     "\n"
     "EXAMPLES:\n"
-    '- "открой хром" / "open chrome" → open_app\n'
-    '- "какая погода?" / "яка погода?" → get_weather\n'
-    '- "включи джаз" / "play some jazz" → play_youtube_music\n'
-    '- "сколько будет 2+2" / "tell a joke" → text answer, no tool\n'
+    '- "открой хром" / "open chrome" -> open_app\n'
+    '- "какая погода?" / "яка погода?" -> get_weather\n'
+    '- "включи джаз" / "play some jazz" -> play_youtube_music\n'
+    '- "сколько будет 2+2" / "tell a joke" -> text answer, no tool\n'
     "\n"
     "PLAY disambiguation:\n"
     "- Music (song, artist, genre, 'поставь музыку'): play_youtube_music\n"
@@ -71,9 +71,9 @@ DEFAULT_SYSTEM_PROMPT = (
     "- Workspace ('open my workspace'): launch_workspace\n"
     "\n"
     "RESEARCH:\n"
-    "- Quick web lookup → research\n"
-    "- In-depth report → deep_research\n"
-    "- 'enable deep research ultra' → enable_deep_research_ultra\n"
+    "- Quick web lookup -> research\n"
+    "- In-depth report -> deep_research\n"
+    "- 'enable deep research ultra' -> enable_deep_research_ultra\n"
     "\n"
     "Tools need no admin permissions. Don't hallucinate restrictions."
 )
@@ -108,7 +108,7 @@ class AudioConfig(_Base):
     # None = auto-detect at first launch via device_detector.py.
     # The smart detector filters virtual/loopback devices, prefers WASAPI,
     # and ranks physical microphones / speakers by channel count and sample
-    # rate.  Users can still pin a specific device in Settings → Voice; the
+    # rate.  Users can still pin a specific device in Settings -> Voice; the
     # substring-matching in audio/devices.py and tts.py falls back to the
     # system default with a warning when the named device is not found.
     input_device: str | None = None
@@ -234,7 +234,7 @@ class ToolsConfig(_Base):
     # The registry is the single source of truth for this lookup.
     # type_into_active_window is disabled by default: it simulates keystrokes
     # into the active window and LLM misfires can type unintended content into
-    # user apps. Enable via Settings → Tools.
+    # user apps. Enable via Settings -> Tools.
     enabled: dict[str, bool] = Field(
         default_factory=lambda: {"type_into_active_window": False}
     )
@@ -260,7 +260,7 @@ DEFAULT_TRAYCE_URL = "http://127.0.0.1:52945/mcp"
 class MCPServerConfig(_Base):
     # Defaults describe a Trayce connection so a bare MCPServerConfig() is
     # the Trayce entry; the fresh-config default list ships it disabled so
-    # users opt in via Settings → Tools.
+    # users opt in via Settings -> Tools.
     name: str = "trayce"
     url: str = DEFAULT_TRAYCE_URL
     enabled: bool = True
@@ -286,7 +286,7 @@ class MCPServerConfig(_Base):
 
 
 def _default_mcp_servers() -> list[MCPServerConfig]:
-    """Fresh installs ship a disabled Trayce entry so the Settings → Tools
+    """Fresh installs ship a disabled Trayce entry so the Settings -> Tools
     toggle is discoverable without the user hand-authoring JSON."""
     return [MCPServerConfig(name="trayce", url=DEFAULT_TRAYCE_URL, enabled=False)]
 
@@ -380,7 +380,7 @@ def _default_cursor_path() -> str:
 
 
 def _default_workspace_apps() -> list[WorkspaceAppEntry]:
-    """Dev-machine defaults; users customize in Settings → General."""
+    """Dev-machine defaults; users customize in Settings -> General."""
     return [
         WorkspaceAppEntry(
             label="Cursor",
@@ -478,7 +478,7 @@ class WeatherConfig(_Base):
     # user's approximate location via ipapi.co on first use when both
     # values are None, then persists the result. Users can also enter
     # coordinates manually or click "Detect from IP" under
-    # Settings → General. Shipping None defaults avoids embedding any
+    # Settings -> General. Shipping None defaults avoids embedding any
     # maintainer-specific location in the open-source repo.
     latitude: float | None = None
     longitude: float | None = None
@@ -504,7 +504,7 @@ class SandboxConfig(_Base):
     """
 
     # Directories tools may read/write. Paths are expanded at validation
-    # time (~ → home, env vars, resolve). A path and all its descendants
+    # time (~ -> home, env vars, resolve). A path and all its descendants
     # are allowed; everything else is blocked.
     allowed_paths: list[str] = Field(
         default_factory=_default_sandbox_allowed_paths,
@@ -566,9 +566,9 @@ class CodingConfig(_Base):
     """Settings for the Coding Agent — a separate LLM for code generation.
 
     The coding model can be:
-    - "main" provider → same as llm.model (Ollama, no extra download)
-    - "ollama" provider → local coding model (e.g. qwen2.5-coder:7b)
-    - "openai"/"anthropic"/"groq" → cloud API
+    - "main" provider -> same as llm.model (Ollama, no extra download)
+    - "ollama" provider -> local coding model (e.g. qwen2.5-coder:7b)
+    - "openai"/"anthropic"/"groq" -> cloud API
     """
 
     # Provider: "main" (use main LLM), "ollama", "openai", "anthropic", "groq"
@@ -637,6 +637,24 @@ class ImageGenConfig(_Base):
     image_model_api_base_url: str = ""  # custom endpoint (optional)
 
 
+
+
+class AgentConfig(_Base):
+    """Autonomous agent settings (Phase 11).
+
+    Controls the general-purpose plan-and-execute agent that can chain
+    tools to accomplish complex multi-step goals.
+    """
+
+    enabled: bool = True
+    max_iterations: int = Field(default=20, ge=1, le=100)
+    max_time_seconds: int = Field(default=300, ge=30, le=3600)  # 5 min default
+    confirm_destructive: bool = True  # ask before destructive actions
+    model_provider: str = "main"  # which model to use: "main", "coding", custom
+    verbose_reasoning: bool = False  # log every thought step
+
+
+
 class JarvisConfig(_Base):
     schema_version: int = CURRENT_SCHEMA_VERSION
     general: GeneralConfig = Field(default_factory=GeneralConfig)
@@ -663,6 +681,7 @@ class JarvisConfig(_Base):
     security: SecurityConfig = Field(default_factory=SecurityConfig)
     coding: CodingConfig = Field(default_factory=CodingConfig)
     image_gen: ImageGenConfig = Field(default_factory=ImageGenConfig)
+    agent: AgentConfig = Field(default_factory=AgentConfig)
 
 # --- secrets at rest -------------------------------------------------------
 
@@ -803,7 +822,7 @@ def load_config(path: Path | None = None) -> JarvisConfig:
         try:
             shutil.copy2(p, bak)
             _log.info(
-                "Config backed up before migration v%s→v%s: %s",
+                "Config backed up before migration v%s->v%s: %s",
                 old_version, CURRENT_SCHEMA_VERSION, bak,
             )
         except OSError as exc:

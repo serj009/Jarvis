@@ -780,6 +780,32 @@ def _migrate_v34_to_v35(data: dict) -> dict:
     data["schema_version"] = 35
     return data
 
+
+def _migrate_v35_to_v36(data: dict) -> dict:
+    """Schema v36: Autonomous Agent settings.
+
+    Adds the ``agent`` section with settings for the general-purpose
+    plan-and-execute autonomous agent (Phase 11).  The agent chains
+    tools to accomplish complex multi-step goals.
+
+    Fields:
+    - ``enabled`` (bool, default True)
+    - ``max_iterations`` (int, default 20)
+    - ``max_time_seconds`` (int, default 300)
+    - ``confirm_destructive`` (bool, default True)
+    - ``model_provider`` (str, default "main")
+    - ``verbose_reasoning`` (bool, default False)
+    """
+    ag = data.setdefault("agent", {})
+    ag.setdefault("enabled", True)
+    ag.setdefault("max_iterations", 20)
+    ag.setdefault("max_time_seconds", 300)
+    ag.setdefault("confirm_destructive", True)
+    ag.setdefault("model_provider", "main")
+    ag.setdefault("verbose_reasoning", False)
+    data["schema_version"] = 36
+    return data
+
 MIGRATIONS: dict[int, Migration] = {
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
@@ -815,6 +841,7 @@ MIGRATIONS: dict[int, Migration] = {
     32: _migrate_v32_to_v33,
     33: _migrate_v33_to_v34,
     34: _migrate_v34_to_v35,
+    35: _migrate_v35_to_v36,
 }
 
 
