@@ -337,6 +337,9 @@ def test_tools_tab_populates_checkboxes_for_phase_4_set(qapp):
     assert set(tab._checkboxes.keys()) == {
         "add_to_startup",
         "append_to_note",
+        "autonomous_agent",
+        "open_agent_panel",
+        "close_agent_panel",
         "auto_login",
         "backup_game_saves",
         "bookmarks",

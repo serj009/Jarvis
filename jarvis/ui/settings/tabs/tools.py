@@ -40,6 +40,9 @@ log = logging.getLogger(__name__)
 
 TOOL_DISPLAY_NAMES: dict[str, str] = {
     "append_to_note": "\U0001f4dd Append to Note",
+    "autonomous_agent": "\U0001f916 Autonomous Agent",
+    "open_agent_panel": "\U0001f916 Open Agent Panel",
+    "close_agent_panel": "\U0001f916 Close Agent Panel",
     "calculator": "\U0001f9ee Calculator",
     "clear_clipboard_history": "\U0001f4cb Clear Clipboard History",
     "clipboard": "\U0001f4cb Clipboard",

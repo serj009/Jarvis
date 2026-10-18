@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 from jarvis.ui.settings.tabs import (
     AboutTab,
     AdvancedTab,
+    AgentTab,
     CodingTab,
     CommandsTab,
     GamingTab,
@@ -58,6 +59,7 @@ _NAV_ITEMS: tuple[tuple[str, str, str, str | None], ...] = (
     ("models",   "\U0001f9e0",    "AI Models",     None),
     ("tools",    "\U0001f9e9",    "Tools",         "Features"),
     ("coding",   "\U0001f4bb",    "Coding",        None),
+    ("agent",    "\U0001f916",    "Agent",         None),
     ("memory",   "\U0001f4be",    "Memory",        None),
     ("gaming",   "\U0001f3ae",    "Game Mode",     None),
     ("image_gen","\U0001f3a8",    "Image Gen",     None),
@@ -109,6 +111,7 @@ class SettingsWindow(QMainWindow):
         self.models = ModelsTab(config=config, on_change=_on_change_with_indicator)
         self.tools = ToolsTab(config=config, on_change=_on_change_with_indicator)
         self.coding = CodingTab(config=config, on_change=_on_change_with_indicator)
+        self.agent_tab = AgentTab(config=config, on_change=_on_change_with_indicator)
         self.memory = MemoryTab(config=config, on_change=_on_change_with_indicator)
         self.gaming = GamingTab(config=config, on_change=_on_change_with_indicator)
         self.image_gen = ImageGenTab(config=config, on_change=_on_change_with_indicator)
@@ -124,6 +127,7 @@ class SettingsWindow(QMainWindow):
             "models": self.models,
             "tools": self.tools,
             "coding": self.coding,
+            "agent": self.agent_tab,
             "memory": self.memory,
             "gaming": self.gaming,
             "image_gen": self.image_gen,

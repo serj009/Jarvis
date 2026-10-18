@@ -697,7 +697,28 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
     },
 }
 
-# Tools always included regardless of filter (minimal overhead, high utility).
+# Phase 11: Autonomous agent category — catches multi-step goals.
+TOOL_CATEGORIES["agent"] = {
+    "tools": [
+        "autonomous_agent",
+        "open_agent_panel",
+        "close_agent_panel",
+    ],
+    "keywords_en": [
+        "agent", "autonomous", "accomplish", "figure out",
+        "multi-step", "handle", "work on",
+    ],
+    "keywords_ru": [
+        "агент", "автоном", "сделай", "выполни",
+        "разберись", "займись", "обработай",
+    ],
+    "keywords_uk": [
+        "агент", "автоном", "зроби", "виконай",
+        "розберися", "займися", "обробай",
+    ],
+}
+
+# Tools always included regardless of filter (m
 # These are cheap schemas and the model almost always benefits from seeing
 # them: get_time for "what day is it", get_weather for "should I take an
 # umbrella", open_app for any ambiguous "open X", volume for "too loud".
