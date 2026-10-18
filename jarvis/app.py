@@ -403,6 +403,21 @@ def _voices_dir() -> Path:
     return default_voices_dir()
 
 
+def _task_exception_handler(task: asyncio.Task) -> None:
+    """Log unhandled exceptions from fire-and-forget tasks.
+
+    Attached via ``task.add_done_callback`` to every ``create_task`` in this
+    module so a crash in a background coroutine is logged instead of silently
+    swallowed by the event loop.
+    """
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc is not None:
+        log.error(
+            "Background task %s crashed: %s",
+            task.get_name(), exc, exc_info=exc,
+        )
 
 
 
@@ -719,12 +734,14 @@ def _make_router_adapter(
                 try:
                     import asyncio
                     from jarvis.memory.auto_save import auto_save_facts
-                    asyncio.create_task(
+                    _facts_task = asyncio.create_task(
                         auto_save_facts(
                             memory_store, transcription,
                             user_profile=user_profile,
                         ),
+                        name="auto-save-facts",
                     )
+                    _facts_task.add_done_callback(_task_exception_handler)
                 except Exception:
                     pass  # never block the pipeline
 
@@ -1647,7 +1664,10 @@ async def _audio_main(
         except Exception:
             log.warning("reminder store open failed (non-fatal)", exc_info=True)
     if reminder_scheduler is not None:
-        _reminder_task = asyncio.create_task(reminder_scheduler.run())
+        _reminder_task = asyncio.create_task(
+            reminder_scheduler.run(), name="reminder-scheduler",
+        )
+        _reminder_task.add_done_callback(_task_exception_handler)
         log.info("reminder scheduler started")
 
     log.info('ready — say "hey jarvis".')

@@ -257,6 +257,9 @@ def _fetch_direct(url: str, *, max_chars: int) -> str:
             html, ctype = got
             if "html" not in ctype and "text" not in ctype:
                 return ""
+    except (httpx.ConnectError, httpx.TimeoutException, OSError) as exc:
+        log.warning("page fetch(%s) network error: %s", url, exc)
+        return ""
     except Exception as exc:
         log.debug("fetch_page_text(%s) failed: %s", url, exc)
         return ""
@@ -286,6 +289,9 @@ def _fetch_jina(url: str, *, max_chars: int) -> str:
             if got is None:
                 return ""
             text = (got[0] or "").strip()
+    except (httpx.ConnectError, httpx.TimeoutException, OSError) as exc:
+        log.warning("jina fetch(%s) network error: %s", url, exc)
+        return ""
     except Exception as exc:
         log.debug("jina fetch(%s) failed: %s", url, exc)
         return ""

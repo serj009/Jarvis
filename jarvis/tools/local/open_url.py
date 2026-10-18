@@ -127,6 +127,23 @@ class OpenUrlTool:
                 "url": "https://www.google.com/search?q=" + quote_plus(m.group(1))
             },
         ),
+        # RU: "открой сайт X" — fallback for unknown sites (known ones
+        # are handled by open_target_planner before voice patterns run).
+        VoicePattern(
+            regex=r"^открой\s+сайт\s+(.+)$",
+            priority=500,
+            args=lambda m: {
+                "url": "https://www.google.com/search?q=" + quote_plus(m.group(1))
+            },
+        ),
+        # UK: "відкрий сайт X"
+        VoicePattern(
+            regex=r"^відкрий\s+сайт\s+(.+)$",
+            priority=500,
+            args=lambda m: {
+                "url": "https://www.google.com/search?q=" + quote_plus(m.group(1))
+            },
+        ),
     )
 
     async def execute(self, args: OpenUrlArgs) -> ToolResult:

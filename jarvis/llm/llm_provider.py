@@ -25,6 +25,7 @@ get an error that's clear enough.
 
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import logging
@@ -45,6 +46,7 @@ from jarvis.llm.model_provider import (
     ProviderConnectionError,
     ProviderError,
     ProviderModelNotFoundError,
+    ProviderRateLimitError,
     _api_timeout,
     _raise_for_status,
 )
@@ -146,36 +148,57 @@ class APILLMClient:
         # Convert dict messages to ChatMessage objects
         chat_messages = self._prepare_messages(messages)
 
-        try:
-            async for chunk in self._provider.stream_chat(
-                chat_messages,
-                temperature=self.temperature,
-                max_tokens=self.max_tokens,
-            ):
+        max_retries = 2
+        backoff = 1.0
+
+        for attempt in range(max_retries + 1):
+            try:
+                async for chunk in self._provider.stream_chat(
+                    chat_messages,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens,
+                ):
+                    yield ChatChunk(
+                        content=chunk.content,
+                        tool_calls=(),
+                        done=chunk.done,
+                    )
+                return  # success — exit the retry loop
+            except ProviderConnectionError as e:
+                if attempt < max_retries:
+                    log.warning(
+                        "API connection failed (attempt %d/%d): %s",
+                        attempt + 1, max_retries + 1, e,
+                    )
+                    await asyncio.sleep(backoff * (attempt + 1))
+                    continue
+                log.error("API connection failed: %s", e)
                 yield ChatChunk(
-                    content=chunk.content,
-                    tool_calls=(),
-                    done=chunk.done,
+                    content=f"I couldn't reach the API, sir: {e}",
+                    done=True,
                 )
-        except ProviderConnectionError as e:
-            log.error("API connection failed: %s", e)
-            # Yield an error message as content so the user hears something
-            yield ChatChunk(
-                content=f"I couldn't reach the API, sir: {e}",
-                done=True,
-            )
-        except ProviderAuthError as e:
-            log.error("API auth failed: %s", e)
-            yield ChatChunk(
-                content="API authentication failed, sir. Please check your API key in Settings.",
-                done=True,
-            )
-        except ProviderError as e:
-            log.error("API error: %s", e)
-            yield ChatChunk(
-                content=f"API error, sir: {e}",
-                done=True,
-            )
+                return
+            except ProviderRateLimitError as e:
+                log.error("API rate-limited: %s", e)
+                yield ChatChunk(
+                    content="Too many requests, sir. Please wait a moment.",
+                    done=True,
+                )
+                return
+            except ProviderAuthError as e:
+                log.error("API auth failed: %s", e)
+                yield ChatChunk(
+                    content="API authentication failed, sir. Please check your API key in Settings.",
+                    done=True,
+                )
+                return
+            except ProviderError as e:
+                log.error("API error: %s", e)
+                yield ChatChunk(
+                    content=f"API error, sir: {e}",
+                    done=True,
+                )
+                return
 
     # -- vision chat (same signature as OllamaClient) --
 

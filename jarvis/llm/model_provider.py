@@ -20,6 +20,7 @@ subtypes so callers don't need provider-specific try/except.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from abc import ABC, abstractmethod
@@ -281,6 +282,28 @@ def _raise_for_status(response: httpx.Response, provider_name: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Auto-retry helper for transient network errors
+# ---------------------------------------------------------------------------
+
+async def _with_retry(coro_fn, max_retries=2, backoff=1.0):
+    """Retry *coro_fn()* on transient network errors.
+
+    Only retries on ``httpx.ConnectError`` and ``httpx.TimeoutException`` —
+    i.e. errors that are clearly transient.  Auth errors, rate-limit errors,
+    and other ``ProviderError`` subtypes are **not** retried (they bubble
+    immediately).
+    """
+    for attempt in range(max_retries + 1):
+        try:
+            return await coro_fn()
+        except (httpx.ConnectError, httpx.TimeoutException) as e:
+            if attempt == max_retries:
+                raise
+            log.warning("Transient error (attempt %d/%d): %s", attempt + 1, max_retries + 1, e)
+            await asyncio.sleep(backoff * (attempt + 1))
+
+
+# ---------------------------------------------------------------------------
 # OllamaProvider
 # ---------------------------------------------------------------------------
 
@@ -401,9 +424,10 @@ class OpenAIProvider(ModelProvider):
             "max_tokens": max_tokens,
             "stream": False,
         }
+
         try:
-            resp = await client.post("/chat/completions", json=body)
-        except httpx.ConnectError as e:
+            resp = await _with_retry(lambda: client.post("/chat/completions", json=body))
+        except (httpx.ConnectError, httpx.TimeoutException) as e:
             raise ProviderConnectionError(
                 f"OpenAI: cannot connect to {self._base_url}"
             ) from e
@@ -458,7 +482,7 @@ class OpenAIProvider(ModelProvider):
                     content = delta.get("content", "")
                     if content:
                         yield ChatChunk(content=content)
-        except httpx.ConnectError as e:
+        except (httpx.ConnectError, httpx.TimeoutException) as e:
             raise ProviderConnectionError(
                 f"OpenAI: cannot connect to {self._base_url}"
             ) from e
@@ -551,9 +575,10 @@ class AnthropicProvider(ModelProvider):
     ) -> ChatResponse:
         client = self._get_client()
         body = self._build_body(messages, temperature, max_tokens, stream=False)
+
         try:
-            resp = await client.post("/messages", json=body)
-        except httpx.ConnectError as e:
+            resp = await _with_retry(lambda: client.post("/messages", json=body))
+        except (httpx.ConnectError, httpx.TimeoutException) as e:
             raise ProviderConnectionError(
                 f"Anthropic: cannot connect to {self.API_BASE}"
             ) from e
@@ -604,7 +629,7 @@ class AnthropicProvider(ModelProvider):
                     elif event_type == "message_stop":
                         yield ChatChunk(done=True)
                         return
-        except httpx.ConnectError as e:
+        except (httpx.ConnectError, httpx.TimeoutException) as e:
             raise ProviderConnectionError(
                 f"Anthropic: cannot connect to {self.API_BASE}"
             ) from e
