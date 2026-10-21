@@ -93,6 +93,13 @@ def setup_local_tools(
     from jarvis.tools.local.browser_tabs import BrowserTabsTool
     from jarvis.tools.local.content_reader import ContentReaderTool
     from jarvis.tools.local.bookmarks import BookmarksTool
+    from jarvis.tools.local.mouse_control import (
+        MouseClickTool,
+        MouseMoveTool,
+        MouseScrollTool,
+        MouseDragTool,
+        MousePositionTool,
+    )
     from jarvis.tools.local.media_control import MediaControlTool
     from jarvis.tools.local.switch_language import SwitchLanguageTool
     from jarvis.tools.local.see_screen import SeeScreenTool
@@ -257,6 +264,11 @@ def setup_local_tools(
         ContentReaderTool(),
         BookmarksTool(),
         MediaControlTool(),
+        MouseClickTool(),
+        MouseMoveTool(),
+        MouseScrollTool(),
+        MouseDragTool(),
+        MousePositionTool(),
         CloseAppTool(),
         GetTimeTool(),
         FileManagerTool(path_validator=path_validator),
