@@ -1445,6 +1445,7 @@ async def _audio_main(
     reminder_scheduler: ReminderScheduler | None = None,
     self_eval_cfg: SelfEvaluationConfig | None = None,
     self_eval_report_dir: Path | None = None,
+    proactive_engine: object = None,
 
 ) -> None:
 
@@ -1729,6 +1730,41 @@ async def _audio_main(
         except Exception:
             log.warning("self-evaluation wiring failed (non-fatal)", exc_info=True)
 
+    # Proactive engine background loop — samples the foreground window and
+    # runs the live scenarios (long-work health nudge, abandoned-project).
+    # Pattern-based scenarios (boot routine, command sequence, birthdays)
+    # fire from their own observation points. Off entirely when disabled.
+    _proactive_task = None
+    if proactive_engine is not None and getattr(
+        getattr(proactive_engine, "_config", None), "enabled", False
+    ):
+        import asyncio as _aio
+        from datetime import datetime as _dt, timezone as _tz
+        from jarvis.memory.proactive_engine import (
+            ProactiveScenarios as _Scen,
+            foreground_window_title as _fg_title,
+        )
+
+        _scenarios = _Scen(proactive_engine)
+
+        def _proactive_tick() -> None:
+            now = _dt.now(tz=_tz.utc)
+            title = _fg_title()
+            if not title:
+                return
+            focus = proactive_engine.observe_foreground(title, now)
+            # C. long work (health) — productivity app in focus too long.
+            res = _scenarios.long_work(
+                foreground=title, focus_seconds=focus, now=now,
+            )
+            proactive_engine.maybe_speak_scenario(res, pause_media=True)
+
+        _proactive_task = _aio.create_task(
+            proactive_engine.run(_proactive_tick), name="proactive-engine",
+        )
+        _proactive_task.add_done_callback(_task_exception_handler)
+        log.info("proactive engine started")
+
     log.info('ready — say "hey jarvis".')
 
 
@@ -1784,6 +1820,18 @@ async def _audio_main(
             await _self_eval_scheduler.stop()
         except Exception:
             log.warning("self-evaluation stop failed (non-fatal)", exc_info=True)
+    # Stop proactive engine (if it was started).
+    if proactive_engine is not None:
+        try:
+            proactive_engine.stop()
+        except Exception:
+            log.warning("proactive stop failed (non-fatal)", exc_info=True)
+    if _proactive_task is not None and not _proactive_task.done():
+        _proactive_task.cancel()
+        try:
+            await _proactive_task
+        except asyncio.CancelledError:
+            pass
     if reminder_store is not None:
         reminder_store.close()
 
@@ -2916,6 +2964,7 @@ class JarvisApp:
             personal_aliases=self.personal_aliases,
             on_timer_done=self._on_timer_done,
             reminder_store=self.reminder_store,
+            proactive_engine=self.proactive_engine,
 
 
         )
@@ -3475,6 +3524,7 @@ class JarvisApp:
                 reminder_store=self.reminder_store,
                 reminder_scheduler=self.reminder_scheduler,
                 self_eval_cfg=self.cfg.self_evaluation,
+                proactive_engine=self.proactive_engine,
 
             )
 

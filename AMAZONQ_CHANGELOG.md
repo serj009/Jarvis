@@ -6,6 +6,51 @@
 ---
 
 
+## 2026-10-21 — Proactive ("initiative") engine (Layers 1–3)
+
+### Summary
+New opt-out proactive engine: Jarvis watches usage patterns and occasionally
+speaks up on its own via the existing ProactiveSpeech event. Built in 3 layers,
+each tested + green. Enabled by default at HIGH, adapts down on repeated
+dismissals, controllable by voice + Settings.
+
+### Layer 1 — foundation (schema v38)
+| File | Change |
+|------|--------|
+| `jarvis/core/config.py` | New `ProactiveConfig` (enabled, initiative_level, check_interval, work/leisure thresholds, boot_similarity, dismiss_downgrade_count). Schema 37→38. |
+| `jarvis/core/migrations.py` | `_migrate_v37_to_v38`. |
+| `jarvis/memory/proactive_engine.py` | NEW. `InitiativeLevel` (HIGH/MEDIUM/LOW/SILENT), `ProactivePatternStore` (SQLite `proactive_patterns`, CREATE IF NOT EXISTS), `ProactiveEngine` (level persistence, adaptive dismiss→downgrade, `may_speak` gate, `speak` via bus), helpers `foreground_window_title` / `classify_leisure` / `jaccard`. |
+
+### Layer 2 — scenarios + loop
+| Addition | What |
+|----------|------|
+| `media_pause()` | Reuses media_control key sender; fired before important/critical nudges. |
+| `ProactiveScenarios` | A abandoned-project, B upcoming-date, C long-work (health), D boot-routine (Jaccard≥thr), E command-sequence (≥5, conf≥70%). Each a pure method with injected now/foreground for deterministic tests. |
+| `ProactiveEngine` | foreground focus tracking, boot/command recording, per-key cooldown + dismiss-time snooze, `maybe_speak_scenario`, async `run(tick_fn)` loop + `stop`. |
+
+### Layer 3 — voice tools + Settings + wiring
+| File | Change |
+|------|--------|
+| `jarvis/tools/local/proactive_tools.py` | NEW. `set_initiative` (up/down/silent), `proactive_status`, `dismiss_proactive` (now/forever) — EN/RU/UK. |
+| `jarvis/tools/catalogue.py`, `__init__.py`, `risk.py` | Registered 3 tools (set/dismiss WRITE, status READ); `setup_local_tools` gained `proactive_engine` param. |
+| `jarvis/ui/settings/tabs/proactive.py` + `__init__.py` + `main_window.py` | NEW "Proactive" settings tab (toggle, level dropdown, threshold sliders); 16 sidebar pages. |
+| `jarvis/app.py` | ProactiveEngine + store created beside ReminderScheduler (own SQLite, bus, usage_stats, level persisted via save_config); background loop started in `_audio_main` (samples foreground → long-work health nudge with media-pause), stopped on shutdown; engine injected into the voice tools. |
+| `tests/memory/test_proactive_engine.py` | ~60 tests across all 3 layers. |
+
+### ⚠️ MANUAL TESTING NEEDED AT HOME (real Windows + foreground apps)
+1. Long-work nudge: keep an IDE focused past the threshold (lower it in Settings →
+   Proactive for a quick test) → Jarvis should pause media and suggest a break.
+2. Voice control: "не мешай" ×3 → auto-downgrades a level; "будь активнее" raises it;
+   "какой уровень инициативы" reports it. Level survives restart (saved to config).
+3. Config migration v38: first launch adds the `proactive` section; a `.bak` is written.
+4. DB: `proactive_patterns.db` is created in the memory dir. Boot-routine and
+   command-sequence scenarios need real repeated usage to accumulate before they fire.
+5. Birthdays (scenario B) need memory facts tagged birthday/event with a date — verify
+   once you have such facts.
+
+---
+
+
 ## 2026-10-21 — Reminders: recurring, specific date, snooze, edit
 
 ### Summary

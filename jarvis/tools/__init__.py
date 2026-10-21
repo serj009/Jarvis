@@ -48,6 +48,7 @@ def setup_local_tools(
     game_mode: object = None,
     on_timer_done: Callable[[str], None] | None = None,
     reminder_store: object = None,
+    proactive_engine: object = None,
 ) -> None:
     """Register every built-in local tool into `registry`.
 
@@ -161,6 +162,11 @@ def setup_local_tools(
     from jarvis.tools.local.rss_reader import (
         SubscribeRssTool, UnsubscribeRssTool,
         ListRssFeedsTool, GetLatestNewsTool,
+    )
+    from jarvis.tools.local.proactive_tools import (
+        SetInitiativeLevelTool,
+        ProactiveStatusTool,
+        DismissProactiveTool,
     )
     from jarvis.tools.local.remind_me import (
         RemindMeTool,
@@ -342,6 +348,9 @@ def setup_local_tools(
         RecurringReminderTool(store=reminder_store),
         SnoozeReminderTool(store=reminder_store),
         EditReminderTool(store=reminder_store),
+        SetInitiativeLevelTool(engine=proactive_engine),
+        ProactiveStatusTool(engine=proactive_engine),
+        DismissProactiveTool(engine=proactive_engine),
         StopFocusModeTool(),
         FocusModeStatusTool(),
         # Phase 8: Vision tools

@@ -190,14 +190,16 @@ def _local_tool_classes() -> tuple[type, ...]:
         SubscribeRssTool, UnsubscribeRssTool,
         ListRssFeedsTool, GetLatestNewsTool,
     )
+    from jarvis.tools.local.proactive_tools import (
+        SetInitiativeLevelTool,
+        ProactiveStatusTool,
+        DismissProactiveTool,
+    )
     from jarvis.tools.local.remind_me import (
         RemindMeTool,
         RemindMeAtTool,
         ListRemindersTool,
         DeleteReminderTool,
-        RecurringReminderTool,
-        SnoozeReminderTool,
-        EditReminderTool,
         RecurringReminderTool,
         SnoozeReminderTool,
         EditReminderTool,
@@ -353,6 +355,9 @@ def _local_tool_classes() -> tuple[type, ...]:
         RecurringReminderTool,
         SnoozeReminderTool,
         EditReminderTool,
+        SetInitiativeLevelTool,
+        ProactiveStatusTool,
+        DismissProactiveTool,
         StartFocusModeTool,
         StopFocusModeTool,
         FocusModeStatusTool,
