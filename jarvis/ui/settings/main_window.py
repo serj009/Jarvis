@@ -43,6 +43,7 @@ from jarvis.ui.settings.tabs import (
     MemoryTab,
     ModelsTab,
     SecurityTab,
+    SelfEvalTab,
     ToolsTab,
     VoiceTab,
 )
@@ -64,6 +65,7 @@ _NAV_ITEMS: tuple[tuple[str, str, str, str | None], ...] = (
     ("gaming",   "\U0001f3ae",    "Game Mode",     None),
     ("image_gen","\U0001f3a8",    "Image Gen",     None),
     ("security", "\U0001f6e1\ufe0f", "Security",   None),
+    ("self_eval", "\U0001f9ea",    "Self-Evaluation", None),
     ("commands", "\U0001f4d6",    "Commands",      "Other"),
     ("hotkeys",  "\u2328\ufe0f",  "Hotkeys",       None),
     ("advanced", "\u2699\ufe0f",  "Advanced",      None),
@@ -116,6 +118,7 @@ class SettingsWindow(QMainWindow):
         self.gaming = GamingTab(config=config, on_change=_on_change_with_indicator)
         self.image_gen = ImageGenTab(config=config, on_change=_on_change_with_indicator)
         self.security = SecurityTab(config=config, on_change=_on_change_with_indicator)
+        self.self_eval = SelfEvalTab(config=config, on_change=_on_change_with_indicator)
         self.commands = CommandsTab(config=config, on_change=_on_change_with_indicator)
         self.hotkeys = HotkeysTab(config=config, on_change=_on_change_with_indicator)
         self.advanced = AdvancedTab(config=config, on_change=_on_change_with_indicator)
@@ -132,6 +135,7 @@ class SettingsWindow(QMainWindow):
             "gaming": self.gaming,
             "image_gen": self.image_gen,
             "security": self.security,
+            "self_eval": self.self_eval,
             "commands": self.commands,
             "hotkeys": self.hotkeys,
             "advanced": self.advanced,

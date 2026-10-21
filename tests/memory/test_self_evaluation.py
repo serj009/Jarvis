@@ -7,10 +7,12 @@ import json
 from jarvis.memory.self_evaluation import (
     InteractionTrace,
     SelfEvaluationScheduler,
+    TraceRecorder,
     TraceStep,
     build_critic_messages,
     build_trace,
     parse_critic_response,
+    make_send_fn,
     render_report_markdown,
     run_evaluation,
     strip_secret_args,
@@ -314,3 +316,93 @@ class TestScheduler:
         assert sched.last_report_path is not None
         assert sched.last_report_path.exists()
         assert "all good" in sched.last_report_path.read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# Layer 3: live trace recorder + send_fn factory
+# ---------------------------------------------------------------------------
+
+from types import SimpleNamespace
+
+
+def _ev(**kw):
+    """Minimal event stand-in (the recorder reads attributes via getattr)."""
+    return SimpleNamespace(**kw)
+
+
+class TestTraceRecorder:
+    def test_groups_one_turn(self) -> None:
+        rec = TraceRecorder()
+        rec.on_transcription(_ev(text="открой хром", duration_ms=500))
+        rec.on_tool_invoked(_ev(tool_name="open_app", args={"name": "chrome"}))
+        rec.on_tool_result(_ev(tool_name="open_app", result="Opened chrome", error=None))
+        rec.on_llm_complete(_ev(full_text="Done, sir."))
+
+        traces = rec.drain()
+        assert len(traces) == 1
+        t = traces[0]
+        assert t.utterance == "открой хром"
+        assert t.steps[0].tool_name == "open_app"
+        assert t.steps[0].result == "Opened chrome"
+        assert t.steps[0].success is True
+        assert t.final_answer == "Done, sir."
+
+    def test_new_transcription_finalises_previous(self) -> None:
+        rec = TraceRecorder()
+        rec.on_transcription(_ev(text="first", duration_ms=1))
+        rec.on_transcription(_ev(text="second", duration_ms=1))
+        traces = rec.drain()
+        assert [t.utterance for t in traces] == ["first", "second"]
+
+    def test_tool_error_marks_step_failed(self) -> None:
+        rec = TraceRecorder()
+        rec.on_transcription(_ev(text="do it", duration_ms=1))
+        rec.on_tool_invoked(_ev(tool_name="x", args={}))
+        rec.on_tool_result(_ev(tool_name="x", result=None, error="boom"))
+        t = rec.drain()[0]
+        assert t.steps[0].success is False
+        assert "boom" in t.steps[0].result
+
+    def test_drain_clears_buffer(self) -> None:
+        rec = TraceRecorder()
+        rec.on_transcription(_ev(text="hi", duration_ms=1))
+        assert len(rec.drain()) == 1
+        assert rec.drain() == []  # emptied
+
+    def test_secrets_stripped_in_recorded_trace(self) -> None:
+        rec = TraceRecorder()
+        rec.on_transcription(_ev(text="login with " + _PW + "=hunter2", duration_ms=1))
+        t = rec.drain()[0]
+        assert "hunter2" not in t.utterance
+
+    def test_bounded_buffer(self) -> None:
+        rec = TraceRecorder(maxlen=3)
+        for i in range(5):
+            rec.on_transcription(_ev(text=f"u{i}", duration_ms=1))
+        traces = rec.drain()
+        # Only the last 3 survive the ring buffer.
+        assert [t.utterance for t in traces] == ["u2", "u3", "u4"]
+
+    def test_events_before_any_transcription_are_ignored(self) -> None:
+        rec = TraceRecorder()
+        rec.on_tool_invoked(_ev(tool_name="x", args={}))  # no active turn
+        rec.on_llm_complete(_ev(full_text="orphan"))
+        assert rec.drain() == []
+
+
+class TestMakeSendFn:
+    def test_none_when_disabled(self) -> None:
+        cfg = SimpleNamespace(enabled=False, api_key="k")
+        assert make_send_fn(cfg) is None
+
+    def test_none_when_no_key(self) -> None:
+        cfg = SimpleNamespace(enabled=True, api_key="")
+        assert make_send_fn(cfg) is None
+
+    def test_callable_when_enabled_with_key(self) -> None:
+        cfg = SimpleNamespace(
+            enabled=True, api_key="k", provider="groq",
+            api_model="llama-3.3-70b-versatile", api_base_url="",
+        )
+        fn = make_send_fn(cfg)
+        assert fn is not None and callable(fn)
