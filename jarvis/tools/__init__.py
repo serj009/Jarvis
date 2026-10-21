@@ -71,7 +71,11 @@ def setup_local_tools(
     from jarvis.tools.local.dictation import DictationTool
     from jarvis.tools.local.calculator import CalculatorTool
     from jarvis.tools.local.converter import ConverterTool
-    from jarvis.tools.local.file_manager import FileManagerTool
+    from jarvis.tools.local.file_manager import (
+        ArchiveTool,
+        CreateFileTool,
+        FileManagerTool,
+    )
     from jarvis.tools.local.files import ListDirectoryTool
     from jarvis.tools.local.get_time import GetTimeTool
     from jarvis.tools.local.git_tool import GitTool
@@ -247,6 +251,8 @@ def setup_local_tools(
         CloseAppTool(),
         GetTimeTool(),
         FileManagerTool(path_validator=path_validator),
+        CreateFileTool(path_validator=path_validator),
+        ArchiveTool(path_validator=path_validator),
         ListDirectoryTool(path_validator=path_validator),
         GitTool(),
         LockScreenTool(),

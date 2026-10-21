@@ -6,6 +6,39 @@
 ---
 
 
+## 2026-10-21 — File Manager: find filters, CreateFileTool, ArchiveTool
+
+### Summary
+Filled 3 real gaps in the existing `file_manager.py` (which already had
+find-by-name/move/rename/delete/mkdir). Did NOT rewrite the file or duplicate
+existing actions or disk_cleaner.
+
+| # | Gap | How |
+|---|-----|-----|
+| 1 | Filters in `find` | Added optional `extension` / `newer_than` / `min_size` / `max_size` to FileManagerArgs (empty = old behaviour). `_find` applies them; `_parse_size` ("10MB"→bytes) and `_parse_age` ("1w"→timedelta) helpers. Filtered-find voice patterns at priority 290 (beat generic find 300), EN/RU/UK, with word→ext and folder-keyword maps. |
+| 2 | `CreateFileTool` (new, name=`create_file`) | Creates an empty file; templates for .py/.md/.txt/.html; refuses to overwrite; sandbox-validated; RiskLevel.WRITE. |
+| 3 | `ArchiveTool` (new, name=`archive`) | Zips a folder via `shutil.make_archive`; auto-names `{folder}_{YYYYMMDD}.zip`; reports size; sandbox-validated; RiskLevel.WRITE. |
+
+### Files
+| File | Change |
+|------|--------|
+| `jarvis/tools/local/file_manager.py` | Extended FileManagerArgs + `_find`; added `_parse_size`/`_parse_age`, word/folder maps, KNOWN_FOLDERS, helper fns; new CreateFileTool + ArchiveTool. |
+| `jarvis/tools/catalogue.py`, `jarvis/tools/__init__.py` | Registered the 2 new tools. |
+| `jarvis/tools/risk.py` | `create_file` / `archive` → RiskLevel.WRITE. |
+| `tests/ui/test_capabilities.py` | Added `create_file` / `archive` to `_UNDOCUMENTED_TOOLS` (convention for LLM-dispatched file tools, same as `file_manager`). |
+| `tests/ui/test_settings.py` | Added both names to the Tools-tab checkbox set assertion. |
+| `tests/tools/local/test_file_manager.py` | +18 tests: size/age parsing, extension/size/age/combined find filters, filtered-find routing, create-file templates + refuse-overwrite, archive (default + custom dest + missing folder), routing. |
+
+### ⚠️ MANUAL TESTING NEEDED AT HOME
+1. Filtered find by voice: "find pdfs in downloads", "find files larger than 100 MB",
+   "найди файлы за последнюю неделю" — verify real results from real folders.
+2. Create file: "create a python file called utils", "создай файл заметки.md на рабочем столе"
+   — confirm template content and that it lands in the right folder.
+3. Archive: "archive the project folder", "запакуй загрузки" — confirm the .zip appears
+   next to the folder with the right contents and size.
+
+---
+
 ## 2026-10-21 — Window management: corner snap, snap-layout, minimize-all, virtual desktops
 
 ### Summary

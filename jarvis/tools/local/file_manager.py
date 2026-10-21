@@ -46,6 +46,7 @@ import platform
 import re
 import shutil
 import subprocess
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import ClassVar, Literal
 
@@ -82,7 +83,144 @@ _FILE_EXTENSIONS: frozenset[str] = frozenset((
 _COMMON_SEARCH_DIRS: tuple[str, ...] = ("Desktop", "Documents", "Downloads")
 
 
+# Size unit multipliers for parsing "10MB" / "1gb" etc.
+_SIZE_UNITS: dict[str, int] = {
+    "b": 1,
+    "kb": 1024,
+    "mb": 1024 ** 2,
+    "gb": 1024 ** 3,
+    "tb": 1024 ** 4,
+}
+
+
+def _parse_size(text: str) -> int | None:
+    """Parse '10MB' / '1.5 gb' / '500kb' into bytes. None if unparseable."""
+    if not text or not text.strip():
+        return None
+    m = re.match(r"^\s*([\d.]+)\s*([kmgt]?b)\s*$", text.strip().lower())
+    if not m:
+        return None
+    try:
+        value = float(m.group(1))
+    except ValueError:
+        return None
+    return int(value * _SIZE_UNITS[m.group(2)])
+
+
+# Spoken word -> file extension for filtered find ("pdfs" -> ".pdf").
+_EXT_WORD: dict[str, str] = {
+    "pdf": ".pdf", "pdfs": ".pdf",
+    "doc": ".doc", "docs": ".doc", "docx": ".docx", "word": ".docx",
+    "txt": ".txt", "text": ".txt",
+    "python": ".py", "py": ".py",
+    "image": ".png", "images": ".png", "photo": ".jpg", "photos": ".jpg",
+    "video": ".mp4", "videos": ".mp4",
+    "music": ".mp3", "audio": ".mp3",
+    "zip": ".zip", "archive": ".zip", "archives": ".zip",
+    "excel": ".xlsx", "xlsx": ".xlsx", "csv": ".csv",
+    # RU
+    "пдф": ".pdf", "документ": ".docx", "документы": ".docx",
+    "питон": ".py", "пайтон": ".py",
+    "картинки": ".png", "картинка": ".png", "фото": ".jpg",
+    "видео": ".mp4", "музыка": ".mp3",
+    # UK
+    "пітон": ".py", "зображення": ".png", "відео": ".mp4",
+}
+
+# Spoken folder name -> KNOWN_FOLDERS key / search_dir value.
+_RU_DIR: dict[str, str] = {
+    "загрузках": "downloads",
+    "документах": "documents",
+    "на рабочем столе": "desktop",
+    "изображениях": "pictures",
+}
+_UK_DIR: dict[str, str] = {
+    "завантаженнях": "downloads",
+    "документах": "documents",
+    "зображеннях": "pictures",
+}
+
+
+# Folder-name keyword -> absolute Path, for resolving spoken folder names.
+KNOWN_FOLDERS: dict[str, Path] = {
+    "downloads": Path.home() / "Downloads",
+    "документы": Path.home() / "Documents",
+    "documents": Path.home() / "Documents",
+    "документи": Path.home() / "Documents",
+    "desktop": Path.home() / "Desktop",
+    "pictures": Path.home() / "Pictures",
+    "изображения": Path.home() / "Pictures",
+    "зображення": Path.home() / "Pictures",
+}
+
+
+def _parse_age(text: str) -> "timedelta | None":
+    """Parse '3d' / '1w' / '2m' into a timedelta. None if unparseable.
+
+    d = days, w = weeks, m = months (~30 days).
+    """
+    if not text or not text.strip():
+        return None
+    m = re.match(r"^\s*(\d+)\s*([dwm])\s*$", text.strip().lower())
+    if not m:
+        return None
+    n = int(m.group(1))
+    unit = m.group(2)
+    if unit == "d":
+        return timedelta(days=n)
+    if unit == "w":
+        return timedelta(weeks=n)
+    return timedelta(days=n * 30)  # month ≈ 30 days
+
+
 # ── args schema ───────────────────────────────────────────────────
+
+
+def _ensure_ext(name: str, ext: str) -> str:
+    """Append *ext* to a bare name if it has no extension."""
+    name = name.strip()
+    return name if Path(name).suffix else name + ext
+
+
+def _join_folder(name: str, folder: str | None) -> str:
+    """Combine a filename with an optional spoken folder keyword."""
+    name = name.strip()
+    if not folder:
+        return name
+    key = folder.strip().lower()
+    base = KNOWN_FOLDERS.get(key)
+    return str(base / name) if base is not None else name
+
+
+def _strip_folder_word(text: str) -> str:
+    """Normalise a spoken folder reference: trailing 'folder'/'папку' removed,
+    and a known keyword resolved to its absolute path."""
+    t = text.strip()
+    t = re.sub(r"\s+(?:folder|папку|папка|папки|директорію)$", "", t, flags=re.IGNORECASE)
+    key = t.lower()
+    base = KNOWN_FOLDERS.get(key)
+    return str(base) if base is not None else t
+
+
+def _validate_or_resolve(validator, raw: str):
+    """Resolve *raw* to an absolute Path, honouring known-folder keywords
+    and the sandbox validator when present. Returns Path or ToolResult."""
+    key = raw.strip().lower()
+    if key in KNOWN_FOLDERS:
+        return KNOWN_FOLDERS[key]
+    if validator is not None:
+        try:
+            return validator.validate(raw)
+        except SandboxViolationError as e:
+            return ToolResult(
+                success=False,
+                error=(
+                    f"Access denied: {e.reason}. I can only manage files in "
+                    "your allowed workspace folders, sir."
+                ),
+            )
+    p = Path(raw).expanduser()
+    return p.resolve() if p.is_absolute() else (Path.home() / p).resolve()
 
 
 class FileManagerArgs(BaseModel):
@@ -111,6 +249,35 @@ class FileManagerArgs(BaseModel):
         description=(
             "Directory to search in for 'find' action. "
             "Defaults to user home if empty."
+        ),
+    )
+    # ── optional find filters (empty = no filter, current behaviour) ──
+    extension: str = Field(
+        default="",
+        description=(
+            "Filter 'find' results by file extension, e.g. '.pdf', 'docx'. "
+            "Leading dot optional. Empty = any extension."
+        ),
+    )
+    newer_than: str = Field(
+        default="",
+        description=(
+            "Filter 'find' to files modified within this window: "
+            "'3d' (days), '1w' (weeks), '1m' (months). Empty = any age."
+        ),
+    )
+    min_size: str = Field(
+        default="",
+        description=(
+            "Filter 'find' to files at least this big, e.g. '10MB', '1GB'. "
+            "Empty = no minimum."
+        ),
+    )
+    max_size: str = Field(
+        default="",
+        description=(
+            "Filter 'find' to files at most this big, e.g. '500MB'. "
+            "Empty = no maximum."
         ),
     )
 
@@ -182,6 +349,84 @@ class FileManagerTool:
             regex=r"^(?:відкрий|відкрити)\s+(.+\.\w{1,5})$",
             priority=250,
             args=lambda m: {"action": "open", "path": m.group(1)},
+        ),
+        # ── filtered find (priority 290 — beats generic find 300) ──
+        # EN: "find pdfs in downloads", "find python files"
+        VoicePattern(
+            regex=r"^find\s+(\w+)s?\s+in\s+(downloads|documents|desktop|pictures)$",
+            priority=290,
+            args=lambda m: {
+                "action": "find", "path": "",
+                "extension": _EXT_WORD.get(m.group(1).lower(), m.group(1).lower()),
+                "search_dir": m.group(2).lower(),
+            },
+        ),
+        # EN: "find files larger than 100 mb"
+        VoicePattern(
+            regex=r"^find\s+files?\s+(?:larger|bigger)\s+than\s+([\d.]+\s*[kmgt]?b)$",
+            priority=290,
+            args=lambda m: {"action": "find", "path": "", "min_size": m.group(1)},
+        ),
+        VoicePattern(
+            regex=r"^find\s+files?\s+smaller\s+than\s+([\d.]+\s*[kmgt]?b)$",
+            priority=290,
+            args=lambda m: {"action": "find", "path": "", "max_size": m.group(1)},
+        ),
+        # EN: "find recent files from last week" / "... from last month"
+        VoicePattern(
+            regex=r"^find\s+(?:recent\s+)?files?\s+from\s+(?:the\s+)?last\s+(week|month|day)$",
+            priority=290,
+            args=lambda m: {
+                "action": "find", "path": "",
+                "newer_than": {"day": "1d", "week": "1w", "month": "1m"}[m.group(1)],
+            },
+        ),
+        # RU: "найди pdf в загрузках"
+        VoicePattern(
+            regex=r"^найди\s+(\w+)\s+в\s+(загрузках|документах|на\s+рабочем\s+столе|изображениях)$",
+            priority=290,
+            args=lambda m: {
+                "action": "find", "path": "",
+                "extension": _EXT_WORD.get(m.group(1).lower(), m.group(1).lower()),
+                "search_dir": _RU_DIR.get(m.group(2).lower(), ""),
+            },
+        ),
+        # RU: "найди файлы больше 100 мегабайт"
+        VoicePattern(
+            regex=r"^найди\s+файлы\s+больше\s+([\d.]+)\s*(?:мб|мегабайт|гб|гигабайт)$",
+            priority=290,
+            args=lambda m: {
+                "action": "find", "path": "",
+                "min_size": m.group(1) + ("gb" if "г" in m.group(0) else "mb"),
+            },
+        ),
+        # RU: "найди файлы за последнюю неделю/месяц/день"
+        VoicePattern(
+            regex=r"^найди\s+(?:недавние\s+)?файлы\s+за\s+(?:последн(?:юю|ий)\s+)?(неделю|месяц|день)$",
+            priority=290,
+            args=lambda m: {
+                "action": "find", "path": "",
+                "newer_than": {"день": "1d", "неделю": "1w", "месяц": "1m"}[m.group(1)],
+            },
+        ),
+        # UK: "знайди pdf в завантаженнях"
+        VoicePattern(
+            regex=r"^знайди\s+(\w+)\s+в\s+(завантаженнях|документах|зображеннях)$",
+            priority=290,
+            args=lambda m: {
+                "action": "find", "path": "",
+                "extension": _EXT_WORD.get(m.group(1).lower(), m.group(1).lower()),
+                "search_dir": _UK_DIR.get(m.group(2).lower(), ""),
+            },
+        ),
+        # UK: "знайди файли більше 100 мегабайт"
+        VoicePattern(
+            regex=r"^знайди\s+файли\s+більше\s+([\d.]+)\s*(?:мб|мегабайт|гб|гігабайт)$",
+            priority=290,
+            args=lambda m: {
+                "action": "find", "path": "",
+                "min_size": m.group(1) + ("gb" if "г" in m.group(0) else "mb"),
+            },
         ),
         # ── generic: EN ──────────────────────────────────────────
         VoicePattern(
@@ -380,12 +625,21 @@ class FileManagerTool:
     async def _find(self, args: FileManagerArgs) -> ToolResult:
         """Search for files matching a pattern."""
         query = args.path.strip()
-        if not query:
+        has_filter = bool(
+            args.extension.strip() or args.newer_than.strip()
+            or args.min_size.strip() or args.max_size.strip()
+        )
+        if not query and not has_filter:
             return ToolResult(success=False, error="No search query provided, sir.")
 
         # Determine search root.
         if args.search_dir:
-            root_or_err = self._validate_path(args.search_dir)
+            # Resolve a spoken folder keyword ("downloads") to its path first.
+            kw = args.search_dir.strip().lower()
+            if kw in KNOWN_FOLDERS:
+                root_or_err = KNOWN_FOLDERS[kw]
+            else:
+                root_or_err = self._validate_path(args.search_dir)
         else:
             # Default: user home.
             root_or_err = Path.home()
@@ -396,13 +650,41 @@ class FileManagerTool:
 
         query_lower = query.lower()
 
+        # ── parse optional filters (empty = no filter) ────────────
+        ext = args.extension.strip().lower()
+        if ext and not ext.startswith("."):
+            ext = "." + ext
+        age = _parse_age(args.newer_than)
+        cutoff_ts = (datetime.now() - age).timestamp() if age else None
+        min_bytes = _parse_size(args.min_size)
+        max_bytes = _parse_size(args.max_size)
+
+        def _matches(fname: str, full: str) -> bool:
+            if query_lower and query_lower not in fname.lower():
+                return False
+            if ext and not fname.lower().endswith(ext):
+                return False
+            if cutoff_ts is not None or min_bytes is not None or max_bytes is not None:
+                try:
+                    st = os.stat(full)
+                except OSError:
+                    return False
+                if cutoff_ts is not None and st.st_mtime < cutoff_ts:
+                    return False
+                if min_bytes is not None and st.st_size < min_bytes:
+                    return False
+                if max_bytes is not None and st.st_size > max_bytes:
+                    return False
+            return True
+
         def _search() -> list[str]:
             results: list[str] = []
             try:
                 for dirpath, _dirnames, filenames in os.walk(search_root):
                     for fname in filenames:
-                        if query_lower in fname.lower():
-                            results.append(os.path.join(dirpath, fname))
+                        full = os.path.join(dirpath, fname)
+                        if _matches(fname, full):
+                            results.append(full)
                             if len(results) >= _MAX_FIND_RESULTS:
                                 return results
             except PermissionError:
@@ -702,4 +984,227 @@ class FileManagerTool:
         return ToolResult(
             success=True,
             output=f"Created folder {resolved.name}, sir.",
+        )
+
+
+# ── file templates for CreateFileTool ─────────────────────────────────────
+
+_FILE_TEMPLATES: dict[str, str] = {
+    ".py": '# -*- coding: utf-8 -*-\n"""\nModule: {name}\n"""\n',
+    ".md": "# {name}\n\n",
+    ".txt": "",
+    ".html": (
+        "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n"
+        "    <meta charset=\"utf-8\">\n"
+        "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+        "    <title>{name}</title>\n</head>\n<body>\n\n</body>\n</html>\n"
+    ),
+}
+
+
+class CreateFileArgs(BaseModel):
+    path: str = Field(
+        description=(
+            "Path (or bare filename) of the file to create. A known folder "
+            "keyword like 'desktop' or 'downloads' resolves to that folder. "
+            "The extension selects a starter template (.py/.md/.txt/.html)."
+        ),
+    )
+
+
+class CreateFileTool:
+    """Create a new empty file, optionally from a starter template."""
+
+    name: str = "create_file"
+    description: str = (
+        "Create a new, empty file (optionally with a starter template for "
+        ".py/.md/.txt/.html). Fails if the file already exists. "
+        "(RU: создай файл … / UK: створи файл …)"
+    )
+    args_schema: type[BaseModel] = CreateFileArgs
+    requires_confirmation: bool = False
+    risk_level: ClassVar[RiskLevel] = RiskLevel.WRITE
+
+    voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        # EN: "create a python file called utils", "create python file utils"
+        VoicePattern(
+            regex=r"^create\s+(?:a\s+)?python\s+file\s+(?:called\s+|named\s+)?(.+)$",
+            priority=280,
+            args=lambda m: {"path": _ensure_ext(m.group(1), ".py")},
+        ),
+        # EN: "create file notes.md", "new file report.txt on desktop"
+        VoicePattern(
+            regex=r"^create\s+file\s+(.+?)(?:\s+(?:on|in)\s+(.+))?$",
+            priority=285,
+            args=lambda m: {"path": _join_folder(m.group(1), m.group(2))},
+        ),
+        VoicePattern(
+            regex=r"^(?:new|make)\s+file\s+(.+?)(?:\s+(?:on|in)\s+(.+))?$",
+            priority=285,
+            args=lambda m: {"path": _join_folder(m.group(1), m.group(2))},
+        ),
+        # RU: "создай питон файл utils", "создай файл заметки.md на рабочем столе"
+        VoicePattern(
+            regex=r"^создай\s+(?:пайтон|питон)\s+файл\s+(.+)$",
+            priority=280,
+            args=lambda m: {"path": _ensure_ext(m.group(1), ".py")},
+        ),
+        VoicePattern(
+            regex=r"^(?:создай|новый)\s+файл\s+(.+?)(?:\s+(?:на|в)\s+(.+))?$",
+            priority=285,
+            args=lambda m: {"path": _join_folder(m.group(1), m.group(2))},
+        ),
+        # UK: "створи пітон файл utils", "створи файл нотатки.md"
+        VoicePattern(
+            regex=r"^створи\s+(?:пітон|пайтон)\s+файл\s+(.+)$",
+            priority=280,
+            args=lambda m: {"path": _ensure_ext(m.group(1), ".py")},
+        ),
+        VoicePattern(
+            regex=r"^створи\s+файл\s+(.+?)(?:\s+(?:на|в)\s+(.+))?$",
+            priority=285,
+            args=lambda m: {"path": _join_folder(m.group(1), m.group(2))},
+        ),
+    )
+
+    def __init__(self, *, path_validator: PathValidator | None = None) -> None:
+        self._validator = path_validator
+
+    async def execute(self, args: CreateFileArgs) -> ToolResult:
+        raw = args.path.strip()
+        if not raw:
+            return ToolResult(success=False, error="No file name provided, sir.")
+        resolved = _validate_or_resolve(self._validator, raw)
+        if isinstance(resolved, ToolResult):
+            return resolved
+        if resolved.exists():
+            return ToolResult(
+                success=False,
+                error=f"'{resolved.name}' already exists, sir. I won't overwrite it.",
+            )
+
+        ext = resolved.suffix.lower()
+        template = _FILE_TEMPLATES.get(ext, "")
+        content = template.format(name=resolved.stem) if template else ""
+
+        def _write() -> None:
+            resolved.parent.mkdir(parents=True, exist_ok=True)
+            resolved.write_text(content, encoding="utf-8")
+
+        try:
+            await asyncio.to_thread(_write)
+        except OSError as e:
+            return ToolResult(success=False, error=f"Could not create file: {e}")
+        return ToolResult(success=True, output=f"Created {resolved.name}, sir.")
+
+
+class ArchiveArgs(BaseModel):
+    path: str = Field(
+        description=(
+            "Folder to archive into a .zip. A known folder keyword "
+            "('downloads', 'documents') resolves to that folder."
+        ),
+    )
+    destination: str = Field(
+        default="",
+        description=(
+            "Optional output .zip path. Defaults to "
+            "'<folder>_<YYYYMMDD>.zip' next to the source folder."
+        ),
+    )
+
+
+class ArchiveTool:
+    """Archive a folder into a .zip file."""
+
+    name: str = "archive"
+    description: str = (
+        "Compress a folder into a .zip archive. "
+        "(RU: архивируй/запакуй папку … / UK: заархівуй/запакуй папку …)"
+    )
+    args_schema: type[BaseModel] = ArchiveArgs
+    requires_confirmation: bool = False
+    risk_level: ClassVar[RiskLevel] = RiskLevel.WRITE
+
+    voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        # EN
+        VoicePattern(
+            regex=r"^archive\s+(?:the\s+)?(.+?)(?:\s+folder)?$",
+            priority=285,
+            args=lambda m: {"path": _strip_folder_word(m.group(1))},
+        ),
+        VoicePattern(
+            regex=r"^(?:zip|compress)\s+(?:the\s+)?(?:folder\s+)?(.+?)(?:\s+folder)?$",
+            priority=285,
+            args=lambda m: {"path": _strip_folder_word(m.group(1))},
+        ),
+        # RU
+        VoicePattern(
+            regex=r"^(?:архивируй|заархивируй)\s+(?:папку\s+)?(.+)$",
+            priority=285,
+            args=lambda m: {"path": _strip_folder_word(m.group(1))},
+        ),
+        VoicePattern(
+            regex=r"^(?:запакуй|сожми|сжать)\s+(?:папку\s+)?(.+)$",
+            priority=285,
+            args=lambda m: {"path": _strip_folder_word(m.group(1))},
+        ),
+        # UK
+        VoicePattern(
+            regex=r"^(?:заархівуй|архівуй)\s+(?:папку\s+)?(.+)$",
+            priority=285,
+            args=lambda m: {"path": _strip_folder_word(m.group(1))},
+        ),
+        VoicePattern(
+            regex=r"^запакуй\s+(?:папку\s+)?(.+)$",
+            priority=285,
+            args=lambda m: {"path": _strip_folder_word(m.group(1))},
+        ),
+    )
+
+    def __init__(self, *, path_validator: PathValidator | None = None) -> None:
+        self._validator = path_validator
+
+    async def execute(self, args: ArchiveArgs) -> ToolResult:
+        raw = args.path.strip()
+        if not raw:
+            return ToolResult(success=False, error="No folder provided, sir.")
+        resolved = _validate_or_resolve(self._validator, raw)
+        if isinstance(resolved, ToolResult):
+            return resolved
+        if not resolved.exists() or not resolved.is_dir():
+            return ToolResult(
+                success=False,
+                error=f"'{raw}' is not a folder I can reach, sir.",
+            )
+
+        if args.destination.strip():
+            out = Path(args.destination.strip()).expanduser()
+            base_name = str(out.with_suffix(""))
+        else:
+            stamp = datetime.now().strftime("%Y%m%d")
+            base_name = str(resolved.parent / f"{resolved.name}_{stamp}")
+
+        def _make() -> str:
+            # make_archive appends .zip; root_dir/base_dir keep the archive
+            # rooted at the folder itself.
+            return shutil.make_archive(
+                base_name, "zip",
+                root_dir=str(resolved.parent),
+                base_dir=resolved.name,
+            )
+
+        try:
+            archive_path = await asyncio.to_thread(_make)
+        except OSError as e:
+            return ToolResult(success=False, error=f"Could not create archive: {e}")
+
+        try:
+            size_mb = os.path.getsize(archive_path) / (1024 ** 2)
+            size_str = f"{size_mb:.1f} MB"
+        except OSError:
+            size_str = "unknown size"
+        return ToolResult(
+            success=True,
+            output=f"Archived {resolved.name} to {os.path.basename(archive_path)} ({size_str}), sir.",
         )

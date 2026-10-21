@@ -279,6 +279,8 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     # find/open/mkdir are WRITE; move/copy/rename are WRITE;
     # delete is DESTRUCTIVE (gated by the dispatch-level risk map below).
     "file_manager": RiskLevel.WRITE,
+    "create_file": RiskLevel.WRITE,
+    "archive": RiskLevel.WRITE,
     # -- Git tool ---------------------------------------------------------------
     # status/diff/log are read-only; commit and push are WRITE (confirmation
     # is handled per-action inside git_tool.py via _CONFIRM_ACTIONS).
