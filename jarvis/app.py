@@ -198,6 +198,9 @@ from jarvis.core.config import (
     MCPServerConfig,
 
 
+    SelfEvaluationConfig,
+
+
     default_config_path,
 
 
@@ -1440,6 +1443,8 @@ async def _audio_main(
     game_mode: GameMode | None = None,
     reminder_store: ReminderStore | None = None,
     reminder_scheduler: ReminderScheduler | None = None,
+    self_eval_cfg: SelfEvaluationConfig | None = None,
+    self_eval_report_dir: Path | None = None,
 
 ) -> None:
 
@@ -1681,6 +1686,49 @@ async def _audio_main(
         _reminder_task.add_done_callback(_task_exception_handler)
         log.info("reminder scheduler started")
 
+    # Self-evaluation (auto-critic) — OPT-IN. Only wired when enabled in
+    # Settings and an API key is present. Observer-only: subscribes to bus
+    # events the pipeline already emits; never touches the hot path.
+    _self_eval_scheduler = None
+    if self_eval_cfg is not None and getattr(self_eval_cfg, "enabled", False):
+        try:
+            from jarvis.memory.self_evaluation import (
+                SelfEvaluationScheduler,
+                TraceRecorder,
+                make_send_fn,
+            )
+
+            _send_fn = make_send_fn(self_eval_cfg)
+            if _send_fn is not None:
+                from jarvis.core.events import (
+                    LLMResponseComplete,
+                    ToolInvoked,
+                    ToolResult as _ToolResultEvent,
+                    TranscriptionReady,
+                )
+
+                _rec = TraceRecorder()
+                bus.subscribe(TranscriptionReady, _rec.on_transcription)
+                bus.subscribe(ToolInvoked, _rec.on_tool_invoked)
+                bus.subscribe(_ToolResultEvent, _rec.on_tool_result)
+                bus.subscribe(LLMResponseComplete, _rec.on_llm_complete)
+
+                _report_dir = self_eval_report_dir or (
+                    memory_store.db_path.parent / "self_eval_reports"
+                )
+                _self_eval_scheduler = SelfEvaluationScheduler(
+                    enabled=True,
+                    interval_hours=self_eval_cfg.interval_hours,
+                    max_traces_per_run=self_eval_cfg.max_traces_per_run,
+                    trace_source=_rec.drain,
+                    send_fn=_send_fn,
+                    report_dir=_report_dir,
+                )
+                _self_eval_scheduler.start()
+                log.info("self-evaluation scheduler started")
+        except Exception:
+            log.warning("self-evaluation wiring failed (non-fatal)", exc_info=True)
+
     log.info('ready — say "hey jarvis".')
 
 
@@ -1730,6 +1778,12 @@ async def _audio_main(
             await _reminder_task
         except asyncio.CancelledError:
             pass
+    # Stop self-evaluation scheduler (if it was started).
+    if _self_eval_scheduler is not None:
+        try:
+            await _self_eval_scheduler.stop()
+        except Exception:
+            log.warning("self-evaluation stop failed (non-fatal)", exc_info=True)
     if reminder_store is not None:
         reminder_store.close()
 
@@ -3420,6 +3474,7 @@ class JarvisApp:
                 game_mode=self.game_mode,
                 reminder_store=self.reminder_store,
                 reminder_scheduler=self.reminder_scheduler,
+                self_eval_cfg=self.cfg.self_evaluation,
 
             )
 

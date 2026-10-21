@@ -431,3 +431,156 @@ class SelfEvaluationScheduler:
         except Exception:
             _log.warning("[self-eval] could not write report", exc_info=True)
         return report
+
+
+# ---------------------------------------------------------------------------
+# Layer 3: live trace recorder (bus observer) + send_fn factory
+# ---------------------------------------------------------------------------
+
+from collections import deque as _deque
+
+
+class TraceRecorder:
+    """Assembles interaction traces by observing the event bus.
+
+    Pure observer: it subscribes to events the pipeline ALREADY publishes
+    (TranscriptionReady, ToolInvoked, ToolResult, LLMResponseComplete) and
+    groups them per turn. A new TranscriptionReady starts a new trace; tool
+    and LLM events attach to the in-progress trace until the next one. No
+    hot-path code changes, no correlation-id plumbing.
+
+    Bounded: keeps at most ``maxlen`` finished traces (a ring buffer), so a
+    long-running session cannot grow memory. Every trace is secret-stripped
+    via build_trace when finalised.
+
+    Wiring (in app.py, only when self_evaluation.enabled):
+        rec = TraceRecorder()
+        bus.subscribe(TranscriptionReady, rec.on_transcription)
+        bus.subscribe(ToolInvoked, rec.on_tool_invoked)
+        bus.subscribe(ToolResult, rec.on_tool_result)
+        bus.subscribe(LLMResponseComplete, rec.on_llm_complete)
+        scheduler = SelfEvaluationScheduler(..., trace_source=rec.drain, ...)
+    """
+
+    def __init__(self, maxlen: int = 200) -> None:
+        self._finished: _deque = _deque(maxlen=maxlen)
+        self._cur_utterance: str | None = None
+        self._cur_steps: list[TraceStep] = []
+        self._cur_final: str = ""
+        self._seq = 0
+
+    # -- bus handlers (each takes the event object) ------------------------
+
+    def on_transcription(self, event) -> None:
+        # A new user turn begins; finalise the previous one first.
+        self._flush()
+        self._cur_utterance = getattr(event, "text", "") or ""
+        self._cur_steps = []
+        self._cur_final = ""
+
+    def on_tool_invoked(self, event) -> None:
+        if self._cur_utterance is None:
+            return
+        self._cur_steps.append(
+            TraceStep(
+                tool_name=getattr(event, "tool_name", "") or "",
+                args=dict(getattr(event, "args", {}) or {}),
+                result="",
+                success=True,
+            )
+        )
+
+    def on_tool_result(self, event) -> None:
+        if self._cur_utterance is None or not self._cur_steps:
+            return
+        # Attach to the most recent step for the same tool.
+        name = getattr(event, "tool_name", "") or ""
+        err = getattr(event, "error", None)
+        res = getattr(event, "result", None)
+        for step in reversed(self._cur_steps):
+            if step.tool_name == name:
+                step.result = str(res) if res is not None else (err or "")
+                step.success = err is None
+                break
+
+    def on_llm_complete(self, event) -> None:
+        if self._cur_utterance is None:
+            return
+        self._cur_final = getattr(event, "full_text", "") or ""
+
+    # -- trace access ------------------------------------------------------
+
+    def _flush(self) -> None:
+        """Finalise the in-progress turn into a secret-stripped trace."""
+        if self._cur_utterance is None:
+            return
+        if not self._cur_utterance and not self._cur_steps and not self._cur_final:
+            self._cur_utterance = None
+            return
+        self._seq += 1
+        trace = build_trace(
+            correlation_id=f"turn-{self._seq}",
+            utterance=self._cur_utterance,
+            recognised_text=self._cur_utterance,
+            steps=self._cur_steps,
+            final_answer=self._cur_final,
+            timestamp=_dt.now(_UTC).isoformat(),
+        )
+        self._finished.append(trace)
+        self._cur_utterance = None
+        self._cur_steps = []
+        self._cur_final = ""
+
+    def drain(self) -> list[InteractionTrace]:
+        """Return all finished traces and clear the buffer.
+
+        Used as the scheduler's ``trace_source``: each evaluation run
+        consumes the traces collected since the last run.
+        """
+        self._flush()
+        out = list(self._finished)
+        self._finished.clear()
+        return out
+
+
+def make_send_fn(cfg):
+    """Build an async ``send_fn(messages) -> str`` from a SelfEvaluationConfig.
+
+    Lazily constructs an APILLMClient-style provider so this module never
+    imports the LLM stack at import time. Returns None when the config is
+    not usable (disabled or no key), so the caller can skip wiring.
+    """
+    if not getattr(cfg, "enabled", False):
+        return None
+    if not getattr(cfg, "api_key", ""):
+        _log.warning("[self-eval] enabled but no API key; critic disabled")
+        return None
+
+    async def send_fn(messages: list[dict]) -> str:
+        # Build a throwaway LLM client mapped to the critic settings. The
+        # existing APILLMClient.from_config reads provider/api_model/api_key/
+        # api_base_url off any object with those attributes.
+        from types import SimpleNamespace
+
+        from jarvis.llm.llm_provider import APILLMClient
+
+        provider = cfg.provider
+        # openai_compatible routes through the openai path with a base_url.
+        llm_shim = SimpleNamespace(
+            provider="openai" if provider == "openai_compatible" else provider,
+            api_model=cfg.api_model,
+            api_key=cfg.api_key,
+            api_base_url=cfg.api_base_url,
+            temperature=0.2,  # critic should be steady, not creative
+            max_tokens=2048,
+            system_prompt="",
+        )
+        client = APILLMClient.from_config(llm_shim, None)
+        await client.load()
+        parts: list[str] = []
+        async for chunk in client.stream_chat(messages):
+            if getattr(chunk, "content", ""):
+                parts.append(chunk.content)
+        return "".join(parts)
+
+    return send_fn

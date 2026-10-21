@@ -93,7 +93,15 @@ insights to memory; (2) full traces minus secrets; (3) built in layers.
 | `jarvis/memory/self_evaluation.py` | Added `build_critic_messages()` (rubric → strict-JSON prompt), `parse_critic_response()` (tolerant: strips ``` fences / prose, never raises), `run_evaluation(traces, send_fn, max_traces)` (network-free via injected `send_fn`), `render_report_markdown()`, and `SelfEvaluationScheduler` (periodic loop, writes a markdown report per run, disabled = no-op). |
 | `tests/memory/test_self_evaluation.py` | +~20 tests for prompt/parse/run/report/scheduler. |
 **Design:** `send_fn` is injected so the module never imports the LLM stack and is fully testable offline. Report-only (no behaviour change). Reports written to a per-run markdown file.
-**NOT yet wired into app.py** — the scheduler is built but not started anywhere, and `send_fn` (the real APILLMClient round-trip from SelfEvaluationConfig) is not yet constructed. That wiring + the Settings UI is Layer 3. So at runtime this still does nothing until Layer 3 lands — intentional.
+#### Layer 3 — runtime wiring + Settings UI (added same session)
+| File | Change |
+|------|--------|
+| `jarvis/memory/self_evaluation.py` | Added `TraceRecorder` (bus observer — groups TranscriptionReady/ToolInvoked/ToolResult/LLMResponseComplete into per-turn traces, bounded ring buffer, secret-stripped on finalise) and `make_send_fn(cfg)` (builds an async critic round-trip via APILLMClient from SelfEvaluationConfig; returns None when disabled or no key). |
+| `jarvis/ui/settings/tabs/self_eval.py` | NEW. "Self-Evaluation" settings tab: enable toggle, save-insights toggle, provider dropdown, model, API key (password field, DPAPI), base URL, run-every slider (0.5 h–7 d), max-traces slider. |
+| `jarvis/ui/settings/tabs/__init__.py`, `jarvis/ui/settings/main_window.py` | Registered the tab (import, export, nav item after Security, page instance). Now 15 sidebar pages. |
+| `jarvis/app.py` | `_audio_main` gained optional `self_eval_cfg` / `self_eval_report_dir`. When `self_evaluation.enabled` AND a key is present: builds TraceRecorder, subscribes it to the bus (observer-only, no hot-path change), starts `SelfEvaluationScheduler`, and stops it on shutdown. Reports written to `%APPDATA%\Jarvis\memory\self_eval_reports\`. Imported `SelfEvaluationConfig`. |
+| `tests/memory/test_self_evaluation.py` | +~11 tests for TraceRecorder (turn grouping, errors, bounded drain, secret stripping) and make_send_fn gating. |
+**Now fully wired.** With the toggle OFF (default) nothing runs. With it ON + a valid key, the critic evaluates recent traces every `interval_hours` and writes a markdown report. Still report-only — no behaviour change to Jarvis.
 
 ---
 
@@ -118,9 +126,14 @@ The automated suite can't cover these — verify by hand on the main PC:
 6. **Config migration v37.** First launch rewrites `config.json` to schema 37 (a `.bak` is
    written automatically). Confirm existing settings survive and the new `self_evaluation`
    section appears (disabled).
-7. **Auto-critic:** nothing to test yet at runtime — Layers 1–2 have no UI and are not wired
-   into the running app. Do NOT expect a Settings toggle or any API calls until Layer 3 wires
-   the scheduler + real send_fn into app.py and adds the Settings tab.
+7. **Auto-critic (now fully wired, Layers 1–3) — OPTIONAL, verify only if you want it:**
+   - Settings → **Self-Evaluation** tab exists, toggle is OFF by default. With it off, confirm
+     Jarvis behaves exactly as before and makes no network calls.
+   - To try it: get a free Groq API key, paste it in the tab, enable the toggle, set a short
+     interval (e.g. 0.5 h) for testing. After the interval, a markdown report should appear in
+     `%APPDATA%\Jarvis\memory\self_eval_reports\`. Verify traces in the report contain NO
+     secrets (keys/passwords/logins).
+   - Confirm turning the toggle back off stops new reports on the next restart.
 
 ## 2026-10-15 — Security: 4-layer defense + crypto vault + encrypted storage (schema v31)
 
