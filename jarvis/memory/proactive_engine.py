@@ -17,10 +17,11 @@ Design:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 
@@ -273,6 +274,11 @@ class ProactiveEngine:
         self.suggested_count = 0
         self.accepted_count = 0
         self.dismissed_count = 0
+        # Layer 2 runtime state.
+        self._fired_at: dict[str, datetime] = {}
+        self._focus_title: str = ""
+        self._focus_since: datetime | None = None
+        self._running = False
 
     # -- level state -----------------------------------------------------
 
@@ -378,3 +384,273 @@ class ProactiveEngine:
             "accepted": self.accepted_count,
             "dismissed": self.dismissed_count,
         }
+
+    # -- cooldowns / dismissal timing (Layer 2) --------------------------
+
+    def last_dismiss_time(self, suggestion_key: str) -> datetime | None:
+        """When this suggestion was last dismissed (for per-item snooze)."""
+        row = self._store.get("dismissed", suggestion_key)
+        if not row or not row.get("last_seen"):
+            return None
+        try:
+            return datetime.fromisoformat(row["last_seen"])
+        except ValueError:
+            return None
+
+    def cooldown_ok(self, key: str, seconds: float, now: datetime) -> bool:
+        """True if *key* has not fired within *seconds*. Records the fire time."""
+        last = self._fired_at.get(key)
+        if last is not None and (now - last).total_seconds() < seconds:
+            return False
+        self._fired_at[key] = now
+        return True
+
+    # -- foreground / boot tracking (Layer 2) ----------------------------
+
+    def observe_foreground(self, title: str, now: datetime) -> float:
+        """Update the focus timer for the current foreground window.
+
+        Returns seconds the *current* window has held focus continuously.
+        A change of window resets the timer.
+        """
+        if title != self._focus_title:
+            self._focus_title = title
+            self._focus_since = now
+            return 0.0
+        if self._focus_since is None:
+            self._focus_since = now
+            return 0.0
+        return (now - self._focus_since).total_seconds()
+
+    def leisure_seconds(self, title: str, now: datetime) -> float:
+        """Seconds the current leisure window has held focus (0 if not leisure)."""
+        secs = self.observe_foreground(title, now)
+        return secs if classify_leisure(title) is not None else 0.0
+
+    def record_boot_sequence(self, apps: list[str], now: datetime) -> None:
+        """Record a boot sequence keyed by hour+weekday context."""
+        if not apps:
+            return
+        hour = now.astimezone().hour
+        weekday = now.astimezone().weekday()
+        slot = "weekday" if weekday < 5 else "weekend"
+        key = f"{hour:02d}:{slot}"
+        context = [f"h{hour}", slot]
+        self._store.record(
+            "boot_sequence", key, value={"apps": apps, "context": context},
+        )
+
+    def record_command_after(self, previous: str, following: str) -> None:
+        """Record that *following* happened after *previous*."""
+        if not previous or not following:
+            return
+        self._store.record("command_after", f"{previous}||{following}")
+
+    # -- scenario dispatch + background loop -----------------------------
+
+    def maybe_speak_scenario(
+        self, result: tuple[str, str, str] | None, *, pause_media: bool = False,
+    ) -> bool:
+        """Given a scenario result, apply the level gate and speak.
+
+        Returns True if a suggestion was spoken.
+        """
+        if result is None:
+            return False
+        text, importance, _key = result
+        if not self.may_speak(importance):
+            return False
+        if pause_media and importance in ("important", "critical"):
+            media_pause()
+        return self.speak(text, importance=importance)
+
+    async def run(self, tick_fn) -> None:
+        """Background loop. *tick_fn* is an async/sync callable doing one
+        evaluation pass; kept injectable so the loop itself has no policy.
+        """
+        interval = getattr(self._config, "check_interval_seconds", 60)
+        self._running = True
+        log.info("[proactive] engine loop started (interval=%ss)", interval)
+        try:
+            while self._running:
+                try:
+                    res = tick_fn()
+                    if asyncio.iscoroutine(res):
+                        await res
+                except Exception:
+                    log.exception("[proactive] tick error")
+                await asyncio.sleep(interval)
+        except asyncio.CancelledError:
+            log.info("[proactive] engine loop cancelled")
+        finally:
+            self._running = False
+
+    def stop(self) -> None:
+        self._running = False
+
+
+# ---------------------------------------------------------------------------
+# Layer 2: media pause + scenario evaluation + background loop
+# ---------------------------------------------------------------------------
+
+def media_pause() -> bool:
+    """Best-effort media pause (play/pause toggle). True if a key was sent.
+
+    Reuses the media_control key sender so an important nudge (project,
+    health) can lower the noise before Jarvis speaks.
+    """
+    try:
+        from jarvis.tools.local.media_control import _press_media_key
+
+        result = _press_media_key("play_pause")
+        return bool(result.get("success"))
+    except Exception:
+        log.debug("[proactive] media pause failed", exc_info=True)
+        return False
+
+
+# Scenario cool-downs (seconds) — a fired scenario won't repeat sooner.
+_HEALTH_COOLDOWN = 2 * 3600
+_PROJECT_DISMISS_COOLDOWN = 24 * 3600
+
+
+class ProactiveScenarios:
+    """The five scenario evaluators, split out for focused testing.
+
+    Each returns an optional (text, importance, suggestion_key) tuple when
+    it wants to speak, or None. The engine applies the level gate and
+    speaks. Every evaluator takes explicit ``now`` / ``foreground`` /
+    ``focus_seconds`` so tests can drive them deterministically.
+    """
+
+    def __init__(self, engine: "ProactiveEngine") -> None:
+        self._e = engine
+
+    # -- A. abandoned project --------------------------------------------
+
+    def abandoned_project(
+        self, *, foreground: str, leisure_seconds: float, now: datetime,
+        stale_project: dict | None,
+    ) -> tuple[str, str, str] | None:
+        """Leisure app for 2+ h AND a project untouched for 3+ days."""
+        kind = classify_leisure(foreground)
+        if kind is None:
+            return None
+        threshold = getattr(self._e._config, "leisure_hours_threshold", 2.0) * 3600
+        if leisure_seconds < threshold:
+            return None
+        if not stale_project:
+            return None
+        name = stale_project.get("name", "a project")
+        days = stale_project.get("days_idle", 0)
+        key = f"project:{name}"
+        # Respect a 24 h snooze after a dismissal of this project.
+        last = self._e.last_dismiss_time(key)
+        if last is not None and (now - last).total_seconds() < _PROJECT_DISMISS_COOLDOWN:
+            return None
+        text = (
+            f"Sir, we have a project '{name}' started {days} days ago. "
+            "Shall we get back to it?"
+        )
+        return (text, "important", key)
+
+    # -- B. upcoming important date --------------------------------------
+
+    def upcoming_date(
+        self, *, events: list[dict], now: datetime,
+    ) -> tuple[str, str, str] | None:
+        """A birthday/event fact within 7 days (checked at boot)."""
+        soonest: dict | None = None
+        soonest_days = 999
+        for ev in events:
+            days = ev.get("days_until")
+            if days is None or days < 0 or days > 7:
+                continue
+            if days < soonest_days:
+                soonest_days, soonest = days, ev
+        if soonest is None:
+            return None
+        who = soonest.get("name", "someone")
+        date = soonest.get("date", "")
+        key = f"event:{who}:{date}"
+        importance = "critical" if soonest_days == 0 else "important"
+        when = "today" if soonest_days == 0 else f"in {soonest_days} days"
+        text = (
+            f"{when.capitalize()}{(', ' + date) if date else ''}, it's "
+            f"{who}'s birthday. Would you like to pick a gift?"
+        )
+        return (text, importance, key)
+
+    # -- C. long work session (health) -----------------------------------
+
+    def long_work(
+        self, *, foreground: str, focus_seconds: float, now: datetime,
+    ) -> tuple[str, str, str] | None:
+        """Same productivity app in focus for work_hours_threshold+ hours."""
+        if classify_leisure(foreground) is not None:
+            return None  # leisure isn't "work"
+        if not foreground:
+            return None
+        threshold = getattr(self._e._config, "work_hours_threshold", 4.0) * 3600
+        if focus_seconds < threshold:
+            return None
+        hours = int(focus_seconds // 3600)
+        key = "health:long_work"
+        if not self._e.cooldown_ok(key, _HEALTH_COOLDOWN, now):
+            return None
+        text = (
+            f"Sir, you've been working for {hours} hours straight. "
+            "Perhaps a short break?"
+        )
+        return (text, "critical", key)
+
+    # -- D. boot routine --------------------------------------------------
+
+    def boot_routine(
+        self, *, current_context: set[str],
+    ) -> tuple[str, str, str] | None:
+        """A stored boot sequence whose context matches now by Jaccard≥thr."""
+        thr = getattr(self._e._config, "boot_similarity_threshold", 0.7)
+        best: dict | None = None
+        best_sim = 0.0
+        for row in self._e._store.list_type("boot_sequence"):
+            if row["count"] < 3:
+                continue
+            value = row["value"] or {}
+            ctx = set(value.get("context", []))
+            sim = jaccard(current_context, ctx)
+            if sim >= thr and sim > best_sim:
+                best_sim, best = sim, row
+        if best is None:
+            return None
+        apps = (best["value"] or {}).get("apps", [])
+        if not apps:
+            return None
+        key = f"boot_routine:{best['key']}"
+        listed = ", ".join(apps[:3])
+        text = f"Shall I start your usual routine, sir? {listed}."
+        return (text, "normal", key)
+
+    # -- E. command sequence ---------------------------------------------
+
+    def command_sequence(
+        self, *, last_command: str,
+    ) -> tuple[str, str, str] | None:
+        """After command X, user did Y ≥5 times with ≥70% confidence."""
+        rows = [
+            r for r in self._e._store.list_type("command_after")
+            if r["key"].startswith(f"{last_command}||")
+        ]
+        if not rows:
+            return None
+        total = sum(r["count"] for r in rows)
+        best = max(rows, key=lambda r: r["count"])
+        if best["count"] < 5:
+            return None
+        confidence = best["count"] / total if total else 0.0
+        if confidence < 0.7:
+            return None
+        follow = best["key"].split("||", 1)[1]
+        key = f"seq:{last_command}->{follow}"
+        text = f"After {last_command} you usually {follow}. Shall I do it?"
+        return (text, "normal", key)
