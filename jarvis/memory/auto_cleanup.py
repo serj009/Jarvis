@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from datetime import UTC, datetime
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -115,6 +116,98 @@ class AutoCleanup:
             log.info("compacted database")
         except Exception:
             log.warning("compact failed", exc_info=True)
+
+    def integrity_report(
+        self, conn: sqlite3.Connection, *, now: str | None = None,
+    ) -> dict:
+        """Report memory-integrity problems WITHOUT changing anything (Pt 8).
+
+        Pure Python + SQL, no LLM. Surfaces issues for review rather than
+        auto-fixing them -- the plan is explicit that a model must never
+        silently assign status, and that Python+SQL is enough to *find*
+        problems. Returns a dict of issue-lists:
+
+          untagged                -- active fact ids with no tags
+          broken_relations        -- relation ids whose endpoint fact is gone
+          unresolved_contradictions -- (from_id, to_id) pairs where a
+                                       'contradicts' edge links two still-active
+                                       facts (one should be superseded)
+          expired                 -- active fact ids past their valid_until
+
+        ``now`` is an ISO timestamp used for the expiry check; defaults to
+        the current UTC time (injectable for tests).
+        """
+        now = now or datetime.now(UTC).isoformat()
+
+        untagged = [
+            r[0] for r in conn.execute(
+                "SELECT id FROM facts f "
+                "WHERE f.status != 'superseded' "
+                "AND NOT EXISTS (SELECT 1 FROM fact_tags t WHERE t.fact_id = f.id)"
+            ).fetchall()
+        ]
+
+        broken_relations = [
+            {"id": r[0], "from": r[1], "to": r[2], "type": r[3]}
+            for r in conn.execute(
+                "SELECT id, fact_id_from, fact_id_to, relation_type FROM relations r "
+                "WHERE NOT EXISTS (SELECT 1 FROM facts WHERE id = r.fact_id_from) "
+                "OR NOT EXISTS (SELECT 1 FROM facts WHERE id = r.fact_id_to)"
+            ).fetchall()
+        ]
+
+        unresolved_contradictions = [
+            {"from": r[0], "to": r[1]}
+            for r in conn.execute(
+                "SELECT r.fact_id_from, r.fact_id_to FROM relations r "
+                "JOIN facts a ON a.id = r.fact_id_from "
+                "JOIN facts b ON b.id = r.fact_id_to "
+                "WHERE r.relation_type = 'contradicts' "
+                "AND a.status = 'active' AND b.status = 'active'"
+            ).fetchall()
+        ]
+
+        expired = [
+            r[0] for r in conn.execute(
+                "SELECT id FROM facts "
+                "WHERE valid_until IS NOT NULL AND valid_until < ? "
+                "AND status = 'active'",
+                (now,),
+            ).fetchall()
+        ]
+
+        report = {
+            "untagged": untagged,
+            "broken_relations": broken_relations,
+            "unresolved_contradictions": unresolved_contradictions,
+            "expired": expired,
+        }
+        total = (
+            len(untagged) + len(broken_relations)
+            + len(unresolved_contradictions) + len(expired)
+        )
+        report["total_issues"] = total
+        if total:
+            log.info("integrity report: %d issue(s) found", total)
+        return report
+
+    def prune_broken_relations(self, conn: sqlite3.Connection) -> int:
+        """Delete relations whose endpoint fact no longer exists (Pt 8).
+
+        This is the one integrity fix safe to apply automatically: a
+        dangling edge points at nothing and can never be useful. Everything
+        else in integrity_report is left for review. Returns the count.
+        """
+        cursor = conn.execute(
+            "DELETE FROM relations "
+            "WHERE NOT EXISTS (SELECT 1 FROM facts WHERE id = relations.fact_id_from) "
+            "OR NOT EXISTS (SELECT 1 FROM facts WHERE id = relations.fact_id_to)"
+        )
+        conn.commit()
+        removed = cursor.rowcount
+        if removed:
+            log.info("pruned %d broken relation(s)", removed)
+        return removed
 
     def run_full(self, conn: sqlite3.Connection) -> dict:
         """Run full cleanup: dedup + archive + compact."""

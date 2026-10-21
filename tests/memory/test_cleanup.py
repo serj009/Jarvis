@@ -108,3 +108,140 @@ class TestRunFull:
         assert result["deduplicated"] == 1
         assert result["archived"] == 1
         assert result["compacted"] is True
+
+
+def _make_db_with_metadata(tmp_path) -> sqlite3.Connection:
+    """DB with the current schema: metadata columns + relations table."""
+    conn = sqlite3.connect(str(tmp_path / "integrity.db"))
+    conn.executescript("""
+        CREATE TABLE facts (
+            id TEXT PRIMARY KEY, text TEXT NOT NULL,
+            category TEXT DEFAULT 'general', source TEXT DEFAULT 'user',
+            language TEXT DEFAULT 'en',
+            created_at TEXT DEFAULT (datetime('now')),
+            updated_at TEXT DEFAULT (datetime('now')),
+            access_count INTEGER DEFAULT 0, last_accessed_at TEXT,
+            is_permanent INTEGER DEFAULT 0,
+            tier TEXT DEFAULT 'hot', condensed_text TEXT,
+            importance REAL DEFAULT 0.5, confidence REAL DEFAULT 1.0,
+            valid_until TEXT, status TEXT DEFAULT 'active'
+        );
+        CREATE TABLE fact_tags (
+            fact_id TEXT NOT NULL, tag TEXT NOT NULL,
+            PRIMARY KEY (fact_id, tag)
+        );
+        CREATE TABLE relations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fact_id_from TEXT NOT NULL, fact_id_to TEXT NOT NULL,
+            relation_type TEXT NOT NULL, strength REAL DEFAULT 1.0,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+    """)
+    return conn
+
+
+_NOW = "2026-10-21T00:00:00+00:00"
+
+
+class TestIntegrityReport:
+    def test_detects_untagged_active_facts(self, tmp_path) -> None:
+        conn = _make_db_with_metadata(tmp_path)
+        conn.execute("INSERT INTO facts (id, text) VALUES ('t', 'tagged')")
+        conn.execute("INSERT INTO fact_tags VALUES ('t', 'sometag')")
+        conn.execute("INSERT INTO facts (id, text) VALUES ('u', 'untagged')")
+        conn.commit()
+
+        report = AutoCleanup().integrity_report(conn, now=_NOW)
+        assert report["untagged"] == ["u"]
+
+    def test_ignores_superseded_in_untagged(self, tmp_path) -> None:
+        conn = _make_db_with_metadata(tmp_path)
+        conn.execute(
+            "INSERT INTO facts (id, text, status) VALUES ('s', 'old', 'superseded')"
+        )
+        conn.commit()
+        report = AutoCleanup().integrity_report(conn, now=_NOW)
+        assert "s" not in report["untagged"]
+
+    def test_detects_broken_relations(self, tmp_path) -> None:
+        conn = _make_db_with_metadata(tmp_path)
+        conn.execute("INSERT INTO facts (id, text) VALUES ('a', 'A')")
+        conn.execute("INSERT INTO fact_tags VALUES ('a', 'x')")
+        conn.execute(
+            "INSERT INTO relations (fact_id_from, fact_id_to, relation_type) "
+            "VALUES ('a', 'ghost', 'related_to')"
+        )
+        conn.commit()
+        report = AutoCleanup().integrity_report(conn, now=_NOW)
+        assert len(report["broken_relations"]) == 1
+        assert report["broken_relations"][0]["to"] == "ghost"
+
+    def test_detects_unresolved_contradictions(self, tmp_path) -> None:
+        conn = _make_db_with_metadata(tmp_path)
+        for fid in ("a", "b"):
+            conn.execute("INSERT INTO facts (id, text) VALUES (?, ?)", (fid, fid))
+            conn.execute("INSERT INTO fact_tags VALUES (?, 'x')", (fid,))
+        conn.execute(
+            "INSERT INTO relations (fact_id_from, fact_id_to, relation_type) "
+            "VALUES ('a', 'b', 'contradicts')"
+        )
+        conn.commit()
+        report = AutoCleanup().integrity_report(conn, now=_NOW)
+        assert report["unresolved_contradictions"] == [{"from": "a", "to": "b"}]
+
+    def test_resolved_contradiction_not_flagged(self, tmp_path) -> None:
+        """Once one side is superseded, the contradiction is resolved."""
+        conn = _make_db_with_metadata(tmp_path)
+        conn.execute("INSERT INTO facts (id, text) VALUES ('a', 'A')")
+        conn.execute("INSERT INTO fact_tags VALUES ('a', 'x')")
+        conn.execute(
+            "INSERT INTO facts (id, text, status) VALUES ('b', 'B', 'superseded')"
+        )
+        conn.execute(
+            "INSERT INTO relations (fact_id_from, fact_id_to, relation_type) "
+            "VALUES ('a', 'b', 'contradicts')"
+        )
+        conn.commit()
+        report = AutoCleanup().integrity_report(conn, now=_NOW)
+        assert report["unresolved_contradictions"] == []
+
+    def test_detects_expired_facts(self, tmp_path) -> None:
+        conn = _make_db_with_metadata(tmp_path)
+        conn.execute("INSERT INTO facts (id, text) VALUES ('a', 'A')")
+        conn.execute("INSERT INTO fact_tags VALUES ('a', 'x')")
+        conn.execute(
+            "INSERT INTO facts (id, text, valid_until) "
+            "VALUES ('e', 'expired', '2020-01-01T00:00:00+00:00')"
+        )
+        conn.execute("INSERT INTO fact_tags VALUES ('e', 'x')")
+        conn.commit()
+        report = AutoCleanup().integrity_report(conn, now=_NOW)
+        assert report["expired"] == ["e"]
+
+    def test_clean_db_reports_zero_issues(self, tmp_path) -> None:
+        conn = _make_db_with_metadata(tmp_path)
+        conn.execute("INSERT INTO facts (id, text) VALUES ('a', 'A')")
+        conn.execute("INSERT INTO fact_tags VALUES ('a', 'x')")
+        conn.commit()
+        report = AutoCleanup().integrity_report(conn, now=_NOW)
+        assert report["total_issues"] == 0
+
+
+class TestPruneBrokenRelations:
+    def test_removes_dangling_edges_only(self, tmp_path) -> None:
+        conn = _make_db_with_metadata(tmp_path)
+        conn.execute("INSERT INTO facts (id, text) VALUES ('a', 'A')")
+        conn.execute("INSERT INTO facts (id, text) VALUES ('b', 'B')")
+        conn.execute(
+            "INSERT INTO relations (fact_id_from, fact_id_to, relation_type) "
+            "VALUES ('a', 'b', 'related_to')"  # valid
+        )
+        conn.execute(
+            "INSERT INTO relations (fact_id_from, fact_id_to, relation_type) "
+            "VALUES ('a', 'ghost', 'related_to')"  # dangling
+        )
+        conn.commit()
+        removed = AutoCleanup().prune_broken_relations(conn)
+        assert removed == 1
+        remaining = conn.execute("SELECT fact_id_to FROM relations").fetchall()
+        assert remaining == [("b",)]
