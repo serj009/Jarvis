@@ -171,9 +171,18 @@ def _compute_confidence(
         if text_len == 0:
             continue
 
-        # Convert avg_logprob to 0-1 (logprob of 0 = perfect, -1 = poor)
-        # Using sigmoid-like mapping: exp(avg_logprob) clamped to [0, 1]
-        prob = min(1.0, math.exp(avg_lp))
+        # Convert avg_logprob to 0-1 (logprob of 0 = perfect, -1 = poor).
+        # The mapping is softened (avg_logprob / 2) because faster-whisper's
+        # avg_logprob is systematically lower for non-English speech and for
+        # int8/CPU inference than for English float16/GPU. A plain
+        # exp(avg_logprob) calibrated the 0.70 "proceed" threshold to English
+        # only: correctly transcribed Russian/Ukrainian (avg_logprob ~ -0.4
+        # to -0.6) scored 0.52-0.64 and was wrongly routed to "clarify"
+        # ("I didn't understand"). exp(avg_logprob / 2) lifts genuine speech
+        # above the threshold regardless of language while still collapsing
+        # true noise (avg_logprob < -1.4, plus the no_speech_prob gate below)
+        # toward zero.
+        prob = min(1.0, math.exp(avg_lp / 2.0))
 
         # Penalize by speech probability (1 - no_speech_prob)
         speech_factor = max(0.0, 1.0 - nsp) if nsp < no_speech_prob_threshold else 0.0

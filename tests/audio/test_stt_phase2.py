@@ -85,6 +85,23 @@ class TestConfidenceScoring:
         # Should be dragged down by the longer, lower-confidence segment
         assert conf < 0.7
 
+    def test_non_english_speech_reaches_proceed(self) -> None:
+        """Regression: correctly transcribed RU/UK speech must clear the
+        0.70 "proceed" threshold.
+
+        faster-whisper's avg_logprob runs systematically lower for
+        non-English speech and int8/CPU inference. A typical, correctly
+        recognised Russian command scores around avg_logprob -0.5; the
+        confidence mapping must lift that above 0.70 so it is acted on
+        rather than routed to "clarify" ("I didn't understand"). This pins
+        the exp(avg_logprob / 2) calibration against a regression to the
+        English-only exp(avg_logprob).
+        """
+        segs = [{"text": "открой браузер", "avg_logprob": -0.5, "no_speech_prob": 0.05}]
+        conf = _compute_confidence(segs)
+        assert conf >= 0.70
+        assert _confidence_action(conf) == "proceed"
+
 
 class TestConfidenceAction:
     def test_proceed_above_threshold(self) -> None:
