@@ -462,6 +462,10 @@ def test_tools_tab_populates_checkboxes_for_phase_4_set(qapp):
         "volume",
         "watch_screen",
         "wait_for_process",
+        "minimize_all",
+        "restore_all",
+        "snap_layout",
+        "virtual_desktop",
         "window_action",
         "youtube_summary",
     }

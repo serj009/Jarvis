@@ -216,5 +216,6 @@ def test_capability_categories_and_order_are_stable():
         "System",
         "Clipboard and typing",
         "Power-user tools",
+        "Window management",
     ]
     assert all(c.icon_glyph for c in CAPABILITY_CATEGORIES)

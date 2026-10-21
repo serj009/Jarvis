@@ -131,7 +131,14 @@ def _local_tool_classes() -> tuple[type, ...]:
 
     from jarvis.tools.local.web_knowledge import SavePageKnowledgeTool
     # Phase 6: Windows control modules
-    from jarvis.tools.local.window_manager import WindowActionTool, ListWindowsTool
+    from jarvis.tools.local.window_manager import (
+        ListWindowsTool,
+        MinimizeAllTool,
+        RestoreAllTool,
+        SnapLayoutTool,
+        VirtualDesktopTool,
+        WindowActionTool,
+    )
     from jarvis.tools.local.timers import SetTimerTool, CancelTimerTool, ListTimersTool
     from jarvis.tools.local.power_control import PowerControlTool
     from jarvis.tools.local.cli_runner import CLIRunnerTool
@@ -263,6 +270,10 @@ def _local_tool_classes() -> tuple[type, ...]:
         # Phase 6: Windows control tools
         WindowActionTool,
         ListWindowsTool,
+        SnapLayoutTool,
+        MinimizeAllTool,
+        RestoreAllTool,
+        VirtualDesktopTool,
         SetTimerTool,
         CancelTimerTool,
         ListTimersTool,

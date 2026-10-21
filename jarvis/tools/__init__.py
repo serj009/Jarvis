@@ -97,7 +97,14 @@ def setup_local_tools(
     from jarvis.tools.local.weather import WeatherTool
 
     # Phase 6: Windows control modules
-    from jarvis.tools.local.window_manager import WindowActionTool, ListWindowsTool
+    from jarvis.tools.local.window_manager import (
+        ListWindowsTool,
+        MinimizeAllTool,
+        RestoreAllTool,
+        SnapLayoutTool,
+        VirtualDesktopTool,
+        WindowActionTool,
+    )
     from jarvis.tools.local.timers import SetTimerTool, CancelTimerTool, ListTimersTool, TimerStore
     from jarvis.tools.local.power_control import PowerControlTool
     from jarvis.tools.local.cli_runner import CLIRunnerTool
@@ -259,6 +266,10 @@ def setup_local_tools(
         # Phase 6: Windows control tools
         WindowActionTool(),
         ListWindowsTool(),
+        SnapLayoutTool(),
+        MinimizeAllTool(),
+        RestoreAllTool(),
+        VirtualDesktopTool(),
         SetTimerTool(store=timer_store),
         CancelTimerTool(store=timer_store),
         ListTimersTool(store=timer_store),
