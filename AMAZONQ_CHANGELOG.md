@@ -85,7 +85,15 @@ Layer 1 is config + trace collection + privacy only (no network, no UI yet).
 | `tests/memory/test_self_evaluation.py` | NEW. 18 tests. |
 **Design decisions (user-confirmed):** (1) report-only, user chooses whether to save
 insights to memory; (2) full traces minus secrets; (3) built in layers.
-**Still TODO (next layers):** Layer 2 — background task + API send + report; Layer 3 — Settings UI tab (toggle, key, provider, interval).
+**Still TODO (next layers):** Layer 3 — Settings UI tab (toggle, key, provider, interval).
+
+#### Layer 2 — background task + critic call + report (added same session)
+| File | Change |
+|------|--------|
+| `jarvis/memory/self_evaluation.py` | Added `build_critic_messages()` (rubric → strict-JSON prompt), `parse_critic_response()` (tolerant: strips ``` fences / prose, never raises), `run_evaluation(traces, send_fn, max_traces)` (network-free via injected `send_fn`), `render_report_markdown()`, and `SelfEvaluationScheduler` (periodic loop, writes a markdown report per run, disabled = no-op). |
+| `tests/memory/test_self_evaluation.py` | +~20 tests for prompt/parse/run/report/scheduler. |
+**Design:** `send_fn` is injected so the module never imports the LLM stack and is fully testable offline. Report-only (no behaviour change). Reports written to a per-run markdown file.
+**NOT yet wired into app.py** — the scheduler is built but not started anywhere, and `send_fn` (the real APILLMClient round-trip from SelfEvaluationConfig) is not yet constructed. That wiring + the Settings UI is Layer 3. So at runtime this still does nothing until Layer 3 lands — intentional.
 
 ---
 
@@ -110,8 +118,9 @@ The automated suite can't cover these — verify by hand on the main PC:
 6. **Config migration v37.** First launch rewrites `config.json` to schema 37 (a `.bak` is
    written automatically). Confirm existing settings survive and the new `self_evaluation`
    section appears (disabled).
-7. **Auto-critic:** nothing to test yet at runtime — Layer 1 has no UI/network. Do NOT expect
-   a Settings toggle until Layer 3.
+7. **Auto-critic:** nothing to test yet at runtime — Layers 1–2 have no UI and are not wired
+   into the running app. Do NOT expect a Settings toggle or any API calls until Layer 3 wires
+   the scheduler + real send_fn into app.py and adds the Settings tab.
 
 ## 2026-10-15 — Security: 4-layer defense + crypto vault + encrypted storage (schema v31)
 

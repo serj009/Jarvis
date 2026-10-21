@@ -3,12 +3,12 @@
   <p align="center">
     Fully offline, multilingual (EN / RU / UK) AI assistant for Windows<br/>
     Powered by <strong>Ollama + Qwen 3 8B</strong> · <strong>Whisper STT</strong> · <strong>Piper TTS</strong> · <strong>PySide6</strong><br/><br/>
-    <code>465 source files</code> · <code>131K lines</code> · <code>126+ tools</code> · <code>643 voice patterns</code> · <code>4 374 tests</code>
+    <code>495 source files</code> · <code>142K lines</code> · <code>126+ tools</code> · <code>700+ voice patterns</code> · <code>4 950+ tests</code>
   </p>
 </p>
 
 > **Based on [ndunl075/Jarvis](https://github.com/ndunl075/Jarvis) (MIT License).**
-> Significantly extended with multilingual voice control, coding agent, chat panel, universal model provider, long-term memory, game mode, OCR, screen-change detection, sound effects, persistent reminders, and more.
+> Significantly extended with multilingual voice control, coding agent, chat panel, universal model provider, long-term memory, game mode, OCR, screen-change detection, sound effects, persistent reminders, self-learning from successful commands, tiered memory with contradiction tracking, and an optional self-evaluation critic.
 
 ---
 
@@ -16,10 +16,11 @@
 
 | | Feature | Details |
 |---|---|---|
-| 🎤 | **Voice Control** | Whisper STT (GPU auto-detect), wake word "Hey Jarvis", VAD, barge-in, **643 regex voice patterns** across EN / RU / UK — zero-LLM-latency instant commands |
+| 🎤 | **Voice Control** | Whisper STT (GPU auto-detect), wake word "Hey Jarvis", VAD, barge-in, **700+ regex voice patterns** across EN / RU / UK — zero-LLM-latency instant commands |
 | 🧠 | **AI Brain** | Ollama + **Qwen 3 8B** — fully local, no internet required |
 | 🌐 | **Universal Model Provider** | Unified interface: **Ollama + OpenAI + Anthropic + Groq** — plug in GPT-4o, Claude, or Groq via API key |
 | 🗣️ | **Voice Response** | Piper TTS, 3 languages (alan / dmitri / mykyta), auto-switches by detected language |
+| 🎤 | **Multilingual STT** | Whisper `small` multilingual + confidence calibrated for RU/UK (not English-only) — Russian/Ukrainian speech is acted on, not endlessly "clarified" |
 | 💬 | **Chat Panel** | Text-based alternative to voice — full chat UI with history and markdown rendering |
 | 💻 | **PC Control** | Open / close apps (206 aliases), system stats, lock screen, volume, dictation, hotkey sender |
 | 🛠️ | **Coding Agent** | Autonomous **plan → create → edit → test → fix → git** loop, 16 project templates, 8 languages, voice confirmation for destructive actions |
@@ -34,9 +35,16 @@
 | 📡 | **Screen-Change Detector** | Watch screen regions for visual changes, trigger alerts |
 | 🔊 | **Sound Effects** | Auditory feedback for actions (listen/think/speak/error states) |
 | 🔐 | **Sandbox** | Whitelist paths, risk levels, **voice confirmation for destructive commands** |
+| 🛡️ | **4-Layer Defense** | Origin tracking (HMAC-signed voice input), personal-data leak scanner, prompt-injection / suspicious-tool-chain sanitizer, and a hash-chained encrypted audit log — unified at a single tool-call security gate |
+| 🔑 | **Password Vault** | Crypto-grade credential store (Argon2id → AES-256-GCM → DPAPI). Auto-login to sites where the password **never enters the LLM context** |
+| 🗄️ | **Encrypted Storage** | All user data at rest is DPAPI-encrypted — 11 JSON stores plus memory SQLite columns (text, tags, condensed) |
 | 📝 | **Notes** | Voice-captured markdown notes, append / read / delete by title |
 | 🔎 | **Research** | DuckDuckGo + Ollama summary; deep research with planner/worker split; Ultra mode |
-| 🧠 | **Long-term Memory** | SQLite + FTS5 full-text search + FAISS vector embeddings |
+| 📄 | **Web Knowledge Extractor** | "Сохрани информацию со страницы" — LLM-structured extraction of any web page straight into long-term memory |
+| 🌐 | **Browser Automation** | Playwright-driven scenarios: tabs, bookmarks, auto-login, page monitor/compare, translate, smart form-fill |
+| 🧠 | **Long-term Memory** | SQLite + FTS5 full-text + optional FAISS vectors · **tiered** (hot/warm/cold/archive) · per-fact metadata (importance, confidence, source, status, expiry) · **contradiction tracking** (supersede + history, no silent overwrite) · integrity self-checks |
+| 🎓 | **Self-Learning** | Learns from every successful command — frequent utterances become few-shot examples, usage stats, and personal aliases ("браузер" → chrome). Works for instant snap-commands too |
+| 🧪 | **Self-Evaluation (opt-in)** | Optional external critic LLM periodically grades interaction traces and writes a report. **Off by default**, API key required, secrets stripped before anything leaves the PC — the local pipeline stays the default |
 | 🎨 | **Settings UI** | **Sidebar navigation, 12 pages**: General, Voice, Models, Tools, Coding, Gaming, Commands, Hotkeys, Memory, Security, Advanced, About |
 | 🖥️ | **Dashboard** | Live HUD: mode, CPU/RAM, mic level, models, uptime |
 | 🎯 | **Command Palette** | `Ctrl+Shift+P` keyboard launcher for any command |
@@ -112,7 +120,7 @@ python setup_jarvis.py --skip-smoke-test        # Skip verification
 | 🔎 | "Research quantum computing" · "Deep research on AI trends" |
 | 🛠️ | "Code a Flask API" · "Fix the tests" · "Git commit" |
 
-> ⚡ **643 instant voice patterns** match via regex — **zero LLM latency** for time, apps, screenshots, volume, reminders, and more.
+> ⚡ **700+ instant voice patterns** match via regex — **zero LLM latency** for time, apps, screenshots, volume, reminders, and more.
 
 ---
 
@@ -157,22 +165,27 @@ Plan → Create files → Edit → Run tests → Fix errors → Git commit
 ## 🏗️ Architecture Overview
 
 ```
-jarvis/                     ← 465 source files, 131K lines
+jarvis/                     ← 267 package files (495 repo-wide), 142K lines
 ├── audio/                  — STT (Whisper), TTS (Piper), VAD, AEC, sound effects,
 │                             wake word, voice registry
 ├── browser/                — Playwright browser automation
 ├── coding/                 — Coding Agent, 16 templates, 8-language toolchain,
 │                             project map, code search, voice confirm
-├── core/                   — Config (schema v33), lifecycle, VRAM manager,
+├── core/                   — Config (schema v37), lifecycle, VRAM manager,
 │                             game mode, state machine, events, migrations
 ├── dev/                    — Developer utilities
 ├── knowledge/              — Knowledge base management
-├── llm/                    — Ollama client, intent router (643 patterns),
+├── llm/                    — Ollama client, intent router (700+ patterns),
 │                             conversation history, universal model provider
-├── memory/                 — SQLite + FTS5 + FAISS vector embeddings
+├── memory/                 — SQLite + FTS5 + optional FAISS · tiered storage,
+│                             metadata, contradiction/history, integrity checks,
+│                             self-learning, optional self-evaluation
 ├── personal_starter/       — Personalization & onboarding
 ├── platform/               — Windows integration, app discovery (206 aliases)
-├── security/               — Sandbox, path whitelist, risk levels
+├── security/               — Sandbox + path whitelist + risk levels,
+│                             4-layer defense (origin tracker, leak scanner,
+│                             output sanitizer, audit log, tool guard),
+│                             Argon2id/AES-256-GCM password vault
 ├── tools/                  — 82 tool files, 126+ registered tools, MCP client,
 │   └── local/                risk levels, tool filter
 ├── ui/                     — PySide6: overlay orb, chat panel, coding panel,
@@ -186,10 +199,10 @@ jarvis/                     ← 465 source files, 131K lines
 
 | Subsystem | Description |
 |-----------|-------------|
-| **Intent Router** | Hybrid pattern + LLM: 643 regex patterns checked first (instant), fallback to LLM for unmatched queries |
+| **Intent Router** | Hybrid pattern + LLM: 700+ regex patterns checked first (instant), fallback to LLM for unmatched queries |
 | **VRAM Manager** | Monitors GPU memory, auto-unloads models for Game Mode, restores on exit |
 | **Tool Registry** | MCP-compatible protocol, per-tool risk levels, sandbox confirmations |
-| **Config v33** | Pydantic schema with automatic migrations across 33 versions |
+| **Config v37** | Pydantic schema with automatic migrations across 37 versions |
 | **Audio Pipeline** | Whisper → VAD → Wake Word → STT → TTS pipeline with optional AEC |
 
 ---
@@ -198,7 +211,14 @@ jarvis/                     ← 465 source files, 131K lines
 
 - **Everything runs locally** — voice audio never leaves your PC
 - **No analytics, no telemetry, no crash reporting**
-- API keys (optional) encrypted with Windows DPAPI
+- **4-layer defense** against a manipulated/compromised model: HMAC-signed voice
+  origin, personal-data leak scanning on outbound URLs, prompt-injection and
+  suspicious-tool-chain sanitizing, and a hash-chained encrypted audit log — all
+  enforced at one tool-call security gate
+- **Password vault**: Argon2id → AES-256-GCM → DPAPI; decrypted passwords live only
+  in RAM and never enter the LLM context
+- **Encrypted at rest**: all user data (11 JSON stores + memory SQLite columns) and
+  any optional API keys are encrypted with Windows DPAPI
 - Notes, research, screenshots, logs — all stored locally in `%APPDATA%\Jarvis\`
 
 | What goes online | When |
@@ -207,13 +227,14 @@ jarvis/                     ← 465 source files, 131K lines
 | Open-Meteo weather | Only when you ask for weather |
 | OpenAI / Anthropic / Groq | Only if you configure API keys and select a cloud model |
 | Brave / Jina | Only in Ultra research mode with your own API keys |
+| Self-evaluation critic | Only if you explicitly enable it in Settings and supply an API key — interaction traces (secrets stripped) are sent to the critic you choose. Off by default |
 
 ---
 
 ## 🧪 Testing
 
 ```powershell
-# Run the full test suite (4374 tests)
+# Run the full test suite (4950+ tests)
 pytest
 
 # Run with coverage
@@ -232,7 +253,7 @@ python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 python -m jarvis          # Run
-pytest                    # Test (4374 tests)
+pytest                    # Test (4950+ tests)
 ruff check .              # Lint
 ```
 
