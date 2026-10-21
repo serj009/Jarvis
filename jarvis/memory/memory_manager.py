@@ -327,6 +327,32 @@ class MemoryManager:
 
     # -- Cleanup --
 
+    async def run_integrity_report(self) -> dict:
+        """Report memory-integrity issues without modifying anything (Pt 8).
+
+        Opens a short-lived connection to the store's DB and runs the
+        pure-SQL checks in AutoCleanup.integrity_report. Read-only and safe
+        to call any time (e.g. from a maintenance schedule or a voice
+        "check my memory" command).
+        """
+        if not self.store.is_open:
+            return {"error": "store not open"}
+        import asyncio
+        import sqlite3
+
+        def _run() -> dict:
+            conn = sqlite3.connect(str(self.store.db_path))
+            try:
+                return self._cleanup.integrity_report(conn)
+            finally:
+                conn.close()
+
+        try:
+            return await asyncio.to_thread(_run)
+        except Exception as e:
+            log.error("integrity report failed", exc_info=True)
+            return {"error": str(e)}
+
     async def run_cleanup(self) -> dict:
         """Run deduplication + archival on the main memory store."""
         if not self.store.is_open:
