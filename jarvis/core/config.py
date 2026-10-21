@@ -44,7 +44,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
-CURRENT_SCHEMA_VERSION = 36
+CURRENT_SCHEMA_VERSION = 37
 
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -639,6 +639,38 @@ class ImageGenConfig(_Base):
 
 
 
+class SelfEvaluationConfig(_Base):
+    """Optional self-evaluation ("auto-critic").
+
+    When enabled, Jarvis periodically sends recent interaction traces
+    (user utterance -> STT -> chosen tool/LLM answer -> result) to an
+    EXTERNAL critic LLM via API, which grades how well each request was
+    handled and returns observations. Disabled by default: the whole
+    point of Jarvis is a fully local pipeline, so this is strictly
+    opt-in. Secrets (keys/passwords/logins) are stripped from traces
+    before they ever leave the machine.
+
+    The critic only produces a REPORT — it never changes Jarvis's
+    behaviour on its own. The user decides whether to save its insights
+    into memory (save_insights_to_memory).
+    """
+
+    enabled: bool = False
+    # Critic provider — an external API (local pipeline has no spare VRAM).
+    # groq is the most accessible free-tier option.
+    provider: Literal["openai", "anthropic", "groq", "openai_compatible"] = "groq"
+    api_key: str = ""  # encrypted via DPAPI
+    api_model: str = "llama-3.3-70b-versatile"
+    api_base_url: str = ""  # for openai_compatible
+    # How often the background evaluation runs.
+    interval_hours: float = Field(default=24.0, ge=0.5, le=720.0)
+    # Cap traces per run to bound token cost on free tiers.
+    max_traces_per_run: int = Field(default=20, ge=1, le=200)
+    # When True, critic observations are saved to memory as uncertain
+    # facts the user can later confirm; when False, report is view-only.
+    save_insights_to_memory: bool = False
+
+
 class AgentConfig(_Base):
     """Autonomous agent settings (Phase 11).
 
@@ -682,6 +714,9 @@ class JarvisConfig(_Base):
     coding: CodingConfig = Field(default_factory=CodingConfig)
     image_gen: ImageGenConfig = Field(default_factory=ImageGenConfig)
     agent: AgentConfig = Field(default_factory=AgentConfig)
+    self_evaluation: SelfEvaluationConfig = Field(
+        default_factory=SelfEvaluationConfig
+    )
 
 # --- secrets at rest -------------------------------------------------------
 
@@ -706,6 +741,7 @@ _SECRET_FIELD_PATHS: tuple[tuple[str, str], ...] = (
     ("vision", "api_key"),
     ("image_gen", "api_key"),
     ("image_gen", "image_model_api_key"),
+    ("self_evaluation", "api_key"),
 )
 
 # Secrets inside the mcp_servers list, keyed by field name. Handled
