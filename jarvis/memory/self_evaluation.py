@@ -172,3 +172,262 @@ def build_trace(
         final_answer=strip_secrets(final_answer),
         timestamp=timestamp,
     )
+
+
+# ---------------------------------------------------------------------------
+# Layer 2: critic prompt, evaluation runner, report
+# ---------------------------------------------------------------------------
+
+import json as _json
+import logging as _logging
+
+_log = _logging.getLogger(__name__)
+
+_CRITIC_SYSTEM_PROMPT = (
+    "You are a strict but fair QA critic for a local voice assistant named "
+    "Jarvis. You are given traces of real interactions: what the user said, "
+    "what speech-to-text produced, which tools Jarvis chose, their results, "
+    "and the final spoken answer. For EACH trace, judge how well Jarvis "
+    "handled the request. Be concrete and actionable. Do NOT invent facts "
+    "not present in the trace. Respond with STRICT JSON only, no prose, "
+    "matching exactly this shape:\n"
+    '{"evaluations": [{"correlation_id": "<id>", "score": <0-10 int>, '
+    '"verdict": "<one short sentence>", '
+    '"issues": ["<issue>", ...], '
+    '"suggestions": ["<actionable suggestion>", ...]}], '
+    '"overall": "<one-paragraph summary across all traces>"}'
+)
+
+
+def build_critic_messages(traces: list[InteractionTrace]) -> list[dict]:
+    """Assemble the chat messages sent to the critic.
+
+    Traces are already secret-stripped (build_trace guarantees it). The
+    payload is compact JSON so it fits free-tier token budgets.
+    """
+    payload = {"traces": [t.to_dict() for t in traces]}
+    user_content = (
+        "Evaluate these interaction traces and return the JSON described in "
+        "the system prompt.\n\n" + _json.dumps(payload, ensure_ascii=False)
+    )
+    return [
+        {"role": "system", "content": _CRITIC_SYSTEM_PROMPT},
+        {"role": "user", "content": user_content},
+    ]
+
+
+def parse_critic_response(raw: str) -> dict:
+    """Parse the critic's reply into a report dict.
+
+    Tolerant: critics sometimes wrap JSON in ``` fences or add stray text.
+    Extracts the first ``{...}`` block. On total failure returns a
+    well-formed error report rather than raising — a bad critic reply must
+    never crash the background task.
+    """
+    if not raw or not raw.strip():
+        return {"evaluations": [], "overall": "", "error": "empty critic response"}
+    text = raw.strip()
+    # Strip markdown fences if present.
+    if "```" in text:
+        import re as _re
+        m = _re.search(r"```(?:json)?\s*(.*?)```", text, _re.DOTALL)
+        if m:
+            text = m.group(1).strip()
+    # Fall back to the first balanced-looking {...} span.
+    if not text.startswith("{"):
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            text = text[start : end + 1]
+    try:
+        data = _json.loads(text)
+        if not isinstance(data, dict):
+            raise ValueError("critic JSON is not an object")
+        data.setdefault("evaluations", [])
+        data.setdefault("overall", "")
+        return data
+    except Exception as exc:
+        _log.warning("could not parse critic response: %s", exc)
+        return {
+            "evaluations": [],
+            "overall": "",
+            "error": f"unparseable critic response: {exc}",
+            "raw": raw[:500],
+        }
+
+
+async def run_evaluation(
+    traces: list[InteractionTrace],
+    send_fn,
+    *,
+    max_traces: int = 20,
+) -> dict:
+    """Run one evaluation pass. Returns a report dict.
+
+    ``send_fn`` is an async callable ``(messages: list[dict]) -> str`` that
+    performs the actual API round-trip and returns the critic's raw text.
+    Injecting it keeps this function network-free and unit-testable, and
+    lets the app wire in APILLMClient (or any provider) without this module
+    importing the LLM stack.
+
+    Empty input or a failing ``send_fn`` yields a well-formed report with an
+    ``error`` field — never an exception.
+    """
+    if not traces:
+        return {"evaluations": [], "overall": "", "error": "no traces to evaluate"}
+
+    batch = traces[:max_traces]
+    messages = build_critic_messages(batch)
+    try:
+        raw = await send_fn(messages)
+    except Exception as exc:
+        _log.warning("critic send_fn failed: %s", exc)
+        return {
+            "evaluations": [],
+            "overall": "",
+            "error": f"critic call failed: {exc}",
+        }
+    report = parse_critic_response(raw)
+    report["trace_count"] = len(batch)
+    return report
+
+
+def render_report_markdown(report: dict, *, generated_at: str = "") -> str:
+    """Render an evaluation report as human-readable Markdown for the UI /
+    a saved file. Pure formatting; never raises on a partial report."""
+    lines: list[str] = ["# Jarvis self-evaluation report"]
+    if generated_at:
+        lines.append(f"_Generated: {generated_at}_")
+    if report.get("error"):
+        lines.append("")
+        lines.append(f"> ⚠️ {report['error']}")
+    evals = report.get("evaluations") or []
+    lines.append("")
+    lines.append(f"**Traces evaluated:** {report.get('trace_count', len(evals))}")
+    if report.get("overall"):
+        lines.append("")
+        lines.append("## Overall")
+        lines.append(str(report["overall"]))
+    if evals:
+        lines.append("")
+        lines.append("## Per-interaction")
+        for ev in evals:
+            cid = ev.get("correlation_id", "?")
+            score = ev.get("score", "?")
+            verdict = ev.get("verdict", "")
+            lines.append("")
+            lines.append(f"### `{cid}` — score {score}/10")
+            if verdict:
+                lines.append(verdict)
+            issues = ev.get("issues") or []
+            if issues:
+                lines.append("")
+                lines.append("**Issues:**")
+                lines.extend(f"- {i}" for i in issues)
+            suggestions = ev.get("suggestions") or []
+            if suggestions:
+                lines.append("")
+                lines.append("**Suggestions:**")
+                lines.extend(f"- {sug}" for sug in suggestions)
+    return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# Layer 2: background scheduler
+# ---------------------------------------------------------------------------
+
+import asyncio as _asyncio
+from datetime import UTC as _UTC, datetime as _dt
+from pathlib import Path as _Path
+
+
+class SelfEvaluationScheduler:
+    """Runs the critic periodically in the background. OFF unless enabled.
+
+    Fully decoupled for testability and safety:
+      - ``trace_source()``  -> list[InteractionTrace]  (already stripped)
+      - ``send_fn(messages)`` -> raw critic text        (the API round-trip)
+      - ``report_dir``       -> where markdown reports are written
+
+    The loop never raises out: any failure is logged and the loop waits for
+    the next interval. A disabled scheduler's ``start()`` is a no-op, so the
+    local-only default path pays nothing.
+    """
+
+    def __init__(
+        self,
+        *,
+        enabled: bool,
+        interval_hours: float,
+        max_traces_per_run: int,
+        trace_source,
+        send_fn,
+        report_dir: _Path,
+    ) -> None:
+        self._enabled = enabled
+        self._interval_s = max(0.5, float(interval_hours)) * 3600.0
+        self._max_traces = max_traces_per_run
+        self._trace_source = trace_source
+        self._send_fn = send_fn
+        self._report_dir = _Path(report_dir)
+        self._task: _asyncio.Task | None = None
+        self._stop = _asyncio.Event()
+        self.last_report: dict | None = None
+        self.last_report_path: _Path | None = None
+
+    def start(self) -> None:
+        """Launch the background loop if enabled. Idempotent."""
+        if not self._enabled:
+            _log.info("[self-eval] disabled; not starting")
+            return
+        if self._task is not None and not self._task.done():
+            return
+        self._stop.clear()
+        self._task = _asyncio.create_task(self._loop(), name="self-evaluation")
+        _log.info(
+            "[self-eval] scheduler started (every %.1f h)",
+            self._interval_s / 3600.0,
+        )
+
+    async def stop(self) -> None:
+        """Signal the loop to exit and await it."""
+        self._stop.set()
+        if self._task is not None:
+            try:
+                await self._task
+            except Exception:
+                pass
+            self._task = None
+
+    async def _loop(self) -> None:
+        # First run after one interval, not immediately at boot, so startup
+        # stays cheap and there is something to evaluate.
+        while not self._stop.is_set():
+            try:
+                await _asyncio.wait_for(self._stop.wait(), timeout=self._interval_s)
+                return  # stop was signalled
+            except TimeoutError:
+                pass  # interval elapsed -> run
+            try:
+                await self.run_once()
+            except Exception:
+                _log.warning("[self-eval] run failed (non-fatal)", exc_info=True)
+
+    async def run_once(self) -> dict:
+        """Collect traces, evaluate, persist the report. Returns the report."""
+        traces = list(self._trace_source() or [])
+        report = await run_evaluation(
+            traces, self._send_fn, max_traces=self._max_traces,
+        )
+        self.last_report = report
+        now = _dt.now(_UTC)
+        md = render_report_markdown(report, generated_at=now.isoformat())
+        try:
+            self._report_dir.mkdir(parents=True, exist_ok=True)
+            path = self._report_dir / f"self_eval_{now:%Y%m%d_%H%M%S}.md"
+            path.write_text(md, encoding="utf-8")
+            self.last_report_path = path
+            _log.info("[self-eval] report written: %s", path)
+        except Exception:
+            _log.warning("[self-eval] could not write report", exc_info=True)
+        return report
