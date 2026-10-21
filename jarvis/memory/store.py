@@ -165,6 +165,23 @@ CREATE INDEX IF NOT EXISTS idx_rel_to   ON relations(fact_id_to);
 CREATE INDEX IF NOT EXISTS idx_rel_type ON relations(relation_type);
 """
 
+# History table (Pt 4) — append-only audit of fact lifecycle changes.
+# A superseded fact's prior text is captured here before its status flips,
+# so contradictions never silently lose the old value.
+_HISTORY_SCHEMA = """\
+CREATE TABLE IF NOT EXISTS fact_history (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    fact_id     TEXT NOT NULL,
+    old_text    TEXT,
+    old_status  TEXT,
+    new_status  TEXT,
+    reason      TEXT,
+    changed_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_hist_fact ON fact_history(fact_id);
+"""
+
 # FTS5 virtual table for full-text search across fact text.
 _FTS_SCHEMA = """
 CREATE VIRTUAL TABLE IF NOT EXISTS facts_fts USING fts5(
@@ -237,6 +254,7 @@ class MemoryStore:
         conn.execute("PRAGMA foreign_keys=ON")
         conn.executescript(_SCHEMA)
         conn.executescript(_RELATIONS_SCHEMA)
+        conn.executescript(_HISTORY_SCHEMA)
         self._migrate_tiered_columns(conn)
         self._migrate_metadata_columns(conn)
         self._migrate_encrypt_columns(conn)
@@ -525,6 +543,129 @@ class MemoryStore:
         finally:
             conn.close()
 
+    async def set_status(
+        self, fact_id: str, status: FactStatus, *, reason: str | None = None,
+    ) -> bool:
+        """Change a fact's lifecycle status, recording the change in history.
+
+        Pt 4 primitive. Returns True if the fact existed. The prior status
+        and text are written to fact_history before the flip, so the change
+        is auditable and reversible.
+        """
+        now = datetime.now(UTC).isoformat()
+        return await asyncio.to_thread(
+            self._sync_set_status, fact_id, status, reason, now,
+        )
+
+    def _sync_set_status(
+        self, fact_id: str, status: str, reason: str | None, now: str,
+    ) -> bool:
+        conn = sqlite3.connect(str(self._db_path))
+        try:
+            row = conn.execute(
+                "SELECT text, status FROM facts WHERE id = ?", (fact_id,)
+            ).fetchone()
+            if row is None:
+                return False
+            old_text, old_status = row[0], row[1]
+            conn.execute(
+                "INSERT INTO fact_history "
+                "(fact_id, old_text, old_status, new_status, reason, changed_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (fact_id, old_text, old_status, status, reason, now),
+            )
+            conn.execute(
+                "UPDATE facts SET status = ?, updated_at = ? WHERE id = ?",
+                (status, now, fact_id),
+            )
+            conn.commit()
+            return True
+        finally:
+            conn.close()
+
+    async def supersede(
+        self,
+        old_fact_id: str,
+        new_text: str,
+        *,
+        category: str = "general",
+        source: FactSource = "user",
+        language: str = "en",
+        tags: list[str] | None = None,
+        is_permanent: bool = False,
+        importance: float = 0.5,
+        confidence: float = 1.0,
+        reason: str | None = None,
+    ) -> str | None:
+        """Replace a fact on contradiction WITHOUT losing the old one (Pt 4).
+
+        Instead of overwriting, this:
+          1. adds the new fact as a normal active fact,
+          2. marks the old fact status='superseded' (history-recorded),
+          3. links new -[contradicts]-> old so the chain is traversable.
+
+        Returns the new fact's id, or None if the old fact does not exist.
+        The old fact is kept (not deleted) so the change is auditable and a
+        wrong supersede can be undone by flipping status back to 'active'.
+        """
+        old = await self.get(old_fact_id)
+        if old is None:
+            return None
+
+        new_id = await self.add(
+            new_text,
+            category=category,
+            source=source,
+            language=language,
+            tags=tags,
+            is_permanent=is_permanent,
+            importance=importance,
+            confidence=confidence,
+            status="active",
+        )
+        await self.set_status(
+            old_fact_id, "superseded",
+            reason=reason or f"superseded by {new_id}",
+        )
+
+        # Link the two so "why did this change?" is traversable. Best-effort:
+        # relations live in the same DB and failure must not lose the flip.
+        try:
+            from jarvis.memory.relations import RelationStore
+
+            rels = RelationStore(self._db_path)
+            rels.add_relation(new_id, old_fact_id, "contradicts", strength=1.0)
+        except Exception:
+            log.warning("supersede: could not link contradicts relation", exc_info=True)
+
+        log.info("fact %s superseded by %s", old_fact_id, new_id)
+        return new_id
+
+    async def history(self, fact_id: str) -> list[dict]:
+        """Return the change history for a fact, newest first (Pt 4)."""
+        return await asyncio.to_thread(self._sync_history, fact_id)
+
+    def _sync_history(self, fact_id: str) -> list[dict]:
+        conn = sqlite3.connect(str(self._db_path))
+        try:
+            rows = conn.execute(
+                "SELECT old_text, old_status, new_status, reason, changed_at "
+                "FROM fact_history WHERE fact_id = ? ORDER BY id DESC",
+                (fact_id,),
+            ).fetchall()
+            return [
+                {
+                    "old_text": decrypt_value(r[0]) if r[0] else r[0],
+                    "old_status": r[1],
+                    "new_status": r[2],
+                    "reason": r[3],
+                    "changed_at": r[4],
+                }
+                for r in rows
+            ]
+        finally:
+            conn.close()
+
     # -- embedding helpers (also used by MemoryManager for rebuild) ---------
 
     # _maybe_embed and _maybe_remove_embedding are defined above.
@@ -568,29 +709,40 @@ class MemoryStore:
         category: str | None = None,
         tag: str | None = None,
         limit: int = 10,
+        include_superseded: bool = False,
     ) -> list[Fact]:
-        """Search facts by text (FTS5 or LIKE fallback), category, or tag."""
+        """Search facts by text (FTS5 or LIKE fallback), category, or tag.
+
+        Superseded facts (Pt 4) are hidden by default so contradicted,
+        out-of-date values never surface in normal recall. Pass
+        include_superseded=True to see the full history (e.g. for audit).
+        """
         return await asyncio.to_thread(
-            self._sync_search, query, category, tag, limit,
+            self._sync_search, query, category, tag, limit, include_superseded,
         )
 
     def _sync_search(
         self, query: str, category: str | None,
-        tag: str | None, limit: int,
+        tag: str | None, limit: int, include_superseded: bool = False,
     ) -> list[Fact]:
         conn = sqlite3.connect(str(self._db_path))
         try:
             # Try FTS5 first
             try:
-                return self._fts_search(conn, query, category, tag, limit)
+                return self._fts_search(
+                    conn, query, category, tag, limit, include_superseded
+                )
             except sqlite3.OperationalError:
-                return self._like_search(conn, query, category, tag, limit)
+                return self._like_search(
+                    conn, query, category, tag, limit, include_superseded
+                )
         finally:
             conn.close()
 
     def _fts_search(
         self, conn: sqlite3.Connection, query: str,
         category: str | None, tag: str | None, limit: int,
+        include_superseded: bool = False,
     ) -> list[Fact]:
         # FTS5 match query
         sql = """
@@ -600,6 +752,8 @@ class MemoryStore:
             WHERE facts_fts MATCH ?
         """
         params: list = [query]
+        if not include_superseded:
+            sql += " AND f.status != 'superseded'"
         if category:
             sql += " AND f.category = ?"
             params.append(category)
@@ -623,9 +777,12 @@ class MemoryStore:
     def _like_search(
         self, conn: sqlite3.Connection, query: str,
         category: str | None, tag: str | None, limit: int,
+        include_superseded: bool = False,
     ) -> list[Fact]:
         sql = "SELECT * FROM facts WHERE text LIKE ?"
         params: list = [f"%{query}%"]
+        if not include_superseded:
+            sql += " AND status != 'superseded'"
         if category:
             sql += " AND category = ?"
             params.append(category)
