@@ -137,3 +137,61 @@ class TestMemoryStore:
         assert fact is not None
         assert "games" in fact.tags
         assert "steam" in fact.tags
+
+
+class TestFactMetadata:
+    """Pt 1: importance / confidence / valid_until / status metadata."""
+
+    @pytest.mark.asyncio()
+    async def test_defaults_when_not_specified(self, store) -> None:
+        """A fact added without metadata gets the documented defaults."""
+        fact_id = await store.add("plain fact")
+        fact = await store.get(fact_id)
+        assert fact is not None
+        assert fact.importance == 0.5
+        assert fact.confidence == 1.0
+        assert fact.valid_until is None
+        assert fact.status == "active"
+
+    @pytest.mark.asyncio()
+    async def test_metadata_round_trips(self, store) -> None:
+        """Explicit metadata survives a write/read cycle."""
+        fact_id = await store.add(
+            "always answer in Russian",
+            category="personal",
+            importance=0.9,
+            confidence=0.8,
+            valid_until="2027-01-01T00:00:00+00:00",
+            status="uncertain",
+        )
+        fact = await store.get(fact_id)
+        assert fact is not None
+        assert fact.importance == 0.9
+        assert fact.confidence == 0.8
+        assert fact.valid_until == "2027-01-01T00:00:00+00:00"
+        assert fact.status == "uncertain"
+
+    @pytest.mark.asyncio()
+    async def test_search_results_carry_metadata(self, store) -> None:
+        """Metadata is populated on facts returned by search(), not just get()."""
+        await store.add(
+            "the launch command is python -m jarvis",
+            category="knowledge",
+            importance=0.95,
+            status="active",
+        )
+        results = await store.search("launch command")
+        assert results
+        top = results[0]
+        assert top.importance == 0.95
+        assert top.status == "active"
+        assert top.confidence == 1.0
+
+    @pytest.mark.asyncio()
+    async def test_dataclass_defaults_backward_compatible(self) -> None:
+        """A bare Fact (old-style construction) still has valid metadata."""
+        f = Fact(id="x", text="hi")
+        assert f.importance == 0.5
+        assert f.confidence == 1.0
+        assert f.valid_until is None
+        assert f.status == "active"

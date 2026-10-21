@@ -61,6 +61,13 @@ FactSource = Literal["user", "conversation", "system", "import"]
 
 TierLevel = Literal["hot", "warm", "cold", "archive"]
 
+# Lifecycle status of a fact (Pt 1 metadata):
+#   active     — current, trustworthy
+#   superseded — replaced by a newer contradicting fact (kept for history)
+#   uncertain  — low confidence / model guess awaiting confirmation
+#   archived   — moved to the archive tier (status mirrors tier for queries)
+FactStatus = Literal["active", "superseded", "uncertain", "archived"]
+
 if TYPE_CHECKING:
     from jarvis.memory.embeddings import EmbeddingIndex
 
@@ -86,6 +93,15 @@ class Fact:
     is_permanent: bool = False
     tier: TierLevel = "hot"
     condensed_text: str | None = None
+    # Pt 1 metadata ---------------------------------------------------------
+    # importance: 0.0-1.0 relative weight, boosts ranking + resists archival.
+    # confidence: 0.0-1.0 trust in the fact (1.0 = user stated it directly).
+    # valid_until: ISO timestamp after which the fact is stale (None = no expiry).
+    # status: lifecycle state — see FactStatus.
+    importance: float = 0.5
+    confidence: float = 1.0
+    valid_until: str | None = None
+    status: FactStatus = "active"
 
 
 # ---------------------------------------------------------------------------
@@ -222,6 +238,7 @@ class MemoryStore:
         conn.executescript(_SCHEMA)
         conn.executescript(_RELATIONS_SCHEMA)
         self._migrate_tiered_columns(conn)
+        self._migrate_metadata_columns(conn)
         self._migrate_encrypt_columns(conn)
         try:
             conn.executescript(_FTS_SCHEMA)
@@ -260,6 +277,51 @@ class MemoryStore:
         # Index for tier-based queries (maintenance, auto-recall filtering)
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_facts_tier ON facts(tier)"
+        )
+        conn.commit()
+
+    @staticmethod
+    def _migrate_metadata_columns(conn: sqlite3.Connection) -> None:
+        """Add Pt 1 metadata columns if absent: importance, confidence,
+        valid_until, status.
+
+        Same ALTER-TABLE-ADD-COLUMN approach as the tiered migration — new
+        columns append at the end of the row, so _row_to_fact reads them
+        with len(row) guards and old databases keep working untouched.
+        Defaults match the Fact dataclass: importance 0.5, confidence 1.0,
+        valid_until NULL, status 'active'. Plaintext (metadata, not secret)
+        so they stay indexable.
+        """
+        cursor = conn.execute("PRAGMA table_info(facts)")
+        existing = {row[1] for row in cursor.fetchall()}
+
+        if "importance" not in existing:
+            conn.execute(
+                "ALTER TABLE facts ADD COLUMN importance REAL NOT NULL DEFAULT 0.5"
+            )
+            log.info("migration: added 'importance' column to facts table")
+        if "confidence" not in existing:
+            conn.execute(
+                "ALTER TABLE facts ADD COLUMN confidence REAL NOT NULL DEFAULT 1.0"
+            )
+            log.info("migration: added 'confidence' column to facts table")
+        if "valid_until" not in existing:
+            conn.execute(
+                "ALTER TABLE facts ADD COLUMN valid_until TEXT"
+            )
+            log.info("migration: added 'valid_until' column to facts table")
+        if "status" not in existing:
+            conn.execute(
+                "ALTER TABLE facts ADD COLUMN status TEXT NOT NULL DEFAULT 'active'"
+            )
+            log.info("migration: added 'status' column to facts table")
+
+        # Indexes for the maintenance/ranking queries these enable.
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_facts_status ON facts(status)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_facts_importance ON facts(importance)"
         )
         conn.commit()
 
@@ -323,12 +385,20 @@ class MemoryStore:
         language: str = "en",
         tags: list[str] | None = None,
         is_permanent: bool = False,
+        importance: float = 0.5,
+        confidence: float = 1.0,
+        valid_until: str | None = None,
+        status: FactStatus = "active",
     ) -> str:
         """Add a new fact with automatic tagging. Returns the fact ID.
 
         AutoTagger enriches the fact: detects language, extracts tags
         from text (game titles, tech terms, personal info), and refines
         the category. User-provided tags are merged with auto-detected ones.
+
+        Pt 1 metadata (importance, confidence, valid_until, status) default
+        to a plain active, fully-trusted, mid-importance fact, so every
+        existing caller keeps working unchanged.
         """
         fact_id = uuid4().hex[:12]
         now = datetime.now(UTC).isoformat()
@@ -340,6 +410,7 @@ class MemoryStore:
         await asyncio.to_thread(
             self._sync_add, fact_id, text, category, source,
             language, merged_tags, now, is_permanent,
+            importance, confidence, valid_until, status,
         )
         await self._maybe_embed(fact_id, text)
         log.info("fact added: %s (category=%s, tags=%s)", fact_id, category, tags)
@@ -354,14 +425,19 @@ class MemoryStore:
     def _sync_add(
         self, fact_id: str, text: str, category: str, source: str,
         language: str, tags: list[str], now: str, is_permanent: bool,
+        importance: float = 0.5, confidence: float = 1.0,
+        valid_until: str | None = None, status: str = "active",
     ) -> None:
         conn = sqlite3.connect(str(self._db_path))
         try:
             enc_text = encrypt_value(text)
             conn.execute(
                 "INSERT INTO facts (id, text, category, source, language, "
-                "created_at, updated_at, is_permanent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (fact_id, enc_text, category, source, language, now, now, int(is_permanent)),
+                "created_at, updated_at, is_permanent, "
+                "importance, confidence, valid_until, status) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (fact_id, enc_text, category, source, language, now, now,
+                 int(is_permanent), importance, confidence, valid_until, status),
             )
             for tag in tags:
                 enc_tag = encrypt_value(tag.lower().strip())
@@ -608,6 +684,7 @@ class MemoryStore:
         # Columns: id(0) text(1) category(2) source(3) language(4)
         # created_at(5) updated_at(6) access_count(7) last_accessed_at(8)
         # is_permanent(9) [tier(10) condensed_text(11)]
+        # [importance(12) confidence(13) valid_until(14) status(15)]
         raw_text = row[1]
         raw_condensed = row[11] if len(row) > 11 else None
         return Fact(
@@ -625,6 +702,10 @@ class MemoryStore:
             condensed_text=(
                 decrypt_value(raw_condensed) if raw_condensed else None
             ),
+            importance=row[12] if len(row) > 12 and row[12] is not None else 0.5,
+            confidence=row[13] if len(row) > 13 and row[13] is not None else 1.0,
+            valid_until=row[14] if len(row) > 14 else None,
+            status=row[15] if len(row) > 15 and row[15] else "active",
             tags=tags,
         )
 
