@@ -167,6 +167,9 @@ def setup_local_tools(
         RemindMeAtTool,
         ListRemindersTool,
         DeleteReminderTool,
+        RecurringReminderTool,
+        SnoozeReminderTool,
+        EditReminderTool,
     )
     from jarvis.tools.local.qr_share import GenerateQrTool, ShareToPhoneTool
     from jarvis.tools.local.focus_mode import (
@@ -336,6 +339,9 @@ def setup_local_tools(
         RemindMeAtTool(store=reminder_store),
         ListRemindersTool(store=reminder_store),
         DeleteReminderTool(store=reminder_store),
+        RecurringReminderTool(store=reminder_store),
+        SnoozeReminderTool(store=reminder_store),
+        EditReminderTool(store=reminder_store),
         StopFocusModeTool(),
         FocusModeStatusTool(),
         # Phase 8: Vision tools

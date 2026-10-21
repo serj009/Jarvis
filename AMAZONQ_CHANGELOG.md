@@ -6,6 +6,40 @@
 ---
 
 
+## 2026-10-21 — Reminders: recurring, specific date, snooze, edit
+
+### Summary
+Filled 4 gaps on top of the existing reminders subsystem (remind_me /
+remind_me_at / list / delete + ReminderStore + ReminderScheduler). No
+existing class signatures changed; one-shot reminders keep working.
+
+| # | Gap | How |
+|---|-----|-----|
+| 1 | Recurring reminders | New `RecurringReminderTool` (name=`remind_recurring`): daily/weekdays/weekly/monthly. ScheduledReminder gained `recurrence`/`recurrence_time` (SQLite ALTER-migration). ReminderScheduler now reschedules a fired recurring reminder (computes next trigger, resets fired) instead of marking it done. `compute_next_trigger()` handles weekend-skip + month-day clamp + year rollover. |
+| 2 | Specific date | RemindMeAtTool got an optional `date` field + `parse_date` ('YYYY-MM-DD', '15 ноября', 'november 15') + `resolve_date_time` (rolls to next year if past). No date → old today/tomorrow behaviour. |
+| 3 | Snooze | New `SnoozeReminderTool` (name=`snooze_reminder`): re-fires the last-fired reminder after N minutes (default 10) or until a given time. ReminderStore.`last_fired()` + `update_reminder()`. |
+| 4 | Edit | New `EditReminderTool` (name=`edit_reminder`): change text and/or time of an existing reminder by text/id match; keeps recurring reminders' recurrence_time in sync. |
+
+### Files
+| File | Change |
+|------|--------|
+| `jarvis/memory/scheduled_reminders.py` | ScheduledReminder +recurrence fields; ALTER-TABLE migration; `update_reminder`/`get`/`last_fired`; `compute_next_trigger`; scheduler reschedules recurring. |
+| `jarvis/tools/local/remind_me.py` | RemindMeAtArgs +date + date parsing; 3 new tool classes + helpers (`parse_date`, `resolve_date_time`, `_norm_time`, `_norm_ampm`, `_norm_recurrence`). |
+| `jarvis/tools/catalogue.py`, `jarvis/tools/__init__.py`, `jarvis/tools/risk.py` | Registered 3 new tools (WRITE risk). |
+| `tests/ui/test_capabilities.py`, `tests/ui/test_settings.py` | New tools added to `_UNDOCUMENTED_TOOLS` + Tools-tab set (convention for LLM-dispatched reminder tools). |
+| `tests/tools/local/test_remind_me.py` | +~24 tests. |
+
+### ⚠️ MANUAL TESTING NEEDED AT HOME
+1. Recurring: "напоминай каждый день в 9 встать" / "remind me on weekdays at 8:30 ...".
+   Let one fire; confirm it reschedules for the next day (next weekday for weekdays)
+   instead of disappearing. Check DB migration adds recurrence columns to your existing
+   `scheduled_reminders.db` without data loss.
+2. Specific date: "напомни 15 ноября сдать отчёт" / "remind me on november 15 ...".
+3. Snooze: let a reminder fire, say "отложи на 10 минут" / "snooze"; confirm it re-fires.
+4. Edit: "перенеси напоминание встреча на 16:00".
+
+---
+
 ## 2026-10-21 — File Manager: find filters, CreateFileTool, ArchiveTool
 
 ### Summary
