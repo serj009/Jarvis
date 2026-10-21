@@ -6,6 +6,44 @@
 ---
 
 
+## 2026-10-21 — Mouse control (UI interaction)
+
+### Summary
+New `mouse_control.py` filling the UI-interaction gap: pointer clicks, moves,
+scroll, drag-and-drop, and position. Clicks/moves can target absolute
+coordinates OR on-screen text via OCR (reusing jarvis.vision.ocr.ScreenOCR —
+not duplicated). pyautogui already shipped; zero new deps.
+
+| Tool | name | What |
+|------|------|------|
+| MouseClickTool | `mouse_click` | left/right/middle/double at (x,y) or on OCR-found text |
+| MouseMoveTool | `mouse_move` | move cursor to (x,y) or OCR text |
+| MouseScrollTool | `mouse_scroll` | up/down/left/right + "to the bottom/top" |
+| MouseDragTool | `mouse_drag` | drag-and-drop between two points |
+| MousePositionTool | `mouse_position` | report cursor coords (READ) |
+
+### Safety
+- `pyautogui.FAILSAFE = True` + `pyautogui.PAUSE = 0.1` applied on every lazy import.
+- OCR-targeted clicks refuse a match with confidence < 80% (never blind-click).
+- Every action logged (button, coords, result). Risk: mouse_* = WRITE, position = READ.
+
+### Files
+| File | Change |
+|------|--------|
+| `jarvis/tools/local/mouse_control.py` | NEW — 5 tool classes + `_find_text_on_screen` (screenshot→ScreenOCR.extract_regions→center of best match). |
+| `jarvis/tools/catalogue.py`, `__init__.py`, `risk.py` | Registered 5 tools. |
+| `tests/ui/test_capabilities.py`, `tests/ui/test_settings.py` | Added to `_UNDOCUMENTED_TOOLS` + Tools-tab set. |
+| `tests/tools/local/test_mouse_control.py` | NEW — ~24 tests (coord/OCR click, low-confidence refusal, move, scroll, drag, position, routing), pyautogui + OCR mocked. |
+
+### ⚠️ MANUAL TESTING NEEDED AT HOME (real cursor + Tesseract)
+1. Coordinate click/move/scroll/drag — verify the cursor actually goes where asked.
+2. OCR click: "click on Save" over a real window with a Save button — needs Tesseract
+   installed (eng+rus+ukr). Confirm the low-confidence refusal path on ambiguous text.
+3. FAILSAFE: slam the cursor to a screen corner mid-action — pyautogui should abort.
+
+---
+
+
 ## 2026-10-21 — Proactive ("initiative") engine (Layers 1–3)
 
 ### Summary

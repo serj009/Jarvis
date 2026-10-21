@@ -108,6 +108,13 @@ def _local_tool_classes() -> tuple[type, ...]:
     from jarvis.tools.local.launch_workspace import LaunchWorkspaceTool
     from jarvis.tools.local.lock_screen import LockScreenTool
     from jarvis.tools.local.log_tools import CloseLogsTool, ShowLogsTool
+    from jarvis.tools.local.mouse_control import (
+        MouseClickTool,
+        MouseMoveTool,
+        MouseScrollTool,
+        MouseDragTool,
+        MousePositionTool,
+    )
     from jarvis.tools.local.media_control import MediaControlTool
     from jarvis.tools.local.notes_tools import (
         AppendToNoteTool,
@@ -264,6 +271,11 @@ def _local_tool_classes() -> tuple[type, ...]:
         CloseNotesTool,
         DeleteNoteTool,
         MediaControlTool,
+        MouseClickTool,
+        MouseMoveTool,
+        MouseScrollTool,
+        MouseDragTool,
+        MousePositionTool,
         OpenNotesTool,
         ReadNoteTool,
         TakeNoteTool,
