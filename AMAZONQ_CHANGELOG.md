@@ -6,6 +6,41 @@
 ---
 
 
+## 2026-10-21 — Window management: corner snap, snap-layout, minimize-all, virtual desktops
+
+### Summary
+Filled the window-management gaps on top of the existing `window_manager.py`
+(which already had focus/minimize/maximize/restore/close/snap-left-right/list).
+All 6 requested features, extending the existing tool rather than adding new files.
+
+| # | Feature | How |
+|---|---------|-----|
+| 1 | Corner snap (4 quarters) | New `snap_top_left/top_right/bottom_left/bottom_right` actions on WindowActionTool, driven by a single `_SNAP_GEOMETRY` fraction table |
+| 2 | Snap center | `snap_center` action (50%×50% centered box) |
+| 3 | Snap layout (two windows) | New `SnapLayoutTool` — "VS Code left, Chrome right" places both in one command |
+| 4 | Minimize-all / Restore-all | New `MinimizeAllTool` / `RestoreAllTool` (Win+D via pyautogui) |
+| 5 | Virtual desktops | New `VirtualDesktopTool` — next/previous (Win+Ctrl+←/→), Task View (Win+Tab) |
+| 6 | Voice patterns EN/RU/UK | Added to each tool's `voice_patterns`; center priority is higher-numbered than left/right/corner so it never shadows them (first-match-wins) |
+
+### Files
+| File | Change |
+|------|--------|
+| `jarvis/tools/local/window_manager.py` | Extended WindowActionTool (actions + geometry table + EN/RU/UK corner/center patterns); added `_send_keys` helper; new tools SnapLayoutTool, MinimizeAllTool, RestoreAllTool, VirtualDesktopTool. |
+| `jarvis/tools/catalogue.py`, `jarvis/tools/__init__.py` | Registered the 4 new tools (voice patterns + Settings→Tools checkbox come for free since both are derived from the catalogue). |
+| `tests/tools/local/test_window_manager.py` | +~20 tests: corner/center snap, geometry table, snap-layout (success + missing window), minimize/restore-all, virtual-desktop actions, and voice-pattern routing for EN/RU/UK. |
+
+### ⚠️ MANUAL TESTING NEEDED AT HOME
+These drive real Win32 / global hotkeys — verify on the main PC:
+1. Corner snap: "snap chrome top left", "snap chrome bottom right", "center chrome".
+2. Snap layout: "VS Code left, Chrome right" / "код слева, хром справа" — both windows placed.
+3. Minimize/restore all: "minimize all" / "сверни всё", then "restore all".
+4. Virtual desktops: "next desktop" / "следующий стол", "task view". These need pyautogui
+   (bundled) and real Windows — on this work PC they are only mock-tested.
+5. Multi-monitor: snap uses the PRIMARY screen metrics (GetSystemMetrics 0/1). If you run
+   multiple monitors at home, confirm snap lands where expected; may need per-monitor work later.
+
+---
+
 ## 2026-10-21 — Work-PC session: test fixes, Russian STT, self-learning, memory upgrades, auto-critic Layer 1
 
 ### Context for the home PC

@@ -304,6 +304,22 @@ CORPUS: tuple[str, ...] = (
     "memory usage",
     "clipboard",
     "what is in my clipboard",
+    # -- capabilities.py: Window management
+    "snap chrome left",
+    "snap vs code top right",
+    "center discord",
+    "помести хром в верхний левый угол",
+    "центрируй дискорд",
+    "VS Code left, Chrome right",
+    "код слева, хром справа",
+    "minimize all",
+    "show desktop",
+    "сверни всё",
+    "restore all",
+    "next desktop",
+    "previous desktop",
+    "task view",
+    "следующий рабочий стол",
 )
 
 

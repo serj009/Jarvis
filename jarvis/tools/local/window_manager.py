@@ -100,6 +100,25 @@ def _resolve_app_to_title(name: str) -> str:
     return canonical
 
 
+def _send_keys(*keys: str) -> bool:
+    """Send a global hotkey via pyautogui. Returns False if unavailable.
+
+    Used for shell-level actions that have no per-window handle: minimize
+    all (Win+D), virtual-desktop switch (Win+Ctrl+Left/Right), Task View
+    (Win+Tab).
+    """
+    try:
+        import pyautogui
+    except ImportError:
+        return False
+    try:
+        pyautogui.hotkey(*keys)
+        return True
+    except Exception:
+        log.warning("send_keys failed for %s", keys, exc_info=True)
+        return False
+
+
 # ---------------------------------------------------------------------------
 # Args models
 # ---------------------------------------------------------------------------
@@ -107,7 +126,10 @@ def _resolve_app_to_title(name: str) -> str:
 class WindowActionArgs(BaseModel):
     action: Literal[
         "focus", "minimize", "maximize", "restore",
-        "snap_left", "snap_right", "close",
+        "snap_left", "snap_right",
+        "snap_top_left", "snap_top_right",
+        "snap_bottom_left", "snap_bottom_right",
+        "snap_center", "close",
     ] = Field(description="Window action to perform.")
     window: str = Field(
         description="Window/app name or partial title to match."
@@ -147,6 +169,86 @@ class WindowActionTool:
             regex=r"^snap\s+(.+)\s+(left|right)$",
             priority=200,
             args=lambda m: {"action": f"snap_{m.group(2)}", "window": m.group(1)},
+        ),
+        # EN corners + center: "snap chrome top left", "center discord"
+        VoicePattern(
+            regex=r"^snap\s+(.+)\s+(top[\s-]?left|top[\s-]?right|bottom[\s-]?left|bottom[\s-]?right)$",
+            priority=190,
+            args=lambda m: {
+                "action": "snap_" + m.group(2).replace("-", "_").replace(" ", "_"),
+                "window": m.group(1),
+            },
+        ),
+        # Center must use an explicit "center/centre" word and sit at a
+        # HIGHER priority number than snap left/right/corners so it never
+        # shadows them (first-match-wins = lower number wins).
+        VoicePattern(
+            regex=r"^(?:center|centre)\s+(.+)$",
+            priority=210,
+            args=lambda m: {"action": "snap_center", "window": m.group(1)},
+        ),
+        VoicePattern(
+            regex=r"^snap\s+(.+?)\s+(?:to\s+)?(?:the\s+)?cent(?:er|re)$",
+            priority=210,
+            args=lambda m: {"action": "snap_center", "window": m.group(1)},
+        ),
+        # RU corners + center: "сверни хром вверх влево", "центрируй дискорд"
+        VoicePattern(
+            regex=r"^(?:помести|поставь|прицепи)\s+(.+)\s+(?:в\s+)?(верхний\s+левый|верхний\s+правый|нижний\s+левый|нижний\s+правый)(?:\s+угол)?$",
+            priority=190,
+            args=lambda m: {
+                "action": {
+                    "верхний левый": "snap_top_left",
+                    "верхний правый": "snap_top_right",
+                    "нижний левый": "snap_bottom_left",
+                    "нижний правый": "snap_bottom_right",
+                }[m.group(2)],
+                "window": m.group(1),
+            },
+        ),
+        VoicePattern(
+            regex=r"^(?:помести|поставь)\s+(.+)\s+(?:слева|влево)$",
+            priority=180,
+            args=lambda m: {"action": "snap_left", "window": m.group(1)},
+        ),
+        VoicePattern(
+            regex=r"^(?:помести|поставь)\s+(.+)\s+(?:справа|вправо)$",
+            priority=180,
+            args=lambda m: {"action": "snap_right", "window": m.group(1)},
+        ),
+        VoicePattern(
+            regex=r"^(?:центрируй|по\s*центру)\s+(.+)$",
+            priority=180,
+            args=lambda m: {"action": "snap_center", "window": m.group(1)},
+        ),
+        # UK corners + center: "постав хром зліва", "центруй діскорд"
+        VoicePattern(
+            regex=r"^(?:познач|постав|причепи)\s+(.+)\s+(?:у\s+)?(верхній\s+лівий|верхній\s+правий|нижній\s+лівий|нижній\s+правий)(?:\s+кут)?$",
+            priority=190,
+            args=lambda m: {
+                "action": {
+                    "верхній лівий": "snap_top_left",
+                    "верхній правий": "snap_top_right",
+                    "нижній лівий": "snap_bottom_left",
+                    "нижній правий": "snap_bottom_right",
+                }[m.group(2)],
+                "window": m.group(1),
+            },
+        ),
+        VoicePattern(
+            regex=r"^(?:постав|пересунь)\s+(.+)\s+(?:зліва|вліво)$",
+            priority=180,
+            args=lambda m: {"action": "snap_left", "window": m.group(1)},
+        ),
+        VoicePattern(
+            regex=r"^(?:постав|пересунь)\s+(.+)\s+(?:справа|вправо)$",
+            priority=180,
+            args=lambda m: {"action": "snap_right", "window": m.group(1)},
+        ),
+        VoicePattern(
+            regex=r"^(?:центруй|по\s*центру)\s+(.+)$",
+            priority=180,
+            args=lambda m: {"action": "snap_center", "window": m.group(1)},
         ),
         # RU: "сверни хром", "разверни дискорд", "фокус на ютуб"
         VoicePattern(
@@ -205,6 +307,11 @@ class WindowActionTool:
                 "restore": "Restored",
                 "snap_left": "Snapped left",
                 "snap_right": "Snapped right",
+                "snap_top_left": "Snapped to top-left",
+                "snap_top_right": "Snapped to top-right",
+                "snap_bottom_left": "Snapped to bottom-left",
+                "snap_bottom_right": "Snapped to bottom-right",
+                "snap_center": "Centered",
                 "close": "Closed",
             }.get(action, action.title())
 
@@ -219,7 +326,28 @@ class WindowActionTool:
             return ToolResult(success=False, error=f"Window action failed: {e}")
 
     @staticmethod
-    def _perform_action(win, action: str) -> None:
+    def _screen_size() -> tuple[int, int]:
+        """Primary screen (width, height); 1920x1080 fallback off-Windows."""
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+            return user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
+        except (ImportError, AttributeError, OSError):
+            return 1920, 1080
+
+    # Snap action -> (x_frac, y_frac, w_frac, h_frac) of the screen.
+    _SNAP_GEOMETRY: ClassVar[dict[str, tuple[float, float, float, float]]] = {
+        "snap_left":         (0.0,  0.0,  0.5, 1.0),
+        "snap_right":        (0.5,  0.0,  0.5, 1.0),
+        "snap_top_left":     (0.0,  0.0,  0.5, 0.5),
+        "snap_top_right":    (0.5,  0.0,  0.5, 0.5),
+        "snap_bottom_left":  (0.0,  0.5,  0.5, 0.5),
+        "snap_bottom_right": (0.5,  0.5,  0.5, 0.5),
+        "snap_center":       (0.25, 0.25, 0.5, 0.5),
+    }
+
+    @classmethod
+    def _perform_action(cls, win, action: str) -> None:
         """Execute the window action (runs in thread)."""
         if action == "focus":
             win.activate()
@@ -229,30 +357,193 @@ class WindowActionTool:
             win.maximize()
         elif action == "restore":
             win.restore()
-        elif action == "snap_left":
-            try:
-                import ctypes
-                user32 = ctypes.windll.user32
-                screen_w = user32.GetSystemMetrics(0)
-                screen_h = user32.GetSystemMetrics(1)
-            except (ImportError, AttributeError, OSError):
-                screen_w, screen_h = 1920, 1080
+        elif action in cls._SNAP_GEOMETRY:
+            xf, yf, wf, hf = cls._SNAP_GEOMETRY[action]
+            screen_w, screen_h = cls._screen_size()
             win.restore()
-            win.moveTo(0, 0)
-            win.resizeTo(screen_w // 2, screen_h)
-        elif action == "snap_right":
-            try:
-                import ctypes
-                user32 = ctypes.windll.user32
-                screen_w = user32.GetSystemMetrics(0)
-                screen_h = user32.GetSystemMetrics(1)
-            except (ImportError, AttributeError, OSError):
-                screen_w, screen_h = 1920, 1080
-            win.restore()
-            win.moveTo(screen_w // 2, 0)
-            win.resizeTo(screen_w // 2, screen_h)
+            win.moveTo(int(screen_w * xf), int(screen_h * yf))
+            win.resizeTo(int(screen_w * wf), int(screen_h * hf))
         elif action == "close":
             win.close()
+
+
+class SnapLayoutArgs(BaseModel):
+    left: str = Field(description="App/window to snap to the left half.")
+    right: str = Field(description="App/window to snap to the right half.")
+
+
+class SnapLayoutTool:
+    """Snap two windows side by side in one command (feature 3)."""
+
+    name: str = "snap_layout"
+    description: str = (
+        "Arrange two windows side by side: one on the left half, one on the "
+        "right. Example: 'VS Code left, Chrome right'. "
+        "(RU: слева ... справа / UK: зліва ... справа)"
+    )
+    args_schema = SnapLayoutArgs
+    requires_confirmation: bool = False
+    voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        # EN: "vs code left, chrome right" / "snap vs code left and chrome right"
+        VoicePattern(
+            regex=r"^(?:snap\s+)?(.+?)\s+(?:on\s+the\s+)?left(?:\s+(?:half|side))?(?:\s*,|\s+and)\s+(.+?)\s+(?:on\s+the\s+)?right(?:\s+(?:half|side))?$",
+            priority=150,
+            args=lambda m: {"left": m.group(1), "right": m.group(2)},
+        ),
+        # RU: "vs code слева, chrome справа"
+        VoicePattern(
+            regex=r"^(.+?)\s+слева(?:\s*,|\s+и|\s+а)\s+(.+?)\s+справа$",
+            priority=150,
+            args=lambda m: {"left": m.group(1), "right": m.group(2)},
+        ),
+        # UK: "vs code зліва, chrome справа"
+        VoicePattern(
+            regex=r"^(.+?)\s+зліва(?:\s*,|\s+і|\s+а)\s+(.+?)\s+справа$",
+            priority=150,
+            args=lambda m: {"left": m.group(1), "right": m.group(2)},
+        ),
+    )
+
+    async def execute(self, args: SnapLayoutArgs) -> ToolResult:
+        gw = _get_pygetwindow()
+        if gw is None:
+            return ToolResult(
+                success=False,
+                error="pygetwindow not installed. Install: pip install pygetwindow",
+            )
+        action_tool = WindowActionTool()
+        placed: list[str] = []
+        for name, snap in ((args.left, "snap_left"), (args.right, "snap_right")):
+            title = _resolve_app_to_title(name)
+            win = _find_window(title) or _find_window(name)
+            if win is None:
+                return ToolResult(
+                    success=False,
+                    error=f"Window '{name}' not found, sir.",
+                )
+            try:
+                await asyncio.to_thread(action_tool._perform_action, win, snap)
+                placed.append(win.title)
+            except Exception as e:
+                log.exception("snap_layout failed for %r", name)
+                return ToolResult(success=False, error=f"Layout failed: {e}")
+        return ToolResult(
+            success=True,
+            output=f"Arranged {placed[0]} left and {placed[1]} right, sir.",
+        )
+
+
+class MinimizeAllArgs(BaseModel):
+    pass
+
+
+class MinimizeAllTool:
+    """Minimize every window / show the desktop (feature 4)."""
+
+    name: str = "minimize_all"
+    description: str = (
+        "Minimize all windows and show the desktop (Win+D). "
+        "(RU: сверни всё, покажи рабочий стол / UK: згорни все, покажи робочий стіл)"
+    )
+    args_schema = MinimizeAllArgs
+    requires_confirmation: bool = False
+    voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        VoicePattern(regex=r"^(?:minimize|minimise|hide)\s+all(?:\s+windows)?$", priority=160),
+        VoicePattern(regex=r"^show\s+(?:the\s+)?desktop$", priority=160),
+        VoicePattern(regex=r"^сверни\s+(?:вс[её]|все\s+окна)$", priority=160),
+        VoicePattern(regex=r"^покажи\s+рабочий\s+стол$", priority=160),
+        VoicePattern(regex=r"^згорни\s+(?:вс[еі]|всі\s+вікна)$", priority=160),
+        VoicePattern(regex=r"^покажи\s+робочий\s+стіл$", priority=160),
+    )
+
+    async def execute(self, args: MinimizeAllArgs) -> ToolResult:
+        ok = await asyncio.to_thread(_send_keys, "win", "d")
+        if not ok:
+            return ToolResult(
+                success=False,
+                error="Could not send the shortcut (pyautogui unavailable), sir.",
+            )
+        return ToolResult(success=True, output="Minimized all windows, sir.")
+
+
+class RestoreAllTool:
+    """Restore all windows / undo show-desktop (feature 4)."""
+
+    name: str = "restore_all"
+    description: str = (
+        "Restore all minimized windows (Win+D toggle). "
+        "(RU: разверни всё / UK: розгорни все)"
+    )
+    args_schema = MinimizeAllArgs
+    requires_confirmation: bool = False
+    voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        VoicePattern(regex=r"^(?:restore|unhide|show)\s+all(?:\s+windows)?$", priority=160),
+        VoicePattern(regex=r"^разверни\s+(?:вс[её]|все\s+окна)$", priority=160),
+        VoicePattern(regex=r"^розгорни\s+(?:вс[еі]|всі\s+вікна)$", priority=160),
+    )
+
+    async def execute(self, args: MinimizeAllArgs) -> ToolResult:
+        ok = await asyncio.to_thread(_send_keys, "win", "d")
+        if not ok:
+            return ToolResult(
+                success=False,
+                error="Could not send the shortcut (pyautogui unavailable), sir.",
+            )
+        return ToolResult(success=True, output="Restored all windows, sir.")
+
+
+class VirtualDesktopArgs(BaseModel):
+    action: Literal["next", "previous", "task_view"] = Field(
+        description="Virtual-desktop action: next, previous, or task_view."
+    )
+
+
+class VirtualDesktopTool:
+    """Switch virtual desktops / open Task View (feature 5)."""
+
+    name: str = "virtual_desktop"
+    description: str = (
+        "Switch virtual desktops (next / previous) or open Task View. "
+        "(RU: следующий/предыдущий рабочий стол / UK: наступний/попередній стіл)"
+    )
+    args_schema = VirtualDesktopArgs
+    requires_confirmation: bool = False
+    voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        # EN
+        VoicePattern(regex=r"^(?:next|switch\s+to\s+next)\s+desktop$", priority=160,
+                     args=lambda m: {"action": "next"}),
+        VoicePattern(regex=r"^(?:previous|prev|last)\s+desktop$", priority=160,
+                     args=lambda m: {"action": "previous"}),
+        VoicePattern(regex=r"^(?:task\s*view|show\s+desktops)$", priority=160,
+                     args=lambda m: {"action": "task_view"}),
+        # RU
+        VoicePattern(regex=r"^следующий\s+(?:рабочий\s+)?стол$", priority=160,
+                     args=lambda m: {"action": "next"}),
+        VoicePattern(regex=r"^предыдущий\s+(?:рабочий\s+)?стол$", priority=160,
+                     args=lambda m: {"action": "previous"}),
+        # UK
+        VoicePattern(regex=r"^наступний\s+(?:робочий\s+)?стіл$", priority=160,
+                     args=lambda m: {"action": "next"}),
+        VoicePattern(regex=r"^попередній\s+(?:робочий\s+)?стіл$", priority=160,
+                     args=lambda m: {"action": "previous"}),
+    )
+
+    async def execute(self, args: VirtualDesktopArgs) -> ToolResult:
+        if args.action == "next":
+            ok = await asyncio.to_thread(_send_keys, "win", "ctrl", "right")
+            msg = "Switched to the next desktop, sir."
+        elif args.action == "previous":
+            ok = await asyncio.to_thread(_send_keys, "win", "ctrl", "left")
+            msg = "Switched to the previous desktop, sir."
+        else:  # task_view
+            ok = await asyncio.to_thread(_send_keys, "win", "tab")
+            msg = "Opened Task View, sir."
+        if not ok:
+            return ToolResult(
+                success=False,
+                error="Could not send the shortcut (pyautogui unavailable), sir.",
+            )
+        return ToolResult(success=True, output=msg)
 
 
 class ListWindowsTool:

@@ -484,6 +484,69 @@ CAPABILITY_CATEGORIES: tuple[CapabilityCategory, ...] = (
             ),
         ),
     ),
+    CapabilityCategory(
+        name="Window management",
+        icon_glyph="◰",
+        capabilities=(
+            Capability(
+                name="Snap a window into place",
+                description=(
+                    "Move a window to the left/right half, a corner "
+                    "(quarter), or the center of the screen. "
+                    "(RU: помести … слева/справа/в угол, центрируй … / "
+                    "UK: постав … зліва/справа/у кут, центруй …)"
+                ),
+                examples=(
+                    "snap chrome left",
+                    "snap vs code top right",
+                    "center discord",
+                    "помести хром в верхний левый угол",
+                    "центрируй дискорд",
+                ),
+                tools=("snap_layout",),
+            ),
+            Capability(
+                name="Arrange two windows side by side",
+                description=(
+                    "Place one app on the left half and another on the "
+                    "right in a single command."
+                ),
+                examples=(
+                    "VS Code left, Chrome right",
+                    "код слева, хром справа",
+                ),
+                tools=("snap_layout",),
+            ),
+            Capability(
+                name="Minimize or restore everything",
+                description=(
+                    "Show the desktop by minimizing all windows, then "
+                    "bring them all back."
+                ),
+                examples=(
+                    "minimize all",
+                    "show desktop",
+                    "сверни всё",
+                    "restore all",
+                ),
+                tools=("minimize_all", "restore_all"),
+            ),
+            Capability(
+                name="Switch virtual desktops",
+                description=(
+                    "Move to the next or previous virtual desktop, or open "
+                    "Task View to see them all."
+                ),
+                examples=(
+                    "next desktop",
+                    "previous desktop",
+                    "task view",
+                    "следующий рабочий стол",
+                ),
+                tools=("virtual_desktop",),
+            ),
+        ),
+    ),
 )
 
 
