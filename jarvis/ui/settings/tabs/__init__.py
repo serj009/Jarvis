@@ -22,6 +22,7 @@ from jarvis.ui.settings.tabs.image_gen import ImageGenTab
 from jarvis.ui.settings.tabs.memory import MemoryTab
 from jarvis.ui.settings.tabs.models import ModelsTab
 from jarvis.ui.settings.tabs.security_tab import SecurityTab
+from jarvis.ui.settings.tabs.integrations import IntegrationsTab
 from jarvis.ui.settings.tabs.proactive import ProactiveTab
 from jarvis.ui.settings.tabs.self_eval import SelfEvalTab
 from jarvis.ui.settings.tabs.tools import ToolsTab
@@ -40,6 +41,7 @@ __all__ = [
     "MemoryTab",
     "ModelsTab",
     "SecurityTab",
+    "IntegrationsTab",
     "ProactiveTab",
     "SelfEvalTab",
     "ToolsTab",

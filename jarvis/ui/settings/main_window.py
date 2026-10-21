@@ -42,6 +42,7 @@ from jarvis.ui.settings.tabs import (
     ImageGenTab,
     MemoryTab,
     ModelsTab,
+    IntegrationsTab,
     ProactiveTab,
     SecurityTab,
     SelfEvalTab,
@@ -68,6 +69,7 @@ _NAV_ITEMS: tuple[tuple[str, str, str, str | None], ...] = (
     ("security", "\U0001f6e1\ufe0f", "Security",   None),
     ("self_eval", "\U0001f9ea",    "Self-Evaluation", None),
     ("proactive", "\U0001f4a1",    "Proactive",     None),
+    ("integrations", "\u2601\ufe0f", "Online Integrations", None),
     ("commands", "\U0001f4d6",    "Commands",      "Other"),
     ("hotkeys",  "\u2328\ufe0f",  "Hotkeys",       None),
     ("advanced", "\u2699\ufe0f",  "Advanced",      None),
@@ -83,6 +85,7 @@ class SettingsWindow(QMainWindow):
         on_change: Callable[[], None],
         voices_dir: Path | None = None,
         on_test_voice: Callable[[str], None] | None = None,
+        integration_registry=None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -122,6 +125,10 @@ class SettingsWindow(QMainWindow):
         self.security = SecurityTab(config=config, on_change=_on_change_with_indicator)
         self.self_eval = SelfEvalTab(config=config, on_change=_on_change_with_indicator)
         self.proactive = ProactiveTab(config=config, on_change=_on_change_with_indicator)
+        self.integrations = IntegrationsTab(
+            config=config, on_change=_on_change_with_indicator,
+            registry=integration_registry,
+        )
         self.commands = CommandsTab(config=config, on_change=_on_change_with_indicator)
         self.hotkeys = HotkeysTab(config=config, on_change=_on_change_with_indicator)
         self.advanced = AdvancedTab(config=config, on_change=_on_change_with_indicator)
@@ -140,6 +147,7 @@ class SettingsWindow(QMainWindow):
             "security": self.security,
             "self_eval": self.self_eval,
             "proactive": self.proactive,
+            "integrations": self.integrations,
             "commands": self.commands,
             "hotkeys": self.hotkeys,
             "advanced": self.advanced,
