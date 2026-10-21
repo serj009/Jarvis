@@ -10,6 +10,7 @@ from jarvis.memory.proactive_engine import (
     InitiativeLevel,
     ProactiveEngine,
     ProactivePatternStore,
+    ProactiveScenarios,
     classify_leisure,
     jaccard,
 )
@@ -245,3 +246,260 @@ def test_migration_v37_to_v38():
     assert data["schema_version"] == 38
     assert data["proactive"]["initiative_level"] == "high"
     assert 37 in MIGRATIONS
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Layer 2: scenarios, cooldowns, foreground tracking, loop
+# ═══════════════════════════════════════════════════════════════════
+
+from datetime import datetime, timezone, timedelta
+
+
+def _engine(store, **cfg_over):
+    bus = _FakeBus()
+    eng = ProactiveEngine(config=_config(**cfg_over), store=store, bus=bus)
+    return eng, bus
+
+
+_NOW = datetime(2026, 10, 21, 14, 0, tzinfo=timezone.utc)  # Wed
+
+
+# ── A. abandoned project ───────────────────────────────────────────
+
+class TestAbandonedProject:
+    def test_fires_on_long_leisure_with_stale_project(self, store):
+        eng, _ = _engine(store)
+        sc = ProactiveScenarios(eng)
+        r = sc.abandoned_project(
+            foreground="Dota 2 — Steam",
+            leisure_seconds=3 * 3600,
+            now=_NOW,
+            stale_project={"name": "Jarvis", "days_idle": 5},
+        )
+        assert r is not None
+        assert r[1] == "important"
+        assert "Jarvis" in r[0]
+
+    def test_silent_when_not_leisure(self, store):
+        eng, _ = _engine(store)
+        sc = ProactiveScenarios(eng)
+        r = sc.abandoned_project(
+            foreground="main.py — VS Code", leisure_seconds=9 * 3600,
+            now=_NOW, stale_project={"name": "X", "days_idle": 9},
+        )
+        assert r is None
+
+    def test_silent_under_threshold(self, store):
+        eng, _ = _engine(store)
+        sc = ProactiveScenarios(eng)
+        r = sc.abandoned_project(
+            foreground="YouTube", leisure_seconds=600,
+            now=_NOW, stale_project={"name": "X", "days_idle": 9},
+        )
+        assert r is None
+
+    def test_respects_24h_dismiss_snooze(self, store):
+        eng, _ = _engine(store)
+        eng.record_dismiss("project:Jarvis")  # stamps last_seen=now
+        sc = ProactiveScenarios(eng)
+        r = sc.abandoned_project(
+            foreground="Steam", leisure_seconds=3 * 3600,
+            now=datetime.now(tz=timezone.utc),
+            stale_project={"name": "Jarvis", "days_idle": 5},
+        )
+        assert r is None  # snoozed
+
+
+# ── B. upcoming date ───────────────────────────────────────────────
+
+class TestUpcomingDate:
+    def test_fires_within_7_days(self, store):
+        eng, _ = _engine(store)
+        sc = ProactiveScenarios(eng)
+        r = sc.upcoming_date(
+            events=[{"name": "Anna", "date": "Oct 25", "days_until": 4}],
+            now=_NOW,
+        )
+        assert r is not None and "Anna" in r[0] and r[1] == "important"
+
+    def test_today_is_critical(self, store):
+        eng, _ = _engine(store)
+        sc = ProactiveScenarios(eng)
+        r = sc.upcoming_date(
+            events=[{"name": "Bob", "date": "today", "days_until": 0}], now=_NOW,
+        )
+        assert r is not None and r[1] == "critical"
+
+    def test_picks_soonest(self, store):
+        eng, _ = _engine(store)
+        sc = ProactiveScenarios(eng)
+        r = sc.upcoming_date(
+            events=[
+                {"name": "Far", "days_until": 6},
+                {"name": "Near", "days_until": 1},
+            ],
+            now=_NOW,
+        )
+        assert "Near" in r[0]
+
+    def test_ignores_beyond_7_days(self, store):
+        eng, _ = _engine(store)
+        sc = ProactiveScenarios(eng)
+        assert sc.upcoming_date(
+            events=[{"name": "X", "days_until": 30}], now=_NOW
+        ) is None
+
+
+# ── C. long work (health) ──────────────────────────────────────────
+
+class TestLongWork:
+    def test_fires_after_threshold(self, store):
+        eng, _ = _engine(store, work_hours_threshold=4.0)
+        sc = ProactiveScenarios(eng)
+        r = sc.long_work(foreground="code.py — VS Code", focus_seconds=5 * 3600, now=_NOW)
+        assert r is not None and r[1] == "critical" and "5 hours" in r[0]
+
+    def test_silent_for_leisure_app(self, store):
+        eng, _ = _engine(store)
+        sc = ProactiveScenarios(eng)
+        assert sc.long_work(foreground="Netflix", focus_seconds=9 * 3600, now=_NOW) is None
+
+    def test_cooldown_blocks_repeat(self, store):
+        eng, _ = _engine(store, work_hours_threshold=4.0)
+        sc = ProactiveScenarios(eng)
+        first = sc.long_work(foreground="IDE", focus_seconds=5 * 3600, now=_NOW)
+        assert first is not None
+        again = sc.long_work(
+            foreground="IDE", focus_seconds=6 * 3600, now=_NOW + timedelta(minutes=30)
+        )
+        assert again is None  # within 2h cooldown
+
+
+# ── D. boot routine ─────────────────────────────────────────────────
+
+class TestBootRoutine:
+    def test_fires_on_matching_context(self, store):
+        eng, _ = _engine(store, boot_similarity_threshold=0.7)
+        boot_now = datetime(2026, 10, 21, 9, 0, tzinfo=timezone.utc)  # Wed
+        # Context is derived in LOCAL time (that's the point of "boot time"),
+        # so build the expected context the same way to stay tz-robust.
+        local_hour = boot_now.astimezone().hour
+        ctx = {f"h{local_hour}", "weekday"}
+        for _ in range(3):
+            eng.record_boot_sequence(["chrome", "spotify", "slack"], now=boot_now)
+        sc = ProactiveScenarios(eng)
+        r = sc.boot_routine(current_context=ctx)
+        assert r is not None and "chrome" in r[0]
+
+    def test_no_fire_below_3_repeats(self, store):
+        eng, _ = _engine(store)
+        boot_now = datetime(2026, 10, 21, 9, 0, tzinfo=timezone.utc)
+        ctx = {f"h{boot_now.astimezone().hour}", "weekday"}
+        eng.record_boot_sequence(["chrome"], now=boot_now)
+        sc = ProactiveScenarios(eng)
+        assert sc.boot_routine(current_context=ctx) is None
+
+    def test_no_fire_on_dissimilar_context(self, store):
+        eng, _ = _engine(store)
+        for _ in range(3):
+            eng.record_boot_sequence(["chrome"], now=datetime(2026, 10, 21, 9, 0, tzinfo=timezone.utc))
+        sc = ProactiveScenarios(eng)
+        assert sc.boot_routine(current_context={"h22", "weekend"}) is None
+
+
+# ── E. command sequence ─────────────────────────────────────────────
+
+class TestCommandSequence:
+    def test_fires_at_5_plus_high_confidence(self, store):
+        eng, _ = _engine(store)
+        for _ in range(5):
+            eng.record_command_after("git commit", "pytest")
+        sc = ProactiveScenarios(eng)
+        r = sc.command_sequence(last_command="git commit")
+        assert r is not None and "pytest" in r[0]
+
+    def test_no_fire_below_5(self, store):
+        eng, _ = _engine(store)
+        for _ in range(4):
+            eng.record_command_after("git commit", "pytest")
+        sc = ProactiveScenarios(eng)
+        assert sc.command_sequence(last_command="git commit") is None
+
+    def test_no_fire_low_confidence(self, store):
+        eng, _ = _engine(store)
+        # pytest 5x but many other follows → confidence < 70%
+        for _ in range(5):
+            eng.record_command_after("git commit", "pytest")
+        for _ in range(6):
+            eng.record_command_after("git commit", "push")
+        sc = ProactiveScenarios(eng)
+        assert sc.command_sequence(last_command="git commit") is None
+
+
+# ── foreground tracking + cooldown ──────────────────────────────────
+
+class TestForegroundTracking:
+    def test_focus_timer_accumulates(self, store):
+        eng, _ = _engine(store)
+        t0 = datetime(2026, 10, 21, 10, 0, tzinfo=timezone.utc)
+        assert eng.observe_foreground("VS Code", t0) == 0.0
+        secs = eng.observe_foreground("VS Code", t0 + timedelta(hours=2))
+        assert secs == pytest.approx(7200)
+
+    def test_focus_resets_on_switch(self, store):
+        eng, _ = _engine(store)
+        t0 = datetime(2026, 10, 21, 10, 0, tzinfo=timezone.utc)
+        eng.observe_foreground("VS Code", t0)
+        eng.observe_foreground("VS Code", t0 + timedelta(hours=1))
+        assert eng.observe_foreground("Chrome", t0 + timedelta(hours=1)) == 0.0
+
+    def test_cooldown_ok_then_blocked(self, store):
+        eng, _ = _engine(store)
+        t0 = datetime(2026, 10, 21, 10, 0, tzinfo=timezone.utc)
+        assert eng.cooldown_ok("k", 3600, t0) is True
+        assert eng.cooldown_ok("k", 3600, t0 + timedelta(minutes=30)) is False
+        assert eng.cooldown_ok("k", 3600, t0 + timedelta(hours=2)) is True
+
+
+# ── maybe_speak_scenario gate ──────────────────────────────────────
+
+class TestMaybeSpeakScenario:
+    def test_speaks_when_level_allows(self, store):
+        eng, bus = _engine(store, initiative_level="high")
+        spoke = eng.maybe_speak_scenario(("hi", "normal", "k"))
+        assert spoke and len(bus.published) == 1
+
+    def test_blocked_by_level(self, store):
+        eng, bus = _engine(store, initiative_level="low")
+        spoke = eng.maybe_speak_scenario(("hi", "normal", "k"))
+        assert not spoke and bus.published == []
+
+    def test_none_result_is_noop(self, store):
+        eng, bus = _engine(store)
+        assert eng.maybe_speak_scenario(None) is False
+
+
+# ── background loop ─────────────────────────────────────────────────
+
+async def test_run_loop_ticks_then_stops(store):
+    import asyncio
+    eng, _ = _engine(store, check_interval_seconds=15)
+    ticks = []
+
+    def tick():
+        ticks.append(1)
+        if len(ticks) >= 2:
+            eng.stop()
+
+    # Patch sleep to avoid waiting the real interval.
+    async def fast_sleep(_):
+        return None
+
+    import jarvis.memory.proactive_engine as mod
+    orig = mod.asyncio.sleep
+    mod.asyncio.sleep = fast_sleep
+    try:
+        await asyncio.wait_for(eng.run(tick), timeout=2.0)
+    finally:
+        mod.asyncio.sleep = orig
+    assert len(ticks) >= 2
