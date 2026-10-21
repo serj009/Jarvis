@@ -195,3 +195,71 @@ class TestFactMetadata:
         assert f.confidence == 1.0
         assert f.valid_until is None
         assert f.status == "active"
+
+
+class TestSupersede:
+    """Pt 4: contradiction handling via supersede (no silent overwrite)."""
+
+    @pytest.mark.asyncio()
+    async def test_supersede_creates_new_and_marks_old(self, store) -> None:
+        old_id = await store.add("answer in English", category="personal")
+        new_id = await store.supersede(
+            old_id, "answer in Russian", category="personal",
+            reason="user switched preferred language",
+        )
+        assert new_id is not None and new_id != old_id
+
+        old = await store.get(old_id)
+        new = await store.get(new_id)
+        assert old is not None and old.status == "superseded"
+        assert new is not None and new.status == "active"
+        assert new.text == "answer in Russian"
+
+    @pytest.mark.asyncio()
+    async def test_superseded_hidden_from_default_search(self, store) -> None:
+        old_id = await store.add("the capital is Kyiv")
+        await store.supersede(old_id, "the capital is Warsaw")
+
+        default = await store.search("capital")
+        texts = [f.text for f in default]
+        assert "the capital is Warsaw" in texts
+        assert "the capital is Kyiv" not in texts  # superseded hidden
+
+    @pytest.mark.asyncio()
+    async def test_superseded_visible_with_flag(self, store) -> None:
+        old_id = await store.add("the capital is Kyiv")
+        await store.supersede(old_id, "the capital is Warsaw")
+
+        full = await store.search("capital", include_superseded=True)
+        texts = [f.text for f in full]
+        assert "the capital is Warsaw" in texts
+        assert "the capital is Kyiv" in texts  # audit trail visible
+
+    @pytest.mark.asyncio()
+    async def test_supersede_records_history(self, store) -> None:
+        old_id = await store.add("old value")
+        await store.supersede(old_id, "new value", reason="corrected")
+        hist = await store.history(old_id)
+        assert len(hist) == 1
+        assert hist[0]["old_text"] == "old value"
+        assert hist[0]["old_status"] == "active"
+        assert hist[0]["new_status"] == "superseded"
+        assert hist[0]["reason"] == "corrected"
+
+    @pytest.mark.asyncio()
+    async def test_supersede_nonexistent_returns_none(self, store) -> None:
+        assert await store.supersede("nope", "whatever") is None
+
+    @pytest.mark.asyncio()
+    async def test_set_status_records_history_and_is_reversible(self, store) -> None:
+        fid = await store.add("maybe true", confidence=0.4, status="uncertain")
+        assert await store.set_status(fid, "active", reason="confirmed by user")
+        fact = await store.get(fid)
+        assert fact is not None and fact.status == "active"
+        hist = await store.history(fid)
+        assert hist[0]["old_status"] == "uncertain"
+        assert hist[0]["new_status"] == "active"
+
+    @pytest.mark.asyncio()
+    async def test_set_status_nonexistent_returns_false(self, store) -> None:
+        assert await store.set_status("nope", "archived") is False
