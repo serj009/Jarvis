@@ -99,6 +99,16 @@ extras = [
 ocr = [
   "pytesseract>=0.3,<1",
 ]
+# Online integration plugins (OFF by default) — Google suite + Telegram.
+# The plugin modules import these lazily, so the base install stays fully
+# local; these are only needed to actually connect a plugin. The dependency-
+# gate in Settings blocks enabling a plugin until its package is importable.
+# Install via: pip install -e ".[integrations]"
+integrations = [
+  "google-api-python-client>=2,<3",
+  "google-auth-oauthlib>=1,<2",
+  "python-telegram-bot>=21,<22",
+]
 
 # All optional dependencies combined — for one-step full install.
 # Install via: pip install -e ".[all]"
@@ -110,6 +120,7 @@ all = [
   "jarvis[extras]",
   "jarvis[aec]",
   "jarvis[ocr]",
+  "jarvis[integrations]",
 ]
 
 # T4.2: Semantic memory search — optional heavy dependencies.
