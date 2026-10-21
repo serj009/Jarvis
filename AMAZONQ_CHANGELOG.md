@@ -5,6 +5,114 @@
 
 ---
 
+
+## 2026-10-21 — Work-PC session: test fixes, Russian STT, self-learning, memory upgrades, auto-critic Layer 1
+
+### Context for the home PC
+This whole session was done on a **secondary work PC** (fresh clone of the `amazonq`
+branch, no Ollama, no models). All changes are pushed to `origin/amazonq`. Pull at home
+with `git pull origin amazonq`. The full automated suite is green here
+(**4957 passed, 14 skipped**), but several things need **manual verification at home**
+with real Ollama + models + microphone — see the "MANUAL TESTING NEEDED AT HOME" section
+at the end of this block.
+
+### 1. Fixed 13 failing tests (commit 1e69194)
+One real code bug + test-isolation issues. No app-logic changed except the hotkey fix.
+| File | Change |
+|------|--------|
+| `jarvis/tools/local/hotkey_sender.py` | **Real bug:** `_parse_hotkey("")` returned `['']` not `[]`, so empty combos were not rejected. Now drops empty tokens. |
+| `tests/tools/local/test_converter.py`, `test_dictation.py` | Hard-coded absolute path from another machine → resolve via module `__file__`. |
+| `tests/audio/test_devices.py` | Fixture stubbed `sd` but not the smart detector → leaked to real mic (idx 15). Now stubs `device_detector.detect_best_input`. |
+| `tests/vision/test_screen_change.py` | `sys.modules` injection missed already-imported `PIL.ImageGrab` → real screen capture. Now patches `PIL.ImageGrab.grab`. |
+| `tests/ui/test_jarvis_app.py` | Build-order test didn't stub `_maybe_first_run_greeting` (reads `self.cfg`). Added stub. |
+
+### 2. Russian/Ukrainian STT recognition fix (commit 3edf2ee)
+Root cause: NOT a language setting — Whisper was multilingual (`model=small`, `language=auto`).
+The confidence formula `exp(avg_logprob)` was calibrated for English; correctly-transcribed
+RU/UK speech scored 0.5–0.65, below the 0.70 "proceed" threshold → routed to "clarify"
+("I didn't understand") ~90% of the time.
+| File | Change |
+|------|--------|
+| `jarvis/audio/stt.py` | `_compute_confidence`: softened mapping to `exp(avg_logprob / 2)`. Genuine RU/UK speech now clears 0.70; noise gate (`no_speech_prob`) and low-logprob collapse intact. Thresholds unchanged (pinned by tests). |
+| `tests/audio/test_stt_phase2.py` | Regression test: RU speech at avg_logprob -0.5 → proceed. |
+
+### 3. Self-learning now fires for snap/one-shot commands (commit ef7e9c9)
+Pattern/snap commands ("открой хром", "громче") and one-shot mode (`max_tool_iterations==1`)
+executed OUTSIDE the router feedback loop, so `tool_examples`, `usage_stats`, and
+`personal_aliases` never recorded them — the most frequent commands were not being learned.
+| File | Change |
+|------|--------|
+| `jarvis/core/personalization.py` | New `record_tool_success()` — single learning path (examples + usage + aliases), each step guarded. |
+| `jarvis/llm/intent_router.py` | `execute_intent()` gained optional `on_tool_success` hook, fires only on `result.success`. |
+| `jarvis/app.py` | `_make_router_adapter` passes the hook (wired at all 3 call sites). No double counting — feedback-loop tools never reach this adapter by design. |
+
+### 4. Memory Pt 1 — fact metadata (commit 586b476, schema facts table)
+Added 4 columns via ALTER TABLE migration (same pattern as tier/condensed_text):
+`importance` (0.5), `confidence` (1.0), `valid_until` (NULL), `status` (active).
+`source` + `access_count` already existed. Read with len-guards in `_row_to_fact`;
+`add()` got optional params with defaults. Plaintext + indexed (status, importance).
+Files: `jarvis/memory/store.py`, `tests/memory/test_store.py`.
+
+### 5. Memory Pt 4 — contradictions + history (commit 2457203)
+No more silent overwrite on contradiction.
+| Addition | What |
+|----------|------|
+| `supersede(old_id, new_text, …)` | Adds new active fact, flips old to `superseded` (kept), links `contradicts`. |
+| `set_status(id, status, reason)` | Reversible status change, history-recorded. |
+| `history(id)` | Audit trail. |
+| `fact_history` table | Append-only, ALTER-safe migration. |
+| search filter | `superseded` hidden by default; `include_superseded=True` to audit. |
+Auto-detection of contradictions intentionally deferred to Pt 8.
+Files: `jarvis/memory/store.py`, `tests/memory/test_store.py`.
+
+### 6. Memory Pt 8 — integrity checks (commit 9e9ef91)
+Pure Python+SQL, no LLM.
+| Method | What |
+|--------|------|
+| `AutoCleanup.integrity_report(conn)` | Finds untagged active facts, broken relation links, unresolved contradictions (both `contradicts` facts still active), expired `valid_until`. Report only — no silent mutation. |
+| `AutoCleanup.prune_broken_relations(conn)` | The one safe auto-fix: deletes dangling edges. |
+| `MemoryManager.run_integrity_report()` | Runtime entry point (read-only). |
+Files: `jarvis/memory/auto_cleanup.py`, `jarvis/memory/memory_manager.py`, `tests/memory/test_cleanup.py`.
+
+### 7. Auto-critic (self-evaluation) — Layer 1: foundation (schema v37)
+OPT-IN, OFF BY DEFAULT. Optional external critic LLM that grades interaction traces.
+Layer 1 is config + trace collection + privacy only (no network, no UI yet).
+| File | Change |
+|------|--------|
+| `jarvis/core/config.py` | New `SelfEvaluationConfig` (enabled=False, provider, api_key [DPAPI-encrypted], api_model, api_base_url, interval_hours, max_traces_per_run, save_insights_to_memory=False). Schema bumped 36→37. `api_key` added to `_SECRET_FIELD_PATHS`. |
+| `jarvis/core/migrations.py` | `_migrate_v36_to_v37` + registered. |
+| `jarvis/memory/self_evaluation.py` | NEW. `InteractionTrace`/`TraceStep`, `build_trace()`, `strip_secrets()`/`strip_secret_args()` — redacts keys/passwords/logins/tokens before anything leaves the machine. Normal RU/EN speech untouched. |
+| `tests/memory/test_self_evaluation.py` | NEW. 18 tests. |
+**Design decisions (user-confirmed):** (1) report-only, user chooses whether to save
+insights to memory; (2) full traces minus secrets; (3) built in layers.
+**Still TODO (next layers):** Layer 2 — background task + API send + report; Layer 3 — Settings UI tab (toggle, key, provider, interval).
+
+---
+
+### ⚠️ MANUAL TESTING NEEDED AT HOME (real Ollama + models + mic)
+The automated suite can't cover these — verify by hand on the main PC:
+
+1. **Russian STT (fix #2) — HIGHEST PRIORITY.** Speak several RU and UK phrases to Jarvis.
+   It should act on them instead of replying "не понял / повторите". If still over-cautious,
+   lower `stt.confidence_proceed` in Settings, or report back the `confidence` /
+   `detected_language` / `action` values from `%APPDATA%\Jarvis\logs\jarvis.log`.
+2. **Self-learning (fix #3).** Run a few snap commands ("открой хром", "громче"), then check
+   `%APPDATA%\Jarvis\tool_examples.json` and `usage_stats.json` are being populated.
+   Confirm a personal alias is learned (say "открой браузер" → chrome, then check it maps).
+3. **Hotkey empty-combo (fix #1).** Trigger `send_hotkey` with an empty combo — should refuse
+   politely, not fire a stray keystroke.
+4. **Memory metadata/supersede (Pt 1 & 4).** On first launch the DB auto-migrates
+   (`memory.db`): new columns + `fact_history` table. Verify Jarvis still starts and recalls
+   facts. Try a correction flow if wired, and confirm superseded facts don't resurface.
+5. **Memory DB migration safety.** Back up `%APPDATA%\Jarvis\memory\memory.db` before first
+   run at home, just in case — the ALTER migrations are additive and tested, but your home DB
+   has real data this work PC doesn't.
+6. **Config migration v37.** First launch rewrites `config.json` to schema 37 (a `.bak` is
+   written automatically). Confirm existing settings survive and the new `self_evaluation`
+   section appears (disabled).
+7. **Auto-critic:** nothing to test yet at runtime — Layer 1 has no UI/network. Do NOT expect
+   a Settings toggle until Layer 3.
+
 ## 2026-10-15 — Security: 4-layer defense + crypto vault + encrypted storage (schema v31)
 
 ### Summary
