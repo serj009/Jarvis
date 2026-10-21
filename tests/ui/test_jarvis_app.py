@@ -274,6 +274,10 @@ def test_start_builds_the_confirmer_before_booting_the_audio_stack():
         patch.object(JarvisApp, "_build_confirmer", rec("build_confirmer")),
         patch.object(JarvisApp, "_boot_audio_stack", rec("boot_audio_stack")),
         patch.object(JarvisApp, "_build_ui", rec("build_ui")),
+        # Step 15 runs after _build_ui and reads self.cfg; _load_config is
+        # stubbed here so cfg is never set. Stub the greeting too -- this
+        # test asserts build-phase ordering, not the first-run greeting.
+        patch.object(JarvisApp, "_maybe_first_run_greeting", rec("first_run_greeting")),
         patch("jarvis.app.ensure_system_tray_available", return_value=True),
         patch("jarvis.app._wire_event_logging"),
     ):
