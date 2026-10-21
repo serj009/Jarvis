@@ -15,8 +15,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from jarvis.tools.local.file_manager import (
+    ArchiveArgs,
+    ArchiveTool,
+    CreateFileArgs,
+    CreateFileTool,
     FileManagerArgs,
     FileManagerTool,
+    _parse_age,
+    _parse_size,
 )
 from jarvis.tools.sandbox import PathValidator
 from tests._typing import output_text
@@ -674,3 +680,246 @@ async def test_open_last_download_empty(tmp_path: Path):
         )
     assert not result.success
     assert "empty" in (result.error or "").lower()
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Gap 1: find filters (extension / size / age)
+# ═══════════════════════════════════════════════════════════════════
+
+def test_parse_size_variants():
+    assert _parse_size("10MB") == 10 * 1024 ** 2
+    assert _parse_size("1.5 gb") == int(1.5 * 1024 ** 3)
+    assert _parse_size("500kb") == 500 * 1024
+    assert _parse_size("") is None
+    assert _parse_size("huge") is None
+
+
+def test_parse_age_variants():
+    from datetime import timedelta
+    assert _parse_age("3d") == timedelta(days=3)
+    assert _parse_age("1w") == timedelta(weeks=1)
+    assert _parse_age("2m") == timedelta(days=60)
+    assert _parse_age("") is None
+    assert _parse_age("soon") is None
+
+
+async def test_find_filters_by_extension(tmp_path: Path):
+    (tmp_path / "a.pdf").write_text("x")
+    (tmp_path / "b.pdf").write_text("x")
+    (tmp_path / "c.txt").write_text("x")
+    result = await _tool(tmp_path).execute(
+        FileManagerArgs(action="find", path="", extension=".pdf", search_dir=str(tmp_path))
+    )
+    assert result.success
+    out = output_text(result)
+    assert "a.pdf" in out or "b.pdf" in out
+    assert "c.txt" not in out
+
+
+async def test_find_extension_without_leading_dot(tmp_path: Path):
+    (tmp_path / "x.py").write_text("x")
+    (tmp_path / "y.md").write_text("x")
+    result = await _tool(tmp_path).execute(
+        FileManagerArgs(action="find", path="", extension="py", search_dir=str(tmp_path))
+    )
+    assert result.success
+    assert "x.py" in output_text(result)
+    assert "y.md" not in output_text(result)
+
+
+async def test_find_filters_by_min_size(tmp_path: Path):
+    (tmp_path / "small.bin").write_bytes(b"\x00" * 100)
+    (tmp_path / "big.bin").write_bytes(b"\x00" * (2 * 1024 * 1024))
+    result = await _tool(tmp_path).execute(
+        FileManagerArgs(action="find", path="", min_size="1MB", search_dir=str(tmp_path))
+    )
+    assert result.success
+    assert "big.bin" in output_text(result)
+    assert "small.bin" not in output_text(result)
+
+
+async def test_find_filters_by_max_size(tmp_path: Path):
+    (tmp_path / "small.bin").write_bytes(b"\x00" * 100)
+    (tmp_path / "big.bin").write_bytes(b"\x00" * (2 * 1024 * 1024))
+    result = await _tool(tmp_path).execute(
+        FileManagerArgs(action="find", path="", max_size="1MB", search_dir=str(tmp_path))
+    )
+    assert result.success
+    assert "small.bin" in output_text(result)
+    assert "big.bin" not in output_text(result)
+
+
+async def test_find_filters_by_age(tmp_path: Path):
+    import os as _os
+    import time as _time
+    old = tmp_path / "old.log"
+    new = tmp_path / "new.log"
+    old.write_text("x")
+    new.write_text("x")
+    # Age the old file ~40 days back.
+    forty_days = _time.time() - 40 * 86400
+    _os.utime(old, (forty_days, forty_days))
+    result = await _tool(tmp_path).execute(
+        FileManagerArgs(action="find", path="", newer_than="1w", search_dir=str(tmp_path))
+    )
+    assert result.success
+    assert "new.log" in output_text(result)
+    assert "old.log" not in output_text(result)
+
+
+async def test_find_combined_filters(tmp_path: Path):
+    good = tmp_path / "match.pdf"
+    good.write_bytes(b"\x00" * (2 * 1024 * 1024))
+    (tmp_path / "toosmall.pdf").write_bytes(b"\x00" * 100)
+    (tmp_path / "wrong.txt").write_bytes(b"\x00" * (2 * 1024 * 1024))
+    result = await _tool(tmp_path).execute(
+        FileManagerArgs(
+            action="find", path="", extension=".pdf",
+            min_size="1MB", search_dir=str(tmp_path),
+        )
+    )
+    assert result.success
+    out = output_text(result)
+    assert "match.pdf" in out
+    assert "toosmall.pdf" not in out
+    assert "wrong.txt" not in out
+
+
+def test_filtered_find_voice_patterns_route():
+    """Filtered-find patterns (priority 290) must win over generic find (300)."""
+    def match(phrase):
+        for vp in sorted(FileManagerTool.voice_patterns, key=lambda p: p.priority):
+            m = re.match(vp.regex, phrase.strip().lower())
+            if m:
+                return vp.args(m)
+        return None
+
+    a1 = match("find pdfs in downloads")
+    assert a1 and a1["action"] == "find" and a1["extension"] == ".pdf"
+    assert a1["search_dir"] == "downloads"
+
+    a2 = match("find files larger than 100 mb")
+    assert a2 and a2.get("min_size") == "100 mb"
+
+    a3 = match("найди файлы за последнюю неделю")
+    assert a3 and a3.get("newer_than") == "1w"
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Gap 2: CreateFileTool
+# ═══════════════════════════════════════════════════════════════════
+
+def _create_tool(tmp_path):
+    return CreateFileTool(
+        path_validator=PathValidator(allowed_paths=[tmp_path], allow_home_fallback=False)
+    )
+
+
+async def test_create_empty_txt(tmp_path: Path):
+    target = tmp_path / "notes.txt"
+    result = await _create_tool(tmp_path).execute(CreateFileArgs(path=str(target)))
+    assert result.success
+    assert target.exists()
+    assert target.read_text(encoding="utf-8") == ""
+
+
+async def test_create_python_template(tmp_path: Path):
+    target = tmp_path / "utils.py"
+    result = await _create_tool(tmp_path).execute(CreateFileArgs(path=str(target)))
+    assert result.success
+    body = target.read_text(encoding="utf-8")
+    assert "Module: utils" in body
+    assert "coding: utf-8" in body
+
+
+async def test_create_markdown_template(tmp_path: Path):
+    target = tmp_path / "readme.md"
+    result = await _create_tool(tmp_path).execute(CreateFileArgs(path=str(target)))
+    assert result.success
+    assert target.read_text(encoding="utf-8").startswith("# readme")
+
+
+async def test_create_refuses_existing(tmp_path: Path):
+    target = tmp_path / "exists.txt"
+    target.write_text("keep me")
+    result = await _create_tool(tmp_path).execute(CreateFileArgs(path=str(target)))
+    assert not result.success
+    assert "already exists" in (result.error or "").lower()
+    assert target.read_text(encoding="utf-8") == "keep me"  # untouched
+
+
+def test_create_file_voice_patterns_route():
+    def match(phrase):
+        for vp in sorted(CreateFileTool.voice_patterns, key=lambda p: p.priority):
+            m = re.match(vp.regex, phrase.strip().lower())
+            if m:
+                return vp.args(m)
+        return None
+
+    a = match("create a python file called utils")
+    assert a and a["path"].endswith(".py")
+    b = match("create file notes.md")
+    assert b and "notes.md" in b["path"]
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Gap 3: ArchiveTool
+# ═══════════════════════════════════════════════════════════════════
+
+def _archive_tool(tmp_path):
+    return ArchiveTool(
+        path_validator=PathValidator(allowed_paths=[tmp_path], allow_home_fallback=False)
+    )
+
+
+async def test_archive_folder_creates_zip(tmp_path: Path):
+    src = tmp_path / "project"
+    src.mkdir()
+    (src / "main.py").write_text("print('hi')")
+    (src / "readme.md").write_text("# project")
+    result = await _archive_tool(tmp_path).execute(ArchiveArgs(path=str(src)))
+    assert result.success, result.error
+    zips = list(tmp_path.glob("project_*.zip"))
+    assert len(zips) == 1
+    import zipfile
+    with zipfile.ZipFile(zips[0]) as z:
+        names = z.namelist()
+    assert any("main.py" in n for n in names)
+
+
+async def test_archive_custom_destination(tmp_path: Path):
+    src = tmp_path / "data"
+    src.mkdir()
+    (src / "f.txt").write_text("x")
+    out = tmp_path / "backup"
+    result = await _archive_tool(tmp_path).execute(
+        ArchiveArgs(path=str(src), destination=str(out))
+    )
+    assert result.success, result.error
+    assert (tmp_path / "backup.zip").exists()
+
+
+async def test_archive_missing_folder_fails(tmp_path: Path):
+    result = await _archive_tool(tmp_path).execute(
+        ArchiveArgs(path=str(tmp_path / "ghost"))
+    )
+    assert not result.success
+    assert "folder" in (result.error or "").lower()
+
+
+def test_archive_voice_patterns_route():
+    def match(phrase):
+        for vp in sorted(ArchiveTool.voice_patterns, key=lambda p: p.priority):
+            m = re.match(vp.regex, phrase.strip().lower())
+            if m:
+                return vp.args(m)
+        return None
+    assert match("archive the project folder") is not None
+    assert match("запакуй загрузки") is not None
+    assert match("заархівуй папку проекту") is not None
+
+
+def test_new_tools_risk_and_confirmation():
+    # Both are WRITE, non-confirming (creation, no data loss).
+    assert CreateFileTool().requires_confirmation is False
+    assert ArchiveTool().requires_confirmation is False

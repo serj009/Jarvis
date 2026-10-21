@@ -350,6 +350,8 @@ def test_tools_tab_populates_checkboxes_for_phase_4_set(qapp):
         "check_page_changes",
         "clean_temp_files",
         "clear_clipboard_history",
+        "archive",
+        "create_file",
         "clipboard",
         "close_app",
         "close_clipboard_history",

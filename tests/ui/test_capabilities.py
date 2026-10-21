@@ -89,6 +89,8 @@ _UNDOCUMENTED_TOOLS: dict[str, str] = {
     "download_file": "LLM-dispatched file download",
     "duplicate_tab": "Tab management helper, LLM-dispatched",
     "file_manager": "LLM-dispatched file operations (find/open/move/copy/delete)",
+    "create_file": "LLM-dispatched file creation",
+    "archive": "LLM-dispatched folder archiving",
     "dictation": "LLM-dispatched dictation mode toggle",
     "fill_form": "LLM-initiated form fill helper",
     "git_tool": "LLM-dispatched git version control (status/diff/commit/push/pull)",

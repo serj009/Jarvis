@@ -94,7 +94,13 @@ def _local_tool_classes() -> tuple[type, ...]:
         DisableDeepResearchUltraTool,
         EnableDeepResearchUltraTool,
     )
-    from jarvis.tools.local.file_manager import FileManagerTool
+    from jarvis.tools.local.file_manager import (
+        ArchiveTool,
+        CreateFileTool,
+        FileManagerTool,
+        CreateFileTool,
+        ArchiveTool,
+    )
     from jarvis.tools.local.files import ListDirectoryTool
     from jarvis.tools.local.help_tools import OpenHelpTool
     from jarvis.tools.local.git_tool import GitTool
@@ -236,6 +242,8 @@ def _local_tool_classes() -> tuple[type, ...]:
         DisableDeepResearchUltraTool,
         EnableDeepResearchUltraTool,
         FileManagerTool,
+        CreateFileTool,
+        ArchiveTool,
         GitTool,
         ListDirectoryTool,
         OpenHelpTool,
