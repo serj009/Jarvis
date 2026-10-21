@@ -86,6 +86,7 @@ class SettingsWindow(QMainWindow):
         voices_dir: Path | None = None,
         on_test_voice: Callable[[str], None] | None = None,
         integration_registry=None,
+        tool_registry=None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -128,6 +129,7 @@ class SettingsWindow(QMainWindow):
         self.integrations = IntegrationsTab(
             config=config, on_change=_on_change_with_indicator,
             registry=integration_registry,
+            tool_registry=tool_registry,
         )
         self.commands = CommandsTab(config=config, on_change=_on_change_with_indicator)
         self.hotkeys = HotkeysTab(config=config, on_change=_on_change_with_indicator)

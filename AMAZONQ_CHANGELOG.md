@@ -6,6 +6,41 @@
 ---
 
 
+## 2026-10-21 — Integrations framework Layer 3: runtime wiring
+
+### Summary
+Enabled integrations now contribute live, executable tools and feed the
+proactive engine — the framework is end-to-end. Integration capabilities
+reach the model via the ToolRegistry (LLM tool-calling), the same surface
+MCP tools use, registered/unregistered on the fly.
+
+### Design decision
+Integration actions are wired as **ToolRegistry tools**, NOT router voice
+patterns. The pattern table is assembled once at construction and is
+first-match-wins by priority; rebuilding it live is risky. The registry
+looks tools up per call and supports register/unregister at runtime — the
+right surface for open-ended online actions (and consistent with MCP).
+
+### Files
+| File | Change |
+|------|--------|
+| `jarvis/integrations/wiring.py` | NEW. `IntegrationToolAdapter` (plugin tool schema → live Tool: JSON-schema→pydantic model, execute→plugin.execute_tool, risk=WRITE). `wire_integration_tools()` syncs the registry to enabled plugins (idempotent, never clobbers an existing local/MCP tool name, unregisters on disable). `collect_integration_events()` for proactive data. |
+| `jarvis/ui/settings/tabs/integrations.py` | Toggling an integration now live-syncs the tool registry (appears/disappears without restart). Accepts an optional `tool_registry`. |
+| `jarvis/ui/settings/main_window.py` | Threads `tool_registry` → IntegrationsTab. |
+| `jarvis/app.py` | Startup: `wire_integration_tools` after setup_local_tools (restores enabled plugins' tools). Passes `tool_registry` + `integration_registry` to SettingsWindow and `_audio_main`. Proactive tick now also runs scenario B (upcoming dates) from `integration_registry.get_all_proactive_data()`. Added `self.registry = None` partial-build default. |
+| `tests/integrations/test_wiring.py` | NEW — ~13 tests (adapter, schema→model, add/remove sync, collision-safety, execute-through-registry, events). |
+
+### ⚠️ MANUAL TESTING NEEDED AT HOME
+1. Enable the Example (Test) integration in Settings → confirm `example_ping`
+   becomes callable (and disappears when you toggle it off) WITHOUT a restart.
+2. Startup with an integration pre-enabled (cfg.integrations.enabled) → its
+   tools register automatically; confirm Jarvis still reaches "ready".
+3. A real plugin returning get_proactive_data() (e.g. a future Calendar) →
+   verify upcoming events surface through the proactive engine.
+
+---
+
+
 ## 2026-10-21 — Integrations framework Layer 2: Settings UI + wiring (+ app.py init fix)
 
 ### Summary

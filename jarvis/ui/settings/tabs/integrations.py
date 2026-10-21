@@ -40,6 +40,7 @@ class IntegrationsTab(QWidget):
         on_change: Callable[[], None],
         registry=None,
         auth=None,
+        tool_registry=None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -61,6 +62,7 @@ class IntegrationsTab(QWidget):
             auth = IntegrationAuth()
         self._registry = registry
         self._auth = auth
+        self._tool_registry = tool_registry
         self._rows: dict[str, dict] = {}
 
         root = QVBoxLayout(self)
@@ -150,6 +152,14 @@ class IntegrationsTab(QWidget):
         else:
             self._registry.disable(plugin.name)
         self._config.integrations.enabled = self._registry.enabled_names
+        # Sync the live tool registry so the plugin's tools appear/disappear
+        # immediately (no restart needed).
+        if self._tool_registry is not None:
+            try:
+                from jarvis.integrations.wiring import wire_integration_tools
+                wire_integration_tools(self._tool_registry, self._registry)
+            except Exception:
+                log.warning("[integrations] live tool sync failed", exc_info=True)
         self._refresh_status(plugin)
         self._persist()
 
