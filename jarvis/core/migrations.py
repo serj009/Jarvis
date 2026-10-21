@@ -806,6 +806,26 @@ def _migrate_v35_to_v36(data: dict) -> dict:
     data["schema_version"] = 36
     return data
 
+
+def _migrate_v36_to_v37(data: dict) -> dict:
+    """Schema v37: optional self-evaluation (auto-critic) settings.
+
+    Adds the ``self_evaluation`` section. Disabled by default — Jarvis
+    stays fully local unless the user opts in and supplies an external
+    critic API key. See SelfEvaluationConfig.
+    """
+    se = data.setdefault("self_evaluation", {})
+    se.setdefault("enabled", False)
+    se.setdefault("provider", "groq")
+    se.setdefault("api_key", "")
+    se.setdefault("api_model", "llama-3.3-70b-versatile")
+    se.setdefault("api_base_url", "")
+    se.setdefault("interval_hours", 24.0)
+    se.setdefault("max_traces_per_run", 20)
+    se.setdefault("save_insights_to_memory", False)
+    data["schema_version"] = 37
+    return data
+
 MIGRATIONS: dict[int, Migration] = {
     1: _migrate_v1_to_v2,
     2: _migrate_v2_to_v3,
@@ -842,6 +862,7 @@ MIGRATIONS: dict[int, Migration] = {
     33: _migrate_v33_to_v34,
     34: _migrate_v34_to_v35,
     35: _migrate_v35_to_v36,
+    36: _migrate_v36_to_v37,
 }
 
 
