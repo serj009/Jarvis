@@ -6,6 +6,43 @@
 ---
 
 
+## 2026-10-21 — Integrations framework Layer 2: Settings UI + wiring (+ app.py init fix)
+
+### Summary
+Online Integrations now have a Settings tab and are wired into the app at
+startup. Also fixed a latent startup bug this layer surfaced.
+
+### Settings tab + wiring
+| File | Change |
+|------|--------|
+| `jarvis/ui/settings/tabs/integrations.py` | NEW "Online Integrations" tab — per-plugin card: toggle, status dot (🔴 disabled / 🟡 enabled / 🟢 connected), masked API-key field + Save, "data goes to {service}" warning. Enable is blocked (with a pip-install hint) when a plugin's required_packages are missing. Builds its own registry/auth if not injected (self-sufficient in tests). |
+| `jarvis/ui/settings/tabs/__init__.py`, `main_window.py` | Registered the tab + an optional `integration_registry` ctor param; 17 sidebar pages. |
+| `jarvis/app.py` | Creates `IntegrationRegistry` (discovers plugins, enabled from cfg.integrations.enabled) and passes it to SettingsWindow. Enable-state persists to config. |
+| `tests/ui/test_integrations_tab.py` (NEW), `tests/integrations/test_framework.py` | Qt-dependent tab tests under tests/ui (offscreen qapp); framework tests stay under tests/integrations. |
+
+### 🐛 Latent startup bug fixed (important for home)
+The Layer-3 proactive work *referenced* `self.proactive_engine` in app.py
+(passed to setup_local_tools and _audio_main) but the block that **creates**
+it had never actually landed in app.py — so a real run would have crashed at
+startup with `AttributeError: 'JarvisApp' has no attribute 'proactive_engine'`.
+Unit tests didn't catch it because `JarvisApp.__init__` isn't exercised end-to-end.
+This layer adds the missing creation of BOTH `proactive_store`/`proactive_engine`
+and `integration_registry` (beside the reminder scheduler, after `_data_root`),
+and gives both a `None` default at the top of `__init__` so the partial-build
+Qt-handler tests (test_jarvis_app.py) stay green — matching the existing
+`self.confirmer = None` convention.
+
+### ⚠️ MANUAL TESTING NEEDED AT HOME
+1. **Startup** — this is the big one: launch Jarvis and confirm it reaches
+   "ready — say hey jarvis" (the missing-proactive_engine crash is fixed, but
+   only a real boot proves the whole __init__ chain).
+2. Settings → Online Integrations: the Example (Test) plugin appears, toggles
+   on/off, state persists across restart (cfg.integrations.enabled).
+3. Proactive engine still starts (log: "proactive engine started").
+
+---
+
+
 ## 2026-10-21 — Mouse control (UI interaction)
 
 ### Summary

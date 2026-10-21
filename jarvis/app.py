@@ -2160,6 +2160,11 @@ class JarvisApp:
 
         self.confirmer: QtToolConfirmer | None = None
 
+        # Optional subsystems — default None so Qt handlers (e.g.
+        # _open_settings) tolerate a partially-built app in tests.
+        self.integration_registry = None
+        self.proactive_engine = None
+
 
 
 
@@ -2946,6 +2951,51 @@ class JarvisApp:
             ),
         )
 
+        # Proactive ("initiative") engine — watches usage patterns and
+        # occasionally speaks up on its own via ProactiveSpeech. Reads
+        # usage_stats, persists its level to config. Loop starts in
+        # _audio_main. (Created here so tools + Settings can reference it.)
+        from jarvis.memory.proactive_engine import (
+            ProactiveEngine,
+            ProactivePatternStore,
+        )
+
+        self.proactive_store = ProactivePatternStore(
+            db_path=_data_root / "proactive_patterns.db"
+        )
+        try:
+            self.proactive_store.open()
+        except Exception:
+            log.warning("proactive store open failed (non-fatal)", exc_info=True)
+
+        def _save_proactive_level() -> None:
+            try:
+                from jarvis.core.config import save_config
+                save_config(self.cfg)
+            except Exception:
+                log.warning("could not persist proactive level", exc_info=True)
+
+        self.proactive_engine = ProactiveEngine(
+            config=self.cfg.proactive,
+            store=self.proactive_store,
+            bus=self.bus,
+            usage_stats=self.usage_stats,
+            on_level_change=_save_proactive_level,
+        )
+
+        # Online-integration registry — discovers plugins, tracks which the
+        # user enabled (cfg.integrations.enabled). OFF by default; nothing
+        # connects until the user opts in via Settings.
+        from jarvis.integrations.registry import IntegrationRegistry
+
+        self.integration_registry = IntegrationRegistry(
+            enabled_names=list(self.cfg.integrations.enabled)
+        )
+        try:
+            self.integration_registry.discover_plugins()
+        except Exception:
+            log.warning("integration discovery failed (non-fatal)", exc_info=True)
+
         self.registry = ToolRegistry(self.cfg.tools)
 
 
@@ -3652,6 +3702,7 @@ class JarvisApp:
 
 
                 on_test_voice=self._on_test_voice,
+                integration_registry=self.integration_registry,
 
 
             )
