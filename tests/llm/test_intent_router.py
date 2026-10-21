@@ -925,6 +925,57 @@ async def test_execute_intent_no_registry_on_tool_yields_fail():
     assert "couldn't" in chunks[0]
 
 
+async def test_execute_intent_fires_on_tool_success_hook():
+    """Snap/one-shot learning: a successful ToolIntent invokes the
+    on_tool_success callback with the tool name and args. This is the
+    hook app._make_router_adapter uses to record pattern-command learning
+    that never reaches the router's own feedback-loop path."""
+    reg = ToolRegistry(ToolsConfig())
+    reg.register(_OkTool(output="done, sir."))
+    recorded: list[tuple[str, dict]] = []
+
+    def hook(tool_name: str, args: dict) -> None:
+        recorded.append((tool_name, args))
+
+    await _collect_strings(
+        execute_intent(ToolIntent("ok_tool", {"x": 1}), reg, hook)
+    )
+    assert recorded == [("ok_tool", {"x": 1})]
+
+
+async def test_execute_intent_does_not_fire_hook_on_tool_failure():
+    """Learning must record successes only. A failed tool call must not
+    invoke the hook, or the stores would fill with calls that did nothing."""
+    reg = ToolRegistry(ToolsConfig())
+    reg.register(_FailTool(error="nope"))
+    recorded: list[tuple[str, dict]] = []
+
+    await _collect_strings(
+        execute_intent(
+            ToolIntent("fail_tool", {}),
+            reg,
+            lambda name, args: recorded.append((name, args)),
+        )
+    )
+    assert recorded == []
+
+
+async def test_execute_intent_hook_failure_is_non_fatal():
+    """A raising hook must never break the speak stream -- learning is
+    best-effort and must not take the voice pipeline down with it."""
+    reg = ToolRegistry(ToolsConfig())
+    reg.register(_OkTool(output="done, sir."))
+
+    def boom(tool_name: str, args: dict) -> None:
+        raise RuntimeError("store on fire")
+
+    chunks = await _collect_strings(
+        execute_intent(ToolIntent("ok_tool", {}), reg, boom)
+    )
+    # Output still spoken despite the hook raising.
+    assert any("done" in c.lower() for c in chunks)
+
+
 async def test_execute_intent_compound_recurses_across_children():
     reg = ToolRegistry(ToolsConfig())
     reg.register(_OkTool(output="part two."))

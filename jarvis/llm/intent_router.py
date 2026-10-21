@@ -1287,7 +1287,9 @@ def _result_for_speech(result: ToolResult) -> str:
 
 
 async def execute_intent(
-    intent: Intent, registry: ToolRegistry | None
+    intent: Intent,
+    registry: ToolRegistry | None,
+    on_tool_success: Callable[[str, dict], None] | None = None,
 ) -> AsyncIterator[str]:
     """Convert one Intent into spoken text chunks.
 
@@ -1319,6 +1321,18 @@ async def execute_intent(
             return
         result = await registry.execute(intent.tool_name, intent.args)
         if result.success:
+            # Learning hook for callers that execute tools outside the
+            # router's feedback loop (pattern/snap commands and one-shot
+            # mode). Guarded and best-effort: learning must never break
+            # speech. No-op when the caller passes nothing.
+            if on_tool_success is not None:
+                try:
+                    on_tool_success(intent.tool_name, intent.args)
+                except Exception:
+                    log.warning(
+                        "execute_intent: on_tool_success hook failed",
+                        exc_info=True,
+                    )
             if isinstance(result.output, str) and result.output:
                 yield _ensure_sentence_terminator(
                     _scrub_for_speech(result.output)
@@ -1336,6 +1350,6 @@ async def execute_intent(
         return
     if isinstance(intent, CompoundIntent):
         for sub in intent.intents:
-            async for chunk in execute_intent(sub, registry):
+            async for chunk in execute_intent(sub, registry, on_tool_success):
                 yield chunk
         return
