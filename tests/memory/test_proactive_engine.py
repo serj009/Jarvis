@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from types import SimpleNamespace
 
 import pytest
@@ -503,3 +505,85 @@ async def test_run_loop_ticks_then_stops(store):
     finally:
         mod.asyncio.sleep = orig
     assert len(ticks) >= 2
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Layer 3: voice tools
+# ═══════════════════════════════════════════════════════════════════
+
+from jarvis.tools.local.proactive_tools import (
+    DismissProactiveArgs,
+    DismissProactiveTool,
+    EmptyProactiveArgs,
+    ProactiveStatusTool,
+    SetInitiativeArgs,
+    SetInitiativeLevelTool,
+)
+
+
+class TestProactiveTools:
+    async def test_set_initiative_up(self, store):
+        eng, _ = _engine(store, initiative_level="medium")
+        tool = SetInitiativeLevelTool(engine=eng)
+        r = await tool.execute(SetInitiativeArgs(direction="up"))
+        assert r.success
+        assert eng.level.value == "high"
+
+    async def test_set_initiative_down(self, store):
+        eng, _ = _engine(store, initiative_level="high")
+        tool = SetInitiativeLevelTool(engine=eng)
+        r = await tool.execute(SetInitiativeArgs(direction="down"))
+        assert r.success
+        assert eng.level.value == "medium"
+
+    async def test_set_initiative_silent(self, store):
+        eng, _ = _engine(store, initiative_level="high")
+        tool = SetInitiativeLevelTool(engine=eng)
+        r = await tool.execute(SetInitiativeArgs(direction="silent"))
+        assert r.success
+        assert eng.level.value == "silent"
+
+    async def test_set_initiative_no_engine(self):
+        tool = SetInitiativeLevelTool(engine=None)
+        r = await tool.execute(SetInitiativeArgs(direction="up"))
+        assert not r.success
+
+    async def test_status_reports(self, store):
+        eng, _ = _engine(store, initiative_level="low")
+        r = await ProactiveStatusTool(engine=eng).execute(EmptyProactiveArgs())
+        assert r.success and "low" in r.output.lower()
+
+    async def test_dismiss_now(self, store):
+        eng, _ = _engine(store)
+        r = await DismissProactiveTool(engine=eng).execute(DismissProactiveArgs(scope="now"))
+        assert r.success
+        assert eng.dismissed_count == 1
+
+    async def test_dismiss_forever(self, store):
+        eng, _ = _engine(store)
+        r = await DismissProactiveTool(engine=eng).execute(
+            DismissProactiveArgs(scope="forever")
+        )
+        assert r.success and "again" in r.output.lower()
+
+    def test_voice_patterns_route(self):
+        def match(tool_cls, phrase):
+            for vp in sorted(tool_cls.voice_patterns, key=lambda p: p.priority):
+                m = re.match(vp.regex, phrase.strip().lower())
+                if m:
+                    return vp.args(m)
+            return None
+
+        assert match(SetInitiativeLevelTool, "будь активнее") == {"direction": "up"}
+        assert match(SetInitiativeLevelTool, "не мешай") == {"direction": "down"}
+        assert match(SetInitiativeLevelTool, "be quiet") == {"direction": "silent"}
+        assert match(DismissProactiveTool, "not now") == {"scope": "now"}
+        assert match(DismissProactiveTool, "don't remind me about this") == {"scope": "forever"}
+        assert match(ProactiveStatusTool, "какой уровень инициативы") == {}
+
+
+def test_proactive_config_tab_importable():
+    """The Settings tab imports and the config section it reads exists."""
+    from jarvis.core.config import JarvisConfig
+    cfg = JarvisConfig()
+    assert cfg.proactive.initiative_level in {"high", "medium", "low", "silent"}
