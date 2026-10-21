@@ -6,6 +6,89 @@
 ---
 
 
+## 2026-10-21 — Google suite + Telegram: 5 online integration plugins
+
+### Summary
+Built the first five real plugins on top of the integrations framework:
+**Google Calendar, Google Contacts, Gmail, Google Drive, and Telegram**.
+All OFF by default, discoverable with their SDKs absent, enable-gated on
+`required_packages`. The four Google plugins share **one** OAuth consent
+(token stored under the `"google"` key), so authorising one authorises the
+suite. Telegram uses a simple bot-token `api_key` instead of OAuth.
+
+### Design decisions
+- **Shared Google OAuth:** `_google_common.GoogleIntegrationMixin` holds all
+  connect/disconnect/health against the shared `"google"` token bucket and a
+  lazy `_service()` builder. Leading-underscore module → skipped by plugin
+  discovery. One consent covers calendar + contacts + gmail + drive.
+- **Lazy SDK imports everywhere:** no Google/Telegram import at module top
+  level — discovery imports every plugin module and must succeed package-free.
+  Metadata, tool schemas, and voice patterns resolve with zero deps; the SDK
+  is only touched once the user actually connects.
+- **Telegram = api_key, not OAuth:** bot token stored via
+  `IntegrationAuth.store_api_key`; `send` takes an explicit `chat_id`, `read`
+  uses `getUpdates` so no chat id needs storing.
+- **Gmail body extraction** prefers a `text/plain` part anywhere in the MIME
+  tree, only falling back to other body data if none exists (a multipart
+  message lists `text/html` before `text/plain` — a naive first-match returns
+  the HTML; the two-pass `_find_plain`/`_find_any` split fixes that).
+
+### Files
+| File | Change |
+|------|--------|
+| `jarvis/integrations/plugins/_google_common.py` | NEW. `GoogleIntegrationMixin` — shared OAuth token (`"google"` key), connect/disconnect/health_check, lazy `_service(api, version)` builder. `GOOGLE_REQUIRED_PACKAGES`. Underscore prefix → not discovered as a plugin. |
+| `jarvis/integrations/plugins/google_calendar.py` | NEW. `GoogleCalendarIntegration` (name `google_calendar`). Tools: calendar_today/week/create/delete. `get_proactive_data` → next 7 days of events. EN/RU/UK patterns. |
+| `jarvis/integrations/plugins/google_contacts.py` | NEW. `GoogleContactsIntegration` (name `google_contacts`). Tools: contacts_find/birthdays. `get_proactive_data` → birthdays within 14 days. `_next_occurrence` date helper (Feb-29 clamp). |
+| `jarvis/integrations/plugins/gmail.py` | NEW. `GmailIntegration` (name `gmail`). Tools: gmail_inbox/read/send/search. `get_proactive_data` → unread count. `_headers`/`_extract_body`/`_find_plain`/`_find_any` pure helpers. |
+| `jarvis/integrations/plugins/google_drive.py` | NEW. `GoogleDriveIntegration` (name `google_drive`). Tools: drive_list/search/upload/download (lazy `MediaFileUpload`/`MediaIoBaseDownload`). |
+| `jarvis/integrations/plugins/telegram_bot.py` | NEW. `TelegramIntegration` (name `telegram`, auth_type `api_key`, `required_packages=["python-telegram-bot"]`). Tools: telegram_send/read/send_file. Lazy `_make_bot()`. |
+| `tests/integrations/test_google_plugins.py` | Layer A — calendar + contacts (discovery, metadata, patterns, dep-gate, shared-token, guards, `_next_occurrence`). |
+| `tests/integrations/test_google_plugins_b.py` | NEW — Layer B gmail + drive (same matrix + `_headers`/`_extract_body` incl. multipart prefers text/plain). |
+| `tests/integrations/test_telegram_plugin.py` | NEW — Layer C telegram (discovery, metadata, patterns, dep-gate, api_key connect, guards). |
+
+### Tool/voice surface added
+- **Google Calendar:** `calendar_today`, `calendar_week`, `calendar_create`, `calendar_delete`
+- **Google Contacts:** `contacts_find`, `contacts_birthdays`
+- **Gmail:** `gmail_inbox`, `gmail_read`, `gmail_send`, `gmail_search`
+- **Google Drive:** `drive_list`, `drive_search`, `drive_upload`, `drive_download`
+- **Telegram:** `telegram_send`, `telegram_read`, `telegram_send_file`
+- All with EN/RU/UK voice patterns; "send telegram file …" (330) out-prioritises "send telegram …" (320) so first-match-wins picks `telegram_send_file` correctly.
+
+### Required packages (only needed to actually connect, at home)
+- **Google (all 4):** `pip install google-api-python-client google-auth-oauthlib`
+- **Telegram:** `pip install python-telegram-bot`
+- Without them the plugins are still visible in Settings but enabling is blocked by the dependency-gate (`missing_packages()`) — by design.
+
+### Tests
+`tests/integrations/`: 83 passed, 1 skipped. Full split run: 4866 passed
+(non-ui) + 364 passed (ui) = **5230 passed, 0 failed**.
+
+### ⚠️ MANUAL TESTING NEEDED AT HOME
+1. **Install the SDKs** (commands above), then in Settings → Online
+   Integrations confirm the dependency-gate releases (enable no longer blocked)
+   for each plugin; before installing, confirm enable IS blocked with the
+   pip-install hint.
+2. **Google one-consent:** connect any one Google plugin (OAuth flow via the
+   localhost callback) → confirm the other three go 🟢 connected without a
+   second consent (shared `"google"` token).
+3. **Gmail:** `check my mail` (inbox), `read mail from …`, `search mail for …`,
+   then a real `gmail_send` to yourself — confirm plain-text body shows cleanly
+   for a multipart/HTML email (the `_extract_body` fix).
+4. **Calendar:** `what's on my calendar today` / `this week`, create + delete a
+   test event; confirm next-7-days events surface via the proactive engine.
+5. **Contacts:** `find contact …`, `whose birthday is coming`; confirm 14-day
+   birthdays reach the proactive engine.
+6. **Drive:** `list my drive files`, `search drive for …`, upload a local file,
+   download it back.
+7. **Telegram:** add the bot token (api_key) in Settings → `send telegram …`,
+   `read telegram`, `send telegram file …`. Verify the bot-token field is
+   masked and persists (DPAPI EncryptedJsonStore).
+8. **Offline principle intact:** with nothing enabled, confirm Jarvis is
+   exactly as offline as before (no network, no plugin tools in the registry).
+
+---
+
+
 ## 2026-10-21 — Integrations framework Layer 3: runtime wiring
 
 ### Summary
