@@ -69,8 +69,13 @@ _DANGEROUS_HOTKEYS: frozenset[str] = frozenset({
 # ---------------------------------------------------------------------------
 
 def _parse_hotkey(combo_str: str) -> list[str]:
-    """Parse a hotkey string like 'ctrl+c' into ['ctrl', 'c']."""
-    parts = combo_str.lower().replace(" ", "").split("+")
+    """Parse a hotkey string like 'ctrl+c' into ['ctrl', 'c'].
+
+    Empty tokens are dropped, so an empty or whitespace-only combo
+    (and trailing/leading '+') yields an empty list rather than ['']
+    -- the caller relies on `if not keys` to reject it.
+    """
+    parts = [p for p in combo_str.lower().replace(" ", "").split("+") if p]
     key_map = {
         "ctrl": "ctrl",
         "control": "ctrl",

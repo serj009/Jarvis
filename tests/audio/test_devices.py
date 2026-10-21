@@ -24,7 +24,19 @@ def _device(name: str, max_input_channels: int = 2, hostapi: int = 0) -> dict:
 
 @pytest.fixture
 def patched_sd():
-    with patch("jarvis.audio.devices.sd") as sd_mock:
+    # Stub sounddevice *and* the smart detector. The detector lives in
+    # device_detector.py with its own `sd` import that this fixture does
+    # not reach, so without stubbing it the "no real audio hardware is
+    # touched" promise above is broken: detect_best_input() scans the host
+    # and returns a live device index. Returning None here routes selection
+    # through the ReSpeaker / system-default fallback these tests target.
+    with (
+        patch("jarvis.audio.devices.sd") as sd_mock,
+        patch(
+            "jarvis.audio.device_detector.detect_best_input",
+            return_value=None,
+        ),
+    ):
         sd_mock.RawInputStream = MagicMock()
         yield sd_mock
 

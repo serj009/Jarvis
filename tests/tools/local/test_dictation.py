@@ -349,9 +349,7 @@ class TestStopPattern:
 
 class TestSyntax:
     def test_ast_parse(self):
-        src = Path(
-            r"C:\Users\prserhii\.quickwork\profiles\enterprise-0bd034745968"
-            r"\sessions\branch-046133b9\workspace\jarvis_repo\Jarvis-amazonq"
-            r"\jarvis\tools\local\dictation.py"
-        )
+        import jarvis.tools.local.dictation as _dictation_mod
+
+        src = Path(_dictation_mod.__file__)
         ast.parse(src.read_text(encoding="utf-8"), filename=str(src))

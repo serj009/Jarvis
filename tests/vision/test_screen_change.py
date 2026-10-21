@@ -7,9 +7,7 @@ the detector's correctness depends on real pixel arithmetic.
 
 from __future__ import annotations
 
-import sys
-import types
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -50,11 +48,15 @@ def _half_changed_image(
 
 
 def _patch_grab(image: Image.Image):
-    """Context manager that patches ``PIL.ImageGrab.grab`` to return *image*."""
-    fake_grab = MagicMock(return_value=image)
-    fake_ig = types.ModuleType("PIL.ImageGrab")
-    fake_ig.__dict__["grab"] = fake_grab
-    return patch.dict(sys.modules, {"PIL.ImageGrab": fake_ig})
+    """Patch ``PIL.ImageGrab.grab`` to return *image* -- no real capture.
+
+    The detector does ``from PIL import ImageGrab`` lazily and then calls
+    ``ImageGrab.grab(...)``. Patching the module attribute that call
+    resolves to is what actually intercepts the capture; injecting a fake
+    into ``sys.modules`` does not, because PIL.ImageGrab is already bound as
+    an attribute on the PIL package by the time the test runs.
+    """
+    return patch("PIL.ImageGrab.grab", return_value=image)
 
 
 # --- tests ------------------------------------------------------------
@@ -130,11 +132,8 @@ def test_region_crop():
     det = ScreenChangeDetector(threshold=0.02, region=region)
 
     img = _solid_image(128, size=(400, 300))
-    fake_grab = MagicMock(return_value=img)
-    fake_ig = types.ModuleType("PIL.ImageGrab")
-    fake_ig.__dict__["grab"] = fake_grab
 
-    with patch.dict(sys.modules, {"PIL.ImageGrab": fake_ig}):
+    with patch("PIL.ImageGrab.grab", return_value=img) as fake_grab:
         captured = det.capture()
 
     fake_grab.assert_called_once_with(bbox=(100, 200, 500, 500))

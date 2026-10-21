@@ -271,11 +271,9 @@ def test_tool_metadata():
 
 def test_ast_parse():
     """The converter module must parse cleanly under ast.parse."""
-    src = Path(
-        "C:/Users/prserhii/.quickwork/profiles/enterprise-0bd034745968"
-        "/sessions/branch-046133b9/workspace/jarvis_repo"
-        "/Jarvis-amazonq/jarvis/tools/local/converter.py"
-    ).read_text(encoding="utf-8")
+    import jarvis.tools.local.converter as _converter_mod
+
+    src = Path(_converter_mod.__file__).read_text(encoding="utf-8")
     tree = ast.parse(src)
     # no exec() or eval() calls
     for node in ast.walk(tree):
