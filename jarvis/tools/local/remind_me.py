@@ -101,6 +101,21 @@ def parse_clock_time(clock: str) -> tuple[int, int] | None:
     return None
 
 
+def _norm_time(clock: str | None) -> str:
+    """Normalise an optional spoken time to HH:MM; default 09:00 when absent."""
+    if not clock:
+        return "09:00"
+    c = clock.replace(".", ":").strip()
+    if ":" in c:
+        h, _, m = c.partition(":")
+    else:
+        h, m = c, "00"
+    try:
+        return f"{int(h):02d}:{int(m):02d}"
+    except ValueError:
+        return "09:00"
+
+
 def resolve_absolute_time(hour: int, minute: int) -> datetime:
     """Today at H:M (local), or tomorrow if that time has already passed."""
     now = datetime.now(tz=timezone.utc)
@@ -116,6 +131,68 @@ def resolve_tomorrow_time(hour: int, minute: int) -> datetime:
     local_now = datetime.now(tz=timezone.utc).astimezone()
     target = local_now.replace(hour=hour, minute=minute, second=0, microsecond=0)
     target += timedelta(days=1)
+    return target.astimezone(timezone.utc)
+
+
+# Month name -> number (EN / RU / UK), lowercased. RU/UK use the genitive
+# forms spoken in dates ("15 ноября", "15 листопада").
+_MONTHS: dict[str, int] = {
+    # EN
+    "january": 1, "february": 2, "march": 3, "april": 4, "may": 5,
+    "june": 6, "july": 7, "august": 8, "september": 9, "october": 10,
+    "november": 11, "december": 12,
+    "jan": 1, "feb": 2, "mar": 3, "apr": 4, "jun": 6, "jul": 7,
+    "aug": 8, "sep": 9, "sept": 9, "oct": 10, "nov": 11, "dec": 12,
+    # RU (genitive)
+    "января": 1, "февраля": 2, "марта": 3, "апреля": 4, "мая": 5,
+    "июня": 6, "июля": 7, "августа": 8, "сентября": 9, "октября": 10,
+    "ноября": 11, "декабря": 12,
+    # UK (genitive)
+    "січня": 1, "лютого": 2, "березня": 3, "квітня": 4, "травня": 5,
+    "червня": 6, "липня": 7, "серпня": 8, "вересня": 9, "жовтня": 10,
+    "листопада": 11, "грудня": 12,
+}
+
+
+def parse_date(text: str) -> tuple[int, int] | None:
+    """Parse a spoken date into (month, day). None if unparseable.
+
+    Accepts: 'YYYY-MM-DD', '15 ноября', 'november 15', '15 november'.
+    """
+    t = text.strip().lower()
+    # ISO: 2026-11-15
+    m = re.match(r"^(\d{4})-(\d{1,2})-(\d{1,2})$", t)
+    if m:
+        month, day = int(m.group(2)), int(m.group(3))
+        return (month, day) if 1 <= month <= 12 and 1 <= day <= 31 else None
+    # "15 ноября" / "15 november"
+    m = re.match(r"^(\d{1,2})\s+([a-zа-яіїєґ]+)$", t)
+    if m and m.group(2) in _MONTHS:
+        return (_MONTHS[m.group(2)], int(m.group(1)))
+    # "november 15" / "ноября 15"
+    m = re.match(r"^([a-zа-яіїєґ]+)\s+(\d{1,2})$", t)
+    if m and m.group(1) in _MONTHS:
+        return (_MONTHS[m.group(1)], int(m.group(2)))
+    return None
+
+
+def resolve_date_time(month: int, day: int, hour: int, minute: int) -> datetime:
+    """Resolve a (month, day, H:M) to the next such moment, this year or next.
+
+    If the date/time has already passed this year, roll to next year.
+    """
+    local_now = datetime.now(tz=timezone.utc).astimezone()
+    year = local_now.year
+    try:
+        target = local_now.replace(
+            year=year, month=month, day=day,
+            hour=hour, minute=minute, second=0, microsecond=0,
+        )
+    except ValueError:
+        # Impossible date (e.g. Feb 30) — bail to None via caller guard.
+        raise
+    if target <= local_now:
+        target = target.replace(year=year + 1)
     return target.astimezone(timezone.utc)
 
 
@@ -138,10 +215,42 @@ class RemindMeAtArgs(BaseModel):
         default=False,
         description="If True, schedule for tomorrow instead of today.",
     )
+    date: str = Field(
+        default="",
+        description=(
+            "Optional specific date: 'YYYY-MM-DD', '15 november', "
+            "'15 ноября'. Empty = today/tomorrow per the tomorrow flag."
+        ),
+    )
 
 
 class DeleteReminderArgs(BaseModel):
     query: str = Field(description="Text fragment or id to match.")
+
+
+class RecurringReminderArgs(BaseModel):
+    text: str = Field(description="What to remind about.")
+    recurrence: str = Field(
+        description="One of: daily, weekdays, weekly, monthly.",
+    )
+    time: str = Field(description="Time of day in HH:MM (24 h).")
+
+
+class SnoozeReminderArgs(BaseModel):
+    minutes: int = Field(
+        default=10, ge=1, le=1440,
+        description="Snooze delay in minutes (default 10).",
+    )
+    time: str = Field(
+        default="",
+        description="Optional absolute HH:MM to snooze until instead of a delay.",
+    )
+
+
+class EditReminderArgs(BaseModel):
+    query: str = Field(description="Text fragment or id of the reminder to edit.")
+    new_text: str = Field(default="", description="New reminder text (optional).")
+    new_time: str = Field(default="", description="New time HH:MM (optional).")
 
 
 # ---------------------------------------------------------------------------
@@ -288,6 +397,51 @@ class RemindMeAtTool:
     args_schema = RemindMeAtArgs
     requires_confirmation: bool = False
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        # ── specific date (priority 137 — beats generic at/tomorrow) ──
+        # EN: "remind me on november 15 to submit report",
+        #     "remind me on november 15 at 14:00 to submit report"
+        VoicePattern(
+            regex=(
+                r"^remind\s+me\s+on\s+([a-z]+\s+\d{1,2}|\d{1,2}\s+[a-z]+|\d{4}-\d{1,2}-\d{1,2})"
+                r"(?:\s+at\s+(\d{1,2}(?:[:.]\d{2})?))?\s+(?:to\s+)?(.+)$"
+            ),
+            priority=137,
+            args=lambda m: {
+                "date": m.group(1),
+                "time": _norm_time(m.group(2)),
+                "text": m.group(3).strip(),
+                "tomorrow": False,
+            },
+        ),
+        # RU: "напомни 15 ноября сдать отчёт",
+        #     "напомни 15 ноября в 14:00 сдать отчёт"
+        VoicePattern(
+            regex=(
+                r"^напомни\s+(?:мне\s+)?(\d{1,2}\s+[а-яё]+)"
+                r"(?:\s+в\s+(\d{1,2}(?:[:.]\d{2})?))?\s+(.+)$"
+            ),
+            priority=137,
+            args=lambda m: {
+                "date": m.group(1),
+                "time": _norm_time(m.group(2)),
+                "text": m.group(3).strip(),
+                "tomorrow": False,
+            },
+        ),
+        # UK: "нагадай 15 листопада здати звіт"
+        VoicePattern(
+            regex=(
+                r"^нагадай\s+(?:мені\s+)?(\d{1,2}\s+[а-яіїєґ]+)"
+                r"(?:\s+о\s+(\d{1,2}(?:[:.]\d{2})?))?\s+(.+)$"
+            ),
+            priority=137,
+            args=lambda m: {
+                "date": m.group(1),
+                "time": _norm_time(m.group(2)),
+                "text": m.group(3).strip(),
+                "tomorrow": False,
+            },
+        ),
         # EN: "remind me at 15:00 to call mom"
         VoicePattern(
             regex=(
@@ -380,7 +534,22 @@ class RemindMeAtTool:
         hour, minute = parsed
         store = self._get_store()
 
-        if args.tomorrow:
+        if args.date.strip():
+            parsed_date = parse_date(args.date)
+            if parsed_date is None:
+                return ToolResult(
+                    success=False,
+                    error=f"Cannot parse date '{args.date}', sir.",
+                )
+            month, day = parsed_date
+            try:
+                trigger_at = resolve_date_time(month, day, hour, minute)
+            except ValueError:
+                return ToolResult(
+                    success=False,
+                    error=f"'{args.date}' is not a valid date, sir.",
+                )
+        elif args.tomorrow:
             trigger_at = resolve_tomorrow_time(hour, minute)
         else:
             trigger_at = resolve_absolute_time(hour, minute)
@@ -513,3 +682,342 @@ class DeleteReminderTool:
                 f"(id: {deleted.id}), sir."
             ),
         )
+
+
+class RecurringReminderTool:
+    """Set a repeating reminder (daily / weekdays / weekly / monthly)."""
+
+    name: str = "remind_recurring"
+    description: str = (
+        "Set a repeating reminder at a fixed time of day. Recurrence: "
+        "daily, weekdays (Mon–Fri), weekly, or monthly. "
+        "(RU: напоминай каждый день / по будням в HH:MM / "
+        "UK: нагадуй щодня / по буднях о HH:MM)"
+    )
+    args_schema = RecurringReminderArgs
+    requires_confirmation: bool = False
+    voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        # EN: "remind me every day at 9am to stand up"
+        VoicePattern(
+            regex=(
+                r"^remind\s+me\s+(every\s+day|daily|on\s+weekdays|every\s+week"
+                r"|weekly|every\s+month|monthly)\s+(?:at\s+)?"
+                r"(\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm)?)\s+(?:to\s+)?(.+)$"
+            ),
+            priority=136,
+            args=lambda m: {
+                "recurrence": _norm_recurrence(m.group(1)),
+                "time": _norm_ampm(m.group(2)),
+                "text": m.group(3).strip(),
+            },
+        ),
+        # RU: "напоминай каждый день в 9 встать", "напоминай по будням в 8:30 ..."
+        VoicePattern(
+            regex=(
+                r"^напоминай\s+(каждый\s+день|ежедневно|по\s+будням"
+                r"|каждую\s+неделю|еженедельно|каждый\s+месяц|ежемесячно)\s+"
+                r"(?:в\s+)?(\d{1,2}(?:[:.]\d{2})?)\s+(.+)$"
+            ),
+            priority=136,
+            args=lambda m: {
+                "recurrence": _norm_recurrence(m.group(1)),
+                "time": _norm_time(m.group(2)),
+                "text": m.group(3).strip(),
+            },
+        ),
+        # UK: "нагадуй щодня о 9 встати", "нагадуй по буднях о 8:30 ..."
+        VoicePattern(
+            regex=(
+                r"^нагадуй\s+(щодня|щоденно|по\s+буднях|щотижня"
+                r"|кожного\s+тижня|щомісяця|кожного\s+місяця)\s+"
+                r"(?:о\s+)?(\d{1,2}(?:[:.]\d{2})?)\s+(.+)$"
+            ),
+            priority=136,
+            args=lambda m: {
+                "recurrence": _norm_recurrence(m.group(1)),
+                "time": _norm_time(m.group(2)),
+                "text": m.group(3).strip(),
+            },
+        ),
+    )
+
+    def __init__(self, *, store: ReminderStore | None = None) -> None:
+        self._store = store
+
+    def _get_store(self) -> ReminderStore:
+        return self._store or _get_store()
+
+    async def execute(self, args: RecurringReminderArgs) -> ToolResult:
+        recurrence = args.recurrence.strip().lower()
+        if recurrence not in {"daily", "weekdays", "weekly", "monthly"}:
+            return ToolResult(
+                success=False,
+                error=(
+                    f"Unknown recurrence '{args.recurrence}'. Use daily, "
+                    "weekdays, weekly, or monthly, sir."
+                ),
+            )
+        parsed = parse_clock_time(args.time)
+        if parsed is None:
+            return ToolResult(
+                success=False,
+                error=f"Cannot parse time '{args.time}'. Use HH:MM format.",
+            )
+        hour, minute = parsed
+        trigger_at = resolve_absolute_time(hour, minute)
+        # weekdays: if the first occurrence lands on a weekend, roll forward.
+        if recurrence == "weekdays":
+            local = trigger_at.astimezone()
+            while local.weekday() >= 5:
+                local += timedelta(days=1)
+            trigger_at = local.astimezone(timezone.utc)
+
+        store = self._get_store()
+        reminder = store.add(
+            text=args.text,
+            trigger_at=trigger_at,
+            recurrence=recurrence,
+            recurrence_time=f"{hour:02d}:{minute:02d}",
+        )
+        first = trigger_at.astimezone().strftime("%H:%M %d %b")
+        return ToolResult(
+            success=True,
+            output=(
+                f"Recurring reminder set ({recurrence}) at {hour:02d}:{minute:02d}, "
+                f"first on {first}, sir: '{args.text}' (id: {reminder.id})."
+            ),
+        )
+
+
+class SnoozeReminderTool:
+    """Snooze the most recently fired reminder."""
+
+    name: str = "snooze_reminder"
+    description: str = (
+        "Snooze the reminder that just fired — re-fire it after a delay "
+        "(default 10 min) or at a given time. "
+        "(RU: отложи / отложи на 10 минут / отложи до 15:00 / "
+        "UK: відклади / відклади на 10 хвилин)"
+    )
+    args_schema = SnoozeReminderArgs
+    requires_confirmation: bool = False
+    voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        # EN: "snooze until 3pm" / "snooze 10 minutes" / "snooze" / "remind me later"
+        VoicePattern(
+            regex=r"^snooze\s+until\s+(\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm)?)$",
+            priority=135,
+            args=lambda m: {"time": _norm_ampm(m.group(1)), "minutes": 10},
+        ),
+        VoicePattern(
+            regex=r"^snooze\s+(?:for\s+)?(\d+)\s*(?:minutes?|mins?)$",
+            priority=135,
+            args=lambda m: {"minutes": int(m.group(1))},
+        ),
+        VoicePattern(
+            regex=r"^(?:snooze|remind\s+me\s+later)$",
+            priority=136,
+            args=lambda m: {"minutes": 10},
+        ),
+        # RU: "отложи до 15:00" / "отложи на 10 минут" / "отложи" / "напомни позже"
+        VoicePattern(
+            regex=r"^отложи\s+до\s+(\d{1,2}(?:[:.]\d{2})?)$",
+            priority=135,
+            args=lambda m: {"time": _norm_time(m.group(1)), "minutes": 10},
+        ),
+        VoicePattern(
+            regex=r"^отложи\s+(?:на\s+)?(\d+)\s*(?:минут[аыу]?|мин)$",
+            priority=135,
+            args=lambda m: {"minutes": int(m.group(1))},
+        ),
+        VoicePattern(
+            regex=r"^(?:отложи|напомни\s+позже)$",
+            priority=136,
+            args=lambda m: {"minutes": 10},
+        ),
+        # UK: "відклади до 15:00" / "відклади на 10 хвилин" / "відклади"
+        VoicePattern(
+            regex=r"^відклади\s+до\s+(\d{1,2}(?:[:.]\d{2})?)$",
+            priority=135,
+            args=lambda m: {"time": _norm_time(m.group(1)), "minutes": 10},
+        ),
+        VoicePattern(
+            regex=r"^відклади\s+(?:на\s+)?(\d+)\s*(?:хвилин[иу]?|хв)$",
+            priority=135,
+            args=lambda m: {"minutes": int(m.group(1))},
+        ),
+        VoicePattern(
+            regex=r"^(?:відклади|нагадай\s+пізніше)$",
+            priority=136,
+            args=lambda m: {"minutes": 10},
+        ),
+    )
+
+    def __init__(self, *, store: ReminderStore | None = None) -> None:
+        self._store = store
+
+    def _get_store(self) -> ReminderStore:
+        return self._store or _get_store()
+
+    async def execute(self, args: SnoozeReminderArgs) -> ToolResult:
+        store = self._get_store()
+        last = store.last_fired()
+        if last is None:
+            return ToolResult(
+                success=False,
+                error="Nothing to snooze — no reminder has fired, sir.",
+            )
+        if args.time.strip():
+            parsed = parse_clock_time(args.time)
+            if parsed is None:
+                return ToolResult(
+                    success=False,
+                    error=f"Cannot parse time '{args.time}', sir.",
+                )
+            new_trigger = resolve_absolute_time(parsed[0], parsed[1])
+            when = new_trigger.astimezone().strftime("%H:%M")
+            note = f"until {when}"
+        else:
+            new_trigger = datetime.now(tz=timezone.utc) + timedelta(minutes=args.minutes)
+            note = f"for {args.minutes} min"
+        store.update_reminder(last.id, trigger_at=new_trigger, fired=False)
+        return ToolResult(
+            success=True,
+            output=f"Snoozed '{last.text}' {note}, sir.",
+        )
+
+
+class EditReminderTool:
+    """Edit an existing reminder's text and/or time."""
+
+    name: str = "edit_reminder"
+    description: str = (
+        "Change the text or time of an existing reminder without "
+        "recreating it. (RU: перенеси/измени напоминание / "
+        "UK: перенеси/зміни нагадування)"
+    )
+    args_schema = EditReminderArgs
+    requires_confirmation: bool = False
+    voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        # EN: "change my 3pm reminder to 4pm" → handled as reschedule by text match
+        VoicePattern(
+            regex=r"^(?:change|move|reschedule)\s+(?:my\s+)?reminder\s+(.+?)\s+to\s+(\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm)?)$",
+            priority=134,
+            args=lambda m: {"query": m.group(1).strip(), "new_time": _norm_ampm(m.group(2))},
+        ),
+        # RU: "перенеси напоминание <текст> на 16:00"
+        VoicePattern(
+            regex=r"^перенеси\s+напоминание\s+(.+?)\s+на\s+(\d{1,2}(?:[:.]\d{2})?)$",
+            priority=134,
+            args=lambda m: {"query": m.group(1).strip(), "new_time": _norm_time(m.group(2))},
+        ),
+        # RU: "измени напоминание <текст> текст на <new>"
+        VoicePattern(
+            regex=r"^измени\s+напоминание\s+(.+?)\s+текст\s+на\s+(.+)$",
+            priority=134,
+            args=lambda m: {"query": m.group(1).strip(), "new_text": m.group(2).strip()},
+        ),
+        # UK: "перенеси нагадування <текст> на 16:00"
+        VoicePattern(
+            regex=r"^перенеси\s+нагадування\s+(.+?)\s+на\s+(\d{1,2}(?:[:.]\d{2})?)$",
+            priority=134,
+            args=lambda m: {"query": m.group(1).strip(), "new_time": _norm_time(m.group(2))},
+        ),
+        # UK: "зміни нагадування <текст> текст на <new>"
+        VoicePattern(
+            regex=r"^зміни\s+нагадування\s+(.+?)\s+текст\s+на\s+(.+)$",
+            priority=134,
+            args=lambda m: {"query": m.group(1).strip(), "new_text": m.group(2).strip()},
+        ),
+    )
+
+    def __init__(self, *, store: ReminderStore | None = None) -> None:
+        self._store = store
+
+    def _get_store(self) -> ReminderStore:
+        return self._store or _get_store()
+
+    async def execute(self, args: EditReminderArgs) -> ToolResult:
+        store = self._get_store()
+        query = args.query.strip()
+        target = store.get(query)
+        if target is None:
+            matches = store.find_by_text(query)
+            if not matches:
+                return ToolResult(
+                    success=False,
+                    error=f"Reminder not found: no match for '{query}', sir.",
+                )
+            target = matches[0]
+
+        if not args.new_text.strip() and not args.new_time.strip():
+            return ToolResult(
+                success=False,
+                error="Nothing to change — give new text or a new time, sir.",
+            )
+
+        updates: dict = {}
+        if args.new_text.strip():
+            updates["text"] = args.new_text.strip()
+        if args.new_time.strip():
+            parsed = parse_clock_time(args.new_time)
+            if parsed is None:
+                return ToolResult(
+                    success=False,
+                    error=f"Cannot parse time '{args.new_time}', sir.",
+                )
+            new_trigger = resolve_absolute_time(parsed[0], parsed[1])
+            updates["trigger_at"] = new_trigger
+            # Keep recurring reminders' recurrence_time in sync.
+            if target.recurrence:
+                updates["recurrence_time"] = f"{parsed[0]:02d}:{parsed[1]:02d}"
+            # Re-arm a fired reminder when its time moves.
+            updates["fired"] = False
+
+        store.update_reminder(target.id, **updates)
+        return ToolResult(
+            success=True,
+            output=f"Updated reminder '{target.text}' (id: {target.id}), sir.",
+        )
+
+
+def _norm_recurrence(word: str) -> str:
+    """Map a spoken recurrence phrase (EN/RU/UK) to a canonical rule."""
+    w = word.strip().lower()
+    mapping = {
+        "every day": "daily", "daily": "daily",
+        "каждый день": "daily", "ежедневно": "daily",
+        "щодня": "daily", "щоденно": "daily",
+        "on weekdays": "weekdays", "по будням": "weekdays", "по буднях": "weekdays",
+        "every week": "weekly", "weekly": "weekly",
+        "каждую неделю": "weekly", "еженедельно": "weekly",
+        "щотижня": "weekly", "кожного тижня": "weekly",
+        "every month": "monthly", "monthly": "monthly",
+        "каждый месяц": "monthly", "ежемесячно": "monthly",
+        "щомісяця": "monthly", "кожного місяця": "monthly",
+    }
+    return mapping.get(w, "daily")
+
+
+def _norm_ampm(clock: str | None) -> str:
+    """Normalise '9am' / '3pm' / '14:00' -> HH:MM; default 09:00 if absent."""
+    if not clock:
+        return "09:00"
+    c = clock.strip().lower().replace(".", ":")
+    ampm = None
+    if c.endswith("am"):
+        ampm = "am"; c = c[:-2].strip()
+    elif c.endswith("pm"):
+        ampm = "pm"; c = c[:-2].strip()
+    if ":" in c:
+        h, m = c.split(":", 1)
+    else:
+        h, m = c, "00"
+    try:
+        hh = int(h); mm = int(m)
+    except ValueError:
+        return "09:00"
+    if ampm == "pm" and hh < 12:
+        hh += 12
+    elif ampm == "am" and hh == 12:
+        hh = 0
+    return f"{hh:02d}:{mm:02d}"

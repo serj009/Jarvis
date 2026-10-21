@@ -195,6 +195,12 @@ def _local_tool_classes() -> tuple[type, ...]:
         RemindMeAtTool,
         ListRemindersTool,
         DeleteReminderTool,
+        RecurringReminderTool,
+        SnoozeReminderTool,
+        EditReminderTool,
+        RecurringReminderTool,
+        SnoozeReminderTool,
+        EditReminderTool,
     )
     from jarvis.tools.local.qr_share import GenerateQrTool, ShareToPhoneTool
     from jarvis.tools.local.focus_mode import (
@@ -344,6 +350,9 @@ def _local_tool_classes() -> tuple[type, ...]:
         RemindMeAtTool,
         ListRemindersTool,
         DeleteReminderTool,
+        RecurringReminderTool,
+        SnoozeReminderTool,
+        EditReminderTool,
         StartFocusModeTool,
         StopFocusModeTool,
         FocusModeStatusTool,

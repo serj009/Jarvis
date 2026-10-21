@@ -294,6 +294,9 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     "remind_me_at": RiskLevel.WRITE,
     "list_reminders": RiskLevel.READ,
     "delete_reminder": RiskLevel.DESTRUCTIVE,
+    "remind_recurring": RiskLevel.WRITE,
+    "snooze_reminder": RiskLevel.WRITE,
+    "edit_reminder": RiskLevel.WRITE,
     # -- Vision tools (Phase 8) --------------------------------------------
     "watch_screen": RiskLevel.READ,
     "read_screen_text": RiskLevel.READ,
