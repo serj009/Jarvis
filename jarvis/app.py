@@ -595,6 +595,7 @@ def _make_router_adapter(
     registry: ToolRegistry,
     memory_store: MemoryStore | None = None,
     user_profile: UserProfile | None = None,
+    personalization: PersonalizationContext | None = None,
 
 
 ):
@@ -665,6 +666,16 @@ def _make_router_adapter(
 
         ctx_token = current_user_transcription.set(transcription)
 
+        # Learning hook for tools executed in THIS adapter: pattern/snap
+        # commands and one-shot dispatch (max_tool_iterations == 1). Tools
+        # the router runs inside its feedback loop never reach here, so
+        # this records exactly the calls the router's own path misses, with
+        # no double counting. Best-effort; never breaks the pipeline.
+        def _on_tool_success(tool_name: str, args: dict) -> None:
+            if personalization is None:
+                return
+            from jarvis.core.personalization import record_tool_success
+            record_tool_success(personalization, transcription, tool_name, args)
 
         try:
 
@@ -690,7 +701,7 @@ def _make_router_adapter(
                     chunks: list[str] = []
 
 
-                    async for chunk in execute_intent(intent, registry):
+                    async for chunk in execute_intent(intent, registry, _on_tool_success):
 
 
                         chunks.append(chunk)
@@ -3000,7 +3011,7 @@ class JarvisApp:
             tts=self.tts,
 
 
-            response_producer=_make_router_adapter(self.router, self.conversation, self.registry, self.memory_store, self.user_profile),
+            response_producer=_make_router_adapter(self.router, self.conversation, self.registry, self.memory_store, self.user_profile, personalization=self.personalization),
 
 
             bus=self.bus,
@@ -4851,7 +4862,8 @@ class JarvisApp:
 
 
         self._chat_producer = _make_router_adapter(
-            self.router, self.conversation, self.registry
+            self.router, self.conversation, self.registry,
+            personalization=self.personalization,
         )
 
 
@@ -4896,7 +4908,8 @@ class JarvisApp:
         self._palette_producer = _make_router_adapter(
 
 
-            self.router, self.conversation, self.registry
+            self.router, self.conversation, self.registry,
+            personalization=self.personalization,
 
 
         )
