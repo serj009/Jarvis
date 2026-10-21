@@ -44,7 +44,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
-CURRENT_SCHEMA_VERSION = 38
+CURRENT_SCHEMA_VERSION = 39
 
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -639,6 +639,17 @@ class ImageGenConfig(_Base):
 
 
 
+class IntegrationsConfig(_Base):
+    """Online-integration plugin state.
+
+    ``enabled`` lists the integration names the user has turned on. Empty
+    by default — Jarvis is fully offline until the user opts in. Actual
+    credentials live encrypted (DPAPI) outside config, not here.
+    """
+
+    enabled: list[str] = Field(default_factory=list)
+
+
 class ProactiveConfig(_Base):
     """Settings for the proactive ("initiative") engine.
 
@@ -744,6 +755,7 @@ class JarvisConfig(_Base):
         default_factory=SelfEvaluationConfig
     )
     proactive: ProactiveConfig = Field(default_factory=ProactiveConfig)
+    integrations: IntegrationsConfig = Field(default_factory=IntegrationsConfig)
 
 # --- secrets at rest -------------------------------------------------------
 

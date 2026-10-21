@@ -807,6 +807,18 @@ def _migrate_v35_to_v36(data: dict) -> dict:
     return data
 
 
+def _migrate_v38_to_v39(data: dict) -> dict:
+    """Schema v39: online-integration plugin framework.
+
+    Adds the ``integrations`` section with an empty ``enabled`` list.
+    Jarvis stays fully offline until the user turns an integration on.
+    """
+    ig = data.setdefault("integrations", {})
+    ig.setdefault("enabled", [])
+    data["schema_version"] = 39
+    return data
+
+
 def _migrate_v37_to_v38(data: dict) -> dict:
     """Schema v38: proactive ("initiative") engine settings.
 
@@ -882,6 +894,7 @@ MIGRATIONS: dict[int, Migration] = {
     35: _migrate_v35_to_v36,
     36: _migrate_v36_to_v37,
     37: _migrate_v37_to_v38,
+    38: _migrate_v38_to_v39,
 }
 
 
