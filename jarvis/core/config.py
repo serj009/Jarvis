@@ -44,7 +44,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
-CURRENT_SCHEMA_VERSION = 37
+CURRENT_SCHEMA_VERSION = 38
 
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -639,6 +639,32 @@ class ImageGenConfig(_Base):
 
 
 
+class ProactiveConfig(_Base):
+    """Settings for the proactive ("initiative") engine.
+
+    The engine watches usage patterns and occasionally speaks up on its
+    own (abandoned project, upcoming birthdays, long work sessions, boot
+    routines, command sequences). ``initiative_level`` adapts down
+    automatically when the user keeps dismissing suggestions, and can be
+    raised again by voice.
+    """
+
+    enabled: bool = True
+    # high | medium | low | silent — see proactive_engine.InitiativeLevel.
+    initiative_level: Literal["high", "medium", "low", "silent"] = "high"
+    # How often the background loop evaluates scenarios.
+    check_interval_seconds: int = Field(default=60, ge=15, le=600)
+    # Long-work (health) threshold, in hours of continuous same-app focus.
+    work_hours_threshold: float = Field(default=4.0, ge=0.5, le=16.0)
+    # Leisure threshold (game/video foreground) before nudging about a
+    # stale project, in hours.
+    leisure_hours_threshold: float = Field(default=2.0, ge=0.5, le=12.0)
+    # Jaccard similarity needed to treat a boot sequence as "the routine".
+    boot_similarity_threshold: float = Field(default=0.7, ge=0.5, le=1.0)
+    # Consecutive dismissals in one session that trigger an auto-downgrade.
+    dismiss_downgrade_count: int = Field(default=3, ge=1, le=10)
+
+
 class SelfEvaluationConfig(_Base):
     """Optional self-evaluation ("auto-critic").
 
@@ -717,6 +743,7 @@ class JarvisConfig(_Base):
     self_evaluation: SelfEvaluationConfig = Field(
         default_factory=SelfEvaluationConfig
     )
+    proactive: ProactiveConfig = Field(default_factory=ProactiveConfig)
 
 # --- secrets at rest -------------------------------------------------------
 

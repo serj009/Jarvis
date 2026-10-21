@@ -807,6 +807,24 @@ def _migrate_v35_to_v36(data: dict) -> dict:
     return data
 
 
+def _migrate_v37_to_v38(data: dict) -> dict:
+    """Schema v38: proactive ("initiative") engine settings.
+
+    Adds the ``proactive`` section. Enabled by default at HIGH initiative;
+    the engine adapts down on repeated dismissals and can be raised by voice.
+    """
+    pr = data.setdefault("proactive", {})
+    pr.setdefault("enabled", True)
+    pr.setdefault("initiative_level", "high")
+    pr.setdefault("check_interval_seconds", 60)
+    pr.setdefault("work_hours_threshold", 4.0)
+    pr.setdefault("leisure_hours_threshold", 2.0)
+    pr.setdefault("boot_similarity_threshold", 0.7)
+    pr.setdefault("dismiss_downgrade_count", 3)
+    data["schema_version"] = 38
+    return data
+
+
 def _migrate_v36_to_v37(data: dict) -> dict:
     """Schema v37: optional self-evaluation (auto-critic) settings.
 
@@ -863,6 +881,7 @@ MIGRATIONS: dict[int, Migration] = {
     34: _migrate_v34_to_v35,
     35: _migrate_v35_to_v36,
     36: _migrate_v36_to_v37,
+    37: _migrate_v37_to_v38,
 }
 
 
