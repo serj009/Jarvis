@@ -1749,6 +1749,16 @@ async def _audio_main(
 
         def _proactive_tick() -> None:
             now = _dt.now(tz=_tz.utc)
+            # B. upcoming dates from enabled integrations (birthdays/events).
+            if integration_registry is not None:
+                try:
+                    events = integration_registry.get_all_proactive_data()
+                except Exception:
+                    events = []
+                if events:
+                    ev_res = _scenarios.upcoming_date(events=events, now=now)
+                    if proactive_engine.maybe_speak_scenario(ev_res):
+                        return
             title = _fg_title()
             if not title:
                 return
@@ -2164,6 +2174,7 @@ class JarvisApp:
         # _open_settings) tolerate a partially-built app in tests.
         self.integration_registry = None
         self.proactive_engine = None
+        self.registry = None
 
 
 
@@ -3019,6 +3030,14 @@ class JarvisApp:
 
         )
 
+        # Register any already-enabled integrations' tools into the live
+        # registry (restored from cfg.integrations.enabled at startup).
+        try:
+            from jarvis.integrations.wiring import wire_integration_tools
+            wire_integration_tools(self.registry, self.integration_registry)
+        except Exception:
+            log.warning("integration tool wiring failed (non-fatal)", exc_info=True)
+
 
         # Research tools are wired later (step 12) after the Qt app and
 
@@ -3575,6 +3594,7 @@ class JarvisApp:
                 reminder_scheduler=self.reminder_scheduler,
                 self_eval_cfg=self.cfg.self_evaluation,
                 proactive_engine=self.proactive_engine,
+                integration_registry=self.integration_registry,
 
             )
 
@@ -3703,6 +3723,7 @@ class JarvisApp:
 
                 on_test_voice=self._on_test_voice,
                 integration_registry=self.integration_registry,
+                tool_registry=self.registry,
 
 
             )
