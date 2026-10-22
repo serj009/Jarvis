@@ -44,6 +44,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import shutil
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -967,3 +968,51 @@ class MemoryStore:
             return stats
         finally:
             conn.close()
+
+    # -- backup / restore (T12.2) ------------------------------------------
+
+    async def backup_database(self) -> Path:
+        """Create a .bak copy of the memory database before major operations.
+
+        Handles WAL mode safely: issues a PRAGMA wal_checkpoint(TRUNCATE)
+        to flush all WAL pages into the main database file before
+        copying, so the backup is self-contained (no -wal/-shm needed).
+
+        Returns the path of the backup file.
+        """
+        return await asyncio.to_thread(self._sync_backup_database)
+
+    def _sync_backup_database(self) -> Path:
+        bak_path = self._db_path.with_suffix(".db.bak")
+        # Checkpoint WAL to ensure the main .db file is up-to-date.
+        conn = sqlite3.connect(str(self._db_path))
+        try:
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        finally:
+            conn.close()
+        shutil.copy2(str(self._db_path), str(bak_path))
+        log.info("memory DB backed up to %s", bak_path)
+        return bak_path
+
+    async def restore_from_backup(self) -> bool:
+        """Restore memory DB from backup if available.
+
+        Returns True if the backup existed and was restored, False otherwise.
+        The store is **not** reopened automatically — callers should call
+        ``close()`` before restoring and ``open()`` after.
+        """
+        return await asyncio.to_thread(self._sync_restore_from_backup)
+
+    def _sync_restore_from_backup(self) -> bool:
+        bak_path = self._db_path.with_suffix(".db.bak")
+        if not bak_path.exists():
+            log.warning("no backup found at %s", bak_path)
+            return False
+        shutil.copy2(str(bak_path), str(self._db_path))
+        # Remove stale WAL/SHM files that belong to the old DB state.
+        for suffix in (".db-wal", ".db-shm"):
+            stale = self._db_path.with_suffix(suffix)
+            if stale.exists():
+                stale.unlink()
+        log.info("memory DB restored from %s", bak_path)
+        return True

@@ -17,11 +17,40 @@ Usage:
 from __future__ import annotations
 
 import logging
+import shutil
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 
 log = logging.getLogger(__name__)
+
+
+def backup_before_cleanup(db_path: Path) -> Path | None:
+    """Create a .bak copy of the memory database before destructive cleanup.
+
+    Standalone helper so callers that only have a ``Path`` (not a full
+    ``MemoryStore``) can still protect against data-loss.  Returns the
+    backup path on success, ``None`` if the source DB does not exist.
+
+    WAL-safe: a checkpoint is issued before copying so the backup file
+    is self-contained.
+    """
+    if not db_path.exists():
+        log.warning("backup_before_cleanup: DB does not exist at %s", db_path)
+        return None
+
+    bak_path = db_path.with_suffix(".db.bak")
+
+    # Flush WAL to make the main file self-contained.
+    conn = sqlite3.connect(str(db_path))
+    try:
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    finally:
+        conn.close()
+
+    shutil.copy2(str(db_path), str(bak_path))
+    log.info("pre-cleanup backup created: %s", bak_path)
+    return bak_path
 
 
 class AutoCleanup:
@@ -209,8 +238,17 @@ class AutoCleanup:
             log.info("pruned %d broken relation(s)", removed)
         return removed
 
-    def run_full(self, conn: sqlite3.Connection) -> dict:
-        """Run full cleanup: dedup + archive + compact."""
+    def run_full(
+        self, conn: sqlite3.Connection, *, db_path: Path | None = None,
+    ) -> dict:
+        """Run full cleanup: dedup + archive + compact.
+
+        If *db_path* is provided, a ``.bak`` backup is created before any
+        destructive operation so the database can be restored on failure.
+        """
+        if db_path is not None:
+            backup_before_cleanup(db_path)
+
         deduped = self.deduplicate(conn)
         archived = self.archive_old(conn)
         if deduped > 0 or archived > 0:

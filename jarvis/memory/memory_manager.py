@@ -357,6 +357,11 @@ class MemoryManager:
         """Run deduplication + archival on the main memory store."""
         if not self.store.is_open:
             return {"error": "store not open"}
+        # T12.2: backup before destructive cleanup
+        try:
+            await self.store.backup_database()
+        except Exception:
+            log.warning("pre-cleanup backup failed (non-fatal)", exc_info=True)
         # AutoCleanup works with raw sqlite3.Connection
         # We need to access it via the store's internal connection
         # This is a maintenance operation, acceptable to access internals
