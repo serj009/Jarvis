@@ -458,6 +458,25 @@ class IntentRouter:
         except Exception:
             self._tool_guard = None
 
+        # Security Layer 3: OutputSanitizer — a heuristic SECOND line of
+        # defence behind ToolGuard. In this "soft" wiring it logs + audits
+        # suspicious tool calls and exfiltration chains but does NOT block
+        # them (ToolGuard + risk-level confirmations are the hard gate);
+        # the ONE thing it blocks is a round whose LLM text carries a
+        # prompt-injection marker, because executing tool calls parsed from
+        # a compromised response is the exact chain SECURITY.md scopes in.
+        try:
+            from jarvis.security.output_sanitizer import OutputSanitizer
+
+            self._sanitizer: OutputSanitizer | None = OutputSanitizer()
+        except Exception:
+            self._sanitizer = None
+        # Rolling window of recent tool calls (chronological) for
+        # check_tool_chain(). Capped so a long session cannot grow it
+        # without bound; the suspicious chains we look for are short.
+        self._recent_tool_calls: list[dict] = []
+        self._recent_calls_cap = 20
+
     def _current_tools(self) -> list[dict]:
         if self._registry is not None:
             return self._registry.as_openai_functions()
@@ -600,6 +619,31 @@ class IntentRouter:
             text_parts, raw_tool_calls = await self._stream_round(
                 messages, tools=tools_for_turn,
             )
+
+            # Security Layer 3: inspect the raw LLM text BEFORE executing
+            # any tool calls parsed from it. A prompt-injection marker in
+            # the model's own output means the response may be compromised;
+            # executing tool calls from it is the exact "injection chain
+            # reaching an unrequested tool call" SECURITY.md scopes in, so
+            # this is the ONE sanitizer check that blocks (soft mode
+            # otherwise only logs/audits). The accumulated text is still
+            # spoken so the user is not left in silence.
+            if self._sanitizer is not None and raw_tool_calls:
+                _llm_res = self._sanitizer.sanitize_llm_response(
+                    "".join(text_parts)
+                )
+                if not _llm_res.safe:
+                    self._audit_sanitizer(_llm_res, source="llm_response")
+                    log.warning(
+                        "[router] suppressing %d tool call(s): injection "
+                        "marker in LLM response",
+                        len(raw_tool_calls),
+                    )
+                    for part in text_parts:
+                        if part:
+                            yield SpeakIntent(text=part)
+                    self._conv.clear_injected_context()
+                    return
 
             if not raw_tool_calls:
                 # The model answered in prose. This is the only path
@@ -1050,6 +1094,28 @@ class IntentRouter:
         spoken: list[str] = []
         ends_turn = bool(intents)
         for intent in intents:
+            # Security Layer 3 (soft): record the call in the rolling window
+            # and run the heuristic sanitizer. These log + audit but do NOT
+            # block — ToolGuard below is the hard gate.
+            if self._sanitizer is not None:
+                self._recent_tool_calls.append({"tool_name": intent.tool_name})
+                if len(self._recent_tool_calls) > self._recent_calls_cap:
+                    self._recent_tool_calls = self._recent_tool_calls[
+                        -self._recent_calls_cap:
+                    ]
+                _call_res = self._sanitizer.sanitize_tool_call(
+                    intent.tool_name, intent.args,
+                )
+                if not _call_res.safe:
+                    self._audit_sanitizer(
+                        _call_res, source=f"tool_call:{intent.tool_name}",
+                    )
+                _chain_res = self._sanitizer.check_tool_chain(
+                    self._recent_tool_calls,
+                )
+                if not _chain_res.safe:
+                    self._audit_sanitizer(_chain_res, source="tool_chain")
+
             # Security Layers 1+2: gate LLM-initiated calls through
             # ToolGuard before execution.  The context is always
             # LLM_TOOL_CALL here (the LLM chose the tool, not a
@@ -1095,6 +1161,34 @@ class IntentRouter:
             )
             spoken.append(_result_for_speech(result))
         return exchanges, "".join(spoken), ends_turn
+
+    def _audit_sanitizer(self, result, source: str) -> None:
+        """Record a Layer-3 sanitizer trigger (log + optional audit log).
+
+        Soft mode: this is observability, not enforcement. Never raises and
+        never blocks the caller. Logs a warning always; also appends to the
+        tamper-evident audit log when one is wired into the personalization
+        context. No secrets/paths are logged — only the rule names + reason.
+        """
+        log.warning(
+            "[output-sanitizer] %s: %s (patterns=%s, severity=%s)",
+            source,
+            result.reason,
+            list(result.matched_patterns),
+            result.severity,
+        )
+        audit = getattr(self._pctx, "audit_log", None)
+        if audit is None:
+            return
+        try:
+            for pattern_name in (result.matched_patterns or ("unknown",)):
+                audit.log_sanitizer_trigger(
+                    pattern_name=pattern_name,
+                    content_preview=result.reason,
+                    source=source,
+                )
+        except Exception:
+            log.debug("[output-sanitizer] audit log write failed", exc_info=True)
 
     async def _try_open_target(self, transcription: str) -> ToolIntent | None:
         planner = self._open_target_planner

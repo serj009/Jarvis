@@ -189,6 +189,11 @@ class ContentReaderTool:
         text, err = await asyncio.to_thread(self._fetch_text, url)
         if err:
             return ToolResult(success=False, error=err)
+        # Security Layer 3: strip prompt-injection payloads from the fetched
+        # page BEFORE its text enters the LLM context via this tool's output.
+        from jarvis.security.output_sanitizer import clean_external_text
+
+        text = clean_external_text(text, source=f"content_reader:{url}")
         preview = text[:500] + ("…" if len(text) > 500 else "")
         return ToolResult(
             success=True,

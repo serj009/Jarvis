@@ -171,6 +171,13 @@ class SavePageKnowledgeTool:
                 error="Page appears to be empty — no text content found.",
             )
 
+        # Security Layer 3: the page is untrusted. Strip prompt-injection
+        # payloads before the text is handed to the LLM extractor and
+        # persisted into long-term memory.
+        from jarvis.security.output_sanitizer import clean_external_text
+
+        page_text = clean_external_text(page_text, source=f"web_knowledge:{page_url}")
+
         # 2. Extract and save via KnowledgeExtractor
         from jarvis.memory.knowledge_extractor import KnowledgeExtractor
 

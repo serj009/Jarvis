@@ -425,7 +425,13 @@ class GetLatestNewsTool:
 
         output_parts = []
         if all_items:
-            output_parts.append("\n".join(all_items))
+            # Security Layer 3: feed titles/links are untrusted external
+            # content — strip prompt-injection payloads before they reach
+            # the LLM context.
+            from jarvis.security.output_sanitizer import clean_external_text
+
+            cleaned = clean_external_text("\n".join(all_items), source="rss_reader")
+            output_parts.append(cleaned)
         if errors:
             output_parts.append("Errors:\n" + "\n".join(errors))
 

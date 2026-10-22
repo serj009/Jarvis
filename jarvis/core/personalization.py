@@ -36,6 +36,7 @@ class PersonalizationContext:
     user_profile: Any = None        # UserProfile
     usage_stats: Any = None         # UsageStats
     game_mode: Any = None           # GameMode
+    audit_log: Any = None           # SecurityAuditLog (Layer 4; optional)
 
     # Convenience: empty context for tests
     @classmethod

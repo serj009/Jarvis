@@ -54,6 +54,7 @@ def test_is_dataclass():
     expected = {
         "memory_store", "relation_store", "tool_examples",
         "personal_aliases", "user_profile", "usage_stats", "game_mode",
+        "audit_log",
     }
     assert field_names == expected
 

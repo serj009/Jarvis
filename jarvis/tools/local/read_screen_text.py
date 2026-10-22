@@ -147,6 +147,12 @@ class ReadScreenTextTool:
                 output="I don't see any readable text on the screen, sir.",
             )
 
+        # Security Layer 3: OCR'd screen text is untrusted external content
+        # (the screen may show an attacker-controlled page). Strip
+        # prompt-injection payloads before it enters the LLM context.
+        from jarvis.security.output_sanitizer import clean_external_text
+
+        text = clean_external_text(text, source="read_screen_text:ocr")
         return ToolResult(success=True, output=text)
 
     # -- internal ----------------------------------------------------------
