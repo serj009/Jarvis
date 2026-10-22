@@ -574,7 +574,7 @@ class GameMode:
             try:
                 await self._ollama.unload()
             except Exception:
-                pass
+                log.debug("game mode: ollama unload failed (best-effort)", exc_info=True)
             return None
 
     async def on_demand_vision_query(self, image_b64: str, question: str, model: str) -> str | None:
@@ -605,7 +605,7 @@ class GameMode:
             try:
                 await self._ollama.unload()
             except Exception:
-                pass
+                log.debug("game mode: ollama unload failed (best-effort)", exc_info=True)
             return None
 
     # -- status info --------------------------------------------------------

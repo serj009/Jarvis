@@ -178,11 +178,11 @@ class MemoryManager:
         try:
             await self.store.close()
         except Exception:
-            pass
+            log.warning("memory store close failed", exc_info=True)
         try:
             await self.conversations.close()
         except Exception:
-            pass
+            log.warning("conversation store close failed", exc_info=True)
         self.intent_cache.save()
 
     # -- Remember --
@@ -219,7 +219,8 @@ class MemoryManager:
                         fact_id, result.entity_type, result.shard,
                     )
             except Exception:
-                pass  # Graceful degradation — classification is optional.
+                # Graceful degradation — classification is optional.
+                log.debug("auto-classification failed", exc_info=True)
 
         return fact_id
 
@@ -253,7 +254,8 @@ class MemoryManager:
                     if fact is not None:
                         raw.append(fact)
             except Exception:
-                pass  # Graceful degradation.
+                # Graceful degradation — relation enrichment is optional.
+                log.debug("relation enrichment failed", exc_info=True)
 
         # 3. If semantic search is available, also include facts found by
         #    embeddings that keyword search might have missed.
@@ -269,7 +271,8 @@ class MemoryManager:
                     if fact is not None:
                         raw.append(fact)
             except Exception:
-                pass  # Graceful degradation.
+                # Graceful degradation — semantic backfill is optional.
+                log.debug("semantic backfill failed", exc_info=True)
 
         scored = self._search.rank(raw, query, language=language, category=category, limit=limit)
         return [s.fact for s in scored]
@@ -400,7 +403,7 @@ class MemoryManager:
             try:
                 result["relations_count"] = self._relation_store.count()
             except Exception:
-                pass
+                log.debug("relation count stat failed", exc_info=True)
         # EmbeddingCache stats.
         result["embedding_cache"] = self._embedding_cache.get_stats()
         return result

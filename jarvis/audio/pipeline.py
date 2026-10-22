@@ -283,7 +283,9 @@ class AudioPipeline:
             self._frame_task.cancel()
             try:
                 await self._frame_task
-            except asyncio.CancelledError:
+            except asyncio.CancelledError:  # noqa: S110
+                # Expected: we just cancelled this task and awaited it to
+                # observe the cancellation. Not an error — nothing to log.
                 pass
             self._frame_task = None
 
@@ -312,7 +314,7 @@ class AudioPipeline:
                 self._q_frames.get_nowait()  # drop oldest
                 self._q_frames.put_nowait(frame)
                 log.warning("Q_frames full; dropped oldest frame")
-            except asyncio.QueueEmpty:
+            except asyncio.QueueEmpty:  # noqa: S110
                 # Race: someone drained between put_nowait and get_nowait.
                 pass
 
@@ -376,7 +378,9 @@ class AudioPipeline:
                 elif cs is ConversationalState.SPEAKING:
                     await self._dispatch_speaking(frame)
                 # IDLE: nothing to do beyond the wake-word feed already done.
-        except asyncio.CancelledError:
+        except asyncio.CancelledError:  # noqa: S110
+            # Normal shutdown of the frame loop; re-raising is unnecessary
+            # here because the task is being torn down. Not an error.
             pass
         except Exception:
             log.exception("frame loop crashed")
@@ -759,7 +763,9 @@ class AudioPipeline:
             self._response_task.cancel()
             try:
                 await self._response_task
-            except asyncio.CancelledError:
+            except asyncio.CancelledError:  # noqa: S110
+                # Expected: we cancelled this task and awaited it to let the
+                # cancellation settle. Not an error — nothing to log.
                 pass
             except Exception:
                 log.exception("response task raised during cancellation")

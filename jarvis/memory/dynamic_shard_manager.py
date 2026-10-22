@@ -158,7 +158,7 @@ class DynamicShardManager:
                     topic_counter[norm] += 1
                     fact_topics.setdefault(fact_id, set()).add(norm)
         except Exception:
-            pass
+            log.warning("shard topic scan failed", exc_info=True)
 
         conn.close()
 

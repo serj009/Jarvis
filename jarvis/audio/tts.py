@@ -147,7 +147,7 @@ def _wasapi_hostapi_index() -> int | None:
             if "wasapi" in str(api.get("name", "")).lower():
                 return idx
     except Exception:
-        pass
+        log.debug("WASAPI host API probe failed", exc_info=True)
     return None
 
 
@@ -161,7 +161,7 @@ def _mme_hostapi_index() -> int | None:
             if str(api.get("name", "")).strip().lower() == "mme":
                 return idx
     except Exception:
-        pass
+        log.debug("MME host API probe failed", exc_info=True)
     return None
 
 
@@ -205,7 +205,7 @@ def _device_native_rate(idx: int | None, fallback: int) -> int:
         if rate:
             return int(rate)
     except Exception:
-        pass
+        log.debug("device default-samplerate probe failed", exc_info=True)
     return fallback
 
 def _device_display_name(device_index: int | None) -> str:
@@ -945,7 +945,10 @@ class PiperTTS:
             # Last-resort silence fill so PortAudio doesn't get garbage.
             try:
                 memoryview(outdata).cast("B")[:needed] = b"\x00" * needed
-            except Exception:
+            except Exception:  # noqa: S110
+                # Intentionally silent: this is the PortAudio realtime
+                # callback — logging here risks re-entrancy / xruns. The
+                # outer handler already logged the original failure.
                 pass
 
     def _drain_audio_queue(self) -> None:
@@ -955,7 +958,7 @@ class PiperTTS:
         try:
             while True:
                 self._audio_queue.get_nowait()
-        except queue.Empty:
+        except queue.Empty:  # noqa: S110
             pass
         self._pending = b""
         self._drained_event.set()

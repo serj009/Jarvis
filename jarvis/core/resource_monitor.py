@@ -150,4 +150,5 @@ class ResourceMonitor:
                     # if coordinator is slow or the system stays ACTIVE.
                     self._last_activity_ts = self._now()
         except asyncio.CancelledError:
+            # Normal shutdown of the monitor loop — not an error.
             pass

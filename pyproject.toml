@@ -168,8 +168,32 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "B", "UP", "N", "W"]
+select = ["E", "F", "I", "B", "UP", "N", "W", "S110"]
 ignore = []
+
+# S110 (`try-except-pass`) is enforced only where a silently-swallowed error
+# is most dangerous — security and audio. A repo-wide sweep of the remaining
+# except/pass sites is a separate effort, so S110 is ignored elsewhere.
+# (BLE001 was considered but not enabled: ~65 legitimate, logged
+# `except Exception` handlers in these trees would each need a noqa, which
+# is noise rather than a safety gain — see session log, Этап 9.)
+[tool.ruff.lint.per-file-ignores]
+"jarvis/agents/*" = ["S110"]
+"jarvis/browser/*" = ["S110"]
+"jarvis/coding/*" = ["S110"]
+"jarvis/core/*" = ["S110"]
+"jarvis/integrations/*" = ["S110"]
+"jarvis/llm/*" = ["S110"]
+"jarvis/memory/*" = ["S110"]
+"jarvis/platform/*" = ["S110"]
+"jarvis/tools/*" = ["S110"]
+"jarvis/ui/*" = ["S110"]
+"jarvis/vision/*" = ["S110"]
+"jarvis/skills/*" = ["S110"]
+"jarvis/personal_starter/*" = ["S110"]
+"jarvis/app.py" = ["S110"]
+"jarvis/__main__.py" = ["S110"]
+"tests/*" = ["S110"]
 
 [tool.pyright]
 include = ["jarvis", "tests"]
