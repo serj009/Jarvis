@@ -2,11 +2,24 @@ name: CI
 
 # `push` covers the default branch (and anything a maintainer pushes
 # directly); `pull_request` covers contributor branches, including forks.
-# Push is scoped to main on purpose — a PR branch in this repo would
-# otherwise build twice for every commit.
+#
+# Push is scoped to the long-lived integration branches on purpose
+# (main + amazonq, the branch active development is pushed to directly).
+# Listing them explicitly — rather than `branches: ["**"]` — keeps
+# contributor PR branches from building twice per commit: those branches
+# are covered by `pull_request` only, so a push event is never emitted for
+# the workflow to double up on.
+#
+# Trade-off: if someone opens a PR *from* main or amazonq into the repo,
+# commits on that branch would build twice (once for push, once for the
+# PR). GitHub Actions has no first-class "skip push when an open PR exists"
+# switch, and the available workarounds (a paths/ref guard job, or the
+# pull_request-only pattern) are more complex than they are worth here —
+# main and amazonq are integration branches that are rarely themselves the
+# head of a PR, so this costs nothing in practice. Accepted as-is.
 on:
   push:
-    branches: [main]
+    branches: [main, amazonq]
   pull_request:
 
 # A newer push to the same ref makes the in-flight run obsolete. Cancel it

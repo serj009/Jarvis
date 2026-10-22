@@ -31,6 +31,16 @@ from jarvis.coding.voice_confirm import (
 )
 
 
+# Tests that shell out to a real ``git`` binary are skipped when git is not
+# on PATH (e.g. portable git installs) — otherwise they fail with WinError 2.
+import shutil
+
+_GIT_AVAILABLE = shutil.which("git") is not None
+requires_git = pytest.mark.skipif(
+    not _GIT_AVAILABLE, reason="git executable not found on PATH"
+)
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -371,6 +381,7 @@ class TestAgentVoiceConfirmIntegration:
         result = await agent._git_operation("push")
         assert "Skipped" in result
 
+    @requires_git
     @pytest.mark.asyncio
     async def test_agent_proceeds_commit_on_confirm(self, tmp_path: Path) -> None:
         """git commit proceeds when user confirms."""
@@ -420,6 +431,7 @@ class TestAgentVoiceConfirmIntegration:
         # echo should succeed.
         assert rc == 0 or "not confirmed" not in stderr
 
+    @requires_git
     @pytest.mark.asyncio
     async def test_agent_no_confirm_means_no_blocking(self, tmp_path: Path) -> None:
         """When confirm=None, no confirmation is asked — backward compat."""

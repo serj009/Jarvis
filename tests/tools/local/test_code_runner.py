@@ -46,8 +46,13 @@ def tool(sandbox: PathValidator, tmp_path: Path) -> CodeRunnerTool:
 
 @pytest.fixture()
 def tool_no_sandbox(tmp_path: Path) -> CodeRunnerTool:
-    """CodeRunnerTool without sandbox (validator=None)."""
-    return CodeRunnerTool(workspace=tmp_path)
+    """CodeRunnerTool with a permissive sandbox scoped to tmp_path.
+
+    Previously this used validator=None (fail-open); now we always
+    provide a validator because the tool refuses to run without one.
+    """
+    sandbox = PathValidator(allowed_paths=[tmp_path], allow_home_fallback=False)
+    return CodeRunnerTool(path_validator=sandbox, workspace=tmp_path)
 
 
 # ---------------------------------------------------------------------------
@@ -362,3 +367,28 @@ def test_ast_parse_validates_source():
         ast.parse("def broken(\n")
     # Valid code should not raise.
     ast.parse("x = 1 + 2\n")
+
+
+# ---------------------------------------------------------------------------
+# Fail-closed: no validator → reject
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_no_validator_rejects_run_script(tmp_path: Path):
+    """CodeRunnerTool without a validator must refuse to run scripts."""
+    tool = CodeRunnerTool(workspace=tmp_path)  # no path_validator
+    script = tmp_path / "test.py"
+    script.write_text("print('hi')", encoding="utf-8")
+    result = await tool.execute(CodeRunnerArgs(action="run_script", path="test.py"))
+    assert not result.success
+    assert "sandbox" in (result.error or "").lower() or "disabled" in (result.error or "").lower()
+
+
+@pytest.mark.asyncio
+async def test_no_validator_rejects_read_file(tmp_path: Path):
+    """CodeRunnerTool without a validator must refuse to read files."""
+    tool = CodeRunnerTool(workspace=tmp_path)  # no path_validator
+    (tmp_path / "readme.py").write_text("x = 1", encoding="utf-8")
+    result = await tool.execute(CodeRunnerArgs(action="read_file", path="readme.py"))
+    assert not result.success

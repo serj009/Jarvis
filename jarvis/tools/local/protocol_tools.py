@@ -1,4 +1,4 @@
-"""Voice tools for user-defined protocols (macros).
+r"""Voice tools for user-defined protocols (macros).
 
 Seven tools let the user manage protocols entirely by voice:
 

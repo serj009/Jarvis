@@ -217,9 +217,11 @@ async def test_rename_file(tmp_path: Path):
     assert not src.exists()
 
 
-async def test_rename_no_destination():
-    result = await _tool().execute(
-        FileManagerArgs(action="rename", path="something.txt", destination="")
+async def test_rename_no_destination(tmp_path: Path):
+    f = tmp_path / "something.txt"
+    f.write_text("data")
+    result = await _tool(tmp_path).execute(
+        FileManagerArgs(action="rename", path=str(f), destination="")
     )
     assert not result.success
     assert "no new name" in (result.error or "").lower()
@@ -599,23 +601,27 @@ def test_last_download_patterns(phrase: str):
 
 async def test_open_search_fallback(tmp_path: Path):
     """A bare filename not at the exact path is searched in common dirs."""
-    # Simulate Desktop under tmp_path (no sandbox — _search_common_dirs
-    # uses Path.home(); we mock it).
     desktop = tmp_path / "Desktop"
     desktop.mkdir()
     target = desktop / "report.docx"
     target.write_text("content")
 
-    with patch("jarvis.tools.local.file_manager.Path.home", return_value=tmp_path):
-        with patch("jarvis.tools.local.file_manager.os.startfile", create=True):
-            with patch(
-                "jarvis.tools.local.file_manager.platform.system",
-                return_value="Windows",
-            ):
-                tool = _tool()  # no sandbox
-                result = await tool.execute(
-                    FileManagerArgs(action="open", path="report.docx")
-                )
+    # Mock Path.home globally so both file_manager and PathValidator
+    # (which calls os.path.expanduser) resolve relative paths under tmp_path.
+    def _fake_expanduser(p: str) -> str:
+        return p.replace("~", str(tmp_path), 1) if p.startswith("~") else p
+
+    with patch("pathlib.Path.home", return_value=tmp_path), \
+         patch("os.path.expanduser", side_effect=_fake_expanduser), \
+         patch("jarvis.tools.local.file_manager.os.startfile", create=True), \
+         patch(
+             "jarvis.tools.local.file_manager.platform.system",
+             return_value="Windows",
+         ):
+        tool = _tool(tmp_path)
+        result = await tool.execute(
+            FileManagerArgs(action="open", path="report.docx")
+        )
     assert result.success
     assert "report.docx" in output_text(result).lower()
 
@@ -626,16 +632,20 @@ async def test_open_search_case_insensitive(tmp_path: Path):
     docs.mkdir()
     (docs / "MyReport.PDF").write_text("content")
 
-    with patch("jarvis.tools.local.file_manager.Path.home", return_value=tmp_path):
-        with patch("jarvis.tools.local.file_manager.os.startfile", create=True):
-            with patch(
-                "jarvis.tools.local.file_manager.platform.system",
-                return_value="Windows",
-            ):
-                tool = _tool()
-                result = await tool.execute(
-                    FileManagerArgs(action="open", path="myreport.pdf")
-                )
+    def _fake_expanduser(p: str) -> str:
+        return p.replace("~", str(tmp_path), 1) if p.startswith("~") else p
+
+    with patch("pathlib.Path.home", return_value=tmp_path), \
+         patch("os.path.expanduser", side_effect=_fake_expanduser), \
+         patch("jarvis.tools.local.file_manager.os.startfile", create=True), \
+         patch(
+             "jarvis.tools.local.file_manager.platform.system",
+             return_value="Windows",
+         ):
+        tool = _tool(tmp_path)
+        result = await tool.execute(
+            FileManagerArgs(action="open", path="myreport.pdf")
+        )
     assert result.success
 
 
@@ -922,3 +932,19 @@ def test_new_tools_risk_and_confirmation():
     # Both are WRITE, non-confirming (creation, no data loss).
     assert CreateFileTool().requires_confirmation is False
     assert ArchiveTool().requires_confirmation is False
+
+
+# ---------------------------------------------------------------------------
+# Fail-closed: no validator → reject
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_no_validator_rejects_all_actions():
+    """FileManagerTool without a validator must refuse ALL actions."""
+    tool = FileManagerTool(path_validator=None)
+    result = await tool.execute(
+        FileManagerArgs(action="find", path="test", search_dir=".")
+    )
+    assert not result.success
+    assert "disabled" in (result.error or "").lower() or "sandbox" in (result.error or "").lower()

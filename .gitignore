@@ -21,6 +21,15 @@ htmlcov/
 .test_venv/
 test_results*.txt
 test_work_results.txt
+# Ad-hoc test/scratch output that slipped into git history (Этап 7 cleanup)
+failed_list.txt
+test_fix46.txt
+test_result.txt
+set
+pytest_crash.txt
+# Tool-internal working journal — kept on disk + in agent_files, not in git.
+# CHANGELOG.md is the single public changelog (Этап 7 decision).
+AMAZONQ_CHANGELOG.md
 venv/
 env/
 

@@ -1,9 +1,9 @@
 <p align="center">
   <h1 align="center">🤖 J.A.R.V.I.S. — Local AI Voice Assistant</h1>
   <p align="center">
-    Fully offline, multilingual (EN / RU / UK) AI assistant for Windows<br/>
+    Local-first, multilingual (EN / RU / UK) AI assistant for Windows — cloud providers, web research and integrations work only if you enable them<br/>
     Powered by <strong>Ollama + Qwen 3 8B</strong> · <strong>Whisper STT</strong> · <strong>Piper TTS</strong> · <strong>PySide6</strong><br/><br/>
-    <code>500+ source files</code> · <code>150K+ lines</code> · <code>237+ tools</code> · <code>700+ voice patterns</code> · <code>5 321 tests</code>
+    <code>500+ source files (incl. tests)</code> · <code>150K+ lines (incl. tests)</code> · <code>237+ tools</code> · <code>700+ voice patterns</code> · <code>5 321 tests</code>
   </p>
 </p>
 
@@ -60,7 +60,7 @@
 | | Minimum | Recommended |
 |---|---------|-------------|
 | **OS** | Windows 10/11 x64 | Windows 11 x64 |
-| **Python** | ≥ 3.10 | 3.11+ |
+| **Python** | ≥ 3.11 | 3.11+ |
 | **RAM** | 8 GB | **12+ GB** |
 | **GPU** | None (CPU mode) | NVIDIA RTX 3060+ (**8+ GB VRAM**) |
 | **Disk** | ~3 GB | ~10 GB (with Ollama models) |
