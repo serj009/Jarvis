@@ -125,6 +125,8 @@ def _pip_to_module(pip_name: str) -> str:
         "python-telegram-bot": "telegram",
         "pygithub": "github",
         "PyGithub": "github",
+        "discord.py": "discord",
+        "spotipy": "spotipy",
     }
     if pip_name in special:
         return special[pip_name]

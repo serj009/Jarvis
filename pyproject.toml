@@ -108,6 +108,14 @@ integrations = [
   "google-api-python-client>=2,<3",
   "google-auth-oauthlib>=1,<2",
   "python-telegram-bot>=21,<22",
+  "PyGithub>=2,<3",
+  "docker>=7,<8",
+  "spotipy>=2,<3",
+  "discord.py>=2,<3",
+  "dropbox>=12,<13",
+  "msal>=1,<2",
+  "python-gitlab>=4,<5",
+  "paho-mqtt>=2,<3",
 ]
 
 # All optional dependencies combined — for one-step full install.
