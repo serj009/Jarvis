@@ -1,0 +1,24 @@
+chore(security+hygiene): fail-closed sandbox, green tests, CI on amazonq, repo cleanup
+
+Security (Этап 3):
+- file tools (file_manager, code_runner, files) fail-closed when no
+  PathValidator is injected — removes the "default-open" branch
+- production always injects a validator (verified in tools/__init__.py)
+- SandboxViolationError raised with (raw_path, reason) in code_runner
+
+Tests (Этап 5):
+- full pytest green (5404 passed, 0 failed, 18 skipped)
+- test_files.py: inject PathValidator(tmp_path) after fail-closed change
+- fix flaky circuit-breaker test (uptime-independent monotonic time)
+- gate git-dependent tests behind @requires_git (shutil.which)
+- raw docstring in protocol_tools.py (silences SyntaxWarning '\s')
+
+CI (Этап 6):
+- run on direct pushes to amazonq (on.push.branches: [main, amazonq])
+- matrix (os/python) and steps (ruff/pyright/pytest) unchanged
+
+Hygiene (Этап 7):
+- git rm --cached scratch files: failed_list.txt, set, test_fix46.txt,
+  test_result.txt, AMAZONQ_CHANGELOG.md (kept on disk, added to .gitignore)
+- README: Python >=3.11 (matches pyproject), "local-first" wording,
+  file/line counts marked "(incl. tests)"
