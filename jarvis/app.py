@@ -1446,6 +1446,7 @@ async def _audio_main(
     self_eval_cfg: SelfEvaluationConfig | None = None,
     self_eval_report_dir: Path | None = None,
     proactive_engine: object = None,
+    integration_registry: object = None,
 
 ) -> None:
 
