@@ -2,8 +2,14 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 import traceback
 from pathlib import Path
+
+log = logging.getLogger(__name__)
+
+MAX_RESTARTS = 3
+RESTART_COOLDOWN = 5  # seconds
 
 
 def _frozen_log_path() -> Path:
@@ -42,17 +48,51 @@ def main() -> None:
             level=logging.INFO,
             format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         )
-    try:
-        from jarvis.app import run
 
-        raise SystemExit(run())
-    except Exception as exc:
-        log_file = _write_crash_log(exc)
-        if is_frozen():
-            _show_error_box(
-                f"Jarvis failed to start:\n\n{exc}\n\nDetails: {log_file}"
+    restarts = 0
+    while True:
+        try:
+            from jarvis.app import run
+
+            exit_code = run()
+            if exit_code == 0:
+                # Clean exit (user quit) — do NOT restart.
+                raise SystemExit(0)
+            # Non-zero = crash / error; attempt restart.
+            restarts += 1
+            log.warning(
+                "JARVIS exited with code %d, restart %d/%d …",
+                exit_code, restarts, MAX_RESTARTS,
             )
-        raise
+            if restarts >= MAX_RESTARTS:
+                log.error(
+                    "Max restarts (%d) reached, giving up", MAX_RESTARTS,
+                )
+                raise SystemExit(exit_code)
+            time.sleep(RESTART_COOLDOWN)
+        except KeyboardInterrupt:
+            # User pressed Ctrl+C — clean exit, no restart.
+            break
+        except SystemExit:
+            raise
+        except Exception as exc:
+            log_file = _write_crash_log(exc)
+            restarts += 1
+            log.warning(
+                "JARVIS crashed (%s), restart %d/%d …",
+                exc, restarts, MAX_RESTARTS,
+            )
+            if restarts >= MAX_RESTARTS:
+                log.error(
+                    "Max restarts (%d) reached after crash, giving up",
+                    MAX_RESTARTS,
+                )
+                if is_frozen():
+                    _show_error_box(
+                        f"Jarvis failed to start:\n\n{exc}\n\nDetails: {log_file}"
+                    )
+                raise
+            time.sleep(RESTART_COOLDOWN)
 
 
 if __name__ == "__main__":
