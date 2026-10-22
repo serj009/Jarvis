@@ -25,6 +25,17 @@ from jarvis.coding.agent import (
 )
 
 
+# Some tests need a real ``git`` binary on PATH. On machines where git is
+# not installed (or only available as a portable build outside PATH) these
+# tests would fail with WinError 2 — skip them instead.
+import shutil
+
+_GIT_AVAILABLE = shutil.which("git") is not None
+requires_git = pytest.mark.skipif(
+    not _GIT_AVAILABLE, reason="git executable not found on PATH"
+)
+
+
 # ---------------------------------------------------------------------------
 # Helpers — mock provider
 # ---------------------------------------------------------------------------
@@ -411,6 +422,7 @@ class TestFixLoop:
 class TestGitOperations:
     """Tests for _git_operation."""
 
+    @requires_git
     @pytest.mark.asyncio
     async def test_git_init(self, tmp_path):
         agent, _ = _make_agent(tmp_path)
@@ -418,6 +430,7 @@ class TestGitOperations:
         # git init should succeed in a fresh tmp dir.
         assert "init" in result.lower() or "initialized" in result.lower() or "OK" in result
 
+    @requires_git
     @pytest.mark.asyncio
     async def test_git_add_and_commit(self, tmp_path):
         agent, _ = _make_agent(tmp_path)
@@ -460,6 +473,7 @@ class TestExecuteTask:
         assert any("step" in m.lower() for m in messages)
         assert any("complete" in m.lower() for m in messages)
 
+    @requires_git
     @pytest.mark.asyncio
     async def test_auto_commit_triggers_git(self, tmp_path):
         plan = json.dumps([

@@ -9,14 +9,21 @@ wired now (see registry.py header and jarvis/ui/tool_confirm.py)."""
 from __future__ import annotations
 
 from jarvis.tools.local.files import ListDirectoryArgs, ListDirectoryTool
+from jarvis.tools.sandbox import PathValidator
 from tests._typing import output_text
+
+
+def _tool(tmp_path):
+    """Build a ListDirectoryTool with a sandbox validator scoped to *tmp_path*."""
+    validator = PathValidator(allowed_paths=[tmp_path], allow_home_fallback=False)
+    return ListDirectoryTool(path_validator=validator)
 
 
 async def test_lists_directory_entries_sorted(tmp_path):
     (tmp_path / "b.txt").write_text("")
     (tmp_path / "a.txt").write_text("")
     (tmp_path / "sub").mkdir()
-    result = await ListDirectoryTool().execute(
+    result = await _tool(tmp_path).execute(
         ListDirectoryArgs(path=str(tmp_path))
     )
     assert result.success
@@ -26,7 +33,7 @@ async def test_lists_directory_entries_sorted(tmp_path):
 
 
 async def test_empty_directory_says_so(tmp_path):
-    result = await ListDirectoryTool().execute(
+    result = await _tool(tmp_path).execute(
         ListDirectoryArgs(path=str(tmp_path))
     )
     assert result.success
@@ -34,7 +41,7 @@ async def test_empty_directory_says_so(tmp_path):
 
 
 async def test_nonexistent_path_returns_error(tmp_path):
-    result = await ListDirectoryTool().execute(
+    result = await _tool(tmp_path).execute(
         ListDirectoryArgs(path=str(tmp_path / "no_such_dir"))
     )
     assert not result.success
@@ -44,7 +51,7 @@ async def test_nonexistent_path_returns_error(tmp_path):
 async def test_file_path_rejected_as_not_a_directory(tmp_path):
     f = tmp_path / "file.txt"
     f.write_text("hi")
-    result = await ListDirectoryTool().execute(ListDirectoryArgs(path=str(f)))
+    result = await _tool(tmp_path).execute(ListDirectoryArgs(path=str(f)))
     assert not result.success
     assert "not a directory" in (result.error or "").lower()
 
@@ -52,7 +59,7 @@ async def test_file_path_rejected_as_not_a_directory(tmp_path):
 async def test_large_directory_summarised(tmp_path):
     for i in range(250):
         (tmp_path / f"f_{i:04d}.txt").write_text("")
-    result = await ListDirectoryTool().execute(
+    result = await _tool(tmp_path).execute(
         ListDirectoryArgs(path=str(tmp_path))
     )
     assert result.success
