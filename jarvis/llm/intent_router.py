@@ -122,6 +122,7 @@ if TYPE_CHECKING:
     from jarvis.llm.conversation import Conversation
     from jarvis.llm.ollama_client import OllamaClient
     from jarvis.tools.registry import ToolRegistry, ToolResult
+    from jarvis.skills.protocols import ProtocolEngine
 
 log = logging.getLogger(__name__)
 
@@ -394,6 +395,8 @@ class IntentRouter:
         personal_aliases: PersonalAliasStore | None = None,
         user_profile: UserProfile | None = None,
         usage_stats: UsageStats | None = None,
+        # Phase 12: User-defined voice protocols
+        protocol_engine: ProtocolEngine | None = None,
     ) -> None:
         # `registry` is the live source of the tool schemas — querying it
         # fresh on every route() call means a settings-driven enable/disable
@@ -417,6 +420,9 @@ class IntentRouter:
         # round trips sharing "call_1" would let the trimming/orphan
         # filter pair a tool result with the wrong assistant message.
         self._tool_call_seq = 0
+
+        # Phase 12: protocol engine for user-defined voice macros.
+        self._protocol_engine = protocol_engine
 
         # --- personalization context ---
         # Build from individual params when the caller hasn't passed a
@@ -523,6 +529,21 @@ class IntentRouter:
         if target_intent is not None:
             yield target_intent
             return
+
+        # Phase 12: user-defined protocols — checked BEFORE tool patterns
+        # so a protocol named e.g. "Party" is matched before any regex
+        # pattern could accidentally claim the word.
+        if self._protocol_engine is not None:
+            normalized_for_proto = _normalize(transcription)
+            matched_protocol = self._protocol_engine.match_protocol(
+                normalized_for_proto,
+            )
+            if matched_protocol is not None:
+                yield ToolIntent(
+                    "run_protocol",
+                    {"name": matched_protocol.name},
+                )
+                return
 
         pattern_intent = self._try_pattern(transcription)
         if pattern_intent is not None:

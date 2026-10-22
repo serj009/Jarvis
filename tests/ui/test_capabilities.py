@@ -164,6 +164,24 @@ _UNDOCUMENTED_TOOLS: dict[str, str] = {
     "watch_screen": "Background screen watcher, LLM-dispatched",
     "window_action": "LLM-dispatched window management",
     "youtube_summary": "LLM-initiated YouTube summary helper",
+    # SkillForge tools — LLM-dispatched skill lifecycle management
+    "list_skills": "LLM-dispatched skill listing",
+    "skill_detail": "LLM-dispatched skill detail inspection",
+    "approve_skill": "LLM-dispatched skill approval",
+    "reject_skill": "LLM-dispatched skill rejection",
+    "delete_skill": "LLM-dispatched skill deletion",
+    "disable_all_skills": "LLM-dispatched skill kill-switch",
+    "analyze_skills": "LLM-dispatched skill analysis",
+    "improve_skill": "LLM-dispatched skill improvement",
+    "skill_history": "LLM-dispatched skill history",
+    # User-defined protocol tools — voice-triggered macro management
+    "create_protocol": "Voice-triggered protocol creation",
+    "run_protocol": "Voice-triggered protocol execution",
+    "list_protocols": "Voice-triggered protocol listing",
+    "delete_protocol": "Voice-triggered protocol deletion",
+    "edit_protocol": "Voice-triggered protocol editing",
+    "enable_protocol": "Voice-triggered protocol enable",
+    "disable_protocol": "Voice-triggered protocol disable",
 }
 
 

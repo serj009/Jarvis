@@ -181,6 +181,10 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     # Window management — reversible, no data loss
     "window_action": RiskLevel.WRITE,
     "list_windows": RiskLevel.READ,
+    "snap_layout": RiskLevel.WRITE,
+    "minimize_all": RiskLevel.WRITE,
+    "restore_all": RiskLevel.WRITE,
+    "virtual_desktop": RiskLevel.WRITE,
     # Timers — no system mutation, fully reversible
     "set_timer": RiskLevel.WRITE,
     "cancel_timer": RiskLevel.WRITE,
@@ -316,6 +320,29 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     "autonomous_agent": RiskLevel.WRITE,
     "open_agent_panel": RiskLevel.READ,
     "close_agent_panel": RiskLevel.READ,
+    # -- SkillForge tools ---------------------------------------------------
+    # List/detail/history/analyze are read-only
+    "list_skills": RiskLevel.READ,
+    "skill_detail": RiskLevel.READ,
+    "skill_history": RiskLevel.READ,
+    "analyze_skills": RiskLevel.READ,
+    # Approve/reject/improve are WRITE (modify skill state)
+    "approve_skill": RiskLevel.WRITE,
+    "reject_skill": RiskLevel.WRITE,
+    "improve_skill": RiskLevel.WRITE,
+    # Delete and kill switch are DESTRUCTIVE
+    "delete_skill": RiskLevel.DESTRUCTIVE,
+    "disable_all_skills": RiskLevel.DESTRUCTIVE,
+    # -- User-defined protocols (Phase 12) ---------------------------------
+    # create/edit/list/enable/disable/run are WRITE (reversible, no data loss)
+    "create_protocol": RiskLevel.WRITE,
+    "run_protocol": RiskLevel.WRITE,
+    "list_protocols": RiskLevel.READ,
+    "edit_protocol": RiskLevel.WRITE,
+    "enable_protocol": RiskLevel.WRITE,
+    "disable_protocol": RiskLevel.WRITE,
+    # delete is DESTRUCTIVE (permanently removes protocol)
+    "delete_protocol": RiskLevel.DESTRUCTIVE,
 }
 
 

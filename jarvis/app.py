@@ -2173,9 +2173,10 @@ class JarvisApp:
 
         # Optional subsystems — default None so Qt handlers (e.g.
         # _open_settings) tolerate a partially-built app in tests.
-        self.integration_registry = None
+
         self.proactive_engine = None
-        self.registry = None
+        self.skill_forge = None
+
 
 
 
@@ -2995,6 +2996,40 @@ class JarvisApp:
             on_level_change=_save_proactive_level,
         )
 
+        # SkillForge — auto-generates skills from usage patterns.
+        # Reads usage_stats, writes to jarvis/skills/user_generated/.
+        if self.cfg.skill_forge.enabled:
+            try:
+                from jarvis.skills.skill_forge import SkillForge
+                from jarvis.skills.sandbox import SkillSandbox
+                from jarvis.skills.decomposer import SkillDecomposer
+
+                _sf_skills_dir = _data_root / "skills" / "user_generated"
+                _sf_sandbox = SkillSandbox(_sf_skills_dir)
+                _sf_decomposer = SkillDecomposer()
+                self.skill_forge = SkillForge(
+                    db_path=_data_root / "skill_forge.db",
+                    sandbox=_sf_sandbox,
+                    decomposer=_sf_decomposer,
+                    skills_dir=_sf_skills_dir,
+                )
+                self.skill_forge.open()
+                log.info("SkillForge initialized")
+
+                # Phase A: observe tool calls for pattern detection
+                _sf = self.skill_forge
+                def _sf_observe_tool(ev) -> None:
+                    """Record every tool invocation into SkillForge observations."""
+                    try:
+                        _sf.observe(ev.tool_name, ev.args)
+                    except Exception:
+                        pass  # never propagate
+                from jarvis.core.events import ToolInvoked as _SFToolInvoked
+                self.bus.subscribe(_SFToolInvoked, _sf_observe_tool)
+
+            except Exception:
+                log.warning("SkillForge init failed (non-fatal)", exc_info=True)
+
         # Online-integration registry — discovers plugins, tracks which the
         # user enabled (cfg.integrations.enabled). OFF by default; nothing
         # connects until the user opts in via Settings.
@@ -3021,6 +3056,7 @@ class JarvisApp:
 
 
             memory_store=self.memory_store,
+            skill_forge=self.skill_forge,
 
             stt=self.stt, tts_manager=self.tts_manager,
             personal_aliases=self.personal_aliases,
