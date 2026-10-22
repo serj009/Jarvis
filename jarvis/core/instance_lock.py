@@ -85,7 +85,7 @@ def acquire_instance_lock() -> IO[str] | None:
         try:
             fh.close()  # type: ignore[possibly-undefined]
         except Exception:
-            pass
+            log.debug("instance lock: fd close failed during cleanup", exc_info=True)
         log.info("instance lock already held by another process: %s", path)
         return None
 
@@ -96,7 +96,7 @@ def acquire_instance_lock() -> IO[str] | None:
         try:
             fh.close()  # type: ignore[possibly-undefined]
         except Exception:
-            pass
+            log.debug("instance lock: fd close failed during cleanup", exc_info=True)
         return None
 
 

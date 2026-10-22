@@ -28,6 +28,7 @@ Usage:
 
 from __future__ import annotations
 
+import logging
 import math
 import re
 import time
@@ -40,6 +41,8 @@ from jarvis.memory.store import Fact
 if TYPE_CHECKING:
     from jarvis.memory.embeddings import EmbeddingIndex
     from jarvis.memory.relations import RelationStore
+
+log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -145,7 +148,8 @@ class SmartSearch:
                     if to_id:
                         enriched.add(to_id)
         except Exception:
-            pass  # Graceful degradation.
+            # Graceful degradation — relation expansion is optional.
+            log.debug("relation expansion failed", exc_info=True)
         return enriched
 
     @property

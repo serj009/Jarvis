@@ -352,4 +352,5 @@ def _force_gpu_cleanup() -> None:
             torch.cuda.empty_cache()
             log.debug("torch.cuda.empty_cache() done")
     except ImportError:
-        pass
+        # torch not installed — nothing to free on the GPU side.
+        log.debug("torch not available; skipping CUDA cache clear")

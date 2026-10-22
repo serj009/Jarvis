@@ -51,7 +51,7 @@ def _wasapi_hostapi_index() -> int | None:
             if "wasapi" in str(api.get("name", "")).lower():
                 return idx
     except Exception:
-        pass
+        log.debug("WASAPI host API probe failed", exc_info=True)
     return None
 
 
@@ -65,7 +65,7 @@ def _mme_hostapi_index() -> int | None:
             if str(api.get("name", "")).strip().lower() == "mme":
                 return idx
     except Exception:
-        pass
+        log.debug("MME host API probe failed", exc_info=True)
     return None
 
 
@@ -83,7 +83,7 @@ def _device_native_rate(idx: int | None) -> int:
         if rate:
             return int(rate)
     except Exception:
-        pass
+        log.debug("device default-samplerate probe failed", exc_info=True)
     return SAMPLE_RATE
 
 

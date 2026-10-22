@@ -183,6 +183,7 @@ class EventBus:
             try:
                 handlers.remove(handler)
             except ValueError:
+                # Handler already unsubscribed / never subscribed — idempotent.
                 pass
 
         return unsubscribe

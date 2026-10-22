@@ -512,7 +512,11 @@ class PasswordVault:
             _require_argon2()
             groups.append((_argon_key, "argon2id", decryptors))
         except VaultBackendMissingError:
-            pass
+            # argon2-cffi absent: skip the Argon2id combinations and fall
+            # back to the scrypt legacy group below. This is control-flow,
+            # not a swallowed security check — a wrong password still fails
+            # every combination and _legacy_open_v1 returns None.
+            log.debug("[vault] argon2 unavailable; v1 migration tries scrypt only")
         # Legacy scrypt group (stdlib, always available).
         groups.append((_scrypt_key, "scrypt", decryptors))
 

@@ -107,7 +107,7 @@ class BargeInManager:
             log.info("WebRTC AEC initialised (pywebrtc-audio)")
             return
         except ImportError:
-            pass
+            log.debug("pywebrtc-audio not installed; trying next AEC backend")
 
         try:
             from echoff import EchoCanceller  # type: ignore[import-untyped]
@@ -116,7 +116,7 @@ class BargeInManager:
             log.info("AEC initialised (echoff fallback)")
             return
         except ImportError:
-            pass
+            log.debug("echoff not installed; AEC falls back to half-duplex")
 
         log.warning(
             "No AEC library found (install pywebrtc-audio or echoff). "

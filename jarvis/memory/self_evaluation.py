@@ -28,8 +28,11 @@ Python + dataclasses, fully unit-testable.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
+
+log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -396,7 +399,8 @@ class SelfEvaluationScheduler:
             try:
                 await self._task
             except Exception:
-                pass
+                log.debug("self-evaluation task ended with error",
+                          exc_info=True)
             self._task = None
 
     async def _loop(self) -> None:
