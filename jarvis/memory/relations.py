@@ -77,6 +77,8 @@ class RelationStore:
 
     def _connect(self) -> sqlite3.Connection:
         """Create a new connection with WAL mode and row_factory."""
+        # Ensure parent directory exists (first-run or clean data dir)
+        self._db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(self._db_path))
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
