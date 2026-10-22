@@ -333,6 +333,13 @@ def _translate_call_result(result: Any) -> ToolResult:
     joined = "\n".join(texts).strip()
     if getattr(result, "isError", False):
         return ToolResult(success=False, error=joined or "tool reported an error")
+    # Security Layer 3: an MCP server is an external, untrusted source.
+    # Strip prompt-injection payloads from its response before the text
+    # enters the LLM context.
+    if joined:
+        from jarvis.security.output_sanitizer import clean_external_text
+
+        joined = clean_external_text(joined, source="mcp")
     return ToolResult(success=True, output=joined or "")
 
 

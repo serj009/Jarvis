@@ -366,3 +366,36 @@ class OutputSanitizer:
             )
 
         return _SAFE
+
+
+# ---------------------------------------------------------------------------
+# Module-level convenience helper
+# ---------------------------------------------------------------------------
+
+# A process-wide stateless sanitizer so tools that only need to clean
+# external text don't each construct their own instance. OutputSanitizer is
+# stateless and re-entrant, so sharing one is safe.
+_SHARED_SANITIZER = OutputSanitizer()
+
+
+def clean_external_text(content: str, source: str) -> str:
+    """Strip prompt-injection payloads from untrusted external text.
+
+    Thin module-level wrapper over ``OutputSanitizer.sanitize_external_content``
+    for tools (web readers, OCR, MCP responses) that pull text from outside
+    and feed it into the LLM context. Returns the cleaned text; on any
+    unexpected error it returns the original content unchanged (fail-open on
+    CLEANING is acceptable — this is a best-effort second line of defence,
+    and dropping the user's content entirely would be worse than passing it
+    through for the hard gates downstream to handle).
+    """
+    if not content:
+        return content
+    try:
+        return _SHARED_SANITIZER.sanitize_external_content(content, source)
+    except Exception:  # pragma: no cover - defensive
+        log.debug(
+            "[output-sanitizer] external-content clean failed for %s",
+            source, exc_info=True,
+        )
+        return content
