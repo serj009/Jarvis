@@ -33,13 +33,12 @@ from tests._typing import output_text
 
 def _tool(tmp_path: Path | None = None) -> FileManagerTool:
     """Build a FileManagerTool with a sandbox validator scoped to tmp_path."""
-    if tmp_path is not None:
-        validator = PathValidator(
-            allowed_paths=[tmp_path],
-            allow_home_fallback=False,
-        )
-    else:
-        validator = None
+    if tmp_path is None:
+        tmp_path = Path(__file__).parent  # fallback for voice-pattern-only tests
+    validator = PathValidator(
+        allowed_paths=[tmp_path],
+        allow_home_fallback=False,
+    )
     return FileManagerTool(path_validator=validator)
 
 

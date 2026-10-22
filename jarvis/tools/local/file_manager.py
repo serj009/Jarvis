@@ -219,8 +219,14 @@ def _validate_or_resolve(validator, raw: str):
                     "your allowed workspace folders, sir."
                 ),
             )
-    p = Path(raw).expanduser()
-    return p.resolve() if p.is_absolute() else (Path.home() / p).resolve()
+    # No validator → fail-closed.
+    return ToolResult(
+        success=False,
+        error=(
+            "File operations are disabled: no sandbox validator is "
+            "configured, sir."
+        ),
+    )
 
 
 class FileManagerArgs(BaseModel):
@@ -612,13 +618,16 @@ class FileManagerTool:
                         "workspace folders, sir."
                     ),
                 )
-        # No sandbox — resolve manually (tests, legacy).
-        p = Path(raw).expanduser()
-        if not p.is_absolute():
-            p = (Path.home() / p).resolve()
-        else:
-            p = p.resolve()
-        return p
+        # No sandbox validator → fail-closed.  In production the validator
+        # is always injected by setup_local_tools(); reaching this branch
+        # means the tool was constructed incorrectly.
+        return ToolResult(
+            success=False,
+            error=(
+                "File operations are disabled: no sandbox validator is "
+                "configured, sir."
+            ),
+        )
 
     # ── actions ───────────────────────────────────────────────────
 
