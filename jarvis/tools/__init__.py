@@ -42,6 +42,7 @@ def setup_local_tools(
     ollama_client: object = None,
     vram_manager: object = None,
     memory_store: object = None,
+    skill_forge: object = None,
     stt: object = None,
     tts_manager: object = None,
     personal_aliases: object = None,
@@ -175,6 +176,17 @@ def setup_local_tools(
         ProactiveStatusTool,
         DismissProactiveTool,
     )
+    from jarvis.tools.local.skill_tools import (
+        ListSkillsTool,
+        SkillDetailTool,
+        ApproveSkillTool,
+        RejectSkillTool,
+        DeleteSkillTool,
+        DisableAllSkillsTool,
+        AnalyzeSkillsTool,
+        ImproveSkillTool,
+        SkillHistoryTool,
+    )
     from jarvis.tools.local.remind_me import (
         RemindMeTool,
         RemindMeAtTool,
@@ -198,6 +210,17 @@ def setup_local_tools(
     )
     # Image generation
     from jarvis.tools.local.image_gen_tool import ImageGenTool
+
+    # Phase 12: User-defined voice protocols
+    from jarvis.tools.local.protocol_tools import (
+        CreateProtocolTool,
+        RunProtocolTool,
+        ListProtocolsTool,
+        DeleteProtocolTool,
+        EditProtocolTool,
+        EnableProtocolTool,
+        DisableProtocolTool,
+    )
 
     weather_cfg = getattr(config, "weather", None)
     if weather_cfg is None:
@@ -363,6 +386,16 @@ def setup_local_tools(
         SetInitiativeLevelTool(engine=proactive_engine),
         ProactiveStatusTool(engine=proactive_engine),
         DismissProactiveTool(engine=proactive_engine),
+        # SkillForge tools
+        ListSkillsTool(forge=skill_forge),
+        SkillDetailTool(forge=skill_forge),
+        ApproveSkillTool(forge=skill_forge),
+        RejectSkillTool(forge=skill_forge),
+        DeleteSkillTool(forge=skill_forge),
+        DisableAllSkillsTool(forge=skill_forge),
+        AnalyzeSkillsTool(forge=skill_forge),
+        ImproveSkillTool(forge=skill_forge),
+        SkillHistoryTool(forge=skill_forge),
         StopFocusModeTool(),
         FocusModeStatusTool(),
         # Phase 8: Vision tools
@@ -380,6 +413,7 @@ def setup_local_tools(
             image_gen_config=image_gen_cfg,
             ollama_client=ollama_client,
         ),
+        # Phase 12: Protocol tools (engine wired below after registration)
     ]
     # SeeScreenTool needs an OllamaClient to call /api/chat with images.
     # Tests that pass None happily register every text-only tool but skip
@@ -394,6 +428,25 @@ def setup_local_tools(
         )
 
     for tool in base_tools:
+        registry.register(tool)
+
+    # Phase 12: Protocol tools — engine is created here so it gets
+    # the registry reference for step execution and LLM for complex parsing.
+    from jarvis.skills.protocols import ProtocolEngine
+    protocol_engine = ProtocolEngine(
+        registry=registry,
+        ollama_client=ollama_client,
+    )
+    protocol_tools_list = [
+        CreateProtocolTool(engine=protocol_engine),
+        RunProtocolTool(engine=protocol_engine),
+        ListProtocolsTool(engine=protocol_engine),
+        DeleteProtocolTool(engine=protocol_engine),
+        EditProtocolTool(engine=protocol_engine),
+        EnableProtocolTool(engine=protocol_engine),
+        DisableProtocolTool(engine=protocol_engine),
+    ]
+    for tool in protocol_tools_list:
         registry.register(tool)
 
     # Web knowledge extraction — needs ollama_client + memory_store + relation_store.

@@ -481,6 +481,24 @@ def test_tools_tab_populates_checkboxes_for_phase_4_set(qapp):
         "virtual_desktop",
         "window_action",
         "youtube_summary",
+        # SkillForge tools
+        "list_skills",
+        "skill_detail",
+        "approve_skill",
+        "reject_skill",
+        "delete_skill",
+        "disable_all_skills",
+        "analyze_skills",
+        "improve_skill",
+        "skill_history",
+        # User-defined protocol tools
+        "create_protocol",
+        "run_protocol",
+        "list_protocols",
+        "delete_protocol",
+        "edit_protocol",
+        "enable_protocol",
+        "disable_protocol",
     }
     # Explicit disable reflected; unconfigured default to enabled.
     assert tab._checkboxes["screenshot"].isChecked() is False

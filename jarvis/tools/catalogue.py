@@ -202,6 +202,17 @@ def _local_tool_classes() -> tuple[type, ...]:
         ProactiveStatusTool,
         DismissProactiveTool,
     )
+    from jarvis.tools.local.skill_tools import (
+        ListSkillsTool,
+        SkillDetailTool,
+        ApproveSkillTool,
+        RejectSkillTool,
+        DeleteSkillTool,
+        DisableAllSkillsTool,
+        AnalyzeSkillsTool,
+        ImproveSkillTool,
+        SkillHistoryTool,
+    )
     from jarvis.tools.local.remind_me import (
         RemindMeTool,
         RemindMeAtTool,
@@ -230,6 +241,16 @@ def _local_tool_classes() -> tuple[type, ...]:
         AgentTool,
         OpenAgentPanelTool,
         CloseAgentPanelTool,
+    )
+    # User-defined protocols
+    from jarvis.tools.local.protocol_tools import (
+        CreateProtocolTool,
+        RunProtocolTool,
+        ListProtocolsTool,
+        DeleteProtocolTool,
+        EditProtocolTool,
+        EnableProtocolTool,
+        DisableProtocolTool,
     )
 
     return (
@@ -389,6 +410,24 @@ def _local_tool_classes() -> tuple[type, ...]:
         AgentTool,
         OpenAgentPanelTool,
         CloseAgentPanelTool,
+        # SkillForge tools
+        ListSkillsTool,
+        SkillDetailTool,
+        ApproveSkillTool,
+        RejectSkillTool,
+        DeleteSkillTool,
+        DisableAllSkillsTool,
+        AnalyzeSkillsTool,
+        ImproveSkillTool,
+        SkillHistoryTool,
+        # Phase 12: User-defined voice protocols (macros)
+        CreateProtocolTool,
+        RunProtocolTool,
+        ListProtocolsTool,
+        DeleteProtocolTool,
+        EditProtocolTool,
+        EnableProtocolTool,
+        DisableProtocolTool,
     )
 
 

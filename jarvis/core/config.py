@@ -676,6 +676,32 @@ class ProactiveConfig(_Base):
     dismiss_downgrade_count: int = Field(default=3, ge=1, le=10)
 
 
+class SkillForgeConfig(_Base):
+    """Settings for the SkillForge engine — self-generating skills.
+
+    Controls whether the engine observes, analyzes, and proposes new
+    skills.  ``max_complexity`` caps how complex an auto-generated skill
+    can be (simple / medium / complex).
+    """
+
+    enabled: bool = True
+    # Maximum skills auto-generated per day.
+    max_skills_per_day: int = Field(default=1, ge=0, le=5)
+    # Minimum idle minutes before analysis/generation.
+    idle_required_minutes: int = Field(default=30, ge=5, le=120)
+    # Auto-analysis interval in hours (0 = disabled, manual only).
+    analysis_interval_hours: int = Field(default=4, ge=0, le=24)
+    # Token budget for a single LLM generation call.
+    token_budget: int = Field(default=2000, ge=500, le=8000)
+    # Maximum complexity level allowed: "simple", "medium", "complex".
+    max_complexity: Literal["simple", "medium", "complex"] = "complex"
+    # Quiet hours — no generation during these hours (24h format).
+    quiet_hours_start: int = Field(default=23, ge=0, le=23)
+    quiet_hours_end: int = Field(default=7, ge=0, le=23)
+    # VRAM threshold — skip generation if free VRAM below this (MB).
+    vram_threshold_mb: int = Field(default=500, ge=0, le=16000)
+
+
 class SelfEvaluationConfig(_Base):
     """Optional self-evaluation ("auto-critic").
 
@@ -755,6 +781,7 @@ class JarvisConfig(_Base):
         default_factory=SelfEvaluationConfig
     )
     proactive: ProactiveConfig = Field(default_factory=ProactiveConfig)
+    skill_forge: SkillForgeConfig = Field(default_factory=SkillForgeConfig)
     integrations: IntegrationsConfig = Field(default_factory=IntegrationsConfig)
 
 # --- secrets at rest -------------------------------------------------------

@@ -249,4 +249,4 @@ def test_the_confirmation_gated_local_tool_set_is_pinned():
         for name in local_tool_names()
         if (t := reg.get(name)) is not None and t.requires_confirmation
     )
-    assert gated == ["change_vault_password", "remove_credential", "type_into_active_window"]
+    assert gated == ["change_vault_password", "delete_protocol", "delete_skill", "disable_all_skills", "remove_credential", "type_into_active_window"]
