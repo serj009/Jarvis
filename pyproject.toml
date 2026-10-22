@@ -50,6 +50,13 @@ dependencies = [
   # local ToolRegistry. All MCP connections are best-effort; a missing
   # `mcp` install or unreachable server never blocks startup.
   "mcp>=1,<2",
+  # Password vault crypto — REQUIRED, not optional. The vault refuses to
+  # operate without these (no silent downgrade to scrypt / a home-grown
+  # cipher), so they belong in the base install. Argon2id KDF + AES-256-GCM.
+  #   cryptography: Apache-2.0 / BSD, ~4 MB wheel (bundles OpenSSL).
+  #   argon2-cffi:  MIT, ~50 KB (+ argon2-cffi-bindings, the C core).
+  "argon2-cffi>=21,<24",
+  "cryptography>=41,<44",
 ]
 
 [project.optional-dependencies]
@@ -78,12 +85,11 @@ browser = [
   "selenium>=4,<5",
   "beautifulsoup4>=4,<5",
 ]
-# Password vault — crypto-grade password storage.
-# Install via: pip install -e ".[security]"
-security = [
-  "argon2-cffi>=21,<24",
-  "cryptography>=41,<44",
-]
+# Password vault crypto moved into the base `dependencies` (it is required,
+# not optional). This extra is kept as an empty back-compat alias so existing
+# `pip install -e ".[security]"` commands and docs keep working — the crypto
+# libs now arrive with the base install regardless.
+security = []
 # Extra optional tools — QR codes, YouTube subtitles, notifications, etc.
 # Install via: pip install -e ".[extras]"
 extras = [
