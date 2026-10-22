@@ -194,7 +194,7 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     # CLI runner — whitelisted read-only commands, but shell access = SYSTEM
     "run_command": RiskLevel.SYSTEM,
     # Code runner — read_file is READ, run_script/run_tests execute code = WRITE
-    "code_runner": RiskLevel.WRITE,
+    "code_runner": RiskLevel.DESTRUCTIVE,
     # Coding agent — creates/edits files, runs tests, git = WRITE
     "coding_agent": RiskLevel.WRITE,
     # Downloads — creates files, network I/O

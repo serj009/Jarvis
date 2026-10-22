@@ -70,19 +70,19 @@ class ListDirectoryTool:
                         "I can only browse directories in your allowed "
                         "workspace folders, sir."
                     ),
-                )
+            )
         else:
-            resolved = None
+            # No validator → fail-closed.
+            return ToolResult(
+                success=False,
+                error=(
+                    "Directory listing is disabled: no sandbox validator "
+                    "is configured, sir."
+                ),
+            )
 
         def _list() -> tuple[Path, list[str]]:
-            if resolved is not None:
-                target = resolved
-            else:
-                raw = Path(args.path).expanduser()
-                if not raw.is_absolute():
-                    target = (Path.home() / raw).resolve()
-                else:
-                    target = raw.resolve()
+            target = resolved
             if not target.exists():
                 raise FileNotFoundError(str(target))
             if not target.is_dir():

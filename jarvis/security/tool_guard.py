@@ -9,19 +9,27 @@ Enforcement rules:
     ├──────────────────┼────────────┼──────────────────┤
     │ USER_VOICE/PAT   │ No         │ ALLOW            │
     │ USER_VOICE/PAT   │ Yes        │ WARN (allow)     │
-    │ LLM_TOOL_CALL    │ No         │ ALLOW            │
+    │ LLM_TOOL_CALL    │ No         │ ALLOW *          │
     │ LLM_TOOL_CALL    │ Yes        │ BLOCK + alert    │
     └──────────────────┴────────────┴──────────────────┘
 
-Only network-capable tools are checked; local-only tools (file
-operations, audio controls, etc.) pass through unchecked because they
-cannot exfiltrate data over the network.
+    * For EXEC_TOOLS, LLM-initiated calls are ALWAYS blocked (regardless
+      of leak scan) because they can execute arbitrary code or exfiltrate
+      data through indirect channels (DNS, spawned processes, etc.).
+
+Two tool categories are checked:
+    - NETWORK_TOOLS: tools that make direct HTTP requests — scanned for
+      data leaks in URLs/queries.
+    - EXEC_TOOLS: tools that can execute arbitrary code or commands —
+      blocked for LLM-initiated calls (code_runner, run_command).  These
+      can reach the network indirectly (ping, nslookup, spawned scripts)
+      so the data-leak scanner alone is insufficient.
 """
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from jarvis.security.leak_scanner import DataLeakScanner, ScanResult
@@ -31,7 +39,7 @@ log = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Network-capable tools that require scanning
+# Network-capable tools that require leak scanning
 # ---------------------------------------------------------------------------
 
 NETWORK_TOOLS: frozenset[str] = frozenset({
@@ -60,6 +68,19 @@ NETWORK_TOOLS: frozenset[str] = frozenset({
     "subscribe_rss",
     "get_latest_news",
 })
+
+
+# ---------------------------------------------------------------------------
+# Exec-capable tools — can run arbitrary code or reach the network indirectly
+# ---------------------------------------------------------------------------
+
+EXEC_TOOLS: frozenset[str] = frozenset({
+    "code_runner",   # run_script / run_tests execute arbitrary Python
+    "run_command",   # CLI commands (ping, nslookup can exfiltrate via DNS)
+})
+
+# All tools that need any form of security check.
+_CHECKED_TOOLS: frozenset[str] = NETWORK_TOOLS | EXEC_TOOLS
 
 
 # ---------------------------------------------------------------------------
@@ -111,15 +132,35 @@ class ToolGuard:
         or ``GuardResult(allowed=False, reason=...)`` when the call must
         be blocked.
         """
-        # Non-network tools are always allowed.
-        if tool_name not in NETWORK_TOOLS:
+        # ── EXEC_TOOLS: LLM-initiated calls are ALWAYS blocked ──────
+        # These tools can execute arbitrary code or exfiltrate data
+        # through indirect channels.  The user must confirm via the
+        # normal risk-level confirmation gate; if the call originates
+        # from the LLM (prompt injection risk), we block it outright.
+        if tool_name in EXEC_TOOLS and not context.is_user_initiated:
+            log.warning(
+                "[security] BLOCKED LLM-initiated exec tool %r "
+                "(origin=%s) — code execution requires user confirmation",
+                tool_name,
+                context.origin.name if context.origin else "unknown",
+            )
+            return GuardResult(
+                allowed=False,
+                reason=(
+                    f"Security blocked: '{tool_name}' cannot be executed "
+                    "from an LLM tool call. Please use a voice command or "
+                    "the chat panel instead."
+                ),
+            )
+
+        # ── Non-checked tools pass through ───────────────────────────
+        if tool_name not in _CHECKED_TOOLS:
             return GuardResult(allowed=True)
 
-        # Extract the scannable payload (URL or query text).
+        # ── NETWORK_TOOLS: leak scanning ─────────────────────────────
         url = self._extract_url(tool_name, args)
 
         if not url:
-            # Nothing to scan — allow (the tool may still fail on its own).
             return GuardResult(allowed=True)
 
         scan = self._leak_scanner.scan_url(url, context)
@@ -127,7 +168,6 @@ class ToolGuard:
         # --- user-initiated: never block, at most warn ---
         if context.is_user_initiated:
             if scan.action == "block":
-                # Downgrade: the user explicitly asked for this.
                 scan = ScanResult(
                     action="warn",
                     reasons=scan.reasons,
@@ -170,17 +210,11 @@ class ToolGuard:
         skipped (fail-open for this specific check — the tool may not
         even be making a request with user data).
         """
-        # Explicit URL field (open_url, download_file, web_page_fetch…)
         if "url" in args:
             return str(args["url"])
-
-        # Query field (web_search uses "query")
         if "query" in args:
             return str(args["query"])
-
-        # Fallback: first string value containing http(s)
         for v in args.values():
             if isinstance(v, str) and ("http://" in v or "https://" in v):
                 return v
-
         return ""

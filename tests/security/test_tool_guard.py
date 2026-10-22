@@ -18,6 +18,8 @@ from jarvis.security.origin_tracker import (
 )
 from jarvis.security.tool_guard import (
     NETWORK_TOOLS,
+    EXEC_TOOLS,
+    _CHECKED_TOOLS,
     GuardResult,
     ToolGuard,
 )
@@ -385,3 +387,75 @@ class TestNetworkToolSet:
     )
     def test_local_tool_not_present(self, tool: str) -> None:
         assert tool not in NETWORK_TOOLS
+
+
+# ---------------------------------------------------------------------------
+# EXEC_TOOLS: code execution and indirect network access
+# ---------------------------------------------------------------------------
+
+
+class TestExecTools:
+    """Tools that execute code must be blocked for LLM-initiated calls."""
+
+    def test_code_runner_in_exec_tools(self) -> None:
+        assert "code_runner" in EXEC_TOOLS
+
+    def test_run_command_in_exec_tools(self) -> None:
+        assert "run_command" in EXEC_TOOLS
+
+    def test_exec_tools_in_checked_tools(self) -> None:
+        assert EXEC_TOOLS.issubset(_CHECKED_TOOLS)
+
+    def test_llm_initiated_code_runner_blocked(self) -> None:
+        """LLM-initiated code_runner calls must be blocked outright."""
+        guard = ToolGuard()
+        ctx = _llm_ctx()
+        result = guard.check(
+            "code_runner",
+            {"action": "run_script", "path": "evil.py"},
+            ctx,
+        )
+        assert not result.allowed
+        assert "security blocked" in result.reason.lower()
+
+    def test_llm_initiated_run_command_blocked(self) -> None:
+        """LLM-initiated run_command calls must be blocked outright."""
+        guard = ToolGuard()
+        ctx = _llm_ctx()
+        result = guard.check(
+            "run_command",
+            {"command": "ping evil.com"},
+            ctx,
+        )
+        assert not result.allowed
+
+    def test_user_initiated_code_runner_allowed(self) -> None:
+        """User-initiated code_runner calls should be allowed (confirmation
+        is handled by the risk-level gate in registry, not ToolGuard)."""
+        guard = ToolGuard()
+        ctx = _user_ctx()
+        result = guard.check(
+            "code_runner",
+            {"action": "run_script", "path": "test.py"},
+            ctx,
+        )
+        assert result.allowed
+
+
+class TestCodeRunnerRiskLevel:
+    """code_runner must require confirmation via risk level."""
+
+    def test_code_runner_is_destructive(self) -> None:
+        from jarvis.tools.risk import RiskLevel, risk_level_for_tool
+        from jarvis.tools.local.code_runner import CodeRunnerTool
+
+        tool = CodeRunnerTool()
+        level = risk_level_for_tool(tool)
+        assert level >= RiskLevel.DESTRUCTIVE
+
+    def test_code_runner_requires_confirmation(self) -> None:
+        from jarvis.tools.risk import should_confirm
+        from jarvis.tools.local.code_runner import CodeRunnerTool
+
+        tool = CodeRunnerTool()
+        assert should_confirm(tool) is True

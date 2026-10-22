@@ -207,6 +207,12 @@ class CodeRunnerTool:
             # validate() raises SandboxViolationError on failure and
             # returns the resolved Path on success.
             p = self._validator.validate(str(p))
+        else:
+            # No validator → fail-closed.  In production the validator
+            # is always injected by setup_local_tools().
+            raise SandboxViolationError(
+                "Code execution disabled: no sandbox validator configured."
+            )
 
         return p
 
