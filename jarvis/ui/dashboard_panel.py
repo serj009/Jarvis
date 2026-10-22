@@ -590,19 +590,10 @@ class DashboardPanel(QWidget):
 def _foreground_window_title() -> str:
     """Best-effort Windows-only foreground window title."""
     try:
-        import ctypes
-
-        # ctypes.windll exists only in the Windows build of ctypes; the
+        # win32 lives only in platform/windows.py (SPEC boundary); this
         # whole body is inside a try/except that returns "" off Windows.
-        user32 = ctypes.windll.user32  # type: ignore[reportAttributeAccessIssue]
-        hwnd = user32.GetForegroundWindow()
-        if not hwnd:
-            return ""
-        length = user32.GetWindowTextLengthW(hwnd)
-        if length <= 0:
-            return ""
-        buf = ctypes.create_unicode_buffer(length + 1)
-        user32.GetWindowTextW(hwnd, buf, length + 1)
-        return buf.value.strip()
+        from jarvis import platform as platform_ops
+
+        return platform_ops.foreground_window_title()
     except Exception:  # noqa: BLE001
         return ""

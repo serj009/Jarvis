@@ -85,8 +85,8 @@ def _has_admin() -> bool:
     """Check if we have privileges to modify the hosts file."""
     try:
         if sys.platform == "win32":
-            import ctypes
-            return ctypes.windll.shell32.IsUserAnAdmin() != 0
+            from jarvis import platform as platform_ops
+            return platform_ops.is_user_admin()
         else:
             import os
             return os.geteuid() == 0

@@ -1,17 +1,20 @@
 """Startup manager — list, add, remove programs from Windows startup.
 
-Uses winreg to manage HKCU/HKLM Run keys and the shell:startup folder.
+The actual winreg / Startup-folder access lives in platform/windows.py
+(ARCHITECTURE RULE, SPEC.md line 75: no win32 imports outside
+platform/windows.py). This module only wires the Tool classes to the
+platform layer.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from typing import ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
+from jarvis import platform as platform_ops
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -33,143 +36,27 @@ def _is_access_denied(exc: OSError) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Lazy imports
-# ---------------------------------------------------------------------------
-
-def _get_winreg():
-    """Lazy import winreg (stdlib on Windows)."""
-    try:
-        import winreg
-        return winreg
-    except ImportError:
-        return None
-
-
-# ---------------------------------------------------------------------------
-# Constants
-# ---------------------------------------------------------------------------
-
-_HKCU_RUN = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
-_HKLM_RUN = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
-
-
-# ---------------------------------------------------------------------------
-# Backend helpers
+# Backend helpers — thin delegators to the platform layer.
+#
+# These keep the _*_impl names the tools and tests reference while routing the
+# work through the per-OS backend (Windows does it for real via winreg;
+# macOS/Linux raise NotSupportedError, which the tools report as a
+# ToolResult error).
 # ---------------------------------------------------------------------------
 
 def _list_startup_impl() -> list[dict]:
     """List all startup programs from registry + shell:startup folder."""
-    winreg = _get_winreg()
-    if winreg is None:
-        raise NotImplementedError("winreg is not available (Windows-only).")
-
-    entries: list[dict] = []
-
-    # HKCU\...\Run
-    try:
-        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, _HKCU_RUN, 0, winreg.KEY_READ)
-        try:
-            i = 0
-            while True:
-                try:
-                    name, value, _ = winreg.EnumValue(key, i)
-                    entries.append({
-                        "name": name,
-                        "command": value,
-                        "source": "HKCU\\Run",
-                        "removable": True,
-                    })
-                    i += 1
-                except OSError:
-                    break
-        finally:
-            winreg.CloseKey(key)
-    except FileNotFoundError:
-        pass
-
-    # HKLM\...\Run (read-only, may need elevation to modify)
-    try:
-        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, _HKLM_RUN, 0, winreg.KEY_READ)
-        try:
-            i = 0
-            while True:
-                try:
-                    name, value, _ = winreg.EnumValue(key, i)
-                    entries.append({
-                        "name": name,
-                        "command": value,
-                        "source": "HKLM\\Run",
-                        "removable": False,  # needs elevation
-                    })
-                    i += 1
-                except OSError:
-                    break
-        finally:
-            winreg.CloseKey(key)
-    except FileNotFoundError:
-        pass
-
-    # shell:startup folder
-    startup_folder = os.path.join(
-        os.environ.get("APPDATA", ""),
-        "Microsoft", "Windows", "Start Menu", "Programs", "Startup",
-    )
-    if os.path.isdir(startup_folder):
-        for fname in os.listdir(startup_folder):
-            fpath = os.path.join(startup_folder, fname)
-            if os.path.isfile(fpath):
-                entries.append({
-                    "name": fname,
-                    "command": fpath,
-                    "source": "Startup folder",
-                    "removable": True,
-                })
-
-    return entries
+    return platform_ops.list_startup()
 
 
 def _remove_from_startup_impl(name: str) -> str:
-    """Remove a program from HKCU startup registry."""
-    winreg = _get_winreg()
-    if winreg is None:
-        raise NotImplementedError("winreg is not available (Windows-only).")
-
-    try:
-        key = winreg.OpenKey(
-            winreg.HKEY_CURRENT_USER, _HKCU_RUN, 0, winreg.KEY_SET_VALUE,
-        )
-        try:
-            winreg.DeleteValue(key, name)
-        finally:
-            winreg.CloseKey(key)
-        return f"Removed '{name}' from startup, sir."
-    except FileNotFoundError:
-        # Try startup folder
-        startup_folder = os.path.join(
-            os.environ.get("APPDATA", ""),
-            "Microsoft", "Windows", "Start Menu", "Programs", "Startup",
-        )
-        fpath = os.path.join(startup_folder, name)
-        if os.path.isfile(fpath):
-            os.remove(fpath)
-            return f"Removed '{name}' from startup folder, sir."
-        return f"'{name}' not found in startup entries, sir."
+    """Remove a program from HKCU startup registry (or Startup folder)."""
+    return platform_ops.remove_from_startup(name)
 
 
 def _add_to_startup_impl(name: str, command: str) -> str:
     """Add a program to HKCU startup registry."""
-    winreg = _get_winreg()
-    if winreg is None:
-        raise NotImplementedError("winreg is not available (Windows-only).")
-
-    key = winreg.OpenKey(
-        winreg.HKEY_CURRENT_USER, _HKCU_RUN, 0, winreg.KEY_SET_VALUE,
-    )
-    try:
-        winreg.SetValueEx(key, name, 0, winreg.REG_SZ, command)
-    finally:
-        winreg.CloseKey(key)
-    return f"Added '{name}' to startup, sir."
+    return platform_ops.add_to_startup(name, command)
 
 
 # ---------------------------------------------------------------------------

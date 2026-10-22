@@ -82,9 +82,8 @@ def _cancel_shutdown() -> str:
 
 def _sleep() -> str:
     try:
-        import ctypes
-        # SetSuspendState(hibernate=False, forceCritical=False, wakeupEventsDisabled=False)
-        ctypes.windll.PowrProf.SetSuspendState(0, 0, 0)
+        from jarvis import platform as platform_ops
+        platform_ops.sleep_system()
     except (ImportError, AttributeError, OSError) as e:
         raise NotImplementedError(f"Sleep not available: {e}")
     return "Going to sleep."
@@ -92,9 +91,8 @@ def _sleep() -> str:
 
 def _hibernate() -> str:
     try:
-        import ctypes
-        # SetSuspendState(hibernate=True, forceCritical=False, wakeupEventsDisabled=False)
-        ctypes.windll.PowrProf.SetSuspendState(1, 0, 0)
+        from jarvis import platform as platform_ops
+        platform_ops.hibernate_system()
     except (ImportError, AttributeError, OSError) as e:
         raise NotImplementedError(f"Hibernate not available: {e}")
     return "Hibernating."
@@ -103,13 +101,8 @@ def _hibernate() -> str:
 def _caffeinate(minutes: int) -> str:
     """Prevent sleep by setting thread execution state."""
     try:
-        import ctypes
-        ES_CONTINUOUS = 0x80000000
-        ES_SYSTEM_REQUIRED = 0x00000001
-        ES_DISPLAY_REQUIRED = 0x00000002
-        ctypes.windll.kernel32.SetThreadExecutionState(
-            ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED
-        )
+        from jarvis import platform as platform_ops
+        platform_ops.prevent_sleep()
     except (ImportError, AttributeError, OSError) as e:
         raise NotImplementedError(f"Caffeinate not available: {e}")
     return f"Preventing sleep for {minutes} minutes."

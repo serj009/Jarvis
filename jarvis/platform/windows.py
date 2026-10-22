@@ -511,15 +511,499 @@ def write_clipboard_text(text: str) -> None:
         user32.CloseClipboard()
 
 
+
+# -- startup (Run keys + Startup folder) --------------------------------
+#
+# Moved verbatim from jarvis/tools/local/startup_manager.py so the winreg
+# access lives behind the platform seam. Tests patch these functions (or
+# platform.windows itself) rather than the tool module.
+
+_HKCU_RUN = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+_HKLM_RUN = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+
+
+def _startup_folder() -> str:
+    """The per-user shell:startup folder path."""
+    return os.path.join(
+        os.environ.get("APPDATA", ""),
+        "Microsoft", "Windows", "Start Menu", "Programs", "Startup",
+    )
+
+
+def list_startup() -> list[dict]:
+    """List all startup programs from registry + shell:startup folder.
+
+    Each entry is a dict with ``name``, ``command``, ``source`` and
+    ``removable``. Raises NotImplementedError off Windows.
+    """
+    _require_windows("list_startup")
+    import winreg
+
+    entries: list[dict] = []
+
+    # HKCU\...\Run
+    try:
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, _HKCU_RUN, 0, winreg.KEY_READ)
+        try:
+            i = 0
+            while True:
+                try:
+                    name, value, _ = winreg.EnumValue(key, i)
+                    entries.append({
+                        "name": name,
+                        "command": value,
+                        "source": "HKCU\\Run",
+                        "removable": True,
+                    })
+                    i += 1
+                except OSError:
+                    break
+        finally:
+            winreg.CloseKey(key)
+    except FileNotFoundError:
+        pass
+
+    # HKLM\...\Run (read-only, may need elevation to modify)
+    try:
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, _HKLM_RUN, 0, winreg.KEY_READ)
+        try:
+            i = 0
+            while True:
+                try:
+                    name, value, _ = winreg.EnumValue(key, i)
+                    entries.append({
+                        "name": name,
+                        "command": value,
+                        "source": "HKLM\\Run",
+                        "removable": False,  # needs elevation
+                    })
+                    i += 1
+                except OSError:
+                    break
+        finally:
+            winreg.CloseKey(key)
+    except FileNotFoundError:
+        pass
+
+    # shell:startup folder
+    startup_folder = _startup_folder()
+    if os.path.isdir(startup_folder):
+        for fname in os.listdir(startup_folder):
+            fpath = os.path.join(startup_folder, fname)
+            if os.path.isfile(fpath):
+                entries.append({
+                    "name": fname,
+                    "command": fpath,
+                    "source": "Startup folder",
+                    "removable": True,
+                })
+
+    return entries
+
+
+def remove_from_startup(name: str) -> str:
+    """Remove a program from HKCU startup registry (or Startup folder).
+
+    Returns a human-readable result string. Raises NotImplementedError off
+    Windows; OSError (winerror 5) on access-denied.
+    """
+    _require_windows("remove_from_startup")
+    import winreg
+
+    try:
+        key = winreg.OpenKey(
+            winreg.HKEY_CURRENT_USER, _HKCU_RUN, 0, winreg.KEY_SET_VALUE,
+        )
+        try:
+            winreg.DeleteValue(key, name)
+        finally:
+            winreg.CloseKey(key)
+        return f"Removed '{name}' from startup, sir."
+    except FileNotFoundError:
+        # Try startup folder
+        startup_folder = _startup_folder()
+        fpath = os.path.join(startup_folder, name)
+        if os.path.isfile(fpath):
+            os.remove(fpath)
+            return f"Removed '{name}' from startup folder, sir."
+        return f"'{name}' not found in startup entries, sir."
+
+
+def add_to_startup(name: str, command: str) -> str:
+    """Add a program to HKCU startup registry.
+
+    Returns a confirmation string. Raises NotImplementedError off Windows;
+    OSError (winerror 5) on access-denied.
+    """
+    _require_windows("add_to_startup")
+    import winreg
+
+    key = winreg.OpenKey(
+        winreg.HKEY_CURRENT_USER, _HKCU_RUN, 0, winreg.KEY_SET_VALUE,
+    )
+    try:
+        winreg.SetValueEx(key, name, 0, winreg.REG_SZ, command)
+    finally:
+        winreg.CloseKey(key)
+    return f"Added '{name}' to startup, sir."
+
+
+# -- display (brightness / night light / monitors) ---------------------
+#
+# Moved verbatim from jarvis/tools/local/display_manager.py. Brightness
+# goes through WMI first, then a DDC/CI ctypes fallback; Night Light is a
+# registry byte flip; monitor info uses EnumDisplayDevices/Settings.
+
+
+def set_brightness(level: int) -> str:
+    """Set monitor brightness to *level* (0-100).
+
+    Returns a confirmation string. Raises NotImplementedError when neither
+    WMI nor a DDC/CI capable monitor is available (and off Windows).
+    """
+    _require_windows("set_brightness")
+    try:
+        import wmi as wmi_mod
+    except ImportError:
+        wmi_mod = None
+    if wmi_mod is not None:
+        try:
+            c = wmi_mod.WMI(namespace="wmi")
+            methods = c.WmiMonitorBrightnessMethods()[0]
+            methods.WmiSetBrightness(level, 0)
+            return f"Brightness set to {level}%, sir."
+        except Exception as exc:
+            log.debug("WMI brightness failed: %s", exc)
+
+    # Fallback: ctypes Dxva2 SetMonitorBrightness (physical monitors)
+    try:
+        from ctypes import byref, c_ulong, Structure
+
+        # Try to get physical monitor handle
+        user32 = _windll().user32
+        hmon = user32.MonitorFromWindow(0, 1)  # MONITOR_DEFAULTTOPRIMARY
+
+        class PHYSICAL_MONITOR(Structure):
+            _fields_ = [
+                ("hPhysicalMonitor", c_ulong),
+                ("szPhysicalMonitorDescription", ctypes.c_wchar * 128),
+            ]
+
+        dxva2 = _windll().Dxva2
+        count = c_ulong()
+        dxva2.GetNumberOfPhysicalMonitorsFromHMONITOR(hmon, byref(count))
+        if count.value > 0:
+            monitors = (PHYSICAL_MONITOR * count.value)()
+            dxva2.GetPhysicalMonitorsFromHMONITOR(hmon, count, monitors)
+            dxva2.SetMonitorBrightness(monitors[0].hPhysicalMonitor, level)
+            dxva2.DestroyPhysicalMonitors(count, monitors)
+            return f"Brightness set to {level}%, sir."
+    except Exception as exc:
+        log.debug("ctypes brightness failed: %s", exc)
+
+    raise NotImplementedError(
+        "Brightness control requires WMI or a DDC/CI capable monitor. "
+        "Install: pip install wmi"
+    )
+
+
+def get_brightness() -> int | None:
+    """Get current monitor brightness (0-100) or None.
+
+    Returns None (rather than raising) when brightness cannot be read, so
+    display_info can still report the rest. Raises NotImplementedError off
+    Windows.
+    """
+    _require_windows("get_brightness")
+    try:
+        import wmi as wmi_mod
+    except ImportError:
+        wmi_mod = None
+    if wmi_mod is not None:
+        try:
+            c = wmi_mod.WMI(namespace="wmi")
+            brightness = c.WmiMonitorBrightness()[0]
+            return int(brightness.CurrentBrightness)
+        except Exception:
+            pass
+    return None
+
+
+def toggle_night_mode(enable: bool) -> str:
+    """Toggle Windows Night Light via registry.
+
+    Returns a confirmation string. Raises NotImplementedError when the
+    registry key is missing or the flip fails (and off Windows).
+    """
+    _require_windows("toggle_night_mode")
+    try:
+        import winreg
+        key_path = (
+            r"SOFTWARE\Microsoft\Windows\CurrentVersion\CloudStore\Store"
+            r"\DefaultAccount\Current\default$windows.data.bluelightreduction.settings"
+            r"\windows.data.bluelightreduction.settings"
+        )
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_ALL_ACCESS)
+        try:
+            data, reg_type = winreg.QueryValueEx(key, "Data")
+            data = bytearray(data)
+            # Byte at offset 18 controls the toggle (0x15=enabled, 0x13=disabled)
+            if len(data) > 18:
+                if enable:
+                    data[18] = 0x15
+                else:
+                    data[18] = 0x13
+                winreg.SetValueEx(key, "Data", 0, reg_type, bytes(data))
+        finally:
+            winreg.CloseKey(key)
+
+        state = "enabled" if enable else "disabled"
+        return f"Night mode {state}, sir."
+    except FileNotFoundError:
+        raise NotImplementedError(
+            "Night Light registry key not found. "
+            "This may require Windows 10 1703+ or later."
+        )
+    except Exception as exc:
+        raise NotImplementedError(f"Night mode toggle failed: {exc}")
+
+
+def display_info() -> dict:
+    """Gather monitor information.
+
+    Shape: ``{"monitor_count": int, "monitors": [...], "brightness": int |
+    None}``. Raises NotImplementedError off Windows.
+    """
+    _require_windows("display_info")
+    monitors: list[dict] = []
+
+    try:
+        user32 = _windll().user32
+
+        class DEVMODE(ctypes.Structure):
+            _fields_ = [
+                ("dmDeviceName", ctypes.c_wchar * 32),
+                ("dmSpecVersion", ctypes.c_ushort),
+                ("dmDriverVersion", ctypes.c_ushort),
+                ("dmSize", ctypes.c_ushort),
+                ("dmDriverExtra", ctypes.c_ushort),
+                ("dmFields", ctypes.c_ulong),
+                ("dmPositionX", ctypes.c_long),
+                ("dmPositionY", ctypes.c_long),
+                ("dmDisplayOrientation", ctypes.c_ulong),
+                ("dmDisplayFixedOutput", ctypes.c_ulong),
+                ("dmColor", ctypes.c_short),
+                ("dmDuplex", ctypes.c_short),
+                ("dmYResolution", ctypes.c_short),
+                ("dmTTOption", ctypes.c_short),
+                ("dmCollate", ctypes.c_short),
+                ("dmFormName", ctypes.c_wchar * 32),
+                ("dmLogPixels", ctypes.c_ushort),
+                ("dmBitsPerPel", ctypes.c_ulong),
+                ("dmPelsWidth", ctypes.c_ulong),
+                ("dmPelsHeight", ctypes.c_ulong),
+                ("dmDisplayFlags", ctypes.c_ulong),
+                ("dmDisplayFrequency", ctypes.c_ulong),
+            ]
+
+        dm = DEVMODE()
+        dm.dmSize = ctypes.sizeof(DEVMODE)
+
+        # Enumerate display devices
+        i = 0
+        while True:
+            try:
+                class DISPLAY_DEVICE(ctypes.Structure):
+                    _fields_ = [
+                        ("cb", ctypes.c_ulong),
+                        ("DeviceName", ctypes.c_wchar * 32),
+                        ("DeviceString", ctypes.c_wchar * 128),
+                        ("StateFlags", ctypes.c_ulong),
+                        ("DeviceID", ctypes.c_wchar * 128),
+                        ("DeviceKey", ctypes.c_wchar * 128),
+                    ]
+
+                dd = DISPLAY_DEVICE()
+                dd.cb = ctypes.sizeof(DISPLAY_DEVICE)
+                if not user32.EnumDisplayDevicesW(None, i, ctypes.byref(dd), 0):
+                    break
+
+                # Only active monitors
+                DISPLAY_DEVICE_ACTIVE = 0x00000001
+                if dd.StateFlags & DISPLAY_DEVICE_ACTIVE:
+                    dm2 = DEVMODE()
+                    dm2.dmSize = ctypes.sizeof(DEVMODE)
+                    ENUM_CURRENT_SETTINGS = -1
+                    if user32.EnumDisplaySettingsW(
+                        dd.DeviceName, ENUM_CURRENT_SETTINGS, ctypes.byref(dm2)
+                    ):
+                        monitors.append({
+                            "name": dd.DeviceName.strip('\x00'),
+                            "adapter": dd.DeviceString.strip('\x00'),
+                            "width": dm2.dmPelsWidth,
+                            "height": dm2.dmPelsHeight,
+                            "refresh_hz": dm2.dmDisplayFrequency,
+                            "bits_per_pixel": dm2.dmBitsPerPel,
+                        })
+                i += 1
+            except Exception:
+                break
+
+        # Fallback: at least the primary
+        if not monitors:
+            w = user32.GetSystemMetrics(0)
+            h = user32.GetSystemMetrics(1)
+            monitors.append({
+                "name": "Primary",
+                "width": w,
+                "height": h,
+            })
+    except Exception as exc:
+        log.debug("ctypes display info failed: %s", exc)
+
+    brightness = get_brightness()
+    return {
+        "monitor_count": len(monitors),
+        "monitors": monitors,
+        "brightness": brightness,
+    }
+
+
+# -- window (low-level Win32 primitives) --------------------------------
+#
+# Moved from jarvis/tools/local/window_manager.py. ONLY the win32gui /
+# ctypes.windll.user32 fallback paths live here -- the cross-platform
+# pygetwindow code stays in window_manager (pygetwindow is allowed).
+
+
+def list_windows_win32() -> list[dict]:
+    """Enumerate visible top-level windows via win32gui (pywin32).
+
+    Fallback for when pygetwindow is unavailable. Each dict has ``title``
+    and ``hwnd``. Raises ImportError when pywin32 is missing and
+    NotImplementedError off Windows.
+    """
+    _require_windows("list_windows_win32")
+    import win32gui
+
+    windows: list[dict] = []
+
+    def callback(hwnd, _):
+        if win32gui.IsWindowVisible(hwnd):
+            title = win32gui.GetWindowText(hwnd)
+            if title:
+                windows.append({"title": title, "hwnd": hwnd})
+
+    win32gui.EnumWindows(callback, None)
+    return windows
+
+
+def get_screen_metrics() -> tuple[int, int]:
+    """Return the primary screen ``(width, height)`` via GetSystemMetrics.
+
+    Raises NotImplementedError off Windows; callers that want a cross-
+    platform fallback should catch it and substitute a default.
+    """
+    _require_windows("get_screen_metrics")
+    user32 = _windll().user32
+    return user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
+
+
+# -- message box / foreground window / admin / power --------------------
+
+
+def message_box(
+    message: str,
+    *,
+    title: str = "Jarvis",
+    flags: int = 0x10,
+    hwnd: int = 0,
+) -> int:
+    """Show a native Win32 ``MessageBoxW`` and return its result code.
+
+    ``flags`` is the raw MB_* bitmask (default ``0x10`` = MB_ICONERROR).
+    A result of 0 means the dialog could not be shown. Raises
+    NotImplementedError off Windows; the crash/notification callers wrap
+    this in try/except so a non-Windows host degrades quietly.
+    """
+    _require_windows("message_box")
+    return int(_windll().user32.MessageBoxW(hwnd, message, title, flags))
+
+
+def foreground_window_title() -> str:
+    """Best-effort title of the current foreground window.
+
+    Raises NotImplementedError off Windows. Callers that treat this as a
+    best-effort probe should catch it (and any OSError) and substitute "".
+    """
+    _require_windows("foreground_window_title")
+    user32 = _windll().user32
+    hwnd = user32.GetForegroundWindow()
+    if not hwnd:
+        return ""
+    length = user32.GetWindowTextLengthW(hwnd)
+    if length <= 0:
+        return ""
+    buf = ctypes.create_unicode_buffer(length + 1)
+    user32.GetWindowTextW(hwnd, buf, length + 1)
+    return buf.value.strip()
+
+
+def is_user_admin() -> bool:
+    """True if the current process has administrator rights (shell32)."""
+    _require_windows("is_user_admin")
+    return _windll().shell32.IsUserAnAdmin() != 0
+
+
+def sleep_system() -> None:
+    """Suspend (sleep) the machine via PowrProf.SetSuspendState."""
+    _require_windows("sleep_system")
+    # SetSuspendState(hibernate=False, forceCritical=False, wakeupEventsDisabled=False)
+    _windll().PowrProf.SetSuspendState(0, 0, 0)
+
+
+def hibernate_system() -> None:
+    """Hibernate the machine via PowrProf.SetSuspendState."""
+    _require_windows("hibernate_system")
+    # SetSuspendState(hibernate=True, forceCritical=False, wakeupEventsDisabled=False)
+    _windll().PowrProf.SetSuspendState(1, 0, 0)
+
+
+def prevent_sleep() -> None:
+    """Keep the system + display awake via SetThreadExecutionState."""
+    _require_windows("prevent_sleep")
+    ES_CONTINUOUS = 0x80000000
+    ES_SYSTEM_REQUIRED = 0x00000001
+    ES_DISPLAY_REQUIRED = 0x00000002
+    _windll().kernel32.SetThreadExecutionState(
+        ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED
+    )
+
+
 __all__ = [
+    "add_to_startup",
+    "display_info",
+    "get_brightness",
+    "get_screen_metrics",
+    "foreground_window_title",
+    "hibernate_system",
+    "is_user_admin",
     "launch_app",
     "launch_path",
     "launch_shell",
     "launch_steam_game",
+    "list_startup",
+    "list_windows_win32",
     "lock_screen",
+    "message_box",
     "open_url",
+    "prevent_sleep",
     "read_clipboard_text",
+    "remove_from_startup",
     "screenshots_dir",
+    "set_brightness",
+    "sleep_system",
+    "toggle_night_mode",
     "validate_launch_command",
     "validate_launch_target_path",
     "volume_down",

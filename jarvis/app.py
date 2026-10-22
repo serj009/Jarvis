@@ -153,10 +153,10 @@ from typing import cast
 
 
 
-from PySide6.QtCore import QTimer
-
-
-from PySide6.QtWidgets import QApplication, QMessageBox
+# Qt primitives come through the ui/ bootstrap seam, not PySide6 directly:
+# SPEC.md forbids importing PySide6 outside jarvis/ui/, and app.py is the
+# composition root (outside ui/). See jarvis/ui/bootstrap.py.
+from jarvis.ui.bootstrap import QApplication, QMessageBox, QTimer
 
 
 
@@ -5330,7 +5330,7 @@ def _show_startup_error(message: str) -> None:
     try:
 
 
-        import ctypes
+        from jarvis import platform as platform_ops
 
 
 
@@ -5345,12 +5345,10 @@ def _show_startup_error(message: str) -> None:
         MB_SETFOREGROUND = 0x10000   # ask Windows to bring it to front
 
 
-        result = ctypes.windll.user32.MessageBoxW(  # type: ignore[attr-defined]
-
-
-            None, message, "Jarvis", MB_ICONERROR | MB_TOPMOST | MB_SETFOREGROUND,
-
-
+        result = platform_ops.message_box(
+            message,
+            title="Jarvis",
+            flags=MB_ICONERROR | MB_TOPMOST | MB_SETFOREGROUND,
         )
 
 
@@ -5363,12 +5361,7 @@ def _show_startup_error(message: str) -> None:
             log.warning(
 
 
-                "startup error dialog not shown (MessageBoxW returned 0, GetLastError=%s)",
-
-
-                ctypes.GetLastError(),  # type: ignore[attr-defined]
-
-
+                "startup error dialog not shown (MessageBoxW returned 0)",
             )
 
 

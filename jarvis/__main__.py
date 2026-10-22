@@ -28,11 +28,9 @@ def _write_crash_log(exc: BaseException) -> Path:
 
 def _show_error_box(message: str) -> None:
     try:
-        import ctypes
+        from jarvis import platform as platform_ops
 
-        ctypes.windll.user32.MessageBoxW(  # type: ignore[attr-defined]
-            None, message, "Jarvis", 0x10,
-        )
+        platform_ops.message_box(message, title="Jarvis", flags=0x10)
     except Exception:
         pass
 

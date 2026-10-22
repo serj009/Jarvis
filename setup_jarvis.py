@@ -16,12 +16,14 @@ Exit code: 0 when all critical steps passed, 1 otherwise.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import platform
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.request
@@ -43,41 +45,60 @@ DEFAULT_VISION_MODEL = "llava:7b"
 
 MIN_PYTHON = (3, 10)
 
+# Pinned HuggingFace commit for the rhasspy/piper-voices repo.
+# `resolve/main` is a MOVING ref: whatever `main` points to today can be
+# force-pushed or re-tagged tomorrow, so a supply-chain substitution would
+# go unnoticed. Pinning to an immutable commit SHA (plus the per-file
+# sha256 below) is the download equivalent of the hash-pinned
+# requirements.lock we already ship for pip.
+#
+# Pinned to the rhasspy/piper-voices commit the sha256 values below were
+# computed against (resolved from main on 2026-10-22). Bump this together
+# with EXPECTED_SHA256 if the voices are ever re-pinned.
+PIPER_VOICES_COMMIT = "5041a7a49ae5b3a0f30e6837769eb03fdbb231bd"
+
+_PIPER_BASE = (
+    "https://huggingface.co/rhasspy/piper-voices/resolve/{commit}/"
+)
+
 # All six Piper voices: 3 default (male) + 3 alternative.
-# (voice_name, huggingface_base_url)
-PIPER_VOICES: list[tuple[str, str]] = [
-    (
-        "en_GB-alan-medium",
-        "https://huggingface.co/rhasspy/piper-voices/resolve/main/"
-        "en/en_GB/alan/medium",
-    ),
-    (
-        "en_US-lessac-medium",
-        "https://huggingface.co/rhasspy/piper-voices/resolve/main/"
-        "en/en_US/lessac/medium",
-    ),
-    (
-        "ru_RU-dmitri-medium",
-        "https://huggingface.co/rhasspy/piper-voices/resolve/main/"
-        "ru/ru_RU/dmitri/medium",
-    ),
-    (
-        "ru_RU-irina-medium",
-        "https://huggingface.co/rhasspy/piper-voices/resolve/main/"
-        "ru/ru_RU/irina/medium",
-    ),
-    (
-        "uk_UA-mykyta-high",
-        "https://huggingface.co/rhasspy/piper-voices/resolve/main/"
-        "uk/uk_UA/mykyta/high",
-    ),
-    (
-        # NOTE: Lada uses x_low quality (no medium model on HuggingFace).
-        "uk_UA-lada-x_low",
-        "https://huggingface.co/rhasspy/piper-voices/resolve/main/"
-        "uk/uk_UA/lada/x_low",
-    ),
+# (voice_name, repo_relative_path)
+_PIPER_VOICE_PATHS: list[tuple[str, str]] = [
+    ("en_GB-alan-medium", "en/en_GB/alan/medium"),
+    ("en_US-lessac-medium", "en/en_US/lessac/medium"),
+    ("ru_RU-dmitri-medium", "ru/ru_RU/dmitri/medium"),
+    ("ru_RU-irina-medium", "ru/ru_RU/irina/medium"),
+    ("uk_UA-mykyta-high", "uk/uk_UA/mykyta/high"),
+    # NOTE: Lada uses x_low quality (no medium model on HuggingFace).
+    ("uk_UA-lada-x_low", "uk/uk_UA/lada/x_low"),
 ]
+
+
+def _piper_voices(commit: str) -> list[tuple[str, str]]:
+    """Build (voice_name, base_url) pairs for a pinned *commit*."""
+    base = _PIPER_BASE.format(commit=commit)
+    return [(name, base + path) for name, path in _PIPER_VOICE_PATHS]
+
+
+# Expected SHA-256 for every downloadable file, keyed by filename.
+# None = unknown (must be filled before that file can be verified). Compute
+# locally once with: `certutil -hashfile <file> SHA256` (Windows) or
+# `sha256sum <file>`, then paste here. A None entry makes setup refuse to
+# download that file rather than trust it blindly.
+EXPECTED_SHA256: dict[str, str | None] = {
+    "en_GB-alan-medium.onnx": "0a309668932205e762801f1efc2736cd4b0120329622adf62be09e56339d3330",
+    "en_GB-alan-medium.onnx.json": "c0f0d124e5895c00e7c03b35dcc8287f319a6998a365b182deb5c8e752ee8c1e",
+    "en_US-lessac-medium.onnx": "5efe09e69902187827af646e1a6e9d269dee769f9877d17b16b1b46eeaaf019f",
+    "en_US-lessac-medium.onnx.json": "efe19c417bed055f2d69908248c6ba650fa135bc868b0e6abb3da181dab690a0",
+    "ru_RU-dmitri-medium.onnx": "f073356ebc4bd0f80c5af58df2953a5988bd5bdab1eb38635ce960b071fbefcb",
+    "ru_RU-dmitri-medium.onnx.json": "667ef3117bc642c2892dff7690d8bdc8ca4228aeaa783b2dc1416df632855e0d",
+    "ru_RU-irina-medium.onnx": "8ff38212d23da300bbe3705c645e6e5b9475f0bfde01558eb17813e22acaaaaa",
+    "ru_RU-irina-medium.onnx.json": "c2ec28bb38e2b59e93b959b3e40348c1afebbd272f30fed5d41205d08e98a9d7",
+    "uk_UA-mykyta-high.onnx": "081d253cd246d7d4d698c6dd147b74cad498dafd213527887a3a490519138243",
+    "uk_UA-mykyta-high.onnx.json": "b5db6b4efb02d4a0e8f128253fd64e82dfa72d1105e9060b0c6fd9610eec6a4f",
+    "uk_UA-lada-x_low.onnx": "f8d015d3fc19ea6bd8ac3ca1fd0c0fbac5054c609599ee73799235fd2cf5c786",
+    "uk_UA-lada-x_low.onnx.json": "2df74b622e78930e8a62432d1cc8380f79f34f02c8c58ebd68e6ccbc857d80aa",
+}
 
 # Custom trained voices — uploaded to your HuggingFace repo.
 # After training a Piper voice, upload .onnx + .onnx.json to HuggingFace:
@@ -168,22 +189,54 @@ def _pip_exe() -> str:
     return str(VENV_DIR / "bin" / "pip")
 
 
-def _download_file(url: str, dest: Path, label: str = "") -> bool:
-    """Download a file with progress indication. Returns True on success."""
+def _download_file(
+    url: str,
+    dest: Path,
+    label: str = "",
+    expected_sha256: str | None = None,
+) -> bool:
+    """Download *url* to *dest*, verifying SHA-256 before committing it.
+
+    The download goes to a temporary file in the destination directory; the
+    SHA-256 is computed while streaming. Only when the digest matches
+    *expected_sha256* is the temp file atomically renamed onto *dest*. On
+    any failure — network error, hash mismatch, or a missing/empty expected
+    hash — the temp file is deleted and the function returns False, leaving
+    no partial or unverified file behind.
+
+    ``expected_sha256=None`` is treated as a HARD FAILURE (not "skip the
+    check"): we refuse to install a file we cannot verify. Fill
+    EXPECTED_SHA256 to enable the download.
+    """
+    if not expected_sha256:
+        print(
+            f"\n      ❌ Нет ожидаемого SHA-256 для {label or dest.name} — "
+            "загрузка отклонена (заполните EXPECTED_SHA256)."
+        )
+        return False
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path: Path | None = None
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "Jarvis-Setup/1.0"})
         with urllib.request.urlopen(req, timeout=120) as resp:
             total = int(resp.headers.get("Content-Length", 0))
             downloaded = 0
             chunk_size = 64 * 1024
-            dest.parent.mkdir(parents=True, exist_ok=True)
+            hasher = hashlib.sha256()
 
-            with open(dest, "wb") as f:
+            # Temp file in the SAME directory so the rename is atomic.
+            fd, tmp_name = tempfile.mkstemp(
+                dir=str(dest.parent), prefix=f".{dest.name}.", suffix=".part"
+            )
+            tmp_path = Path(tmp_name)
+            with os.fdopen(fd, "wb") as f:
                 while True:
                     chunk = resp.read(chunk_size)
                     if not chunk:
                         break
                     f.write(chunk)
+                    hasher.update(chunk)
                     downloaded += len(chunk)
                     if total > 0:
                         pct = downloaded * 100 // total
@@ -196,12 +249,25 @@ def _download_file(url: str, dest: Path, label: str = "") -> bool:
 
             if total > 0:
                 print()  # newline after progress
+
+        actual = hasher.hexdigest()
+        if actual.lower() != expected_sha256.lower():
+            print(
+                f"\n      ❌ SHA-256 не совпал для {label or dest.name}:\n"
+                f"         ожидался {expected_sha256}\n"
+                f"         получен  {actual}\n"
+                "         Файл удалён (возможна подмена)."
+            )
+            tmp_path.unlink(missing_ok=True)
+            return False
+
+        # Verified — move into place (replace any stale copy atomically).
+        os.replace(tmp_path, dest)
         return True
     except (urllib.error.URLError, OSError, TimeoutError) as exc:
         print(f"\n      Ошибка загрузки: {exc}")
-        # Clean up partial download
-        if dest.exists():
-            dest.unlink()
+        if tmp_path is not None:
+            tmp_path.unlink(missing_ok=True)
         return False
 
 
@@ -302,8 +368,17 @@ def step_piper_voices() -> tuple[str, str, str]:
     """[4/9] Download all Piper TTS voice models."""
     VOICES_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Combine standard + custom voices into one download list.
-    all_voices = list(PIPER_VOICES) + list(CUSTOM_VOICES)
+    # A pinned commit SHA is required — refuse to touch a moving ref.
+    if not PIPER_VOICES_COMMIT:
+        return (
+            "Голоса Piper",
+            FAIL,
+            "PIPER_VOICES_COMMIT не задан — укажите commit-SHA репозитория "
+            "rhasspy/piper-voices (см. комментарий в setup_jarvis.py).",
+        )
+
+    # Combine standard (pinned-commit URLs) + custom voices into one list.
+    all_voices = _piper_voices(PIPER_VOICES_COMMIT) + list(CUSTOM_VOICES)
 
     total_voices = len(all_voices)
     downloaded = 0
@@ -323,7 +398,10 @@ def step_piper_voices() -> tuple[str, str, str]:
                 total_bytes += dest.stat().st_size
                 continue
 
-            if not _download_file(url, dest, filename):
+            if not _download_file(
+                url, dest, filename,
+                expected_sha256=EXPECTED_SHA256.get(filename),
+            ):
                 voice_ok = False
                 break
 

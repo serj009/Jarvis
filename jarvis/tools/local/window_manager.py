@@ -1,7 +1,11 @@
 """Window management — focus, minimize, maximize, resize, snap, list.
 
-Uses pygetwindow (with pywin32/ctypes fallback) for window operations.
-Resolves app names via app_aliases for natural voice control.
+Uses pygetwindow (cross-platform, so it stays here) for window operations,
+falling back to the low-level Win32 primitives in platform/windows.py when
+pygetwindow is unavailable. The win32gui / ctypes access lives behind the
+platform seam (ARCHITECTURE RULE, SPEC.md line 75: no win32 imports outside
+platform/windows.py). Resolves app names via app_aliases for natural voice
+control.
 """
 
 from __future__ import annotations
@@ -12,6 +16,7 @@ from typing import ClassVar, Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from jarvis import platform as platform_ops
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -23,24 +28,6 @@ def _get_pygetwindow():
         import pygetwindow as gw
         return gw
     except ImportError:
-        return None
-
-
-def _get_win32gui():
-    """Lazy import win32gui (pywin32)."""
-    try:
-        import win32gui
-        return win32gui
-    except ImportError:
-        return None
-
-
-def _get_ctypes_user32():
-    """Fallback: ctypes for basic win32 operations."""
-    try:
-        import ctypes
-        return ctypes.windll.user32
-    except (ImportError, AttributeError, OSError):
         return None
 
 
@@ -64,21 +51,16 @@ def _list_windows_impl() -> list[dict]:
                 })
         return windows
 
-    win32gui = _get_win32gui()
-    if win32gui is not None:
-        windows = []
-        def callback(hwnd, _):
-            if win32gui.IsWindowVisible(hwnd):
-                title = win32gui.GetWindowText(hwnd)
-                if title:
-                    windows.append({"title": title, "hwnd": hwnd})
-        win32gui.EnumWindows(callback, None)
-        return windows
-
-    raise NotImplementedError(
-        "Window management requires pygetwindow or pywin32. "
-        "Install: pip install pygetwindow"
-    )
+    # Fallback: low-level Win32 enumeration behind the platform seam.
+    # platform.windows.list_windows_win32 raises ImportError when pywin32 is
+    # missing and NotImplementedError off Windows.
+    try:
+        return platform_ops.list_windows_win32()
+    except ImportError:
+        raise NotImplementedError(
+            "Window management requires pygetwindow or pywin32. "
+            "Install: pip install pygetwindow"
+        )
 
 
 def _find_window(title_part: str):
@@ -327,12 +309,14 @@ class WindowActionTool:
 
     @staticmethod
     def _screen_size() -> tuple[int, int]:
-        """Primary screen (width, height); 1920x1080 fallback off-Windows."""
+        """Primary screen (width, height); 1920x1080 fallback off-Windows.
+
+        The GetSystemMetrics call lives in platform/windows.py; off Windows
+        it raises NotImplementedError and we fall back to a sane default.
+        """
         try:
-            import ctypes
-            user32 = ctypes.windll.user32
-            return user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
-        except (ImportError, AttributeError, OSError):
+            return platform_ops.get_screen_metrics()
+        except (NotImplementedError, OSError):
             return 1920, 1080
 
     # Snap action -> (x_frac, y_frac, w_frac, h_frac) of the screen.
