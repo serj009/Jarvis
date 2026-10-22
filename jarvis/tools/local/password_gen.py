@@ -271,7 +271,7 @@ class GeneratePasswordTool:
         try:
             if sys.platform == "win32":
                 process = subprocess.Popen(
-                    ["clip"], stdin=subprocess.PIPE, shell=True,
+                    ["clip"], stdin=subprocess.PIPE,
                 )
                 process.communicate(text.encode("utf-16-le"))
                 return " Copied to clipboard."
