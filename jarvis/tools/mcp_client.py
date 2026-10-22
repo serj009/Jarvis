@@ -67,6 +67,37 @@ TRAYCE_AUTH_HEADER = "X-Trayce-Auth-Token"
 _ILLEGAL_NAME_CHARS = re.compile(r"[^a-zA-Z0-9_-]+")
 
 
+# --- host trust -----------------------------------------------------------
+
+# Hostnames that count as "this machine". A file-sourced auth token and a
+# port.txt override are only ever applied to these — a token written by a
+# local app (Trayce) must never be sent to a remote server the user merely
+# pointed a config at.
+_LOCAL_HOSTS: frozenset[str] = frozenset({
+    "127.0.0.1", "::1", "localhost", "0.0.0.0",
+})
+
+
+def _host_of(url: str) -> str:
+    """Return the lowercased hostname of *url* ("" if unparseable)."""
+    from urllib.parse import urlparse
+
+    try:
+        host = urlparse(url).hostname or ""
+    except ValueError:
+        return ""
+    return host.lower()
+
+
+def is_local_url(url: str) -> bool:
+    """True if *url*'s host is loopback / this machine.
+
+    Used to gate file-sourced credentials and the confirmation default:
+    only local servers are trusted with a file token and no prompt.
+    """
+    return _host_of(url) in _LOCAL_HOSTS
+
+
 # --- credentials ----------------------------------------------------------
 
 
@@ -115,8 +146,26 @@ def resolve_trayce_endpoint(config: MCPServerConfig) -> tuple[str, str | None]:
     untouched and the literal token."""
     if not config.auth_token_from_file:
         return config.url, config.auth_token
+
+    # A file-sourced token (and the port.txt override) are LOCAL-ONLY: they
+    # belong to a local app on this machine. Applying them to a non-local
+    # URL would leak that app's token to whatever host the config names.
+    if not is_local_url(config.url):
+        log.warning(
+            "MCP server %r uses auth_token_from_file but its URL %s is not "
+            "local — refusing to send the file token to a remote host. "
+            "Set auth_token_from_file=False and provide auth_token "
+            "explicitly if this is intended.",
+            config.name, config.url,
+        )
+        return config.url, config.auth_token
+
     port, token = _read_trayce_credentials()
     url = _override_url_port(config.url, port) if port is not None else config.url
+    # The port override must not move the endpoint off-host. (Defensive —
+    # _override_url_port only changes the port, but re-check the result.)
+    if not is_local_url(url):
+        url = config.url
     return url, token
 
 
@@ -155,6 +204,32 @@ def _sanitize_tool_name(server_name: str, tool_name: str) -> str:
     cleaned = cleaned[:64]
     if not cleaned or not TOOL_NAME_REGEX.match(cleaned):
         raise ValueError(f"cannot derive a valid tool name from {raw!r}")
+    return cleaned
+
+
+# Max length for a remote tool description before it is truncated. A server
+# controls this text and it reaches the model verbatim; an unbounded blob is
+# both a context-window hog and a prompt-injection surface.
+_MAX_TOOL_DESCRIPTION = 1024
+
+
+def _clean_tool_description(description: str) -> str:
+    """Sanitise a server-supplied tool description before it reaches the LLM.
+
+    The description is untrusted external content (tool-description
+    poisoning): strip prompt-injection payloads via the Layer-3 sanitizer
+    and cap the length. Never raises.
+    """
+    if not description:
+        return description
+    try:
+        from jarvis.security.output_sanitizer import clean_external_text
+
+        cleaned = clean_external_text(description, source="mcp:tool_description")
+    except Exception:  # pragma: no cover - defensive
+        cleaned = description
+    if len(cleaned) > _MAX_TOOL_DESCRIPTION:
+        cleaned = cleaned[:_MAX_TOOL_DESCRIPTION] + "…"
     return cleaned
 
 
@@ -281,7 +356,9 @@ class MCPServerConnection:
         return [
             ToolSpec(
                 name=t.name,
-                description=getattr(t, "description", "") or "",
+                description=_clean_tool_description(
+                    getattr(t, "description", "") or ""
+                ),
                 input_schema=getattr(t, "inputSchema", None) or {},
             )
             for t in result.tools
@@ -363,6 +440,11 @@ class MCPManager:
         self._connections: dict[str, MCPServerConnection] = {}
         # name -> list of registered (prefixed) tool names, for clean removal
         self._registered: dict[str, list[str]] = {}
+        # name -> fingerprint of the tool set last seen for that server
+        # (remote_name -> input_schema hash). A changed fingerprint on a
+        # later connect is a "rug pull": the server published a different
+        # tool set than before. We log + audit it (no UI to re-prompt).
+        self._tool_fingerprints: dict[str, dict[str, str]] = {}
 
     @property
     def server_names(self) -> list[str]:
@@ -388,11 +470,25 @@ class MCPManager:
                 "Trayce auth token not found — is Trayce signed in? "
                 "Connecting to %s without auth.", url,
             )
+
+        # Vuln 2: a non-local server is never trusted to run its tools
+        # without a confirmation prompt, regardless of the config flag.
+        # Local bridges (Trayce et al.) keep the config's value so a
+        # deliberately-added localhost server doesn't prompt on every call.
+        effective_confirm = config.requires_confirmation
+        if not is_local_url(url):
+            if not effective_confirm:
+                log.warning(
+                    "MCP server %r is non-local (%s); forcing "
+                    "requires_confirmation=True for its tools.",
+                    config.name, url,
+                )
+            effective_confirm = True
         conn = MCPServerConnection(
             config.name,
             url,
             token,
-            requires_confirmation=config.requires_confirmation,
+            requires_confirmation=effective_confirm,
         )
         try:
             specs = await conn.connect()
@@ -409,6 +505,11 @@ class MCPManager:
                 log.warning("MCP server %r unavailable, skipping: %s", config.name, e)
             return
 
+        # Vuln 3 (rug pull): compare the published tool set against what this
+        # server published last time. A change is logged + audited so a
+        # server that quietly swaps its tools between connects is visible.
+        self._check_tool_set_change(config.name, specs)
+
         registered: list[str] = []
         for spec in specs:
             try:
@@ -424,7 +525,7 @@ class MCPManager:
                 ),
                 connection=conn,
                 remote_name=spec.name,
-                requires_confirmation=config.requires_confirmation,
+                requires_confirmation=effective_confirm,
             )
             try:
                 self._registry.register(tool)
@@ -486,6 +587,49 @@ class MCPManager:
     async def shutdown(self) -> None:
         for name in list(self._connections):
             await self.remove_server(name)
+
+    def _check_tool_set_change(
+        self, server_name: str, specs: list[ToolSpec],
+    ) -> None:
+        """Detect a changed published tool set for *server_name* (rug pull).
+
+        Fingerprints each tool by remote name + a stable hash of its input
+        schema. If this server published a different set last time, log a
+        warning and record a sanitizer/audit entry. First connection just
+        records the baseline. Never raises.
+        """
+        import hashlib
+        import json as _json
+
+        fingerprint: dict[str, str] = {}
+        for spec in specs:
+            try:
+                schema_blob = _json.dumps(
+                    spec.input_schema, sort_keys=True, default=str,
+                )
+            except Exception:
+                schema_blob = repr(spec.input_schema)
+            fingerprint[spec.name] = hashlib.sha256(
+                schema_blob.encode("utf-8")
+            ).hexdigest()[:16]
+
+        previous = self._tool_fingerprints.get(server_name)
+        self._tool_fingerprints[server_name] = fingerprint
+        if previous is None or previous == fingerprint:
+            return
+
+        added = sorted(set(fingerprint) - set(previous))
+        removed = sorted(set(previous) - set(fingerprint))
+        changed = sorted(
+            n for n in set(fingerprint) & set(previous)
+            if fingerprint[n] != previous[n]
+        )
+        log.warning(
+            "MCP server %r changed its published tool set since the last "
+            "connection (added=%s removed=%s re-described=%s). Treat new or "
+            "changed tools with suspicion.",
+            server_name, added, removed, changed,
+        )
 
 
 def _is_trayce(config: MCPServerConfig) -> bool:
