@@ -6,7 +6,7 @@ actually calls shutdown would shut down the developer's machine.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -44,16 +44,13 @@ async def test_cancel_shutdown():
     mock_run.assert_called_once_with(["shutdown", "/a"])
 
 
-async def test_sleep_calls_ctypes():
-    mock_powrprof = MagicMock()
-    with patch("jarvis.tools.local.power_control.ctypes", create=True) as mock_ctypes:
-        mock_ctypes.windll.PowrProf = mock_powrprof
-        # Patch the _sleep function to use our mock
-        with patch("jarvis.tools.local.power_control._sleep") as mock_sleep:
-            mock_sleep.return_value = "Going to sleep."
-            result = await PowerControlTool().execute(
-                PowerArgs(action="sleep"),
-            )
+async def test_sleep_dispatches():
+    # win32 now lives behind the platform seam; the tool just dispatches.
+    with patch("jarvis.tools.local.power_control._sleep") as mock_sleep:
+        mock_sleep.return_value = "Going to sleep."
+        result = await PowerControlTool().execute(
+            PowerArgs(action="sleep"),
+        )
     assert result.success
     assert "sleep" in (result.output or "").lower()
 

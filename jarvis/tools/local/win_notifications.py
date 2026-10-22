@@ -73,11 +73,11 @@ def _show_notification_impl(title: str, message: str, timeout: int = 10) -> str:
         except Exception as exc:
             log.debug("win10toast failed: %s", exc)
 
-    # Fallback: ctypes MessageBox (blocking but always available)
+    # Fallback: native MessageBox (blocking but always available)
     try:
-        import ctypes
-        ctypes.windll.user32.MessageBoxW(
-            0, message, f"Jarvis: {title}", 0x40,  # MB_ICONINFORMATION
+        from jarvis import platform as platform_ops
+        platform_ops.message_box(
+            message, title=f"Jarvis: {title}", flags=0x40,  # MB_ICONINFORMATION
         )
         return f"Notification shown: '{title}', sir."
     except Exception:

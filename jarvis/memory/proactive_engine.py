@@ -80,18 +80,9 @@ _LEVEL_ALLOWS: dict[InitiativeLevel, set[str]] = {
 def foreground_window_title() -> str:
     """Best-effort Windows foreground window title. '' off Windows."""
     try:
-        import ctypes
+        from jarvis import platform as platform_ops
 
-        user32 = ctypes.windll.user32  # type: ignore[attr-defined]
-        hwnd = user32.GetForegroundWindow()
-        if not hwnd:
-            return ""
-        length = user32.GetWindowTextLengthW(hwnd)
-        if length <= 0:
-            return ""
-        buf = ctypes.create_unicode_buffer(length + 1)
-        user32.GetWindowTextW(hwnd, buf, length + 1)
-        return buf.value.strip()
+        return platform_ops.foreground_window_title()
     except Exception:  # noqa: BLE001
         return ""
 
