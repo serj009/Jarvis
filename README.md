@@ -3,7 +3,7 @@
   <p align="center">
     Fully offline, multilingual (EN / RU / UK) AI assistant for Windows<br/>
     Powered by <strong>Ollama + Qwen 3 8B</strong> · <strong>Whisper STT</strong> · <strong>Piper TTS</strong> · <strong>PySide6</strong><br/><br/>
-    <code>495 source files</code> · <code>142K lines</code> · <code>126+ tools</code> · <code>700+ voice patterns</code> · <code>4 950+ tests</code>
+    <code>500+ source files</code> · <code>150K+ lines</code> · <code>237+ tools</code> · <code>700+ voice patterns</code> · <code>5 321 tests</code>
   </p>
 </p>
 
@@ -38,6 +38,9 @@
 | 🛡️ | **4-Layer Defense** | Origin tracking (HMAC-signed voice input), personal-data leak scanner, prompt-injection / suspicious-tool-chain sanitizer, and a hash-chained encrypted audit log — unified at a single tool-call security gate |
 | 🔑 | **Password Vault** | Crypto-grade credential store (Argon2id → AES-256-GCM → DPAPI). Auto-login to sites where the password **never enters the LLM context** |
 | 🗄️ | **Encrypted Storage** | All user data at rest is DPAPI-encrypted — 11 JSON stores plus memory SQLite columns (text, tags, condensed) |
+| 🧩 | **33 Integration Plugins** | Google Calendar, Gmail, Contacts, Drive, Telegram, GitHub, Spotify, YouTube, WhatsApp, Monobank, Notion, Trello, Slack, Home Assistant, Philips Hue, and 18 more — **111 integration tools**, all OFF by default, enable-gated on SDK presence |
+| 🛠️ | **SkillForge** | Auto-generated skills from repeated actions: observe → analyze → propose → generate. 5-level sandbox (file isolation, AST validator, circuit breaker). 9 voice tools |
+| 📜 | **Protocols** | User-defined voice macros — "Вечеринка" → play music + volume max. Simple regex + LLM modes. Checked BEFORE intent patterns |
 | 📝 | **Notes** | Voice-captured markdown notes, append / read / delete by title |
 | 🔎 | **Research** | DuckDuckGo + Ollama summary; deep research with planner/worker split; Ultra mode |
 | 📄 | **Web Knowledge Extractor** | "Сохрани информацию со страницы" — LLM-structured extraction of any web page straight into long-term memory |
@@ -48,7 +51,7 @@
 | 🎨 | **Settings UI** | **Sidebar navigation, 12 pages**: General, Voice, Models, Tools, Coding, Gaming, Commands, Hotkeys, Memory, Security, Advanced, About |
 | 🖥️ | **Dashboard** | Live HUD: mode, CPU/RAM, mic level, models, uptime |
 | 🎯 | **Command Palette** | `Ctrl+Shift+P` keyboard launcher for any command |
-| 🔧 | **126+ Registered Tools** | 82 tool files across 89 modules — from bookmarks to RSS, from QR codes to disk cleaner |
+| 🔧 | **237+ Registered Tools** | 126+ local tools + 111 integration tools across 100+ modules — from bookmarks to RSS, from QR codes to Home Assistant |
 
 ---
 
@@ -165,15 +168,17 @@ Plan → Create files → Edit → Run tests → Fix errors → Git commit
 ## 🏗️ Architecture Overview
 
 ```
-jarvis/                     ← 267 package files (495 repo-wide), 142K lines
+jarvis/                     ← 300+ package files (500+ repo-wide), 150K+ lines
 ├── audio/                  — STT (Whisper), TTS (Piper), VAD, AEC, sound effects,
 │                             wake word, voice registry
 ├── browser/                — Playwright browser automation
 ├── coding/                 — Coding Agent, 16 templates, 8-language toolchain,
 │                             project map, code search, voice confirm
-├── core/                   — Config (schema v37), lifecycle, VRAM manager,
+├── core/                   — Config (schema v39), lifecycle, VRAM manager,
 │                             game mode, state machine, events, migrations
 ├── dev/                    — Developer utilities
+├── integrations/           — 33 plugins (Google, Telegram, GitHub, Spotify,
+│                             Home Assistant, etc.), registry, auth, wiring
 ├── knowledge/              — Knowledge base management
 ├── llm/                    — Ollama client, intent router (700+ patterns),
 │                             conversation history, universal model provider
@@ -186,12 +191,14 @@ jarvis/                     ← 267 package files (495 repo-wide), 142K lines
 │                             4-layer defense (origin tracker, leak scanner,
 │                             output sanitizer, audit log, tool guard),
 │                             Argon2id/AES-256-GCM password vault
-├── tools/                  — 82 tool files, 126+ registered tools, MCP client,
+├── skills/                 — SkillForge (auto-generated skills), Protocols
+│                             (user voice macros), sandbox, decomposer
+├── tools/                  — 100+ tool files, 237+ registered tools, MCP client,
 │   └── local/                risk levels, tool filter
 ├── ui/                     — PySide6: overlay orb, chat panel, coding panel,
 │   └── settings/             dashboard, notes, research, deep research,
-│       └── tabs/ (12)        clipboard history, command palette, help,
-│                             onboarding, logs, settings (12 sidebar pages)
+│       └── tabs/ (17)        clipboard history, command palette, help,
+│                             onboarding, logs, settings (17 sidebar pages)
 └── vision/                 — OCR (Tesseract), screen-change detector
 ```
 
@@ -202,7 +209,7 @@ jarvis/                     ← 267 package files (495 repo-wide), 142K lines
 | **Intent Router** | Hybrid pattern + LLM: 700+ regex patterns checked first (instant), fallback to LLM for unmatched queries |
 | **VRAM Manager** | Monitors GPU memory, auto-unloads models for Game Mode, restores on exit |
 | **Tool Registry** | MCP-compatible protocol, per-tool risk levels, sandbox confirmations |
-| **Config v37** | Pydantic schema with automatic migrations across 37 versions |
+| **Config v39** | Pydantic schema with automatic migrations across 39 versions |
 | **Audio Pipeline** | Whisper → VAD → Wake Word → STT → TTS pipeline with optional AEC |
 
 ---
@@ -234,7 +241,7 @@ jarvis/                     ← 267 package files (495 repo-wide), 142K lines
 ## 🧪 Testing
 
 ```powershell
-# Run the full test suite (4950+ tests)
+# Run the full test suite (5321 tests)
 pytest
 
 # Run with coverage
@@ -253,7 +260,7 @@ python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 python -m jarvis          # Run
-pytest                    # Test (4950+ tests)
+pytest                    # Test (5321 tests)
 ruff check .              # Lint
 ```
 

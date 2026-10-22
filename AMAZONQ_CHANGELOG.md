@@ -5,6 +5,41 @@
 
 ---
 
+## 2026-10-22 — SkillForge + Protocols + 28 Integration Plugins + Audit Fixes
+
+### SkillForge (jarvis/skills/)
+- `skill_forge.py`: observe→analyze→propose→generate engine with SQLite
+- `sandbox.py`: 5 levels of protection (file isolation, AST validator, circuit breaker)
+- `decomposer.py`: breaks large skills into safe pieces
+- 9 voice tools (list/approve/reject/delete/analyze/improve/history)
+- 100 tests
+
+### Protocols (jarvis/skills/protocols.py)
+- User-defined voice macros (e.g. "Вечеринка" → play music + volume max)
+- 2 modes: simple regex + LLM for complex
+- IntentRouter integration (protocols checked BEFORE patterns)
+- 7 voice tools, 72 tests
+
+### 28 Integration Plugins (Tier 2 + Tier 3)
+Tier 2 (13): GitHub, GitHub Actions, Docker, Spotify, YouTube, WhatsApp,
+  Monobank, PrivatBank, Crypto, News, Weather Extended, DeepL, Discord
+Tier 3 (15): Notion, Trello, Todoist, Slack, Dropbox, OneDrive, GitLab,
+  Twitch, Wikipedia, Home Assistant, Philips Hue, MQTT, Banking, Google Maps, Ride Hailing
+Total: 33 plugins, 111 integration tools
+
+### Fixes
+- `app.py`: `_audio_main` missing `integration_registry` parameter (startup crash)
+- `relations.py`: mkdir parents before `sqlite3.connect`
+- `catalogue.py`: protocol tools import from correct module
+- 86 `TOOL_DISPLAY_NAMES` + 4 `risk.py` entries
+- Registration: 16 new tools in capabilities/settings/registry
+
+### Stats
+- 5321 passed, 0 failed
+- Schema v39
+
+---
+
 
 ## 2026-10-21 — Google suite + Telegram: 5 online integration plugins
 
