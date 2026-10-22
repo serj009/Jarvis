@@ -7,7 +7,6 @@ environments). Uses a temp directory to avoid polluting the real
 
 from __future__ import annotations
 
-import hashlib
 import json
 import sys
 from typing import Any
@@ -20,18 +19,11 @@ import pytest
 _dpapi_patches = []
 
 
-def _fast_derive_key(password: Any, salt: bytes) -> bytes:
-    """Test-only KDF: PBKDF2 with minimal iterations.
-
-    The production ``_derive_key`` uses Argon2id or ``hashlib.scrypt``
-    with n=2**17 (128 MB memory, several seconds per call).  That is
-    correct for security but makes the test suite unusably slow or can
-    even fail on resource-constrained CI runners.
-
-    This substitute is deterministic (same password + salt → same key)
-    and fast enough for hundreds of vault round-trips per second.
-    """
-    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, iterations=1, dklen=32)
+# Real Argon2id, but with the cheapest valid cost so the suite stays
+# fast. This keeps tests exercising the ACTUAL KDF + on-disk format,
+# not a PBKDF2 stand-in that would hide format/algorithm bugs. argon2
+# minimums: time_cost>=1, parallelism>=1, memory_cost>=8*parallelism.
+FAST_KDF_PARAMS = {"time_cost": 1, "memory_cost": 8, "parallelism": 1}
 
 @pytest.fixture(autouse=True)
 def _mock_dpapi():
@@ -44,12 +36,11 @@ def _mock_dpapi():
 
 @pytest.fixture(autouse=True)
 def _fast_kdf():
-    """Replace the heavy Argon2/scrypt KDF with a fast PBKDF2 for tests.
-
-    Without this, each ``_derive_key`` call allocates 128 MB and takes
-    several seconds, making the vault tests impractically slow.
+    """Use real Argon2id at minimum cost so tests are fast but exercise
+    the genuine KDF and on-disk format (no PBKDF2 substitution).
     """
-    with patch("jarvis.security.password_vault.PasswordVault._derive_key", staticmethod(_fast_derive_key)):
+    import jarvis.security.password_vault as pv
+    with patch.object(pv, "DEFAULT_KDF_PARAMS", FAST_KDF_PARAMS):
         yield
 
 
@@ -427,3 +418,301 @@ class TestEdgeCases:
         cred = v2.get_credential("steam")
         assert cred is not None
         assert cred.password== "persist_pw"
+
+
+# ---------------------------------------------------------------------------
+# v2 format + algorithm identifiers (Задача 9A)
+# ---------------------------------------------------------------------------
+
+class TestV2Format:
+    def test_header_records_algorithms(self, vault):
+        """v2 header stores kdf, cipher, and KDF params explicitly."""
+        from jarvis.security.password_vault import (
+            CIPHER_AES_256_GCM,
+            KDF_ARGON2ID,
+            VAULT_VERSION,
+        )
+
+        vault.create("master123")
+        doc = vault._vault_data
+        assert doc["version"] == VAULT_VERSION == 2
+        assert doc["kdf"] == KDF_ARGON2ID == "argon2id"
+        assert doc["cipher"] == CIPHER_AES_256_GCM == "aes-256-gcm"
+        assert set(doc["kdf_params"]) == {
+            "time_cost", "memory_cost", "parallelism",
+        }
+
+    def test_v2_roundtrip_real_algorithms(self, vault):
+        """Round-trip with the real Argon2id + AES-256-GCM pipeline."""
+        vault.create("master123")
+        vault.add_credential("steam", "gamer", password="s3cr3t")
+        vault.lock()
+        assert vault.unlock("master123")
+        cred = vault.get_credential("steam")
+        assert cred is not None and cred.password == "s3cr3t"
+
+    def test_unknown_version_raises_version_error(self, vault, vault_path):
+        from jarvis.security.password_vault import VaultVersionError
+
+        vault.create("master123")
+        vault.lock()
+        # Corrupt the version field on disk (no DPAPI in tests).
+        raw = vault_path.read_bytes()
+        payload = raw[len(b"JRVS_VLT"):]
+        doc = json.loads(payload.decode("utf-8"))
+        doc["version"] = 999
+        vault_path.write_bytes(b"JRVS_VLT" + json.dumps(doc).encode("utf-8"))
+        with pytest.raises(VaultVersionError):
+            vault.unlock("master123")
+
+    def test_unknown_algorithm_raises_version_error(self, vault, vault_path):
+        from jarvis.security.password_vault import VaultVersionError
+
+        vault.create("master123")
+        vault.lock()
+        raw = vault_path.read_bytes()
+        payload = raw[len(b"JRVS_VLT"):]
+        doc = json.loads(payload.decode("utf-8"))
+        doc["cipher"] = "rot13"
+        vault_path.write_bytes(b"JRVS_VLT" + json.dumps(doc).encode("utf-8"))
+        with pytest.raises(VaultVersionError):
+            vault.unlock("master123")
+
+
+# ---------------------------------------------------------------------------
+# Missing crypto backend — fail-closed, no weak bytes written (Задача 9A)
+# ---------------------------------------------------------------------------
+
+class TestBackendMissing:
+    def test_create_without_argon2_refuses(self, vault, vault_path):
+        from jarvis.security.password_vault import VaultBackendMissingError
+
+        # Simulate argon2-cffi absent.
+        import builtins
+        real_import = builtins.__import__
+
+        def _no_argon2(name, *a, **k):
+            if name.startswith("argon2"):
+                raise ImportError("argon2 not installed")
+            return real_import(name, *a, **k)
+
+        with patch("builtins.__import__", _no_argon2):
+            with pytest.raises(VaultBackendMissingError):
+                vault.create("master123")
+        # Not a single byte must have been written with weak crypto.
+        assert not vault_path.exists()
+
+    def test_create_without_cryptography_refuses(self, vault, vault_path):
+        from jarvis.security.password_vault import VaultBackendMissingError
+
+        import builtins
+        real_import = builtins.__import__
+
+        def _no_crypto(name, *a, **k):
+            if name.startswith("cryptography"):
+                raise ImportError("cryptography not installed")
+            return real_import(name, *a, **k)
+
+        with patch("builtins.__import__", _no_crypto):
+            with pytest.raises(VaultBackendMissingError):
+                vault.create("master123")
+        assert not vault_path.exists()
+
+
+# ---------------------------------------------------------------------------
+# Tampering is an auth error, not "wrong password" (Задача 9A)
+# ---------------------------------------------------------------------------
+
+class TestTamperingDistinct:
+    def test_tampered_entry_ciphertext_raises_corrupt(self, vault):
+        from jarvis.security.password_vault import (
+            PasswordVault,
+            VaultCorruptError,
+        )
+        import base64 as _b64
+
+        vault.create("master123")
+        vault.add_credential("steam", "user", password="pw")
+        entry = vault._vault_data["entries"]["steam"]
+        ct = bytearray(_b64.b64decode(entry["ciphertext"]))
+        ct[0] ^= 0xFF
+        with pytest.raises(VaultCorruptError):
+            PasswordVault._aes_decrypt(
+                _b64.b64decode(entry["nonce"]),
+                bytes(ct),
+                _b64.b64decode(entry["tag"]),
+                vault._master_key,
+            )
+
+
+# ---------------------------------------------------------------------------
+# v1 migration (Задача 9A)
+# ---------------------------------------------------------------------------
+
+def _write_v1_vault(
+    path, master_password, entries, *, kdf, cipher, kdf_params,
+):
+    """Build a legacy v1 vault file using OLD logic, for migration tests.
+
+    kdf: "argon2id" | "scrypt"; cipher: "aesgcm" | "hmacxor".
+    Mirrors how the old code wrote v1 (version:1, no kdf/cipher fields).
+    """
+    import base64 as _b64
+    import hashlib as _hashlib
+    import hmac as _hmac
+    import json as _json
+    import os as _os
+    from jarvis.security.password_vault import PasswordVault
+
+    salt = _os.urandom(32)
+    if kdf == "argon2id":
+        key = PasswordVault._derive_key(
+            master_password, salt, kdf_params=kdf_params,
+        )
+    else:
+        key = PasswordVault._legacy_derive_key_scrypt(master_password, salt)
+
+    def _enc(plaintext):
+        if cipher == "aesgcm":
+            return PasswordVault._aes_encrypt(plaintext, key)
+        # hmacxor (old home-grown scheme)
+        nonce = _os.urandom(12)
+        keystream = b""
+        for i in range((len(plaintext) // 32) + 1):
+            keystream += _hmac.new(
+                key, nonce + i.to_bytes(4, "big"), _hashlib.sha256,
+            ).digest()
+        keystream = keystream[: len(plaintext)]
+        ct = bytes(a ^ b for a, b in zip(plaintext, keystream))
+        tag = _hmac.new(key, nonce + ct, _hashlib.sha256).digest()[:16]
+        return nonce, ct, tag
+
+    check = _enc(PasswordVault.KNOWN_PLAINTEXT)
+    enc_entries = {}
+    for site, data in entries.items():
+        n, c, t = _enc(_json.dumps(data).encode("utf-8"))
+        enc_entries[site] = {
+            "nonce": _b64.b64encode(n).decode(),
+            "ciphertext": _b64.b64encode(c).decode(),
+            "tag": _b64.b64encode(t).decode(),
+        }
+    doc = {
+        "version": 1,
+        "salt": _b64.b64encode(salt).decode(),
+        "argon2_params": kdf_params,
+        "entries": enc_entries,
+        "master_key_check": {
+            "nonce": _b64.b64encode(check[0]).decode(),
+            "ciphertext": _b64.b64encode(check[1]).decode(),
+            "tag": _b64.b64encode(check[2]).decode(),
+        },
+    }
+    path.write_bytes(b"JRVS_VLT" + _json.dumps(doc).encode("utf-8"))
+
+
+FAST = {"time_cost": 1, "memory_cost": 8, "parallelism": 1}
+
+
+class TestV1Migration:
+    def test_v1_argon2_aesgcm_migrates(self, vault_path):
+        """Standard v1 (Argon2id + AES-GCM) opens and migrates to v2."""
+        from jarvis.security.password_vault import PasswordVault
+
+        _write_v1_vault(
+            vault_path, "master123",
+            {"steam": {"username": "u", "password": "p", "url": "",
+                       "notes": "", "aliases": [], "created_at": 0,
+                       "updated_at": 0}},
+            kdf="argon2id", cipher="aesgcm", kdf_params=FAST,
+        )
+        v = PasswordVault(vault_path=vault_path)
+        v._kdf_params = dict(FAST)
+        assert v.unlock("master123")
+        # Migrated to v2 on disk, backup written, original untouched copy kept.
+        assert v._vault_data["version"] == 2
+        assert vault_path.with_suffix(vault_path.suffix + ".v1.bak").exists()
+        cred = v.get_credential("steam")
+        assert cred is not None and cred.password == "p"
+        # Re-open the migrated file fresh → now v2.
+        v2 = PasswordVault(vault_path=vault_path)
+        v2._kdf_params = dict(FAST)
+        assert v2.unlock("master123")
+        assert v2._vault_data["version"] == 2
+
+    def test_v1_scrypt_hmacxor_migrates(self, vault_path):
+        """Legacy v1 (scrypt + home-grown HMAC-XOR) opens and migrates."""
+        from jarvis.security.password_vault import PasswordVault
+
+        _write_v1_vault(
+            vault_path, "master123",
+            {"gmail": {"username": "g", "password": "x", "url": "",
+                       "notes": "", "aliases": [], "created_at": 0,
+                       "updated_at": 0}},
+            kdf="scrypt", cipher="hmacxor", kdf_params=FAST,
+        )
+        v = PasswordVault(vault_path=vault_path)
+        v._kdf_params = dict(FAST)
+        assert v.unlock("master123")
+        assert v._vault_data["version"] == 2
+        cred = v.get_credential("gmail")
+        assert cred is not None and cred.password == "x"
+
+    def test_v1_wrong_password_returns_false(self, vault_path):
+        from jarvis.security.password_vault import PasswordVault
+
+        _write_v1_vault(
+            vault_path, "master123", {},
+            kdf="argon2id", cipher="aesgcm", kdf_params=FAST,
+        )
+        v = PasswordVault(vault_path=vault_path)
+        v._kdf_params = dict(FAST)
+        assert v.unlock("wrong") is False
+
+    def test_migration_write_failure_leaves_original(self, vault_path):
+        """If writing the v2 temp file fails, the original v1 is untouched."""
+        from jarvis.security.password_vault import PasswordVault
+
+        _write_v1_vault(
+            vault_path, "master123",
+            {"steam": {"username": "u", "password": "p", "url": "",
+                       "notes": "", "aliases": [], "created_at": 0,
+                       "updated_at": 0}},
+            kdf="argon2id", cipher="aesgcm", kdf_params=FAST,
+        )
+        original = vault_path.read_bytes()
+
+        v = PasswordVault(vault_path=vault_path)
+        v._kdf_params = dict(FAST)
+        # Make the temp write explode mid-migration.
+        with patch.object(
+            PasswordVault, "_write_vault_bytes",
+            side_effect=OSError("disk full"),
+        ):
+            with pytest.raises(Exception):
+                v.unlock("master123")
+        # Original file unchanged; still a valid v1 that opens.
+        assert vault_path.read_bytes() == original
+        v2 = PasswordVault(vault_path=vault_path)
+        v2._kdf_params = dict(FAST)
+        assert v2.unlock("master123")
+
+
+# ---------------------------------------------------------------------------
+# Distinct error messages (Задача 9A)
+# ---------------------------------------------------------------------------
+
+class TestDistinctErrors:
+    def test_three_error_types_have_distinct_messages(self):
+        from jarvis.security.password_vault import (
+            VaultBackendMissingError,
+            VaultCorruptError,
+            VaultVersionError,
+        )
+
+        msgs = {
+            str(VaultBackendMissingError("cryptography is required; pip install cryptography")),
+            str(VaultCorruptError("Ciphertext failed authentication")),
+            str(VaultVersionError("Unsupported vault format version")),
+        }
+        # All three distinct.
+        assert len(msgs) == 3
