@@ -43,7 +43,9 @@ OLLAMA_API = "http://127.0.0.1:11434"
 DEFAULT_OLLAMA_MODEL = "qwen3:8b"
 DEFAULT_VISION_MODEL = "llava:7b"
 
-MIN_PYTHON = (3, 10)
+# Keep in sync with pyproject.toml `requires-python = ">=3.11"`. ruff and
+# pyright are also configured for py311.
+MIN_PYTHON = (3, 11)
 
 # Pinned HuggingFace commit for the rhasspy/piper-voices repo.
 # `resolve/main` is a MOVING ref: whatever `main` points to today can be
