@@ -135,6 +135,24 @@ BLOCKED_COMMANDS: frozenset[str] = frozenset(
     | {f"{a} {b}" for a, b in _BLOCKED_DOUBLE}
 )
 
+# Voice-pattern guard: the "run/запусти/выполни X" patterns must only match
+# when X actually starts with a whitelisted command. Without this the
+# greedy (.+) steals unrelated phrases — "запусти хром" (open_app),
+# "запусти сталкер в стиме" (launch_steam_game), "запусти музыку" — all
+# used to route to run_command and then fail is_command_allowed. Built from
+# the whitelist so it can never drift out of sync with it.
+_RUN_FIRST_TOKENS: frozenset[str] = frozenset(
+    set(_ALLOWED_SINGLE) | {a for a, _ in _ALLOWED_DOUBLE}
+)
+# Alternation of allowed first tokens, longest-first so e.g. "nvidia-smi"
+# is tried before any shorter prefix. Word-boundary after so "ver" does not
+# match "verify".
+_RUN_CMD_ALT = "|".join(
+    re.escape(t) for t in sorted(_RUN_FIRST_TOKENS, key=len, reverse=True)
+)
+# Captures the whole command (first token guaranteed to be whitelisted).
+_RUN_CMD_CAPTURE = rf"((?:{_RUN_CMD_ALT})(?:\s.*)?)"
+
 
 def is_command_allowed(command: str) -> bool:
     """Check if *command* is in the whitelist (token-based, no prefix match).
@@ -297,18 +315,20 @@ class CLIRunnerTool:
     requires_confirmation: bool = False
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
         VoicePattern(
-            regex=r"^run\s+(.+)$",
-            priority=800,
+            # Only match when the command is actually whitelisted, so
+            # "run chrome" / "run my game" fall through to other tools.
+            regex=rf"^run\s+{_RUN_CMD_CAPTURE}$",
+            priority=400,
             args=lambda m: {"command": m.group(1)},
         ),
         VoicePattern(
-            regex=r"^(?:запусти|выполни)\s+(.+)$",
-            priority=800,
+            regex=rf"^(?:запусти|выполни)\s+{_RUN_CMD_CAPTURE}$",
+            priority=400,
             args=lambda m: {"command": m.group(1)},
         ),
         VoicePattern(
-            regex=r"^(?:запусти|виконай)\s+(.+)$",
-            priority=800,
+            regex=rf"^(?:запусти|виконай)\s+{_RUN_CMD_CAPTURE}$",
+            priority=400,
             args=lambda m: {"command": m.group(1)},
         ),
     )

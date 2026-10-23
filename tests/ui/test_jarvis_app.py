@@ -472,6 +472,10 @@ def test_open_settings_creates_once_and_raises_thereafter():
     app = JarvisApp()
     app.cfg = JarvisConfig()
     app.voices_dir = Path("/voices")
+    # _open_settings also forwards these to SettingsWindow; a bare
+    # JarvisApp() sets them only during full start(), so stub them here.
+    app.integration_registry = MagicMock()
+    app.registry = MagicMock()
 
     with patch("jarvis.app.SettingsWindow") as window_cls:
         app._open_settings()
@@ -492,6 +496,9 @@ def test_open_settings_wires_the_window_to_this_apps_handlers():
     # the (patched) SettingsWindow, and the assertion below compares what
     # arrived against the literal it was given.
     app.voices_dir = "/voices"  # type: ignore[assignment]
+    # Stub the registries _open_settings forwards (set only in full start()).
+    app.integration_registry = MagicMock()
+    app.registry = MagicMock()
 
     with patch("jarvis.app.SettingsWindow") as window_cls:
         app._open_settings()

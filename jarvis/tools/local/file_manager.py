@@ -497,7 +497,10 @@ class FileManagerTool:
             args=lambda m: {"action": "find", "path": m.group(1)},
         ),
         VoicePattern(
-            regex=r"^открой\s+(?:файл\s+)?(.+)$",
+            # "файл" is REQUIRED here (not optional): a bare "открой блокнот"
+            # is an app launch (open_app), not a file open. Mirrors the EN
+            # pattern which already requires file|document.
+            regex=r"^открой\s+файл\s+(.+)$",
             priority=300,
             args=lambda m: {"action": "open", "path": m.group(1)},
         ),
@@ -538,7 +541,8 @@ class FileManagerTool:
             args=lambda m: {"action": "find", "path": m.group(1)},
         ),
         VoicePattern(
-            regex=r"^відкрий\s+(?:файл\s+)?(.+)$",
+            # "файл" required — see the RU "открой файл" note above.
+            regex=r"^відкрий\s+файл\s+(.+)$",
             priority=300,
             args=lambda m: {"action": "open", "path": m.group(1)},
         ),
