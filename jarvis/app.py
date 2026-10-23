@@ -1748,6 +1748,22 @@ async def _audio_main(
 
     log.info('ready — say "hey jarvis".')
 
+    # Pre-warm the other languages' Piper voices in the background so the
+    # first voice switch per language is fast (first RU reply was ~7.8s vs
+    # ~4-5s later because en→ru voice load happened mid-reply). Fire-and-
+    # forget AFTER the ready log so it never delays readiness. Skipped when
+    # game mode is active (resource pressure).
+    _tm = getattr(pipeline, "_tts_manager", None)
+    if _tm is not None and hasattr(_tm, "warmup"):
+        try:
+            _tm.warmup(
+                is_game_mode_active=(
+                    (lambda: game_mode.is_active) if game_mode is not None else None
+                ),
+            )
+        except Exception:
+            log.debug("voice warmup kickoff failed (non-fatal)", exc_info=True)
+
 
     await stop_event.wait()
 
