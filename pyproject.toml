@@ -175,6 +175,7 @@ asyncio_mode = "auto"
 markers = [
   "manual: operator-run verification (RSS drop, Ollama eviction); skipped by default",
   "slow: tests requiring heavy ML model downloads (embedding model); skipped by default",
+  "integration: online integration tests (Google/Telegram); require network/credentials",
 ]
 addopts = "-m 'not manual and not slow'"
 

@@ -295,6 +295,12 @@ def test_mute_hotkey_dispatch_uses_audio_loop(fake_pynput):
     _, kwargs_or_pos = rcs.call_args
     # Called as run_coroutine_threadsafe(coro, loop).
     assert rcs.call_args.args[1] is loop
+    # run_coroutine_threadsafe is mocked, so the coroutine object it was
+    # handed is never awaited. Close it to avoid a "coroutine was never
+    # awaited" ResourceWarning (assertions above already verified dispatch).
+    coro = rcs.call_args.args[0]
+    if asyncio.iscoroutine(coro):
+        coro.close()
 
 
 def test_push_to_talk_publishes_synthetic_wake_event(fake_pynput):
