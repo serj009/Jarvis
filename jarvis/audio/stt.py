@@ -191,6 +191,88 @@ def _resolve_model_id(model_size: str, language: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Auto model selection (stt.model == "auto")
+# ---------------------------------------------------------------------------
+
+# Best-first preference. Only sizes with meaningful quality gains on GPU;
+# ordered most-capable -> least. "medium" is the best multilingual quality
+# that still fits comfortably on an 8+ GB card.
+_AUTO_MODEL_PREFERENCE: tuple[str, ...] = ("medium", "small", "base", "tiny")
+
+# Rough VRAM footprint (MB) of each faster-whisper model in float16, with
+# headroom. Used to keep auto-select within the free-VRAM budget.
+_MODEL_VRAM_MB: dict[str, int] = {
+    "medium": 2600, "small": 1200, "base": 600, "tiny": 400,
+}
+
+
+def _downloaded_model_sizes(download_root: Path | None) -> set[str]:
+    """Return the set of base model sizes already present in *download_root*.
+
+    faster-whisper caches models as ``models--Systran--faster-whisper-<size>``
+    (huggingface_hub layout). We match on the trailing size token so a
+    partially-downloaded dir is still detected as present-enough to try.
+    """
+    if download_root is None or not download_root.is_dir():
+        return set()
+    found: set[str] = set()
+    for entry in download_root.iterdir():
+        name = entry.name.lower()
+        for size in ("medium", "small", "base", "tiny"):
+            if name.endswith(f"faster-whisper-{size}") or name == size:
+                found.add(size)
+    return found
+
+
+def _free_vram_mb() -> int | None:
+    """Best-effort free VRAM in MB via nvidia-smi, or None if unavailable."""
+    smi = shutil.which("nvidia-smi")
+    if smi is None:
+        return None
+    try:
+        import subprocess
+
+        out = subprocess.run(
+            [smi, "--query-gpu=memory.free", "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if out.returncode != 0:
+            return None
+        return int(out.stdout.strip().split("\n")[0].strip())
+    except Exception:
+        return None
+
+
+def _auto_select_model(current: str, device: str,
+                       download_root: Path | None) -> str:
+    """Pick the best ALREADY-DOWNLOADED model for 'auto'.
+
+    Only upgrades on CUDA with enough free VRAM. If no better downloaded
+    model fits, keeps *current* and logs which model to download. Never
+    downloads anything itself.
+    """
+    if device != "cuda":
+        log.info("STT model=auto on CPU; keeping '%s'", current)
+        return current
+    downloaded = _downloaded_model_sizes(download_root)
+    free_mb = _free_vram_mb()
+    for size in _AUTO_MODEL_PREFERENCE:
+        if size not in downloaded:
+            continue
+        need = _MODEL_VRAM_MB.get(size, 1500)
+        if free_mb is not None and free_mb < need:
+            continue
+        log.info("STT model=auto selected '%s' (downloaded, fits VRAM)", size)
+        return size
+    log.info(
+        "STT model=auto: no better downloaded model fits; keeping '%s'. "
+        "To use a larger model, download it, e.g. "
+        "python setup_jarvis.py --whisper-model medium", current,
+    )
+    return current
+
+
+# ---------------------------------------------------------------------------
 # Confidence scoring (T2.4)
 # ---------------------------------------------------------------------------
 
@@ -397,11 +479,20 @@ class FasterWhisperSTT:
         except ImportError as e:  # pragma: no cover - hard dep
             raise STTLoadError("faster_whisper is not installed") from e
 
-        model_id = _resolve_model_id(self.model_size, self.language)
-
-        # Resolve device and compute_type with auto-detection + fallback.
+        # Resolve device FIRST — auto model selection depends on whether CUDA
+        # is actually usable.
         device = self._resolve_device(self._configured_device)
         compute_type = self._resolve_compute_type(device, self.compute_type)
+
+        # "auto" model: pick the best already-downloaded model when CUDA is
+        # available and VRAM allows; otherwise keep the current default. An
+        # explicit size set by the user is never "auto", so it is untouched.
+        size = self.model_size
+        if size == "auto":
+            size = _auto_select_model(
+                "small", device, self._download_root,
+            )
+        model_id = _resolve_model_id(size, self.language)
 
         try:
             # Construction can download large model files on first use;
