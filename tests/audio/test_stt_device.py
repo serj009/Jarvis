@@ -16,7 +16,9 @@ import types
 
 from jarvis.audio.stt import (
     FasterWhisperSTT,
+    _auto_select_model,
     _detect_ctranslate2_cuda,
+    _downloaded_model_sizes,
     _has_nvidia_gpu,
 )
 
@@ -184,3 +186,64 @@ def test_add_cuda_dll_directories_runs_on_windows(monkeypatch, tmp_path):
     result = cuda_dlls.add_cuda_dll_directories()
     assert str(bin_dir) in result
     assert str(bin_dir) in added
+
+
+# --- auto model selection (stt.model == "auto") ----------------------
+
+
+def _make_whisper_cache(root, *sizes):
+    """Create faster-whisper-style cache dirs for the given model sizes."""
+    for s in sizes:
+        (root / f"models--Systran--faster-whisper-{s}").mkdir(parents=True)
+
+
+def test_downloaded_model_sizes_detects_cache(tmp_path):
+    _make_whisper_cache(tmp_path, "small", "medium")
+    assert _downloaded_model_sizes(tmp_path) == {"small", "medium"}
+
+
+def test_downloaded_model_sizes_empty_when_missing(tmp_path):
+    assert _downloaded_model_sizes(tmp_path) == set()
+    assert _downloaded_model_sizes(None) == set()
+
+
+def test_auto_on_cpu_keeps_current(monkeypatch, tmp_path, caplog):
+    _make_whisper_cache(tmp_path, "small", "medium")
+    with caplog.at_level(logging.INFO):
+        chosen = _auto_select_model("small", "cpu", tmp_path)
+    assert chosen == "small"  # CPU never upgrades
+    assert any("on CPU" in r.message for r in caplog.records)
+
+
+def test_auto_on_cuda_picks_best_downloaded(monkeypatch, tmp_path):
+    _make_whisper_cache(tmp_path, "small", "medium")
+    # Plenty of free VRAM.
+    monkeypatch.setattr("jarvis.audio.stt._free_vram_mb", lambda: 12000)
+    chosen = _auto_select_model("small", "cuda", tmp_path)
+    assert chosen == "medium"  # best downloaded that fits
+
+
+def test_auto_on_cuda_skips_model_that_does_not_fit(monkeypatch, tmp_path):
+    _make_whisper_cache(tmp_path, "small", "medium")
+    # Only ~1.5 GB free: medium (2.6 GB) won't fit, small (1.2 GB) will.
+    monkeypatch.setattr("jarvis.audio.stt._free_vram_mb", lambda: 1500)
+    chosen = _auto_select_model("small", "cuda", tmp_path)
+    assert chosen == "small"
+
+
+def test_auto_on_cuda_nothing_better_keeps_current_with_hint(
+    monkeypatch, tmp_path, caplog,
+):
+    # Only the current model is downloaded; no upgrade available.
+    _make_whisper_cache(tmp_path, "small")
+    monkeypatch.setattr("jarvis.audio.stt._free_vram_mb", lambda: 12000)
+    with caplog.at_level(logging.INFO):
+        chosen = _auto_select_model("small", "cuda", tmp_path)
+    assert chosen == "small"
+    assert any("download" in r.message.lower() for r in caplog.records)
+
+
+def test_explicit_size_is_never_auto(monkeypatch):
+    # Sanity: a concrete size bypasses auto-selection entirely (the load()
+    # path only calls _auto_select_model when model_size == "auto").
+    assert "auto" not in ("small", "medium", "base", "tiny")
