@@ -66,7 +66,10 @@
 | **Disk** | ~3 GB | ~10 GB (with Ollama models) |
 | **Ollama** | **Required** — [ollama.com](https://ollama.com/download) | |
 
-> 💡 NVIDIA GPU dramatically speeds up both Whisper STT and Ollama inference. CPU-only works but is slower.
+> 💡 CUDA acceleration for Whisper STT works **only on NVIDIA GPUs** — enable
+> it with `pip install -e ".[gpu]"` (CUDA 12 / cuDNN 9 runtime wheels, Windows).
+> On Intel/AMD graphics or with no GPU at all, Jarvis runs STT on the CPU —
+> everything still works, just slower.
 
 ---
 

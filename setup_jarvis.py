@@ -366,6 +366,55 @@ def step_dependencies() -> tuple[str, str, str]:
         return "Зависимости (pip)", FAIL, f"Ошибка: {exc}"
 
 
+def step_gpu_extra(mode: str = "ask") -> tuple[str, str, str]:
+    """[opt] Offer the GPU extra (CUDA runtime wheels) when an NVIDIA GPU is
+    present. Never installs silently: with mode='ask' the user must consent.
+
+    mode: 'ask' (prompt), 'yes' (install without asking), 'no' (skip).
+    """
+    # GPU wheels in the extra are Windows-only; on Linux ctranslate2 resolves
+    # CUDA through its own wheel deps.
+    if sys.platform != "win32":
+        return "GPU ускорение", SKIP, "не Windows — пропуск"
+    if shutil.which("nvidia-smi") is None:
+        return "GPU ускорение", SKIP, "NVIDIA GPU не обнаружена"
+    if mode == "no":
+        return "GPU ускорение", SKIP, "пропущено (--gpu no)"
+
+    if mode == "ask":
+        print()
+        print("      Обнаружена NVIDIA GPU. Для ускорения распознавания речи")
+        print("      (STT на CUDA вместо CPU) можно установить CUDA 12 / cuDNN 9")
+        print("      runtime-пакеты (~300-700 МБ каждый, ~0.6-1.4 ГБ суммарно,")
+        print("      лицензия NVIDIA). Ускорение работает ТОЛЬКО на NVIDIA; на")
+        print("      Intel/AMD-графике и без GPU Jarvis работает на CPU (медленнее,")
+        print("      но полностью рабочий).")
+        try:
+            answer = input("      Установить GPU-ускорение? [y/N]: ").strip().lower()
+        except (EOFError, KeyboardInterrupt):
+            answer = ""
+        if answer not in ("y", "yes", "д", "да"):
+            return "GPU ускорение", SKIP, "пользователь отказался"
+
+    pip = _pip_exe()
+    if not Path(pip).is_file():
+        return "GPU ускорение", FAIL, "pip не найден"
+    try:
+        print("      Установка GPU-пакетов (pip install -e '.[gpu]')...")
+        proc = subprocess.run(
+            [pip, "install", "-e", f"{ROOT}[gpu]"],
+            capture_output=True, text=True, timeout=1200,
+        )
+        if proc.returncode != 0:
+            err = "\n      ".join(proc.stderr.strip().splitlines()[-5:])
+            return "GPU ускорение", FAIL, f"pip install failed:\n      {err}"
+        return "GPU ускорение", OK, "CUDA runtime установлен"
+    except subprocess.TimeoutExpired:
+        return "GPU ускорение", FAIL, "Таймаут установки (>20 мин)"
+    except (subprocess.SubprocessError, OSError) as exc:
+        return "GPU ускорение", FAIL, f"Ошибка: {exc}"
+
+
 def step_piper_voices() -> tuple[str, str, str]:
     """[4/9] Download all Piper TTS voice models."""
     VOICES_DIR.mkdir(parents=True, exist_ok=True)
@@ -783,6 +832,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Also download vision model (llava:7b, ~4.7 GB) for 'see screen' feature",
     )
+    parser.add_argument(
+        "--gpu",
+        choices=["ask", "yes", "no"],
+        default="ask",
+        help=(
+            "Install the GPU extra (CUDA 12 / cuDNN 9 runtime wheels) for "
+            "faster STT when an NVIDIA GPU is present. 'ask' (default) "
+            "prompts for consent, 'yes' installs without asking, 'no' skips."
+        ),
+    )
     args = parser.parse_args(argv)
 
     _header()
@@ -792,6 +851,7 @@ def main(argv: list[str] | None = None) -> int:
         ("1/9", "Python", step_python),
         ("2/9", "Virtual environment", step_venv),
         ("3/9", "Зависимости (pip)", step_dependencies),
+        ("3b", "GPU ускорение (STT)", lambda: step_gpu_extra(args.gpu)),
         ("4/9", "Голоса Piper", step_piper_voices),
         ("5/9", "Whisper (faster-whisper)", lambda: step_whisper(args.whisper_model)),
         ("6/9", "Silero VAD", step_silero_vad),

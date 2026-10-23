@@ -59,7 +59,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
-from dataclasses import dataclass
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -72,6 +72,58 @@ from jarvis.audio.protocols import (
 )
 
 log = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# CUDA detection (via ctranslate2, faster-whisper's backend — NOT torch)
+# ---------------------------------------------------------------------------
+
+def _detect_ctranslate2_cuda() -> tuple[bool, str]:
+    """Return (cuda_usable, reason).
+
+    Authoritative check for the faster-whisper CUDA path:
+      1. ctranslate2 importable;
+      2. get_cuda_device_count() > 0;
+      3. get_supported_compute_types("cuda") actually loads the CUDA libs
+         (this is where a missing cuBLAS/cuDNN DLL surfaces).
+    ``reason`` is a short human string for the CPU-fallback log.
+    """
+    try:
+        import ctranslate2
+    except ImportError:
+        return False, "ctranslate2 not installed"
+
+    try:
+        count = ctranslate2.get_cuda_device_count()
+    except Exception as exc:  # pragma: no cover - defensive
+        return False, f"get_cuda_device_count() failed: {exc}"
+    if count <= 0:
+        return False, "no CUDA device reported by ctranslate2"
+
+    # Probe the CUDA backend — this dlopen's cuBLAS/cuDNN. A missing DLL
+    # (the common Windows case without the gpu extra) raises here.
+    try:
+        types = ctranslate2.get_supported_compute_types("cuda")
+    except Exception as exc:
+        name = type(exc).__name__
+        return False, (
+            f"CUDA libraries failed to load ({name}: {exc}); on Windows "
+            "this usually means cuBLAS/cuDNN DLLs are missing — install the "
+            "gpu extra (CUDA 12 / cuDNN 9 runtime wheels)"
+        )
+    if not types:
+        return False, "CUDA backend reports no supported compute types"
+    return True, ""
+
+
+def _has_nvidia_gpu() -> bool:
+    """True if an NVIDIA GPU is present (nvidia-smi on PATH).
+
+    Mirrors VRAMManager's own detection (``shutil.which('nvidia-smi')`` in
+    jarvis/core/vram_manager.py). Used only to raise the CPU-fallback log
+    from INFO to WARNING when a card exists but CUDA is unusable.
+    """
+    return shutil.which("nvidia-smi") is not None
 
 
 # ---------------------------------------------------------------------------
@@ -263,33 +315,53 @@ class FasterWhisperSTT:
                     CUDA is not available.
           "cpu"   → always CPU.
 
-        The method is robust: missing torch, missing CUDA driver, or
-        any unexpected exception all resolve to "cpu".
+        CUDA detection goes through ctranslate2 (faster-whisper's backend),
+        NOT torch: torch is an optional extra and may be absent or built
+        without CUDA on a machine whose ctranslate2 CUDA backend works fine.
+        ctranslate2.get_cuda_device_count() + a real
+        get_supported_compute_types("cuda") probe (which dlopen's the CUDA
+        libs) is the authoritative check. torch is only a secondary hint.
+
+        The method is robust: missing ctranslate2, missing driver, or a
+        failed library load all resolve to "cpu" with a precise reason.
         """
         if configured == "cpu":
             return "cpu"
 
-        # Check CUDA availability
-        cuda_available = False
+        # Windows: register pip-installed NVIDIA CUDA DLL dirs BEFORE
+        # ctranslate2 touches them. No-op elsewhere / when wheels absent.
         try:
-            import torch
-            cuda_available = torch.cuda.is_available()
-        except ImportError:
-            log.debug("torch not installed; CUDA unavailable for STT")
-        except Exception:
-            log.debug("torch.cuda.is_available() failed", exc_info=True)
+            from jarvis.platform.cuda_dlls import add_cuda_dll_directories
 
-        if cuda_available:
+            add_cuda_dll_directories()
+        except Exception:
+            log.debug("CUDA DLL directory registration failed", exc_info=True)
+
+        cuda_ok, reason = _detect_ctranslate2_cuda()
+
+        if cuda_ok:
             return "cuda"
 
-        # Fallback to CPU
+        # CPU fallback. Severity depends on whether an NVIDIA card is present:
+        # a card present + CUDA unavailable is a misconfiguration worth a
+        # WARNING; no card at all is just INFO.
+        has_nvidia = _has_nvidia_gpu()
         if configured == "cuda":
             log.warning(
-                "STT device='cuda' requested but CUDA is not available; "
-                "falling back to CPU"
+                "STT device='cuda' requested but CUDA is unavailable (%s); "
+                "falling back to CPU", reason,
+            )
+        elif has_nvidia:
+            log.warning(
+                "STT auto-device: an NVIDIA GPU is present but CUDA is "
+                "unavailable for STT (%s); using CPU. Install the GPU extra: "
+                "pip install -e \".[gpu]\"  (CUDA 12 / cuDNN 9 runtime wheels).",
+                reason,
             )
         else:
-            log.info("STT auto-device: CUDA not available, using CPU")
+            log.info(
+                "STT auto-device: no CUDA device (%s); using CPU", reason,
+            )
 
         return "cpu"
 
@@ -309,6 +381,15 @@ class FasterWhisperSTT:
     async def load(self) -> None:
         if self.is_loaded:
             return
+        # Windows: register the pip-installed NVIDIA CUDA DLL directories
+        # BEFORE importing faster_whisper, because it loads ctranslate2 at
+        # import time and ctranslate2 dlopen's cuBLAS/cuDNN immediately.
+        # No-op on non-Windows and when the gpu wheels are absent.
+        if self._configured_device != "cpu":
+            from jarvis.platform.cuda_dlls import add_cuda_dll_directories
+
+            add_cuda_dll_directories()
+
         # Late import: faster-whisper loads ctranslate2 at import time;
         # keep that off any code path that doesn't actually need STT.
         try:
