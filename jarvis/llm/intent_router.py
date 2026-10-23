@@ -448,6 +448,11 @@ class IntentRouter:
         # Security Layers 1+2: ToolGuard gates LLM-initiated network
         # tool calls through the DataLeakScanner.  Created lazily from
         # the personalization context so app.py needs no changes.
+        #
+        # If construction fails, we do NOT silently disable the guard:
+        # _security_degraded is set, an ERROR is logged, and the LLM
+        # execution path (_run_tools) fails CLOSED for network/exec tools.
+        self._security_degraded = False
         try:
             from jarvis.security.tool_guard import ToolGuard
             from jarvis.security.leak_scanner import DataLeakScanner
@@ -457,6 +462,11 @@ class IntentRouter:
             )
         except Exception:
             self._tool_guard = None
+            self._mark_security_degraded(
+                component="ToolGuard",
+                detail="ToolGuard/DataLeakScanner construction failed; "
+                "LLM-initiated network/exec tools will be blocked.",
+            )
 
         # Security Layer 3: OutputSanitizer — a heuristic SECOND line of
         # defence behind ToolGuard. In this "soft" wiring it logs + audits
@@ -471,11 +481,54 @@ class IntentRouter:
             self._sanitizer: OutputSanitizer | None = OutputSanitizer()
         except Exception:
             self._sanitizer = None
+            # Soft layer: a failure does NOT block, but it must not vanish
+            # silently either — log ERROR once and flag degraded mode.
+            self._mark_security_degraded(
+                component="OutputSanitizer",
+                detail="OutputSanitizer construction failed; the heuristic "
+                "sanitizer layer is inactive (soft layer, non-blocking).",
+            )
         # Rolling window of recent tool calls (chronological) for
         # check_tool_chain(). Capped so a long session cannot grow it
         # without bound; the suspicious chains we look for are short.
         self._recent_tool_calls: list[dict] = []
         self._recent_calls_cap = 20
+
+    def _mark_security_degraded(self, *, component: str, detail: str) -> None:
+        """Record that a security layer failed to initialise.
+
+        Logs an ERROR (visible in the log panel — the existing notification
+        surface), records a one-shot audit entry when an audit log is
+        available, and sets ``self._security_degraded`` so the LLM execution
+        path can fail closed. Idempotent: the ERROR banner is emitted once
+        per session even if both layers fail.
+        """
+        self._security_degraded = True
+        log.error(
+            "[security] DEGRADED MODE — %s unavailable: %s", component, detail,
+            exc_info=True,
+        )
+        # One-shot user-facing banner (log panel is the existing surface;
+        # we do not invent a new notification mechanism here).
+        if not getattr(self, "_degraded_logged", False):
+            self._degraded_logged = True
+            log.error(
+                "[security] Jarvis security is running in LIMITED mode; "
+                "LLM-initiated network/exec tools are blocked until restart.",
+            )
+        audit = getattr(self._pctx, "audit_log", None)
+        if audit is not None:
+            try:
+                audit.log_blocked(
+                    tool_name="<init>",
+                    reason="security_layer_init_failed",
+                    details=f"{component}: {detail}",
+                )
+            except Exception:
+                log.debug(
+                    "[security] audit log write failed for degraded mode",
+                    exc_info=True,
+                )
 
     def _current_tools(self) -> list[dict]:
         if self._registry is not None:
@@ -1143,6 +1196,36 @@ class IntentRouter:
                     result = ToolResult(
                         success=False,
                         error=f"Security: {_guard.reason}",
+                    )
+                    _sec_blocked = True
+            else:
+                # ToolGuard failed to initialise (degraded mode). Fail
+                # CLOSED: block LLM-initiated network/exec tools entirely,
+                # since the leak scan that would normally gate them is gone.
+                # A tool that is both RiskLevel.READ and neither network nor
+                # exec is safe to run unguarded (read-only, no egress), so
+                # read-only queries still work.
+                from jarvis.security.tool_guard import EXEC_TOOLS, NETWORK_TOOLS
+                from jarvis.tools.risk import RiskLevel, risk_level_for_tool
+                from jarvis.tools.registry import ToolResult
+
+                _tool = registry.get(intent.tool_name)
+                _is_sensitive = (
+                    intent.tool_name in NETWORK_TOOLS
+                    or intent.tool_name in EXEC_TOOLS
+                )
+                _is_read_only = (
+                    _tool is not None
+                    and risk_level_for_tool(_tool) == RiskLevel.READ
+                )
+                if _is_sensitive or not _is_read_only:
+                    log.error(
+                        "[security] blocking LLM-initiated %r: guard "
+                        "unavailable (degraded mode)", intent.tool_name,
+                    )
+                    result = ToolResult(
+                        success=False,
+                        error="Security: guard unavailable",
                     )
                     _sec_blocked = True
             if not _sec_blocked:
