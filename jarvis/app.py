@@ -228,6 +228,11 @@ from jarvis.core.vram_manager import VRAMManager
 
 from jarvis.memory.store import MemoryStore
 from jarvis.memory.relations import RelationStore
+# Pure config diff, extracted from this module (decomposition step 2).
+# Imported under the old private name so existing call sites are unchanged.
+from jarvis.services.config_service import (
+    compute_changed_fields as _compute_changed_fields,
+)
 from jarvis.memory.scheduled_reminders import ReminderScheduler, ReminderStore
 from jarvis.memory.embeddings import EmbeddingIndex
 from jarvis.memory.tool_examples import ToolExampleStore
@@ -926,41 +931,6 @@ def _wire_event_logging(bus: EventBus) -> None:
 
 
 
-
-def _compute_changed_fields(old: dict, new: dict, prefix: str = "") -> list[str]:
-
-
-    """Recursively diff two model_dump() dicts, returning dotted field paths."""
-
-
-    changed: list[str] = []
-
-
-    for key in set(old) | set(new):
-
-
-        old_val = old.get(key)
-
-
-        new_val = new.get(key)
-
-
-        path = f"{prefix}.{key}" if prefix else key
-
-
-        if isinstance(old_val, dict) and isinstance(new_val, dict):
-
-
-            changed.extend(_compute_changed_fields(old_val, new_val, path))
-
-
-        elif old_val != new_val:
-
-
-            changed.append(path)
-
-
-    return changed
 
 
 
