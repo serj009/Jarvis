@@ -31,6 +31,7 @@ Design notes (kept here so future readers see the rationale without digging hist
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import sys
@@ -39,7 +40,6 @@ from os import environ
 from pathlib import Path
 from typing import Literal
 
-import logging
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
@@ -129,7 +129,11 @@ class STTConfig(_Base):
     # "base" is lighter (~150 MB) but less accurate (~70% for RU).
     # The .en suffix restricts to English only; avoid for multilingual.
     # "medium" is much larger (~1.5 GB); not recommended on CPU.
+    # "auto" = pick the best ALREADY-DOWNLOADED model when CUDA is available
+    # and VRAM budget allows; otherwise keep the current default. An explicit
+    # size always wins over "auto". Default stays "small" (unchanged).
     model_size: Literal[
+        "auto",
         "tiny", "tiny.en", "base", "base.en",
         "small", "small.en", "medium", "medium.en",
     ] = "small"
