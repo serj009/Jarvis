@@ -144,6 +144,21 @@ embeddings = [
   "faiss-cpu>=1.7,<2",
 ]
 
+# GPU acceleration for STT (faster-whisper / ctranslate2 CUDA backend).
+# OPTIONAL — the base install runs STT on CPU. These are the CUDA 12 /
+# cuDNN 9 runtime wheels ctranslate2 4.8.2 dlopen's; Windows-only because
+# Linux resolves them through the wheels' RPATH and the base install already
+# pins nvidia-cublas for linux. Licences are NVIDIA proprietary
+# (cuBLAS: NVIDIA Software Licence; cuDNN: NVIDIA cuDNN SLA); wheels are
+# large (~300-700 MB each). Install via: pip install -e ".[gpu]"
+gpu = [
+  # Pinned exactly (==): an extra carries no hash lock, so the version must
+  # be fixed. Both are CUDA 12 / cuDNN 9 runtime wheels — the series
+  # ctranslate2 4.8.2 requires. Latest available on PyPI (verified 2026-10).
+  "nvidia-cublas-cu12==12.9.2.10 ; sys_platform == 'win32'",
+  "nvidia-cudnn-cu12==9.27.0.42 ; sys_platform == 'win32'",
+]
+
 [project.scripts]
 jarvis = "jarvis.__main__:main"
 
