@@ -189,16 +189,59 @@ def _wasapi_shared_settings(device_idx: int | None):
         return None
 
 
+# Output devices that are almost always a monitor's HDMI/DisplayPort audio
+# sink rather than the speakers/headphones the user listens on. These get
+# deprioritised in fallback ordering UNLESS the user explicitly configured
+# such a device (see _fallback_output_candidates).
+_MONITOR_OUTPUT_PATTERNS: tuple[str, ...] = (
+    "hdmi",
+    "displayport",
+    "display port",
+    "nvidia high definition audio",
+    "display audio",
+    "monitor",
+)
+
+
+def _looks_like_monitor_output(name: str) -> bool:
+    """True if a device name looks like a monitor's HDMI/DP audio sink."""
+    lower = name.lower()
+    return any(pat in lower for pat in _MONITOR_OUTPUT_PATTERNS)
+
+
+def _system_default_output_index() -> int | None:
+    """Resolve the real device index of the system default output.
+
+    sounddevice exposes it as ``sd.default.device == (input_idx, output_idx)``.
+    Returns None when it cannot be determined (non-int / probe failure), so
+    callers keep their existing "None = let PortAudio pick" behaviour instead
+    of crashing. Knowing the real index lets us read the device's native rate
+    (see _device_native_rate) instead of blindly using Piper's 22050 Hz, which
+    WASAPI rejects on a 48 kHz default device (PaErrorCode -9984)."""
+    try:
+        default = sd.default.device
+        out_idx = default[1]
+        if isinstance(out_idx, int) and out_idx >= 0:
+            return out_idx
+    except Exception:
+        log.debug("system default output index probe failed", exc_info=True)
+    return None
+
+
 def _device_native_rate(idx: int | None, fallback: int) -> int:
     """Return the device's default sample rate, or `fallback` if unknown.
 
     USB DACs / speakers rarely advertise 22050 Hz natively under WASAPI (which
     forbids the driver-side resampling MME silently performs). Opening at the
     native rate and resampling Piper's output in the synthesis loop is what
-    makes WASAPI viable for them. None means system default — we don't probe
-    that and just use the fallback (Piper's voice rate)."""
+    makes WASAPI viable for them. For None (system default) we resolve the
+    real default-output index and probe ITS native rate — blindly returning
+    Piper's 22050 Hz made WASAPI reject the system default on a 48 kHz device
+    (PaErrorCode -9984), which was the HDMI-monitor fallback bug."""
     if idx is None:
-        return fallback
+        idx = _system_default_output_index()
+        if idx is None:
+            return fallback
     try:
         info = sd.query_devices(idx)
         rate = info.get("default_samplerate") if hasattr(info, "get") else None
@@ -572,7 +615,9 @@ class PiperTTS:
             if stream is not None:
                 actual_name = _device_display_name(device_index)
                 log.warning(
-                    "output device %r could not be opened; using %r as fallback",
+                    "output device %r could not be opened; using %r as "
+                    "fallback. If this is the wrong speaker/headphone, pick "
+                    "the right output in Settings → Voice → Audio Devices.",
                     expected_label, actual_name,
                 )
                 # Remember the fallback so speak()-side reopens reuse it.
@@ -609,11 +654,20 @@ class PiperTTS:
         (None, last_error) if every rate attempt failed."""
         native_rate = _device_native_rate(device_index, piper_rate)
         wasapi_settings = _wasapi_shared_settings(device_index)
-        rate_attempts: list[tuple[int, Any]] = [
-            (native_rate, wasapi_settings),
-        ]
+        # Attempt order (pt 2): native rate first, Piper's rate second. For
+        # each rate, try WASAPI shared first, then the plain/MME path. On a
+        # non-WASAPI host (wasapi_settings is None) there is only the plain
+        # path, so behaviour there is unchanged.
+        rates: list[int] = [native_rate]
         if piper_rate != native_rate:
-            rate_attempts.append((piper_rate, wasapi_settings))
+            rates.append(piper_rate)
+        rate_attempts: list[tuple[int, Any]] = []
+        if wasapi_settings is not None:
+            # WASAPI shared for every rate first, then MME (extra=None).
+            rate_attempts.extend((r, wasapi_settings) for r in rates)
+            rate_attempts.extend((r, None) for r in rates)
+        else:
+            rate_attempts.extend((r, None) for r in rates)
         last_err: Exception | None = None
         for rate, extra_settings in rate_attempts:
             blocksize = max(1, int(OUTPUT_BUFFER_MS * rate / 1000))
@@ -661,12 +715,31 @@ class PiperTTS:
 
     def _fallback_output_candidates(self, tried: set[int | None]) -> list[int | None]:
         """All output devices not in `tried`, ordered WASAPI > MME > other.
-        Appends None (system default) last if it has not been tried yet."""
+        Within each host-API group, devices that look like a monitor's
+        HDMI/DisplayPort audio sink are pushed to the end — unless the user
+        explicitly configured such a device (then it is not demoted). The
+        host API of the system default output is preferred so fallback stays
+        on the same backend the OS already routes to. Appends None (system
+        default) last if it has not been tried yet."""
         wasapi_idx = _wasapi_hostapi_index()
         mme_idx = _mme_hostapi_index()
-        wasapi_devs: list[int] = []
-        mme_devs: list[int] = []
-        other_devs: list[int] = []
+        # Host API of the system default output — prefer staying on it.
+        default_ha: int | None = None
+        sys_idx = _system_default_output_index()
+        if sys_idx is not None:
+            try:
+                _info = sd.query_devices(sys_idx)
+                default_ha = _info.get("hostapi") if hasattr(_info, "get") else None
+            except Exception:
+                default_ha = None
+        # Did the user explicitly configure a monitor-like device? If so, do
+        # not demote monitor outputs (their explicit choice wins — pt 5).
+        user_wants_monitor = (
+            isinstance(self._output_device, str)
+            and _looks_like_monitor_output(self._output_device)
+        )
+        # Buckets: (api_priority, is_monitor, idx). Lower sorts first.
+        ranked: list[tuple[int, int, int]] = []
         for idx, dev in enumerate(sd.query_devices()):
             if int(dev.get("max_output_channels", 0)) <= 0:
                 continue
@@ -674,12 +747,22 @@ class PiperTTS:
                 continue
             ha = dev.get("hostapi")
             if wasapi_idx is not None and ha == wasapi_idx:
-                wasapi_devs.append(idx)
+                api_pri = 0
             elif mme_idx is not None and ha == mme_idx:
-                mme_devs.append(idx)
+                api_pri = 1
             else:
-                other_devs.append(idx)
-        result: list[int | None] = [*wasapi_devs, *mme_devs, *other_devs]
+                api_pri = 2
+            # Prefer the system default's host API within the same tier.
+            if default_ha is not None and ha == default_ha:
+                api_pri -= 1
+            name = str(dev.get("name", ""))
+            is_monitor = (
+                0 if user_wants_monitor
+                else (1 if _looks_like_monitor_output(name) else 0)
+            )
+            ranked.append((api_pri, is_monitor, idx))
+        ranked.sort(key=lambda r: (r[1], r[0], r[2]))
+        result: list[int | None] = [r[2] for r in ranked]
         if None not in tried:
             result.append(None)
         return result

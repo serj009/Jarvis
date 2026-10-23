@@ -1450,3 +1450,141 @@ async def test_output_primary_succeeds_no_fallback_triggered(
     assert tts.is_loaded
     assert not any("fallback" in r.message for r in caplog.records)
     bus.publish.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Задача 3 — system-default output device + monitor deprioritisation
+# ---------------------------------------------------------------------------
+
+
+async def test_system_default_opens_at_native_rate_with_resample(
+    tmp_path, caplog: pytest.LogCaptureFixture
+):
+    """System default (output_device=None) is a 48 kHz device; the 22050 Hz
+    Piper voice must open the stream at the device's native 48000 Hz and
+    resample, not blindly request 22050 (which WASAPI rejects, -9984)."""
+    devices = [
+        {"name": "Speakers (USB DAC)", "max_output_channels": 2,
+         "hostapi": 0, "default_samplerate": 48000.0},
+    ]
+    (tmp_path / f"{REAL_VOICE_NAME}.onnx").write_bytes(b"")
+    (tmp_path / f"{REAL_VOICE_NAME}.onnx.json").write_text("{}")
+    fake_stream = _make_fake_stream()
+
+    def query_devices(idx=None, *args, **kwargs):
+        if idx is None:
+            return devices
+        return devices[idx]
+
+    with patch("piper.PiperVoice") as voice_cls, \
+         patch("jarvis.audio.tts.sd") as sd_mock:
+        voice_cls.load.return_value = _make_fake_voice(sample_rate=22050)
+        sd_mock.RawOutputStream.return_value = fake_stream
+        sd_mock.query_devices.side_effect = query_devices
+        sd_mock.query_hostapis.return_value = [{"name": "MME"}]
+        # System default resolves to device index 0 (the 48 kHz DAC).
+        sd_mock.default.device = (1, 0)
+        tts = PiperTTS(
+            voice_name=REAL_VOICE_NAME, voices_dir=tmp_path, output_device=None,
+        )
+        with caplog.at_level(logging.INFO, logger="jarvis.audio.tts"):
+            await tts.load()
+
+    _, kwargs = sd_mock.RawOutputStream.call_args
+    assert kwargs["samplerate"] == 48000
+    assert any("resampling from 22050" in r.message for r in caplog.records)
+
+
+async def test_monitor_output_deprioritised_in_fallback(
+    tmp_path, caplog: pytest.LogCaptureFixture
+):
+    """When the configured device can't open, fallback must prefer real
+    speakers over an NVIDIA-monitor HDMI sink even if the monitor enumerates
+    first."""
+    devices = [
+        # idx 0: monitor HDMI sink — enumerates first but must be demoted.
+        {"name": "PHL 272E1GJ (NVIDIA High Definition Audio)",
+         "max_output_channels": 2, "hostapi": 0, "default_samplerate": 48000.0},
+        # idx 1: the configured device (will fail to open).
+        {"name": "Ghost Device", "max_output_channels": 2, "hostapi": 0,
+         "default_samplerate": 48000.0},
+        # idx 2: real speakers — should win the fallback.
+        {"name": "Speakers (USB DAC)", "max_output_channels": 2,
+         "hostapi": 0, "default_samplerate": 48000.0},
+    ]
+    (tmp_path / f"{REAL_VOICE_NAME}.onnx").write_bytes(b"")
+    (tmp_path / f"{REAL_VOICE_NAME}.onnx.json").write_text("{}")
+    fake_stream = _make_fake_stream()
+
+    def query_devices(idx=None, *args, **kwargs):
+        if idx is None:
+            return devices
+        return devices[idx]
+
+    opened: list = []
+
+    def raw_output_stream(**kwargs):
+        opened.append(kwargs["device"])
+        # The configured device (idx 1) fails; everything else opens.
+        if kwargs["device"] == 1:
+            raise OSError("configured device busy")
+        return fake_stream
+
+    with patch("piper.PiperVoice") as voice_cls, \
+         patch("jarvis.audio.tts.sd") as sd_mock:
+        voice_cls.load.return_value = _make_fake_voice()
+        sd_mock.RawOutputStream.side_effect = raw_output_stream
+        sd_mock.query_devices.side_effect = query_devices
+        sd_mock.query_hostapis.return_value = [{"name": "MME"}]
+        sd_mock.default.device = (1, 2)
+        tts = PiperTTS(
+            voice_name=REAL_VOICE_NAME, voices_dir=tmp_path,
+            output_device="Ghost Device",
+        )
+        await tts.load()
+
+    # The device actually used is the real speakers (idx 2), NOT the monitor.
+    assert tts.is_loaded
+    assert opened[-1] == 2, f"expected speakers (2) to win, got open order {opened}"
+
+
+async def test_user_configured_monitor_is_respected(tmp_path):
+    """If the user explicitly selects a monitor output, it must be used and
+    NOT demoted by the monitor heuristic (pt 5: explicit choice wins)."""
+    devices = [
+        {"name": "PHL 272E1GJ (NVIDIA High Definition Audio)",
+         "max_output_channels": 2, "hostapi": 0, "default_samplerate": 48000.0},
+        {"name": "Speakers (USB DAC)", "max_output_channels": 2,
+         "hostapi": 0, "default_samplerate": 48000.0},
+    ]
+    (tmp_path / f"{REAL_VOICE_NAME}.onnx").write_bytes(b"")
+    (tmp_path / f"{REAL_VOICE_NAME}.onnx.json").write_text("{}")
+    fake_stream = _make_fake_stream()
+
+    def query_devices(idx=None, *args, **kwargs):
+        if idx is None:
+            return devices
+        return devices[idx]
+
+    opened: list = []
+
+    def raw_output_stream(**kwargs):
+        opened.append(kwargs["device"])
+        return fake_stream
+
+    with patch("piper.PiperVoice") as voice_cls, \
+         patch("jarvis.audio.tts.sd") as sd_mock:
+        voice_cls.load.return_value = _make_fake_voice()
+        sd_mock.RawOutputStream.side_effect = raw_output_stream
+        sd_mock.query_devices.side_effect = query_devices
+        sd_mock.query_hostapis.return_value = [{"name": "MME"}]
+        sd_mock.default.device = (1, 1)
+        tts = PiperTTS(
+            voice_name=REAL_VOICE_NAME, voices_dir=tmp_path,
+            output_device="NVIDIA High Definition Audio",
+        )
+        await tts.load()
+
+    # Phase 1 selects the monitor by name (idx 0) — it is used directly.
+    assert tts.is_loaded
+    assert opened[0] == 0, f"configured monitor should be used first, got {opened}"
