@@ -28,7 +28,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from collections.abc import AsyncIterator
+import time
+from collections.abc import AsyncIterator, Callable
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -96,6 +97,72 @@ class TTSManager:
         """Cancel current playback."""
         await self._piper.cancel()
 
+    def warmup(
+        self,
+        *,
+        is_game_mode_active: Callable[[], bool] | None = None,
+    ) -> asyncio.Task[None] | None:
+        """Pre-load the Piper voices for all configured languages in the
+        background so the first voice switch per language is fast.
+
+        Returns the spawned asyncio.Task (fire-and-forget) or None when
+        warmup was skipped (game mode active / no running loop). NEVER
+        blocks the caller and NEVER raises — per-voice load errors are
+        logged and swallowed so a missing/corrupt voice can't break boot.
+
+        The active voice is left untouched: warmup loads each voice model
+        in a worker thread and discards it, which warms the OS page cache
+        for the .onnx files. The real switch (_switch_voice) then reloads
+        from a warm cache instead of cold disk."""
+        if is_game_mode_active is not None:
+            try:
+                if is_game_mode_active():
+                    log.info("voice warmup skipped: game mode active")
+                    return None
+            except Exception:
+                log.debug("game-mode probe failed; proceeding with warmup",
+                          exc_info=True)
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            log.debug("voice warmup skipped: no running event loop")
+            return None
+        return loop.create_task(self._warmup_voices())
+
+    async def _warmup_voices(self) -> None:
+        """Background body for warmup(). Loads each downloaded voice once
+        (discarding the result) to warm the OS file cache. Resilient to
+        per-voice failures."""
+        # Unique voice names across all configured languages (en/ru/uk...),
+        # skipping the already-loaded current voice.
+        targets: list[str] = []
+        seen: set[str] = {self._current_voice_name}
+        for _lang, voice_name in self._registry.assignments.items():
+            if voice_name in seen:
+                continue
+            seen.add(voice_name)
+            if self._registry.is_downloaded(voice_name):
+                targets.append(voice_name)
+        for voice_name in targets:
+            try:
+                await self._warmup_one(voice_name)
+                log.info("voice warmup: %r cached", voice_name)
+            except Exception:
+                log.warning("voice warmup failed for %r (non-fatal)",
+                            voice_name, exc_info=True)
+
+    async def _warmup_one(self, voice_name: str) -> None:
+        """Load a single Piper voice in a worker thread and discard it,
+        warming the OS page cache for its model files. Isolated so tests
+        can patch it to simulate slow/failing loads."""
+        def _load() -> None:
+            from piper import PiperVoice
+
+            path = self._registry.voice_path(voice_name)
+            if path is not None:
+                PiperVoice.load(str(path))
+        await asyncio.to_thread(_load)
+
     async def _switch_voice(self, language: str) -> None:
         """Switch to the voice assigned to the given language."""
         target_name = self._registry.get_voice_name(language)
@@ -121,12 +188,15 @@ class TTSManager:
 
         # Unload current voice and load new one
         try:
+            _t0 = time.monotonic()
             if self._piper.is_loaded:
                 await self._piper.unload()
             self._piper.voice_name = target_name
             await self._piper.load()
             self._current_voice_name = target_name
             self._current_language = language
+            _elapsed_ms = (time.monotonic() - _t0) * 1000.0
+            log.info("voice switch took %.0f ms", _elapsed_ms)
         except Exception:
             log.error(
                 "failed to switch to voice %r, keeping %r",

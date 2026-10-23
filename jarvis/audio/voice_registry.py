@@ -229,3 +229,13 @@ class VoiceRegistry:
         onnx = self._voices_dir / f"{voice_name}.onnx"
         config = self._voices_dir / f"{voice_name}.onnx.json"
         return onnx.exists() and config.exists()
+
+    def voice_path(self, voice_name: str) -> Path | None:
+        """Return the .onnx model path for a downloaded voice, or None.
+
+        Used by warmup to pre-load a voice model without going through the
+        private voices_dir. Returns None when the voice is not downloaded."""
+        if not self.is_downloaded(voice_name):
+            return None
+        assert self._voices_dir is not None  # guaranteed by is_downloaded
+        return self._voices_dir / f"{voice_name}.onnx"
