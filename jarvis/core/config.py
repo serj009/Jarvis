@@ -874,18 +874,18 @@ def decrypt_secrets(data: dict) -> dict:
 # ConfigMigrationError, and old prompt constants now live in migrations.py.
 # Re-exported here so existing consumers (tests, app.py) work unchanged.
 
-from jarvis.core.migrations import (  # noqa: E402
+from jarvis.core.migrations import (  # noqa: E402, I001
     ConfigMigrationError,
-    Migration,
-    MIGRATIONS,
+    Migration,  # noqa: F401  # re-export for legacy consumers
+    MIGRATIONS,  # noqa: F401  # re-export for legacy consumers
     migrate,
 )
 
 # Re-export old prompt constants for any external consumers.
 from jarvis.core.migrations import (  # noqa: E402, F811
-    _SYSTEM_PROMPT_V3,
-    _SYSTEM_PROMPT_V6,
-    _SYSTEM_PROMPT_V26,
+    _SYSTEM_PROMPT_V3,  # noqa: F401  # re-export for legacy consumers
+    _SYSTEM_PROMPT_V6,  # noqa: F401  # re-export for legacy consumers
+    _SYSTEM_PROMPT_V26,  # noqa: F401  # re-export for legacy consumers
 )
 
 # --- persistence -----------------------------------------------------------
