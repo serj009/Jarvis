@@ -143,3 +143,45 @@ structural only.
    should UI↔audio keep using the existing direct-closure style?
 3. Should tool-registration extraction (`ToolRegistryBuilder`) be folded in,
    or kept as a separate future effort (current recommendation: separate)?
+
+---
+
+## 6. Execution results (updated after attempting the plan)
+
+Steps were attempted in order. The dependency reality diverged from the
+plan's assumption that panel/audio builders "already take explicit args" —
+they actually read and write app state through `self`.
+
+### Done (clean extractions, committed)
+- **Step 1 — AppIndexService** ✅ `jarvis/services/app_index.py`. Method
+  never used `self`; moved verbatim as `start_app_index_refresh()`.
+  Commit `4c332f1`.
+- **Step 2 — config diff** ✅ `jarvis/services/config_service.py`. Only the
+  pure `compute_changed_fields` moved; `_load_config` / `_on_config_change`
+  stayed (bootstrap + UI orchestration). Commit `a5c0802`.
+
+Net: `app.py` 5437 → 5314 lines.
+
+### Deferred (NOT clean extractions — would require a back-reference)
+A per-method dependency scan showed these are composition-root logic:
+- **Step 3 — UI panels**: the 15 `_build_*_panel` methods write
+  `self.<panel>` and read each other's panels plus ~15 app callbacks
+  (`_on_quit`, `_open_settings`, `_request_mode`, …). A clean `UiController`
+  is impossible without a reference to the app writing `app.<panel> = …` —
+  the back-reference §2.1 forbids.
+- **Step 5 — AudioStackController**: `_build_audio_stack` (714 lines)
+  assigns **39** `self` attributes — it builds essentially the entire
+  object graph (stt, tts, pipeline, router, memory_store, registry, …);
+  `_run_audio_loop` reads 24 of them. This IS the composition root.
+- **Step 6 — slim JarvisApp**: moot while 3 and 5 are deferred.
+
+### Recommendation
+For the UI/audio builders the honest options are:
+1. `_PanelBuildersMixin` / `_AudioBuildersMixin` — physical relocation into
+   mixins `JarvisApp` inherits. Removes ~1600 lines with no behaviour change
+   and no back-reference, but re-files rather than decouples. Verifiable via
+   MRO + import even without PySide6/sounddevice.
+2. Leave the builders in `app.py` (Steps 1–2 done). They are cohesive — all
+   assemble the app graph.
+
+Deferred pending owner decision; no code moved for Steps 3/5/6.
