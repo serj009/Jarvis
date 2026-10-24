@@ -30,7 +30,6 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from jarvis.memory.embedding_cache import EmbeddingCache
 
@@ -156,7 +155,6 @@ class EmbeddingIndex:
     def _load_index(self) -> None:
         """Load FAISS index and ID map from disk, or create empty."""
         import faiss
-        import numpy as np
 
         index_file = self._index_path / "faiss.index"
         id_map_file = self._index_path / "id_map.json"
@@ -164,8 +162,18 @@ class EmbeddingIndex:
         if index_file.is_file() and id_map_file.is_file():
             try:
                 self._index = faiss.read_index(str(index_file))
-                with open(id_map_file, "r", encoding="utf-8") as f:
+                with open(id_map_file, encoding="utf-8") as f:
                     self._id_map = json.load(f)
+                # Consistency guard: a half-written pair (crash between the two
+                # files in an older build, or a torn write) must NOT be used —
+                # a mismatched index/id_map maps vectors to the wrong fact ids.
+                if self._index.ntotal != len(self._id_map):
+                    log.warning(
+                        "FAISS index/id_map mismatch (%d vectors vs %d ids); "
+                        "discarding and rebuilding empty",
+                        self._index.ntotal, len(self._id_map),
+                    )
+                    raise ValueError("index/id_map size mismatch")
                 self._pos_map = {v: k for k, v in self._id_map.items()}
                 log.info(
                     "FAISS index loaded from disk: %d vectors", self._index.ntotal
@@ -217,7 +225,6 @@ class EmbeddingIndex:
         if self._model is None or self._index is None:
             return
 
-        import numpy as np
 
         # Remove existing if updating.
         if fact_id in self._id_map:
@@ -254,7 +261,6 @@ class EmbeddingIndex:
         if self._model is None or self._index is None or self._index.ntotal == 0:
             return []
 
-        import numpy as np
 
         vec = self._encode(query)
         # Search more than top_k to account for tombstones.
@@ -262,7 +268,7 @@ class EmbeddingIndex:
         scores, indices = self._index.search(vec, search_k)
 
         results: list[tuple[str, float]] = []
-        for score, idx in zip(scores[0], indices[0]):
+        for score, idx in zip(scores[0], indices[0], strict=False):
             if idx < 0:
                 continue
             fact_id = self._pos_map.get(int(idx))
@@ -325,7 +331,6 @@ class EmbeddingIndex:
             return
 
         import faiss
-        import numpy as np
 
         self._index_path.mkdir(parents=True, exist_ok=True)
         index_file = self._index_path / "faiss.index"
@@ -335,9 +340,49 @@ class EmbeddingIndex:
         if self._index.ntotal > len(self._id_map) and self._model is not None:
             self._compact()
 
-        faiss.write_index(self._index, str(index_file))
-        with open(id_map_file, "w", encoding="utf-8") as f:
-            json.dump(self._id_map, f, ensure_ascii=False)
+        # Consistency: the index and its id_map must agree. Write BOTH to temp
+        # files first, then replace both — so a crash mid-save can never leave
+        # a new index paired with an old id_map (or vice versa). fsync each
+        # temp before the swaps for durability.
+        import os
+        import secrets
+
+        from jarvis.core.fileio import _replace_with_retry
+
+        token = f".tmp{os.getpid()}-{secrets.token_hex(4)}"
+        index_tmp = index_file.with_name(index_file.name + token)
+        id_map_tmp = id_map_file.with_name(id_map_file.name + token)
+        try:
+            faiss.write_index(self._index, str(index_tmp))
+            # write_index closed the file; reopen read-write to fsync it
+            # (a read-only handle can't FlushFileBuffers on Windows). fsync is
+            # best-effort durability — os.replace already gives atomicity — so
+            # a platform that rejects it must not fail the save.
+            try:
+                with open(index_tmp, "r+b") as f:
+                    os.fsync(f.fileno())
+            except OSError:
+                log.debug("fsync of FAISS index temp failed (non-fatal)",
+                          exc_info=True)
+            with open(id_map_tmp, "w", encoding="utf-8") as f:
+                json.dump(self._id_map, f, ensure_ascii=False)
+                f.flush()
+                try:
+                    os.fsync(f.fileno())
+                except OSError:
+                    log.debug("fsync of id_map temp failed (non-fatal)",
+                              exc_info=True)
+            # Both temps complete + durable — swap them in.
+            _replace_with_retry(index_tmp, index_file)
+            _replace_with_retry(id_map_tmp, id_map_file)
+        except BaseException:
+            for tmp in (index_tmp, id_map_tmp):
+                try:
+                    if tmp.exists():
+                        tmp.unlink()
+                except OSError:
+                    pass
+            raise
 
         log.info(
             "embedding index saved: %d vectors → %s",

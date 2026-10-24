@@ -328,9 +328,9 @@ def save_installed_app_index(index: dict[str, InstalledApp], path: Path) -> None
         ],
     }
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    tmp.replace(path)
+    from jarvis.core.fileio import atomic_write_json
+
+    atomic_write_json(path, data, ensure_ascii=False, indent=2)
 
 
 def load_installed_app_index(path: Path) -> dict[str, InstalledApp] | None:

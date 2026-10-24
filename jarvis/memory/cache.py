@@ -161,9 +161,9 @@ class IntentCache:
         if self._path is None:
             return
         try:
-            self._path.parent.mkdir(parents=True, exist_ok=True)
-            with self._path.open("w", encoding="utf-8") as f:
-                json.dump(self._map, f, ensure_ascii=False, indent=2)
+            from jarvis.core.fileio import atomic_write_json
+
+            atomic_write_json(self._path, self._map, ensure_ascii=False, indent=2)
         except Exception:
             log.warning("intent cache save failed", exc_info=True)
 

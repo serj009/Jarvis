@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import json
 import logging
-import sqlite3
 import time
 from collections import Counter
 from pathlib import Path
@@ -67,9 +66,11 @@ class DynamicShardManager:
 
     def _save_registry(self) -> None:
         try:
-            self._registry_path.parent.mkdir(parents=True, exist_ok=True)
-            with self._registry_path.open("w", encoding="utf-8") as f:
-                json.dump(self._dynamic_shards, f, ensure_ascii=False, indent=2)
+            from jarvis.core.fileio import atomic_write_json
+
+            atomic_write_json(
+                self._registry_path, self._dynamic_shards, ensure_ascii=False, indent=2
+            )
         except Exception:
             log.warning("shard registry save failed", exc_info=True)
 
@@ -181,7 +182,7 @@ class DynamicShardManager:
 
         # Register the shard
         self._dynamic_shards[topic] = {
-            "reason": f"auto: topic reached threshold",
+            "reason": "auto: topic reached threshold",
             "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         }
         self._save_registry()
@@ -211,7 +212,11 @@ class DynamicShardManager:
                 placeholders = ",".join("?" * len(cols))
                 col_names = ",".join(cols)
 
-                dst.execute(f"INSERT OR IGNORE INTO facts ({col_names}) VALUES ({placeholders})", vals)
+                dst.execute(
+                    f"INSERT OR IGNORE INTO facts ({col_names}) "
+                    f"VALUES ({placeholders})",
+                    vals,
+                )
 
                 # Migrate tags
                 tags = src.execute(
