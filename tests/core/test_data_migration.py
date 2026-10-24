@@ -7,6 +7,7 @@ real data directories are touched.
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 
 import pytest
@@ -126,3 +127,103 @@ def test_noop_off_windows(monkeypatch, tmp_path):
     monkeypatch.setattr(dm, "_legacy_root", lambda: legacy)
     monkeypatch.setenv("JARVIS_DATA_DIR", str(tmp_path / "new"))
     assert dm.migrate_from_dotjarvis() is False
+
+
+# ---------------------------------------------------------------------------
+# Marker-only-on-success + retry (Task 4+B addendum)
+# ---------------------------------------------------------------------------
+
+
+def test_plain_copy_failure_withholds_marker_then_retry_succeeds(
+    _win, monkeypatch, tmp_path
+):
+    """A failed plain copy must NOT write the marker; the next run retries it.
+
+    Pass 1: the copy fails -> failed=1, marker absent, file missing.
+    Pass 2 (copy works): the missing file is copied and the marker written.
+    A stateful wrapper fails only on its first call, so both passes run under
+    the same monkeypatch environment (no undo needed).
+    """
+    legacy, new_root = _legacy_and_new(monkeypatch, tmp_path)
+    (legacy / "config.json").write_text("payload", encoding="utf-8")
+    marker = new_root / ".migrated_from_dotjarvis"
+
+    real_copy_plain = dm._copy_plain
+    state = {"first": True}
+
+    def flaky_copy_plain(src, dst):
+        if state["first"]:
+            state["first"] = False
+            return False
+        return real_copy_plain(src, dst)
+
+    monkeypatch.setattr(dm, "_copy_plain", flaky_copy_plain)
+
+    # Pass 1: copy fails.
+    assert dm.migrate_from_dotjarvis() is True
+    assert not marker.exists()
+    assert not (new_root / "config.json").exists()
+
+    # Pass 2: copy succeeds -> file present, marker written.
+    assert dm.migrate_from_dotjarvis() is True
+    assert (new_root / "config.json").read_text(encoding="utf-8") == "payload"
+    assert marker.exists()
+
+
+def test_sqlite_backup_failure_withholds_marker_then_retry_succeeds(
+    _win, monkeypatch, tmp_path
+):
+    """A failed SQLite copy behaves like a plain failure: no marker, retry."""
+    legacy, new_root = _legacy_and_new(monkeypatch, tmp_path)
+    _make_db(legacy / "memory" / "memory.db", "dbval")
+    marker = new_root / ".migrated_from_dotjarvis"
+
+    real_copy_sqlite = dm._copy_sqlite
+    state = {"first": True}
+
+    def flaky_copy_sqlite(src, dst):
+        if state["first"]:
+            state["first"] = False
+            return False
+        return real_copy_sqlite(src, dst)
+
+    monkeypatch.setattr(dm, "_copy_sqlite", flaky_copy_sqlite)
+
+    assert dm.migrate_from_dotjarvis() is True
+    assert not marker.exists()
+    assert not (new_root / "memory" / "memory.db").exists()
+
+    assert dm.migrate_from_dotjarvis() is True
+    dst = new_root / "memory" / "memory.db"
+    assert dst.exists()
+    con = sqlite3.connect(str(dst))
+    assert con.execute("SELECT v FROM t").fetchone()[0] == "dbval"
+    con.close()
+    assert marker.exists()
+
+
+def test_conflict_logged_at_warning(_win, monkeypatch, tmp_path, caplog):
+    """Differing file present in both roots is logged at WARNING, not INFO."""
+    legacy, new_root = _legacy_and_new(monkeypatch, tmp_path)
+    (legacy / "config.json").write_text("LEGACY-LONGER", encoding="utf-8")
+    (new_root / "config.json").write_text("NEW", encoding="utf-8")
+    with caplog.at_level(logging.WARNING, logger="jarvis.core.data_migration"):
+        dm.migrate_from_dotjarvis()
+    warnings = [
+        r for r in caplog.records
+        if r.levelno == logging.WARNING and "conflict" in r.getMessage()
+    ]
+    assert len(warnings) == 1
+    assert "config.json" in warnings[0].getMessage()
+
+
+def test_no_failures_writes_marker_and_counts(_win, monkeypatch, tmp_path, caplog):
+    """When failed==0 behaviour is unchanged: marker written, summary logged."""
+    legacy, new_root = _legacy_and_new(monkeypatch, tmp_path)
+    (legacy / "a.json").write_text("1", encoding="utf-8")
+    with caplog.at_level(logging.INFO, logger="jarvis.core.data_migration"):
+        assert dm.migrate_from_dotjarvis() is True
+    assert (new_root / ".migrated_from_dotjarvis").exists()
+    summary = [r for r in caplog.records if "complete:" in r.getMessage()]
+    assert summary, "expected a completion summary line"
+    assert "failed" in summary[-1].getMessage()

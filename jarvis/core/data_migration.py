@@ -21,9 +21,11 @@ on first run. Design constraints (see Task 4+B):
 * **Skip the Piper voices dir** — it is large and ships with the install, not
   user data.
 * **Idempotent.** A ``.migrated_from_dotjarvis`` marker in the new root short-
-  circuits subsequent runs.
-* **Best-effort.** Any per-file failure is logged and skipped; the migration
-  never raises into the boot path.
+  circuits subsequent runs. The marker is written only when *no* file failed
+  to copy; if any copy failed, the marker is withheld so the next run retries
+  the missing files (already-copied files are skipped as existing).
+* **Best-effort.** Any per-file failure is logged (with its relative path) and
+  counted; the migration never raises into the boot path.
 """
 
 from __future__ import annotations
@@ -134,7 +136,8 @@ def migrate_from_dotjarvis() -> bool:
     if marker.exists():
         return True  # already migrated
 
-    copied = skipped = conflicts = 0
+    copied = skipped = conflicts = failed = 0
+    failed_paths: list[str] = []
     for src in legacy.rglob("*"):
         if src.is_dir():
             continue
@@ -154,7 +157,7 @@ def migrate_from_dotjarvis() -> bool:
             try:
                 if _is_sqlite(src) or src.stat().st_size != dst.stat().st_size:
                     conflicts += 1
-                    log.info(
+                    log.warning(
                         "migration: conflict, keeping new file: %s", rel,
                     )
             except OSError:
@@ -166,21 +169,32 @@ def migrate_from_dotjarvis() -> bool:
         if ok:
             copied += 1
         else:
-            skipped += 1
+            failed += 1
+            failed_paths.append(str(rel))
 
-    # Write the marker so subsequent runs short-circuit (best-effort).
-    try:
-        new_root.mkdir(parents=True, exist_ok=True)
-        marker.write_text(
-            "Migrated from ~/.jarvis. Safe to delete; presence only prevents "
-            "re-running the one-time migration.\n",
-            encoding="utf-8",
+    # Only mark the migration done when nothing failed to copy. If some files
+    # failed, leave the marker absent so the next run retries them (already
+    # copied files are skipped as existing), and warn with the paths.
+    if failed == 0:
+        try:
+            new_root.mkdir(parents=True, exist_ok=True)
+            marker.write_text(
+                "Migrated from ~/.jarvis. Safe to delete; presence only prevents "
+                "re-running the one-time migration.\n",
+                encoding="utf-8",
+            )
+        except OSError:
+            log.debug("migration: could not write marker", exc_info=True)
+    else:
+        log.warning(
+            "migration from ~/.jarvis: %d file(s) failed to copy, marker not "
+            "written (will retry next run): %s",
+            failed, ", ".join(failed_paths),
         )
-    except OSError:
-        log.debug("migration: could not write marker", exc_info=True)
 
     log.info(
-        "migration from ~/.jarvis complete: %d copied, %d skipped, %d conflicts",
-        copied, skipped, conflicts,
+        "migration from ~/.jarvis complete: %d copied, %d skipped, "
+        "%d conflicts, %d failed",
+        copied, skipped, conflicts, failed,
     )
     return True
