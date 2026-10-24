@@ -525,6 +525,19 @@ def _setup_logging(level_name: str = "INFO") -> None:
     logging.getLogger().setLevel(level)
 
 
+    # Task C §1: Rotating file log in EVERY mode (not just frozen). Without
+    # this, `python -m jarvis` kept no file log and everything was lost when
+    # the console closed. The handler (5 MB x 5, UTF-8, dedup by path, and a
+    # quiet handleError) lives in core.diagnostics so it is importable without
+    # pulling in audio/Qt — and unit-testable in a lightweight venv.
+    from jarvis.core.diagnostics import install_rotating_file_log
+
+    install_rotating_file_log(
+        formatter=formatter,
+        correlation_filter=CorrelationIdFilter(),
+    )
+
+
 
 
 
@@ -2467,6 +2480,18 @@ class JarvisApp:
         from jarvis.paths import bundled_asset_report, is_frozen
 
 
+        # Task C §3: one-time environment passport for remote diagnostics.
+        # Versions + GPU driver + data dir + configured STT device. No user
+        # content. The GPU *name* and resolved STT device are logged later by
+        # VRAMManager/STT at load; here we record the configured device.
+        try:
+            from jarvis.core.diagnostics import log_environment_passport
+
+            log_environment_passport(stt_device=self.cfg.stt.device)
+        except Exception:
+            log.debug("environment passport failed", exc_info=True)
+
+
 
 
 
@@ -3501,6 +3526,12 @@ class JarvisApp:
 
 
         asyncio.set_event_loop(self.audio_loop)
+
+
+        # Task C §2: capture "never retrieved" task exceptions on the audio
+        # loop into the log (they are otherwise swallowed on the audio thread).
+        from jarvis.core.diagnostics import install_asyncio_exception_handler
+        install_asyncio_exception_handler(self.audio_loop)
 
 
         self.audio_loop.run_until_complete(
