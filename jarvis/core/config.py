@@ -35,6 +35,7 @@ import logging
 import os
 import shutil
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
@@ -531,6 +532,63 @@ def _default_idle_game_patterns() -> list[str]:
     ]
 
 
+def _lastgood_path(p: Path) -> Path:
+    """``<config>.lastgood`` — snapshot of the last config that loaded fully
+    (parsed + migrated + validated). A single file, no rotation."""
+    return p.with_suffix(p.suffix + ".lastgood")
+
+
+def _ordered_recovery_sources(p: Path) -> list[Path]:
+    """Recovery candidates in priority order (Task D):
+
+    1. ``<config>.lastgood`` (the last fully-validated config),
+    2. ``<config>.vN.bak`` newest schema-version first,
+    3. legacy ``<config>.bak``.
+    """
+    sources = [_lastgood_path(p)]
+    sources.extend(_list_versioned_backups(p))
+    sources.append(_legacy_bak_path(p))
+    return sources
+
+
+def _recover_from_backups(p: Path) -> Path | None:
+    """Restore *p* from the first recovery source that reads as a JSON object.
+
+    Copies that source onto *p* and returns it, or returns None when no
+    readable backup exists. Never raises.
+    """
+    for src in _ordered_recovery_sources(p):
+        if not src.exists():
+            continue
+        try:
+            _read_raw(src)  # must itself parse as a JSON object
+        except (json.JSONDecodeError, UnicodeDecodeError, ConfigMigrationError, OSError):
+            continue
+        try:
+            shutil.copy2(src, p)
+        except OSError as exc:
+            _log.warning("Could not restore config from %s: %s", src.name, exc)
+            continue
+        return src
+    return None
+
+
+def _update_lastgood(p: Path) -> None:
+    """Refresh ``<config>.lastgood`` to match *p*, only if content differs.
+
+    Atomic (tmp + replace) and best-effort: a failure here never breaks a
+    successful load.
+    """
+    lg = _lastgood_path(p)
+    try:
+        current = p.read_bytes()
+        if lg.exists() and lg.read_bytes() == current:
+            return
+        tmp = lg.with_suffix(lg.suffix + f".tmp{os.getpid()}")
+        tmp.write_bytes(current)
+        tmp.replace(lg)
+    except OSError:
+        _log.debug("Could not update %s", lg, exc_info=True)
 
 
 class SecurityConfig(_Base):
@@ -903,44 +961,196 @@ def default_config_path() -> Path:
 
 _log = logging.getLogger(__name__)
 
-def load_config(path: Path | None = None) -> JarvisConfig:
-    """Load config from disk, applying migrations. If the file does not exist,
-    write a default config to that path and return it."""
-    p = path if path is not None else default_config_path()
-    if not p.exists():
-        cfg = JarvisConfig()
-        save_config(cfg, p)
-        return cfg
+# How many versioned pre-migration backups (<config>.v<N>.bak) to keep.
+_MAX_VERSIONED_BACKUPS = 3
+
+
+def _legacy_bak_path(p: Path) -> Path:
+    """The single, version-less backup kept for backward compatibility."""
+    return p.with_suffix(p.suffix + ".bak")
+
+
+def _versioned_bak_path(p: Path, version: int) -> Path:
+    """``<config>.v<N>.bak`` — the pre-migration snapshot at schema v<N>."""
+    return p.with_suffix(p.suffix + f".v{version}.bak")
+
+
+def _list_versioned_backups(p: Path) -> list[Path]:
+    """All ``<config>.v<N>.bak`` for this config, newest schema-version first."""
+    stem = p.name  # e.g. "config.json"
+    found: list[tuple[int, Path]] = []
+    parent = p.parent
+    if not parent.is_dir():
+        return []
+    for cand in parent.iterdir():
+        name = cand.name
+        if name.startswith(stem + ".v") and name.endswith(".bak"):
+            middle = name[len(stem) + 2 : -4]  # between ".v" and ".bak"
+            if middle.isdigit():
+                found.append((int(middle), cand))
+    found.sort(key=lambda t: t[0], reverse=True)
+    return [path for _, path in found]
+
+
+def _prune_versioned_backups(p: Path, keep: int = _MAX_VERSIONED_BACKUPS) -> None:
+    """Keep only the *keep* newest versioned backups; delete the rest."""
+    backups = _list_versioned_backups(p)
+    for stale in backups[keep:]:
+        try:
+            stale.unlink()
+        except OSError as exc:
+            _log.warning("Could not prune old config backup %s: %s", stale, exc)
+
+
+def _write_versioned_backup(p: Path, version: int) -> None:
+    """Snapshot *p* to ``<config>.v<version>.bak`` and prune to the cap.
+
+    Also refreshes the legacy ``<config>.bak`` so the existing restore path
+    (and its tests) keep working. Best-effort: logs on failure, never raises.
+    """
+    try:
+        shutil.copy2(p, _versioned_bak_path(p, version))
+        shutil.copy2(p, _legacy_bak_path(p))
+        _prune_versioned_backups(p)
+    except OSError as exc:
+        _log.warning("Failed to back up config before migration: %s", exc)
+
+
+def _newest_backup(p: Path) -> Path | None:
+    """Most recent usable backup: newest versioned one, else the legacy .bak.
+
+    "Newest" among versioned backups is by mtime (a restore wants the most
+    recently written snapshot, regardless of its schema number)."""
+    candidates = _list_versioned_backups(p)
+    legacy = _legacy_bak_path(p)
+    if legacy.exists():
+        candidates.append(legacy)
+    existing = [c for c in candidates if c.exists()]
+    if not existing:
+        return None
+    return max(existing, key=lambda c: c.stat().st_mtime)
+
+
+def _read_raw(p: Path) -> dict:
+    """Read + JSON-parse a config file into a dict. No migration, no writes.
+
+    Raises json.JSONDecodeError / UnicodeDecodeError on corruption, or
+    ConfigMigrationError if the root is not a JSON object. Safe for read-only
+    callers (e.g. --doctor)."""
     with p.open("r", encoding="utf-8") as f:
         raw = json.load(f)
     if not isinstance(raw, dict):
         raise ConfigMigrationError(
             f"config root must be a JSON object, got {type(raw).__name__}"
         )
+    return raw
+
+
+def _quarantine_corrupt(p: Path) -> Path:
+    """Rename a corrupt config to ``<config>.corrupt-<timestamp>`` (keep it)."""
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    target = p.with_suffix(p.suffix + f".corrupt-{ts}")
+    # Avoid clobbering an existing quarantine from the same second.
+    n = 1
+    while target.exists():
+        target = p.with_suffix(p.suffix + f".corrupt-{ts}-{n}")
+        n += 1
+    p.rename(target)
+    return target
+
+
+def load_config(
+    path: Path | None = None,
+    *,
+    on_notice: Callable[[str], None] | None = None,
+) -> JarvisConfig:
+    """Load config from disk, applying migrations.
+    Resilience contract (Task D):
+    * Missing file -> write and return a default config.
+    * Unreadable/invalid JSON (``json.JSONDecodeError`` /
+      ``UnicodeDecodeError``, including an empty or truncated file): the bad
+      file is quarantined to ``<config>.corrupt-<timestamp>`` (NEVER deleted)
+      and the config is restored from the first readable backup, in order:
+      ``<config>.lastgood`` -> ``<config>.vN.bak`` (newest first) ->
+      ``<config>.bak``. If no readable backup exists, a fresh default is
+      written. Either way a WARNING is logged and, when *on_notice* is given,
+      a user-facing message is emitted.
+    * Invalid *values* (``ValidationError``) or an incompatible schema
+      (``ConfigMigrationError``) still propagate unchanged — the UI catches
+      ``CONFIG_LOAD_ERRORS`` and shows ``format_config_error``.
+    On a fully successful load (parse + migrate + validate) the
+    ``<config>.lastgood`` snapshot is refreshed (only if content changed).
+    *on_notice* is an optional sink for a prominent user message (the app
+    wires it to the startup message box). Keeping it a parameter leaves
+    load_config free of any UI dependency and unit-testable.
+    """
+    p = path if path is not None else default_config_path()
+    def _notify(msg: str) -> None:
+        if on_notice is not None:
+            try:
+                on_notice(msg)
+            except Exception:
+                _log.debug("on_notice sink raised", exc_info=True)
+    if not p.exists():
+        cfg = JarvisConfig()
+        save_config(cfg, p)
+        _update_lastgood(p)
+        return cfg
+    # --- Corruption handling: unreadable/invalid JSON must not crash boot. ---
+    try:
+        raw = _read_raw(p)
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        quarantined = _quarantine_corrupt(p)
+        restored = _recover_from_backups(p)
+        if restored is not None:
+            msg = (
+                "Config file was corrupt and could not be read "
+                f"({type(exc).__name__}). The damaged file was kept as "
+                f"{quarantined.name}; settings were restored from the last "
+                f"working copy ({restored.name}). Some integrations or API "
+                "keys may need to be re-entered."
+            )
+            _log.warning(msg)
+            _notify(msg)
+            raw = _read_raw(p)
+        else:
+            msg = (
+                "Config file was corrupt and could not be read "
+                f"({type(exc).__name__}). The damaged file was kept as "
+                f"{quarantined.name}; no working backup was found, so Jarvis "
+                "started with default settings. Integrations and API keys "
+                "will need to be re-entered."
+            )
+            _log.warning(msg)
+            _notify(msg)
+            cfg = JarvisConfig()
+            save_config(cfg, p)
+            _update_lastgood(p)
+            return cfg
     # --- Config backup before migration (T0.4) ---
     old_version = raw.get("schema_version", 0)
-    bak = p.with_suffix(p.suffix + ".bak")
     if old_version < CURRENT_SCHEMA_VERSION:
-        try:
-            shutil.copy2(p, bak)
-            _log.info(
-                "Config backed up before migration v%s->v%s: %s",
-                old_version, CURRENT_SCHEMA_VERSION, bak,
-            )
-        except OSError as exc:
-            _log.warning("Failed to back up config before migration: %s", exc)
+        _write_versioned_backup(p, old_version)
+        _log.info(
+            "Config backed up before migration v%s->v%s",
+            old_version, CURRENT_SCHEMA_VERSION,
+        )
     try:
         raw = migrate(raw)
     except Exception:
-        if bak.exists():
-            _log.warning("Migration failed — restoring config from %s", bak)
-            shutil.copy2(bak, p)
+        backup = _newest_backup(p)
+        if backup is not None:
+            _log.warning("Migration failed — restoring config from %s", backup.name)
+            shutil.copy2(backup, p)
         raise
     # Decrypt after migrating: migrations reason about the on-disk shape,
     # and everything downstream of here expects plaintext. Legacy plaintext
     # values survive this untouched and get encrypted on the next save.
     raw = decrypt_secrets(raw)
-    return JarvisConfig.model_validate(raw)
+    cfg = JarvisConfig.model_validate(raw)
+    # Record this fully-validated config as the new "last good" snapshot.
+    _update_lastgood(p)
+    return cfg
 
 
 def save_config(config: JarvisConfig, path: Path | None = None) -> None:
@@ -953,17 +1163,94 @@ def save_config(config: JarvisConfig, path: Path | None = None) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     # model_dump builds a fresh dict, so mutating it does not touch `config`.
     data = encrypt_secrets(config.model_dump(mode="json"))
-    tmp = p.with_suffix(p.suffix + ".tmp")
-    with tmp.open("w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-    tmp.replace(p)
+    # Per-process temp name so concurrent writers never clobber each other's
+    # in-flight temp file (the final replace() is still atomic).
+    tmp = p.with_suffix(p.suffix + f".tmp{os.getpid()}")
+    # Atomic write: serialise fully into a temp file, fsync, then replace.
+    # If anything fails before the replace, the original *p* is left intact;
+    # we also remove the partial temp file so no debris is left behind.
+    try:
+        with tmp.open("w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        tmp.replace(p)
+    except Exception:
+        try:
+            if tmp.exists():
+                tmp.unlink()
+        except OSError:
+            _log.debug("Could not remove temp config %s after write error", tmp,
+                       exc_info=True)
+        # Re-raise the original write error: a failed save must be visible to
+        # the caller, not silently swallowed. The original file is untouched
+        # (tmp.replace was never reached).
+        raise
+
+
+def config_health(path: Path | None = None) -> dict:
+    """Read-only health probe for a config file (used by ``--doctor``).
+
+    Performs NO writes and NO migration: it only checks whether the file
+    parses as JSON and reports the schema version and available backups.
+    Safe for diagnostics, which must not create or modify any config file.
+
+    Returns a dict:
+        exists (bool), readable (bool), schema_version (int | None),
+        current_schema (int), too_new (bool), error (str | None),
+        backups (list[str]) — backup filenames, newest first,
+        has_lastgood (bool) — whether a <config>.lastgood snapshot exists.
+    """
+    p = path if path is not None else default_config_path()
+    versioned = _list_versioned_backups(p)
+    legacy = _legacy_bak_path(p)
+    backups = [b.name for b in versioned]
+    if legacy.exists():
+        backups.append(legacy.name)
+    lastgood = _lastgood_path(p)
+    has_lastgood = lastgood.exists()
+    if has_lastgood:
+        backups.insert(0, lastgood.name)
+
+    info: dict = {
+        "exists": p.exists(),
+        "readable": False,
+        "schema_version": None,
+        "current_schema": CURRENT_SCHEMA_VERSION,
+        "too_new": False,
+        "error": None,
+        "backups": backups,
+        "has_lastgood": has_lastgood,
+    }
+    if not p.exists():
+        return info
+    try:
+        raw = _read_raw(p)
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        info["error"] = f"corrupt: {exc}"
+        return info
+    except ConfigMigrationError as exc:
+        info["error"] = str(exc)
+        return info
+    info["readable"] = True
+    ver = raw.get("schema_version")
+    info["schema_version"] = ver if isinstance(ver, int) else None
+    if isinstance(ver, int) and ver > CURRENT_SCHEMA_VERSION:
+        info["too_new"] = True
+    return info
 
 
 # ---------------------------------------------------------------------------
 # Human-readable load errors (roadmap T1.1: "an invalid config gives a clear
-# error, not a stack trace"). load_config() keeps raising its original
-# exception types (tests rely on them); callers that face the user catch
-# CONFIG_LOAD_ERRORS and show format_config_error() instead of a traceback.
+# error, not a stack trace").
+#
+# Since Task D, load_config() NO LONGER raises on unreadable JSON
+# (JSONDecodeError / UnicodeDecodeError): it quarantines the bad file and
+# recovers from a backup or defaults. It still raises ValidationError and
+# ConfigMigrationError (bad values / incompatible schema). Callers that face
+# the user catch CONFIG_LOAD_ERRORS and show format_config_error() for those.
+# JSONDecodeError / UnicodeDecodeError remain in the tuple for callers that
+# invoke the lower-level _read_raw() directly (e.g. diagnostics).
 # ---------------------------------------------------------------------------
 
 CONFIG_LOAD_ERRORS: tuple[type[BaseException], ...] = (

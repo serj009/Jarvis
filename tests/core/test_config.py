@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import copy
 import json
 from pathlib import Path
 
@@ -174,9 +175,41 @@ def test_load_propagates_validation_error_for_corrupt_field(tmp_path: Path):
 
 
 def test_migrate_passthrough_at_current_version():
+    # Task D §3: migrate() deep-copies its input, so even at the current
+    # version it returns an INDEPENDENT object and never mutates the caller's
+    # dict. (Previously it returned the same object; the new contract is
+    # strictly stronger — the input is guaranteed untouched.)
     data = JarvisConfig().model_dump(mode="json")
-    assert migrate(data) is data
-    assert data["schema_version"] == CURRENT_SCHEMA_VERSION
+    snapshot = copy.deepcopy(data)
+    result = migrate(data)
+    assert result == snapshot          # content unchanged at current version
+    assert data == snapshot            # caller's dict not mutated
+    assert result is not data          # result is an independent object
+    assert result["schema_version"] == CURRENT_SCHEMA_VERSION
+
+
+def test_migrate_does_not_mutate_outdated_input():
+    """Migrating an old-version dict leaves the caller's dict untouched and
+    returns a distinct, upgraded result (Task D §3)."""
+    old = JarvisConfig().model_dump(mode="json")
+    old["schema_version"] = CURRENT_SCHEMA_VERSION - 1
+    snapshot = copy.deepcopy(old)
+    result = migrate(old)
+    assert old == snapshot                               # input untouched
+    assert result is not old
+    assert result["schema_version"] == CURRENT_SCHEMA_VERSION
+    assert result != snapshot                            # result moved forward
+
+
+def test_migrate_result_is_independent_of_input():
+    """Mutating the migrated result must not reach back into the input."""
+    data = JarvisConfig().model_dump(mode="json")
+    snapshot = copy.deepcopy(data)
+    result = migrate(data)
+    result["__probe__"] = 1
+    if isinstance(result.get("llm"), dict):
+        result["llm"]["__probe__"] = 1
+    assert data == snapshot, "mutating migrate() result leaked into the input"
 
 
 def test_migrate_rejects_missing_schema_version():

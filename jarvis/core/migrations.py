@@ -5,22 +5,25 @@ function, ConfigMigrationError, and the old prompt constants that
 migrations reference live here.
 
 Importing this module does NOT create a circular dependency:
-- config.py imports: ``from jarvis.core.migrations import MIGRATIONS, migrate, ConfigMigrationError``
-- migrations.py imports: ``from jarvis.core.config import (DEFAULT_SYSTEM_PROMPT, DEFAULT_TRAYCE_URL,
-                            encrypt_secrets, _default_workspace_apps, CURRENT_SCHEMA_VERSION)``
+- config.py imports: ``from jarvis.core.migrations import MIGRATIONS, migrate,
+  ConfigMigrationError``
+- migrations.py imports: ``from jarvis.core.config import (DEFAULT_SYSTEM_PROMPT,
+  DEFAULT_TRAYCE_URL, encrypt_secrets, _default_workspace_apps,
+  CURRENT_SCHEMA_VERSION)``
   These are constants and pure functions — no model classes, no load/save.
 """
 
 from __future__ import annotations
 
+import copy
 from collections.abc import Callable
 
 from jarvis.core.config import (
     CURRENT_SCHEMA_VERSION,
     DEFAULT_SYSTEM_PROMPT,
     DEFAULT_TRAYCE_URL,
-    encrypt_secrets,
     _default_workspace_apps,
+    encrypt_secrets,
 )
 
 Migration = Callable[[dict], dict]
@@ -905,7 +908,11 @@ class ConfigMigrationError(ValueError):
 
 def migrate(data: dict) -> dict:
     """Apply registered migrations in sequence until data is at
-    CURRENT_SCHEMA_VERSION. Returns the same dict object (possibly mutated)."""
+    CURRENT_SCHEMA_VERSION.
+    Operates on a deep copy of *data* so the caller's dict is never mutated
+    (individual migration steps mutate in place). Returns the migrated copy.
+    """
+    data = copy.deepcopy(data)
     if "schema_version" not in data:
         raise ConfigMigrationError("config missing schema_version")
     version = data["schema_version"]
