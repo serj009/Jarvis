@@ -367,6 +367,7 @@ class FasterWhisperSTT:
         confidence_clarify: float = CONFIDENCE_CLARIFY,
         # T2.4 max retries for "clarify" action
         max_clarify_retries: int = 3,
+        bus: object | None = None,
     ) -> None:
         self.model_size = model_size
         self.language = language
@@ -378,6 +379,7 @@ class FasterWhisperSTT:
         self.max_clarify_retries = max_clarify_retries
         self._model = None
         self.is_loaded: bool = False
+        self._bus = bus
         # Effective device/compute/model actually loaded (set at end of
         # load()). Used for the runtime CPU-fallback in transcribe() when the
         # CUDA runtime DLLs (cuBLAS/cuDNN) are missing — ctranslate2 reports a
@@ -386,6 +388,11 @@ class FasterWhisperSTT:
         self._active_compute: str = compute_type
         self._model_id: str | None = None
         self._cuda_runtime_broken: bool = False
+        # Serialise the one-shot CPU fallback so concurrent transcribe()
+        # calls don't each build a second model. Lazily created (needs a loop).
+        self._fallback_lock: asyncio.Lock | None = None
+        # One-shot user notification when GPU is abandoned for the session.
+        self._gpu_fallback_notified: bool = False
 
         # Auto-select hotwords by language if not explicitly provided.
         if hotwords is None:
@@ -517,15 +524,31 @@ class FasterWhisperSTT:
                 model_id,
                 **kwargs,
             )
+            # Warm-up on CUDA: the cuBLAS/cuDNN DLLs are dlopen'd lazily on the
+            # first real encode(), NOT at construction. Run one transcription
+            # over 1 s of silence here — inside this try — so a missing-library
+            # error surfaces at load() and hits the CPU fallback below instead
+            # of crashing every live turn. Iterate the segment generator to the
+            # end because the failure is lazy.
+            if device == "cuda":
+                await asyncio.to_thread(self._warmup_sync)
         except Exception as exc:
-            # CUDA OOM or driver error: fall back to CPU automatically
-            # when the original request was "auto" (user didn't force CUDA).
-            if device == "cuda" and self._configured_device != "cuda":
+            # Fall back to CPU on ANY CUDA failure — including when the user
+            # explicitly set device="cuda" (pt 4): a broken CUDA runtime should
+            # degrade to a working CPU STT with a WARNING, not abort the app.
+            if device == "cuda":
                 log.warning(
-                    "STT CUDA load failed (%s); falling back to CPU", exc,
+                    "STT CUDA load/warm-up failed (%s); falling back to CPU. "
+                    "For GPU acceleration install the gpu extra: "
+                    "pip install -e \".[gpu]\"", exc,
                 )
                 device = "cpu"
                 compute_type = self._resolve_compute_type(device, self.compute_type)
+                # pt 3: an auto-selected model may be too large to run on CPU.
+                # Revert auto picks to the default "small"; never override a
+                # size the user set explicitly.
+                if self.model_size == "auto":
+                    model_id = _resolve_model_id("small", self.language)
                 kwargs["device"] = device
                 kwargs["compute_type"] = compute_type
                 try:
@@ -539,6 +562,9 @@ class FasterWhisperSTT:
                         f"could not load whisper model {model_id!r} "
                         f"(CUDA failed: {exc}; CPU fallback failed: {cpu_exc})"
                     ) from cpu_exc
+                # Mark degraded + notify once (pt 5): GPU abandoned this session.
+                self._cuda_runtime_broken = True
+                self._notify_gpu_fallback(str(exc))
             else:
                 raise STTLoadError(
                     f"could not load whisper model {model_id!r}: {exc}"
@@ -580,36 +606,24 @@ class FasterWhisperSTT:
             result = await asyncio.to_thread(self._sync_transcribe, audio_np)
         except Exception as exc:
             # Runtime CPU-fallback: ctranslate2 can report a CUDA device at
-            # construction but then fail the first encode() because the CUDA
-            # runtime DLLs (cuBLAS/cuDNN) are missing — the user installed the
-            # base package without the gpu extra. Without this, EVERY turn
-            # crashes. Reload the model on CPU once and retry; subsequent
-            # turns use the CPU model directly.
-            if (
-                not self._cuda_runtime_broken
-                and self._active_device == "cuda"
-                and self._configured_device != "cuda"
-                and self._is_cuda_runtime_error(exc)
-            ):
-                log.warning(
-                    "STT CUDA runtime unavailable (%s); reloading on CPU. "
-                    "Install the GPU extra for CUDA acceleration: "
-                    "pip install -e \".[gpu]\"", exc,
-                )
-                reloaded = await self._reload_on_cpu()
-                if reloaded:
-                    try:
-                        result = await asyncio.to_thread(
-                            self._sync_transcribe, audio_np,
-                        )
-                    except Exception:
-                        log.exception(
-                            "whisper transcribe raised after CPU reload",
-                        )
-                        return TranscriptionResult(
-                            text="", confidence=0.0, action="ignore",
-                        )
-                else:
+            # construction/warm-up but then fail an encode() because the CUDA
+            # runtime DLLs (cuBLAS/cuDNN) are missing or the driver errors
+            # mid-session. Reload on CPU ONCE (serialised so concurrent turns
+            # don't build two models) and retry; subsequent turns use CPU.
+            # Applies even when device was explicitly "cuda" (pt 4): degrade,
+            # don't crash every turn. Unrelated errors are re-raised as empty.
+            if self._active_device == "cuda" and self._is_cuda_runtime_error(exc):
+                reloaded = await self._reload_on_cpu_locked(str(exc))
+                if not reloaded:
+                    return TranscriptionResult(
+                        text="", confidence=0.0, action="ignore",
+                    )
+                try:
+                    result = await asyncio.to_thread(
+                        self._sync_transcribe, audio_np,
+                    )
+                except Exception:
+                    log.exception("whisper transcribe raised after CPU reload")
                     return TranscriptionResult(
                         text="", confidence=0.0, action="ignore",
                     )
@@ -644,6 +658,46 @@ class FasterWhisperSTT:
 
     # -- internal --
 
+    def _warmup_sync(self) -> None:
+        """Run one transcription over 1 s of silence to force the CUDA
+        runtime libraries to load now (they are dlopen'd lazily on the first
+        encode(), not at construction). Iterates the segment generator fully
+        because the library-load error is lazy. Called inside load()'s try so
+        a cuBLAS/cuDNN failure triggers the CPU fallback at startup instead of
+        crashing the first live turn. Must run inside asyncio.to_thread."""
+        assert self._model is not None
+        silence = np.zeros(16000, dtype=np.float32)
+        segments, _info = self._model.transcribe(silence, beam_size=1)
+        for _seg in segments:
+            pass
+
+    def _notify_gpu_fallback(self, reason: str) -> None:
+        """Surface a one-shot user notice that STT dropped to CPU for the
+        session. Uses the existing NonFatalError/EventBus mechanism (same as
+        tts.py / devices.py) — no new notification channel. Idempotent: the
+        bus event + log fire at most once per session."""
+        if self._gpu_fallback_notified:
+            return
+        self._gpu_fallback_notified = True
+        log.warning(
+            "STT running on CPU for this session (GPU unavailable: %s). "
+            "Install the gpu extra for acceleration: pip install -e \".[gpu]\"",
+            reason,
+        )
+        bus = self._bus
+        if bus is not None:
+            try:
+                from jarvis.core.events import NonFatalError
+
+                bus.publish(NonFatalError(
+                    module="stt",
+                    issue="gpu_fallback",
+                    expected="cuda",
+                    actual="cpu",
+                ))
+            except Exception:
+                log.debug("STT gpu_fallback notification failed", exc_info=True)
+
     @staticmethod
     def _is_cuda_runtime_error(exc: BaseException) -> bool:
         """True if *exc* looks like a missing/unloadable CUDA runtime library.
@@ -662,17 +716,21 @@ class FasterWhisperSTT:
     async def _reload_on_cpu(self) -> bool:
         """Reload the Whisper model on CPU after a CUDA runtime failure.
 
-        Returns True on success. Sets ``_cuda_runtime_broken`` so we only do
-        this once per session (subsequent transcribe() calls go straight to
-        the CPU model). Never raises — returns False if even the CPU reload
-        fails, leaving the caller to degrade gracefully."""
-        self._cuda_runtime_broken = True
+        Returns True on success. Never raises — returns False if even the CPU
+        reload fails, leaving the caller to degrade gracefully. pt 3: when the
+        model was auto-selected, revert to the default "small" (an auto pick
+        may be a large model that is unusably slow on CPU); an explicitly
+        configured size is kept unchanged."""
         if self._model_id is None:
             return False
         try:
             from faster_whisper import WhisperModel
         except ImportError:
             return False
+        # pt 3: downgrade auto-selected model to the CPU-friendly default.
+        cpu_model_id = self._model_id
+        if self.model_size == "auto":
+            cpu_model_id = _resolve_model_id("small", self.language)
         compute_type = self._resolve_compute_type("cpu", self.compute_type)
         kwargs: dict = {"device": "cpu", "compute_type": compute_type}
         if self._download_root is not None:
@@ -680,18 +738,42 @@ class FasterWhisperSTT:
             kwargs["local_files_only"] = True
         try:
             self._model = await asyncio.to_thread(
-                WhisperModel, self._model_id, **kwargs,
+                WhisperModel, cpu_model_id, **kwargs,
             )
         except Exception:
             log.exception("STT CPU reload failed")
             return False
         self._active_device = "cpu"
         self._active_compute = compute_type
+        self._model_id = cpu_model_id
         log.info(
             "STT reloaded on CPU: model=%s, compute=%s",
-            self._model_id, compute_type,
+            cpu_model_id, compute_type,
         )
         return True
+
+    async def _reload_on_cpu_locked(self, reason: str) -> bool:
+        """Serialise the one-shot CPU fallback (pt 2). Concurrent transcribe()
+        calls that all hit the CUDA error must build the CPU model only once:
+        the first acquirer reloads, the rest see ``_cuda_runtime_broken`` and
+        return the already-reloaded model's success. Also fires the one-shot
+        user notification (pt 5)."""
+        if self._fallback_lock is None:
+            self._fallback_lock = asyncio.Lock()
+        async with self._fallback_lock:
+            if self._cuda_runtime_broken:
+                # Another concurrent call already reloaded; reuse its result.
+                return self._model is not None and self._active_device == "cpu"
+            self._cuda_runtime_broken = True
+            log.warning(
+                "STT CUDA runtime unavailable (%s); reloading on CPU once. "
+                "Install the GPU extra for CUDA acceleration: "
+                "pip install -e \".[gpu]\"", reason,
+            )
+            reloaded = await self._reload_on_cpu()
+            if reloaded:
+                self._notify_gpu_fallback(reason)
+            return reloaded
 
     def _sync_transcribe(self, audio: np.ndarray) -> TranscriptionResult:
         """Run faster-whisper inference synchronously. Always called inside

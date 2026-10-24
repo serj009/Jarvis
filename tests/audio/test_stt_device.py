@@ -20,6 +20,7 @@ from jarvis.audio.stt import (
     _detect_ctranslate2_cuda,
     _downloaded_model_sizes,
     _has_nvidia_gpu,
+    _resolve_model_id,
 )
 
 
@@ -257,7 +258,6 @@ def test_explicit_size_is_never_auto(monkeypatch):
 
 
 import numpy as np  # noqa: E402
-import pytest  # noqa: E402
 
 
 def test_is_cuda_runtime_error_matches_cublas():
@@ -308,7 +308,6 @@ async def test_transcribe_reloads_on_cpu_after_cuda_runtime_crash(monkeypatch):
         # Swap in a working CPU model, mirroring the real _reload_on_cpu.
         stt._model = _OkModel()
         stt._active_device = "cpu"
-        stt._cuda_runtime_broken = True
         return True
 
     monkeypatch.setattr(stt, "_reload_on_cpu", fake_reload)
@@ -320,25 +319,147 @@ async def test_transcribe_reloads_on_cpu_after_cuda_runtime_crash(monkeypatch):
     assert stt._active_device == "cpu"
 
 
-async def test_transcribe_does_not_retry_when_cuda_forced(monkeypatch):
-    """If the user forced device='cuda', a CUDA runtime crash is NOT masked
-    by a silent CPU reload — it returns empty (and logs), respecting the
-    explicit choice."""
+async def test_transcribe_falls_back_even_when_cuda_forced(monkeypatch):
+    """Задача A pt 4 (REVISED from Bug-1 behaviour): a broken CUDA runtime must
+    degrade to CPU even when the user explicitly set device='cuda' — a working
+    CPU STT beats crashing every turn. (Previously we refused the downgrade on
+    forced cuda; the task reverses that decision.)"""
     stt = FasterWhisperSTT(device="cuda", language="auto")
     stt._model = _CublasCrashModel()
     stt.is_loaded = True
     stt._active_device = "cuda"
     stt._model_id = "small"
 
+    async def fake_reload() -> bool:
+        stt._model = _OkModel()
+        stt._active_device = "cpu"
+        return True
+
+    monkeypatch.setattr(stt, "_reload_on_cpu", fake_reload)
+    pcm = (np.zeros(16000, dtype=np.int16)).tobytes()
+    result = await stt.transcribe(pcm)
+    assert result.text == "привет"
+    assert stt._active_device == "cpu"
+
+
+async def test_transcribe_passes_through_unrelated_error(monkeypatch):
+    """A non-CUDA error (e.g. bad audio) is NOT treated as a GPU failure: no
+    reload, returns empty ignore."""
+    class _BadAudioModel:
+        def transcribe(self, audio, **kwargs):
+            raise ValueError("bad audio shape")
+
+    stt = FasterWhisperSTT(device="auto", language="auto")
+    stt._model = _BadAudioModel()
+    stt.is_loaded = True
+    stt._active_device = "cuda"
+    stt._model_id = "small"
+
     called = False
 
-    async def should_not_reload() -> bool:
+    async def should_not_reload(reason: str) -> bool:
         nonlocal called
         called = True
         return True
 
-    monkeypatch.setattr(stt, "_reload_on_cpu", should_not_reload)
+    monkeypatch.setattr(stt, "_reload_on_cpu_locked", should_not_reload)
     pcm = (np.zeros(16000, dtype=np.int16)).tobytes()
     result = await stt.transcribe(pcm)
     assert result.text == ""
-    assert called is False, "must not auto-downgrade when CUDA was forced"
+    assert called is False, "unrelated error must not trigger GPU fallback"
+
+
+async def test_fallback_happens_once_under_concurrency(monkeypatch):
+    """Задача A pt 2: two concurrent transcribe() calls that both hit the CUDA
+    error must reload the CPU model only ONCE (serialised by the lock)."""
+    import asyncio
+
+    stt = FasterWhisperSTT(device="auto", language="auto")
+    stt._model = _CublasCrashModel()
+    stt.is_loaded = True
+    stt._active_device = "cuda"
+    stt._model_id = "small"
+
+    reload_count = 0
+
+    async def counting_reload() -> bool:
+        nonlocal reload_count
+        reload_count += 1
+        await asyncio.sleep(0.01)  # let the second call queue on the lock
+        stt._model = _OkModel()
+        stt._active_device = "cpu"
+        return True
+
+    monkeypatch.setattr(stt, "_reload_on_cpu", counting_reload)
+    pcm = (np.zeros(16000, dtype=np.int16)).tobytes()
+    r1, r2 = await asyncio.gather(stt.transcribe(pcm), stt.transcribe(pcm))
+    assert reload_count == 1, f"reload must happen once, got {reload_count}"
+    assert r1.text == "привет" and r2.text == "привет"
+
+
+async def test_reload_on_cpu_downgrades_auto_model_to_small(monkeypatch):
+    """Задача A pt 3: an auto-selected model reverts to 'small' on CPU reload
+    (a large auto pick would be unusably slow on CPU)."""
+    stt = FasterWhisperSTT(model_size="auto", device="auto", language="en")
+    stt._model_id = "medium"  # auto had picked a large model on GPU
+    stt._active_device = "cuda"
+
+    built: list = []
+
+    class _FakeWM:
+        def __init__(self, model_id, **kwargs):
+            built.append((model_id, kwargs.get("device")))
+
+    fake_fw = types.ModuleType("faster_whisper")
+    fake_fw.WhisperModel = _FakeWM
+    monkeypatch.setitem(sys.modules, "faster_whisper", fake_fw)
+
+    ok = await stt._reload_on_cpu()
+    assert ok is True
+    # "small" resolves to a language-specific id (e.g. small.en for English),
+    # so compare against the real resolver output, not a bare "small".
+    expected_small = _resolve_model_id("small", "en")
+    assert built == [(expected_small, "cpu")], (
+        f"auto must downgrade to small ({expected_small}), got {built}"
+    )
+    assert stt._model_id == expected_small
+
+
+async def test_reload_on_cpu_keeps_explicit_model(monkeypatch):
+    """Задача A pt 3: an explicitly configured model is NOT downgraded."""
+    stt = FasterWhisperSTT(model_size="medium", device="auto", language="en")
+    stt._model_id = "medium"
+    stt._active_device = "cuda"
+
+    built: list = []
+
+    class _FakeWM:
+        def __init__(self, model_id, **kwargs):
+            built.append((model_id, kwargs.get("device")))
+
+    fake_fw = types.ModuleType("faster_whisper")
+    fake_fw.WhisperModel = _FakeWM
+    monkeypatch.setitem(sys.modules, "faster_whisper", fake_fw)
+
+    ok = await stt._reload_on_cpu()
+    assert ok is True
+    assert built == [("medium", "cpu")], f"explicit model must be kept, got {built}"
+
+
+async def test_gpu_fallback_notifies_bus_once():
+    """Задача A pt 5: a one-shot NonFatalError(module='stt', issue='gpu_fallback')
+    is published, and only once per session."""
+    published: list = []
+
+    class _Bus:
+        def publish(self, evt):
+            published.append(evt)
+
+    stt = FasterWhisperSTT(device="auto", language="en", bus=_Bus())
+    stt._notify_gpu_fallback("cublas missing")
+    stt._notify_gpu_fallback("cublas missing")  # second call is a no-op
+    assert len(published) == 1
+    evt = published[0]
+    assert evt.module == "stt"
+    assert evt.issue == "gpu_fallback"
+    assert evt.expected == "cuda" and evt.actual == "cpu"
