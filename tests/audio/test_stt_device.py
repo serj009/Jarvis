@@ -247,3 +247,98 @@ def test_explicit_size_is_never_auto(monkeypatch):
     # Sanity: a concrete size bypasses auto-selection entirely (the load()
     # path only calls _auto_select_model when model_size == "auto").
     assert "auto" not in ("small", "medium", "base", "tiny")
+
+
+# --- Runtime CPU-fallback when CUDA runtime DLLs are missing ----------
+# ctranslate2 reports a CUDA device at construction but crashes on the first
+# encode() with 'Library cublas64_12.dll is not found' when the gpu extra is
+# not installed. transcribe() must reload on CPU once and retry, not crash
+# every turn.
+
+
+import numpy as np  # noqa: E402
+import pytest  # noqa: E402
+
+
+def test_is_cuda_runtime_error_matches_cublas():
+    err = RuntimeError(
+        "Library cublas64_12.dll is not found or cannot be loaded"
+    )
+    assert FasterWhisperSTT._is_cuda_runtime_error(err) is True
+
+
+def test_is_cuda_runtime_error_ignores_unrelated():
+    assert FasterWhisperSTT._is_cuda_runtime_error(
+        ValueError("bad audio shape")
+    ) is False
+
+
+class _CublasCrashModel:
+    """Fake whisper model: .transcribe() raises the cuBLAS error once per
+    call (simulating a CUDA runtime that never works)."""
+
+    def transcribe(self, audio, **kwargs):
+        raise RuntimeError(
+            "Library cublas64_12.dll is not found or cannot be loaded"
+        )
+
+
+class _OkModel:
+    """Fake whisper model: returns one empty-ish segment successfully."""
+
+    def transcribe(self, audio, **kwargs):
+        seg = types.SimpleNamespace(
+            text="привет", avg_logprob=-0.2, no_speech_prob=0.1,
+        )
+        info = types.SimpleNamespace(
+            language="ru", language_probability=0.9,
+        )
+        return iter([seg]), info
+
+
+async def test_transcribe_reloads_on_cpu_after_cuda_runtime_crash(monkeypatch):
+    stt = FasterWhisperSTT(device="auto", language="auto")
+    # Simulate a loaded CUDA model that crashes on encode.
+    stt._model = _CublasCrashModel()
+    stt.is_loaded = True
+    stt._active_device = "cuda"
+    stt._model_id = "small"
+
+    async def fake_reload() -> bool:
+        # Swap in a working CPU model, mirroring the real _reload_on_cpu.
+        stt._model = _OkModel()
+        stt._active_device = "cpu"
+        stt._cuda_runtime_broken = True
+        return True
+
+    monkeypatch.setattr(stt, "_reload_on_cpu", fake_reload)
+
+    pcm = (np.zeros(16000, dtype=np.int16)).tobytes()
+    result = await stt.transcribe(pcm)
+    # After the CPU reload + retry, we get real text, not an empty ignore.
+    assert result.text == "привет"
+    assert stt._active_device == "cpu"
+
+
+async def test_transcribe_does_not_retry_when_cuda_forced(monkeypatch):
+    """If the user forced device='cuda', a CUDA runtime crash is NOT masked
+    by a silent CPU reload — it returns empty (and logs), respecting the
+    explicit choice."""
+    stt = FasterWhisperSTT(device="cuda", language="auto")
+    stt._model = _CublasCrashModel()
+    stt.is_loaded = True
+    stt._active_device = "cuda"
+    stt._model_id = "small"
+
+    called = False
+
+    async def should_not_reload() -> bool:
+        nonlocal called
+        called = True
+        return True
+
+    monkeypatch.setattr(stt, "_reload_on_cpu", should_not_reload)
+    pcm = (np.zeros(16000, dtype=np.int16)).tobytes()
+    result = await stt.transcribe(pcm)
+    assert result.text == ""
+    assert called is False, "must not auto-downgrade when CUDA was forced"
