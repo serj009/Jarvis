@@ -40,7 +40,13 @@ from jarvis.skills.sandbox import SkillSandbox, SkillValidator
 
 log = logging.getLogger(__name__)
 
-_DEFAULT_DB_PATH = Path.home() / ".jarvis" / "skill_forge.db"
+
+def _default_db_path() -> Path:
+    # Resolved at call time via the single data-dir resolver (jarvis.paths);
+    # layout unchanged: <data_dir>/skill_forge.db.
+    from jarvis.paths import data_path
+
+    return data_path("skill_forge.db")
 
 
 # ── Data classes ─────────────────────────────────────────────────────────
@@ -135,7 +141,7 @@ class SkillForge:
         decomposer: SkillDecomposer | None = None,
         skills_dir: Path | None = None,
     ) -> None:
-        self._db_path = db_path or _DEFAULT_DB_PATH
+        self._db_path = db_path if db_path is not None else _default_db_path()
         self._skills_dir = skills_dir or (
             Path(__file__).resolve().parent / "user_generated"
         )

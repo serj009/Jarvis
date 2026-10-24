@@ -232,7 +232,6 @@ class ContentReaderTool:
             )
         try:
             import base64
-            from pathlib import Path
             result = await asyncio.to_thread(
                 bc.execute_js,
                 "return document.title;",
@@ -241,7 +240,9 @@ class ContentReaderTool:
             safe_title = "".join(
                 c if c.isalnum() or c in " -_" else "_" for c in title
             )
-            save_dir = Path.home() / ".jarvis" / "downloads"
+            from jarvis.paths import data_path
+
+            save_dir = data_path("downloads")
             save_dir.mkdir(parents=True, exist_ok=True)
             pdf_path = save_dir / f"{safe_title}.pdf"
 

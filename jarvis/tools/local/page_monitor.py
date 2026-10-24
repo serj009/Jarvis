@@ -34,7 +34,12 @@ from jarvis.platform.encrypted_store import EncryptedJsonStore
 
 log = logging.getLogger(__name__)
 
-_DEFAULT_MONITORS_PATH = Path.home() / ".jarvis" / "page_monitors.json"
+
+def _default_monitors_path() -> Path:
+    # Single data-dir resolver (jarvis.paths); layout unchanged. Call-time.
+    from jarvis.paths import data_path
+
+    return data_path("page_monitors.json")
 
 
 # ---------------------------------------------------------------------------
@@ -128,7 +133,7 @@ class MonitorStore:
     ) -> None:
         self._monitors: dict[str, _MonitorEntry] = {}
         self._on_change = on_change
-        self._persist_path = persist_path or _DEFAULT_MONITORS_PATH
+        self._persist_path = persist_path if persist_path is not None else _default_monitors_path()
 
     # -- persistence -------------------------------------------------------
 

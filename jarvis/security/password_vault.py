@@ -160,11 +160,13 @@ class PasswordVault:
     See module docstring for the full architecture description.
     """
 
-    DEFAULT_VAULT_PATH = Path.home() / ".jarvis" / "vault.enc"
     KNOWN_PLAINTEXT = b"JARVIS_VAULT_OK"
 
     def __init__(self, vault_path: Path | None = None) -> None:
-        self._path = vault_path or self.DEFAULT_VAULT_PATH
+        # Single data-dir resolver (jarvis.paths); layout unchanged:
+        # <data_dir>/vault.enc. Resolved at call time.
+        from jarvis.paths import data_path
+        self._path = vault_path if vault_path is not None else data_path("vault.enc")
         self._master_key: bytes | None = None
         self._salt: bytes | None = None
         self._vault_data: dict | None = None

@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from pathlib import Path
 from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
@@ -321,7 +320,9 @@ class TranslatePageTool:
         saved_path = ""
         if args.save_to_file:
             try:
-                save_dir = Path.home() / ".jarvis" / "translations"
+                from jarvis.paths import data_path
+
+                save_dir = data_path("translations")
                 save_dir.mkdir(parents=True, exist_ok=True)
                 safe_name = "".join(
                     c if c.isalnum() or c in " -_" else "_"

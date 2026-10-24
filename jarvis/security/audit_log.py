@@ -92,7 +92,10 @@ class SecurityAuditLog:
     """
 
     def __init__(self, db_path: Path | None = None) -> None:
-        self._db_path = db_path or Path.home() / ".jarvis" / "security_audit.db"
+        # Single data-dir resolver (jarvis.paths); layout unchanged:
+        # <data_dir>/security_audit.db. Resolved at call time.
+        from jarvis.paths import data_path
+        self._db_path = db_path if db_path is not None else data_path("security_audit.db")
         self._lock = threading.Lock()
         self._conn: sqlite3.Connection | None = None
         self._prev_hash: str = _GENESIS_HASH

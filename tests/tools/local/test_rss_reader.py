@@ -12,7 +12,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from jarvis.platform.encrypted_store import EncryptedJsonStore
 from jarvis.tools.local.rss_reader import (
     SubscribeRssTool,
     SubscribeRssArgs,
@@ -186,12 +185,10 @@ class TestFeedParsing:
 
 @pytest.fixture(autouse=True)
 def _temp_feeds(tmp_path, monkeypatch):
-    feeds_file = tmp_path / "data" / "rss_feeds.json"
-    monkeypatch.setattr("jarvis.tools.local.rss_reader._RSS_DIR", tmp_path / "data")
-    monkeypatch.setattr("jarvis.tools.local.rss_reader._RSS_FILE", feeds_file)
-    monkeypatch.setattr(
-        "jarvis.tools.local.rss_reader._RSS_STORE", EncryptedJsonStore(feeds_file),
-    )
+    # Data dir resolved via jarvis.paths; repoint with JARVIS_DATA_DIR and
+    # reset the lazy store. Layout unchanged: <data_dir>/data/rss_feeds.json.
+    monkeypatch.setenv("JARVIS_DATA_DIR", str(tmp_path))
+    monkeypatch.setattr("jarvis.tools.local.rss_reader._RSS_STORE", None)
 
 
 class TestStorage:
