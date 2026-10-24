@@ -780,6 +780,13 @@ class PiperTTS:
         Always returns at least one entry (falls back to [None] when no
         match is found so _open_stream can try the system default)."""
         if self._output_device is None:
+            # System default: WASAPI cannot open device=None on some drivers
+            # (PaErrorCode -9984 on a 48 kHz HDMI/monitor default), so resolve
+            # the REAL default-output index and try it first. Keep None as a
+            # last-resort so PortAudio's own default pick still gets a turn.
+            sys_idx = _system_default_output_index()
+            if sys_idx is not None:
+                return [sys_idx, None]
             return [None]
         if isinstance(self._output_device, int):
             return [self._output_device]

@@ -1491,8 +1491,58 @@ async def test_system_default_opens_at_native_rate_with_resample(
             await tts.load()
 
     _, kwargs = sd_mock.RawOutputStream.call_args
+    # Bug 2 fix: system default (output_device=None) must open the RESOLVED
+    # real index (0), not device=None — WASAPI rejects None with -9984.
+    assert kwargs["device"] == 0
     assert kwargs["samplerate"] == 48000
     assert any("resampling from 22050" in r.message for r in caplog.records)
+
+
+async def test_system_default_resolves_real_index_not_none(tmp_path):
+    """Bug 2 regression: WASAPI raises -9984 when asked to open device=None.
+    With output_device=None, Phase 1 must try the RESOLVED real index first;
+    None is only a last-resort. Here device=None always fails (like WASAPI
+    -9984) and the real index 0 succeeds — the stream must end up on 0."""
+    devices = [
+        {"name": "Speakers (USB DAC)", "max_output_channels": 2,
+         "hostapi": 0, "default_samplerate": 48000.0},
+    ]
+    (tmp_path / f"{REAL_VOICE_NAME}.onnx").write_bytes(b"")
+    (tmp_path / f"{REAL_VOICE_NAME}.onnx.json").write_text("{}")
+    fake_stream = _make_fake_stream()
+    opened: list = []
+
+    def query_devices(idx=None, *args, **kwargs):
+        if idx is None:
+            return devices
+        return devices[idx]
+
+    def raw_output_stream(**kwargs):
+        opened.append(kwargs["device"])
+        # Emulate WASAPI's -9984 on the None (system-default) device.
+        if kwargs["device"] is None:
+            raise OSError(
+                "Error opening RawOutputStream: Incompatible host API "
+                "specific stream info [PaErrorCode -9984]"
+            )
+        return fake_stream
+
+    with patch("piper.PiperVoice") as voice_cls, \
+         patch("jarvis.audio.tts.sd") as sd_mock:
+        voice_cls.load.return_value = _make_fake_voice(sample_rate=22050)
+        sd_mock.RawOutputStream.side_effect = raw_output_stream
+        sd_mock.query_devices.side_effect = query_devices
+        sd_mock.query_hostapis.return_value = [{"name": "MME"}]
+        sd_mock.default.device = (1, 0)
+        tts = PiperTTS(
+            voice_name=REAL_VOICE_NAME, voices_dir=tmp_path, output_device=None,
+        )
+        await tts.load()
+
+    assert tts.is_loaded
+    # The real index (0) was tried and succeeded; None was never the winner.
+    assert 0 in opened
+    assert opened[0] == 0, f"real index should be tried first, got {opened}"
 
 
 async def test_monitor_output_deprioritised_in_fallback(
