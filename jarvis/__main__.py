@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import logging
 import time
 import traceback
@@ -9,6 +10,32 @@ log = logging.getLogger(__name__)
 
 MAX_RESTARTS = 3
 RESTART_COOLDOWN = 5  # seconds
+
+
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse jarvis CLI args. Only diagnostics flags exist; absent flags mean
+    'launch the assistant normally'."""
+    parser = argparse.ArgumentParser(
+        prog="jarvis",
+        description="Jarvis voice assistant.",
+    )
+    parser.add_argument(
+        "--doctor", action="store_true",
+        help="Run environment self-diagnostics and exit (does not launch).",
+    )
+    parser.add_argument(
+        "--json", action="store_true",
+        help="With --doctor: print the report as JSON.",
+    )
+    parser.add_argument(
+        "--redact", action="store_true",
+        help="With --doctor: replace the home dir and username with ~ / <user>.",
+    )
+    parser.add_argument(
+        "--deep", action="store_true",
+        help="With --doctor: also run a 1s silence STT + short TTS-to-buffer probe.",
+    )
+    return parser.parse_args(argv)
 
 
 def _frozen_log_path() -> Path:
@@ -94,5 +121,35 @@ def main() -> None:
             time.sleep(RESTART_COOLDOWN)
 
 
-if __name__ == "__main__":
+def _cli(argv: list[str] | None = None) -> None:
+    """Real process entry point (``python -m jarvis``).
+
+    Parses CLI args HERE — not inside main() — so main() stays a plain no-arg
+    function the restart-loop tests can call directly without argparse
+    consuming pytest's own argv. ``--doctor`` runs read-only diagnostics and
+    exits without launching the assistant.
+    """
+    # Task C §2: install uncaught-exception + faulthandler hooks as early as
+    # possible (real process only — tests call main() directly). Idempotent,
+    # never raises.
+    try:
+        from jarvis.core.diagnostics import install_crash_handlers
+
+        install_crash_handlers()
+    except Exception:
+        pass
+
+    args = _parse_args(argv)
+    if args.doctor:
+        from jarvis.core.doctor import run_doctor
+
+        code = run_doctor(
+            as_json=args.json, do_redact=args.redact, deep=args.deep
+        )
+        raise SystemExit(code)
+
     main()
+
+
+if __name__ == "__main__":
+    _cli()
