@@ -28,8 +28,6 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-import pytest
-
 # ---------------------------------------------------------------------------
 # Repo layout
 # ---------------------------------------------------------------------------
@@ -41,6 +39,35 @@ _WIN32_ALLOWED = {Path("platform") / "windows.py"}
 
 # PySide6 is allowed anywhere under ui/ (relative to _JARVIS_ROOT).
 _PYSIDE_ALLOWED_DIR = Path("ui")
+
+# ---------------------------------------------------------------------------
+# Data-directory rule (Task 4+B)
+# ---------------------------------------------------------------------------
+#
+# Jarvis's own data directory must be resolved in exactly one place —
+# ``jarvis/paths.py`` (user_data_dir / data_path).  No other module may build
+# a data path ad-hoc via ``os.environ["APPDATA"]`` /
+# ``os.environ.get("APPDATA")`` or ``Path.home() / ".jarvis"``.
+#
+# Explicit allow-list (relative to _JARVIS_ROOT).  None of these build a path
+# to Jarvis's OWN data:
+#   * paths.py            — the single resolver itself.
+#   * core/data_migration — the one-time ~/.jarvis migration module.
+#   * platform/windows.py, platform/windows_apps.py — read FOREIGN system
+#     folders (shell:startup, Start Menu) that happen to live under %APPDATA%.
+#   * tools/local/game_saves.py — expands an {APPDATA} token for FOREIGN game
+#     save locations.
+#   * dev/audio_loopback.py, ui/settings/tabs/voice.py — resolve the bundled
+#     Piper *voices* resource dir (~/.jarvis/voices), not user data.
+_DATA_DIR_ALLOWED = {
+    Path("paths.py"),
+    Path("core") / "data_migration.py",
+    Path("platform") / "windows.py",
+    Path("platform") / "windows_apps.py",
+    Path("tools") / "local" / "game_saves.py",
+    Path("dev") / "audio_loopback.py",
+    Path("ui") / "settings" / "tabs" / "voice.py",
+}
 
 
 def _iter_python_files() -> list[Path]:
@@ -110,6 +137,46 @@ def _pyside_violations(tree: ast.AST) -> list[str]:
     return hits
 
 
+def _is_os_environ(node: ast.AST) -> bool:
+    """True if *node* is the ``os.environ`` attribute access."""
+    return (
+        isinstance(node, ast.Attribute)
+        and node.attr == "environ"
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "os"
+    )
+
+
+def _data_dir_violations(tree: ast.AST) -> list[str]:
+    """Ad-hoc data-dir construction: APPDATA env reads or ".jarvis" literals."""
+    hits: list[str] = []
+    for node in ast.walk(tree):
+        # os.environ.get("APPDATA" [, ...])
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "get"
+            and _is_os_environ(node.func.value)
+            and node.args
+            and isinstance(node.args[0], ast.Constant)
+            and node.args[0].value == "APPDATA"
+        ):
+            hits.append(f'line {node.lineno}: os.environ.get("APPDATA")')
+        # os.environ["APPDATA"]
+        elif isinstance(node, ast.Subscript) and _is_os_environ(node.value):
+            key = node.slice
+            if isinstance(key, ast.Constant) and key.value == "APPDATA":
+                hits.append(f'line {node.lineno}: os.environ["APPDATA"]')
+        # a bare ".jarvis" string literal (e.g. Path.home() / ".jarvis")
+        elif (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and node.value == ".jarvis"
+        ):
+            hits.append(f'line {node.lineno}: ".jarvis" literal')
+    return hits
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
@@ -163,3 +230,67 @@ def test_no_pyside_imports_outside_ui() -> None:
             for f, hs in sorted(offenders.items())
         )
     )
+
+
+def test_no_adhoc_data_dir_outside_paths() -> None:
+    """Task 4+B: data dir resolved only in paths.py (+ explicit allow-list).
+
+    No module may build Jarvis's own data path ad-hoc via APPDATA env reads
+    or a ``".jarvis"`` literal — everything routes through
+    ``jarvis.paths.user_data_dir`` / ``data_path``.
+    """
+    offenders: dict[str, list[str]] = {}
+    for path in _iter_python_files():
+        rel = _rel(path)
+        if rel in _DATA_DIR_ALLOWED:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        hits = _data_dir_violations(tree)
+        if hits:
+            offenders[str(rel)] = hits
+
+    assert not offenders, (
+        "ad-hoc data-dir construction found outside jarvis/paths.py "
+        "(Task 4+B — route through user_data_dir()/data_path()):\n"
+        + "\n".join(
+            f"  {f}:\n" + "\n".join(f"    {h}" for h in hs)
+            for f, hs in sorted(offenders.items())
+        )
+    )
+
+
+def test_data_dir_rule_detects_violations() -> None:
+    """The data-dir scanner flags each forbidden construction (negative case)."""
+    env_get = ast.parse(
+        "import os\n"
+        "from pathlib import Path\n"
+        "def f():\n"
+        "    return Path(os.environ.get('APPDATA')) / 'Jarvis'\n"
+    )
+    env_sub = ast.parse(
+        "import os\n"
+        "from pathlib import Path\n"
+        "def f():\n"
+        "    return Path(os.environ['APPDATA']) / 'Jarvis'\n"
+    )
+    dotjarvis = ast.parse(
+        "from pathlib import Path\n"
+        "def f():\n"
+        "    return Path.home() / '.jarvis'\n"
+    )
+    clean = ast.parse(
+        "from jarvis.paths import data_path\n"
+        "def f():\n"
+        "    return data_path('config.json')\n"
+    )
+
+    assert _data_dir_violations(env_get), "should flag os.environ.get('APPDATA')"
+    assert _data_dir_violations(env_sub), "should flag os.environ['APPDATA']"
+    assert _data_dir_violations(dotjarvis), "should flag a '.jarvis' literal"
+    assert not _data_dir_violations(clean), "data_path() usage must not be flagged"
+
+
+def test_data_dir_allow_list_entries_exist() -> None:
+    """Every allow-listed file must exist — stale entries would mask drift."""
+    missing = [str(rel) for rel in _DATA_DIR_ALLOWED if not (_JARVIS_ROOT / rel).is_file()]
+    assert not missing, f"stale _DATA_DIR_ALLOWED entries (file missing): {missing}"

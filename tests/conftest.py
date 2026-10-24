@@ -38,9 +38,34 @@ mock on teardown.
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _isolate_data_dir(
+    tmp_path_factory: pytest.TempPathFactory,
+    monkeypatch: pytest.MonkeyPatch,
+) -> Path:
+    """Point Jarvis's data dir at a throwaway temp dir for every test.
+
+    Production data modules resolve their location through
+    ``jarvis.paths.user_data_dir()``, whose first rule is the
+    ``JARVIS_DATA_DIR`` env var (Task 4+B). Setting it here guarantees no
+    test ever reads or writes the user's real ``%APPDATA%\\Jarvis`` /
+    ``~/.jarvis`` tree, and that each test starts from an empty data root.
+
+    ``monkeypatch`` reverts the env var on teardown, so the process
+    environment is restored. Tests that need a *specific* data dir (or that
+    verify the platform-based resolution with JARVIS_DATA_DIR unset) simply
+    call ``monkeypatch.setenv`` / ``delenv`` themselves — that runs inside
+    the test body and overrides this autouse default.
+    """
+    data_dir = tmp_path_factory.mktemp("jarvis_data")
+    monkeypatch.setenv("JARVIS_DATA_DIR", str(data_dir))
+    return data_dir
 
 
 @pytest.fixture(autouse=True)

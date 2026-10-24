@@ -251,6 +251,7 @@ def test_migrate_raises_when_migration_fails_to_bump_version(
 def test_default_config_path_uses_appdata_on_windows(
     monkeypatch: pytest.MonkeyPatch,
 ):
+    monkeypatch.delenv("JARVIS_DATA_DIR", raising=False)
     monkeypatch.setattr("sys.platform", "win32")
     monkeypatch.setenv("APPDATA", r"C:\Users\test\AppData\Roaming")
     p = default_config_path()
@@ -261,6 +262,7 @@ def test_default_config_path_uses_appdata_on_windows(
 def test_default_config_path_falls_back_off_windows(
     monkeypatch: pytest.MonkeyPatch,
 ):
+    monkeypatch.delenv("JARVIS_DATA_DIR", raising=False)
     monkeypatch.setattr("sys.platform", "linux")
     p = default_config_path()
     assert p.name == "config.json"
