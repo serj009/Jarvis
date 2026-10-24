@@ -158,10 +158,6 @@ def load_history() -> ClipboardHistory:
 
 def save_history(history: ClipboardHistory) -> None:
     p = history_path()
-    p.parent.mkdir(parents=True, exist_ok=True)
-    tmp = p.with_suffix(".json.tmp")
-    tmp.write_text(
-        json.dumps(history.to_dict(), ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-    tmp.replace(p)
+    from jarvis.core.fileio import atomic_write_json
+
+    atomic_write_json(p, history.to_dict(), ensure_ascii=False, indent=2)

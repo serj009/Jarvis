@@ -131,13 +131,9 @@ def load_state(session_id: str) -> DeepResearchState | None:
 def save_state(state: DeepResearchState) -> None:
     state.updated_at = _now_iso()
     path = state_path(state.id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(
-        state.model_dump_json(indent=2),
-        encoding="utf-8",
-    )
-    tmp.replace(path)
+    from jarvis.core.fileio import atomic_write_text
+
+    atomic_write_text(path, state.model_dump_json(indent=2), encoding="utf-8")
     _sync_status_in_report(state)
 
 

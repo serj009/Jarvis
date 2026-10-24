@@ -22,7 +22,7 @@ import json
 import logging
 import threading
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -43,7 +43,7 @@ class ChatMessage:
     role: str = "user"  # "user" | "assistant" | "system"
     text: str = ""
     timestamp: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+        default_factory=lambda: datetime.now(UTC).isoformat()
     )
 
 
@@ -148,16 +148,13 @@ class ChatStorage:
     def _write_locked(self, messages: list[ChatMessage]) -> None:
         """Write to disk atomically.  Caller holds self._lock."""
         try:
-            self._path.parent.mkdir(parents=True, exist_ok=True)
-            tmp = self._path.with_suffix(".tmp")
-            tmp.write_text(
-                json.dumps(
-                    [_msg_to_dict(m) for m in messages],
-                    ensure_ascii=False,
-                    indent=2,
-                ),
-                encoding="utf-8",
+            from jarvis.core.fileio import atomic_write_json
+
+            atomic_write_json(
+                self._path,
+                [_msg_to_dict(m) for m in messages],
+                ensure_ascii=False,
+                indent=2,
             )
-            tmp.replace(self._path)
         except OSError:
             log.exception("failed to persist chat history")

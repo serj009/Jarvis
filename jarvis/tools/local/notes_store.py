@@ -172,9 +172,9 @@ def save_note(note: Note) -> None:
     root = notes_root()
     root.mkdir(parents=True, exist_ok=True)
     path = _note_path(note.id)
-    tmp = path.with_suffix(".md.tmp")
-    tmp.write_text(_serialize(note), encoding="utf-8")
-    tmp.replace(path)
+    from jarvis.core.fileio import atomic_write_text
+
+    atomic_write_text(path, _serialize(note), encoding="utf-8")
 
 
 def load_note(note_id: str) -> Note | None:
