@@ -32,10 +32,20 @@ def _write_config(path: Path, mutate) -> None:
 
 
 def test_json_syntax_error_reports_line_and_column(tmp_path: Path):
+    # Task D changed the load_config contract: corrupt JSON no longer crashes
+    # startup (it is quarantined + recovered), so we no longer drive this
+    # through load_config. format_config_error() itself must still turn a
+    # json.JSONDecodeError into a clear line/column message with no traceback
+    # — that is what callers using _read_raw() directly (e.g. diagnostics)
+    # rely on.
     p = tmp_path / "config.json"
-    p.write_text('{\n  "schema_version": 22,\n  "llm": {,\n}\n', encoding="utf-8")
+    bad = '{\n  "schema_version": 22,\n  "llm": {,\n}\n'
+    try:
+        json.loads(bad)
+    except json.JSONDecodeError as exc:
+        err = exc
 
-    msg = format_config_error(_load_error(p), p)
+    msg = format_config_error(err, p)
 
     assert "Jarvis cannot start" in msg
     assert str(p) in msg

@@ -160,20 +160,37 @@ def check_data_dir() -> CheckResult:
 
 
 def check_config() -> CheckResult:
-    from jarvis.core.config import default_config_path, load_config
+    # Read-only probe: config_health() never writes or migrates, so the
+    # doctor cannot create a default config or touch backups (Task D §6).
+    from jarvis.core.config import config_health, default_config_path
 
     path = default_config_path()
-    if not path.exists():
+    info = config_health(path)
+    n_backups = len(info["backups"])
+    lg = "lastgood: yes" if info.get("has_lastgood") else "lastgood: no"
+    backup_note = (
+        f"{n_backups} backup(s), {lg}" if n_backups else f"no backups, {lg}"
+    )
+
+    if not info["exists"]:
         return CheckResult("Config", WARN, f"{path} (absent — defaults will be used)",
                            hint="A config.json will be created on first run; "
                                 "this is fine for a fresh install.")
-    try:
-        cfg = load_config(path)
-    except Exception as exc:
-        return CheckResult("Config", FAIL, f"{path}: {exc}",
-                           hint="config.json is invalid; fix the reported "
-                                "error or delete it to regenerate.")
-    return CheckResult("Config", PASS, f"loaded, schema v{cfg.schema_version}")
+    if info["error"] is not None:
+        hint = "config.json is corrupt; fix it or delete it to regenerate."
+        if n_backups:
+            hint = ("config.json is corrupt; Jarvis will restore from a backup "
+                    "on next start, or you can replace it manually.")
+        return CheckResult("Config", FAIL,
+                           f"{info['error']} ({backup_note})", hint=hint)
+    if info["too_new"]:
+        return CheckResult("Config", WARN,
+                           f"schema v{info['schema_version']} is newer than "
+                           f"supported v{info['current_schema']} ({backup_note})",
+                           hint="This config was written by a newer Jarvis; "
+                                "update Jarvis or restore an older config.")
+    return CheckResult("Config", PASS,
+                       f"valid, schema v{info['schema_version']} ({backup_note})")
 
 
 def _ollama_tags(endpoint: str | None = None) -> list[str] | None:
@@ -498,32 +515,39 @@ def _collect(deep: bool) -> DoctorReport:
     report.add(check_python_and_os())
     report.add(check_data_dir())
 
-    # Config-dependent checks. Load once; tolerate failure.
-    cfg = None
+    # Config-dependent checks. READ-ONLY: parse the raw JSON without migrating
+    # or writing (Task D §6 — the doctor must not create/alter any file). A
+    # raw dict (old schema or partial) is fine here: we only read a few fields
+    # with safe defaults for display.
+    raw: dict = {}
     try:
-        from jarvis.core.config import default_config_path, load_config
+        from jarvis.core.config import _read_raw, default_config_path
 
         p = default_config_path()
         if p.exists():
-            cfg = load_config(p)
+            raw = _read_raw(p)
     except Exception:
-        cfg = None
+        raw = {}
+
+    def _section(name: str) -> dict:
+        sec = raw.get(name)
+        return sec if isinstance(sec, dict) else {}
 
     report.add(check_config())
 
-    llm_model = getattr(getattr(cfg, "llm", None), "model", "qwen3:8b")
+    llm_model = _section("llm").get("model", "qwen3:8b")
     report.add(check_ollama(llm_model))
 
     report.add(check_audio_devices())
 
-    stt_device = getattr(getattr(cfg, "stt", None), "device", "auto")
+    stt_device = _section("stt").get("device", "auto")
     report.add(check_stt(stt_device))
 
-    tts = getattr(cfg, "tts", None)
+    tts = _section("tts")
     voices_by_lang = {
-        "en": getattr(tts, "voices_en", "en_GB-alan-medium"),
-        "ru": getattr(tts, "voices_ru", "ru_RU-dmitri-medium"),
-        "uk": getattr(tts, "voices_uk", "uk_UA-mykyta-high"),
+        "en": tts.get("voices_en", "en_GB-alan-medium"),
+        "ru": tts.get("voices_ru", "ru_RU-dmitri-medium"),
+        "uk": tts.get("voices_uk", "uk_UA-mykyta-high"),
     }
     report.add(check_tts_voices(["en", "ru", "uk"], voices_by_lang))
 
@@ -531,7 +555,8 @@ def _collect(deep: bool) -> DoctorReport:
     report.add(check_gpu())
     report.add(check_extras())
 
-    enabled_integrations = list(getattr(getattr(cfg, "integrations", None), "enabled", []))
+    _integrations = _section("integrations").get("enabled", [])
+    enabled_integrations = list(_integrations) if isinstance(_integrations, list) else []
     report.add(check_integrations(enabled_integrations))
 
     report.add(check_migration_state())

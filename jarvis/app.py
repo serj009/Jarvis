@@ -2438,7 +2438,10 @@ class JarvisApp:
         try:
 
 
-            self.cfg = load_config(config_path)
+            # Task D: on corrupt-JSON recovery, load_config does NOT raise —
+            # it recovers and reports via on_notice. Surface that to the user
+            # with the same prominent dialog used for other startup problems.
+            self.cfg = load_config(config_path, on_notice=_show_startup_error)
 
 
         except CONFIG_LOAD_ERRORS as exc:
