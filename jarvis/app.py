@@ -122,33 +122,21 @@ JarvisApp._on_quit() (Qt thread):
 
 from __future__ import annotations
 
-
-
-
-
 import asyncio
-
-
 import logging
-
-
 import sys
-
-
 import threading
-
-
-import time
-
-
 from collections.abc import AsyncIterator
-
-
 from pathlib import Path
 
+# Type-only imports: referenced solely in annotations (``from __future__ import
+# annotations`` keeps them as strings at runtime). Importing under
+# TYPE_CHECKING avoids pulling sounddevice/numpy into the module just to name a
+# type — the real value import stays lazy at the call sites.
+from typing import TYPE_CHECKING, cast
 
-from typing import cast
-
+if TYPE_CHECKING:
+    from jarvis.audio.devices import AudioInputSource
 
 
 
@@ -156,212 +144,92 @@ from typing import cast
 # Qt primitives come through the ui/ bootstrap seam, not PySide6 directly:
 # SPEC.md forbids importing PySide6 outside jarvis/ui/, and app.py is the
 # composition root (outside ui/). See jarvis/ui/bootstrap.py.
-from jarvis.ui.bootstrap import QApplication, QMessageBox, QTimer
-
-
-
-
-
-
+from datetime import UTC
 
 from jarvis.audio.aec import BargeInManager
 from jarvis.audio.pipeline import AudioPipeline
 from jarvis.audio.sound_effects import SoundEffects
-
-
 from jarvis.audio.stt import FasterWhisperSTT
-
-
 from jarvis.audio.tts import PiperTTS
-
-
-from jarvis.audio.voice_registry import VoiceRegistry
 from jarvis.audio.tts_manager import TTSManager
 from jarvis.audio.vad import SileroVAD
-
-
+from jarvis.audio.voice_registry import VoiceRegistry
 from jarvis.audio.wake_word import OpenWakeWord
-
-
 from jarvis.core.config import (
-
-
     CONFIG_LOAD_ERRORS,
-
-
     JarvisConfig,
-
-
     LifecycleConfig,
-
-
     MCPServerConfig,
-
-
     SelfEvaluationConfig,
-
-
     default_config_path,
-
-
     format_config_error,
-
-
     load_config,
-
-
 )
-
-
 from jarvis.core.errors import ErrorHandler
-
-from jarvis.core.instance_lock import acquire_instance_lock, release_instance_lock
-from jarvis.core.ollama_check import check_ollama
-
-from jarvis.core.personalization import PersonalizationContext
+from jarvis.core.events import (
+    ConfigChanged,
+    ConversationalStateChanged,
+    EventBus,
+    LLMResponseChunk,
+    LLMResponseComplete,
+    ModeChanged,
+    ProactiveSpeech,
+    TranscriptionReady,
+    WakeWordDetected,
+)
 from jarvis.core.game_mode import GameMode
+from jarvis.core.instance_lock import acquire_instance_lock, release_instance_lock
+from jarvis.core.lifecycle import LifecycleManager
 from jarvis.core.logging_utils import JsonFormatter
-
-
+from jarvis.core.mode_coordinator import ModeCoordinator
+from jarvis.core.ollama_check import check_ollama
+from jarvis.core.personalization import PersonalizationContext
+from jarvis.core.request_context import (
+    CorrelationIdFilter,
+    current_user_transcription,
+)
+from jarvis.core.resource_monitor import ResourceMonitor
+from jarvis.core.state_machine import Mode, StateMachine
 from jarvis.core.vram_manager import VRAMManager
-
-
-from jarvis.memory.store import MemoryStore
+from jarvis.llm.conversation import Conversation
+from jarvis.llm.intent_router import IntentRouter, StopIntent, ToolIntent, execute_intent
+from jarvis.llm.llm_provider import APILLMClient
+from jarvis.llm.ollama_client import OllamaClient
+from jarvis.memory.conversation import ConversationMemory
+from jarvis.memory.embeddings import EmbeddingIndex
+from jarvis.memory.personal_aliases import PersonalAliasStore
 from jarvis.memory.relations import RelationStore
+from jarvis.memory.scheduled_reminders import ReminderScheduler, ReminderStore
+from jarvis.memory.store import MemoryStore
+from jarvis.memory.tool_examples import ToolExampleStore
+from jarvis.memory.usage_stats import UsageStats
+from jarvis.memory.user_profile import UserProfile
+
 # Pure config diff, extracted from this module (decomposition step 2).
 # Imported under the old private name so existing call sites are unchanged.
 from jarvis.services.config_service import (
     compute_changed_fields as _compute_changed_fields,
 )
-from jarvis.memory.scheduled_reminders import ReminderScheduler, ReminderStore
-from jarvis.memory.embeddings import EmbeddingIndex
-from jarvis.memory.tool_examples import ToolExampleStore
-from jarvis.memory.personal_aliases import PersonalAliasStore
-from jarvis.memory.user_profile import UserProfile
-from jarvis.memory.usage_stats import UsageStats
-
-
-from jarvis.memory.conversation import ConversationMemory
-
-
-from jarvis.core.events import (
-
-
-    ConfigChanged,
-
-
-    ConversationalStateChanged,
-
-
-    EventBus,
-
-
-    LLMResponseChunk,
-
-
-    LLMResponseComplete,
-
-
-    ModeChanged,
-
-
-    ProactiveSpeech,
-
-    TranscriptionReady,
-
-
-    WakeWordDetected,
-
-
-)
-
-
-from jarvis.core.lifecycle import LifecycleManager
-
-
-from jarvis.core.mode_coordinator import ModeCoordinator
-
-
-from jarvis.core.request_context import (
-
-
-    CorrelationIdFilter,
-
-
-    current_user_transcription,
-
-
-)
-
-
-from jarvis.core.resource_monitor import ResourceMonitor
-
-
-from jarvis.core.state_machine import Mode, StateMachine
-
-
-from jarvis.llm.conversation import Conversation
-
-
-from jarvis.llm.intent_router import IntentRouter, StopIntent, ToolIntent, execute_intent
-
-
-from jarvis.llm.ollama_client import OllamaClient
-from jarvis.llm.llm_provider import APILLMClient
-
-
 from jarvis.tools import MCPManager, ToolRegistry, setup_local_tools
-
-
-from jarvis.ui.clipboard_history_panel import ClipboardHistoryPanel
-
+from jarvis.ui.agent_panel import AgentPanel
+from jarvis.ui.bootstrap import QApplication, QMessageBox, QTimer
 from jarvis.ui.chat_panel import ChatPanel
 from jarvis.ui.chat_storage import ChatStorage
+from jarvis.ui.clipboard_history_panel import ClipboardHistoryPanel
 from jarvis.ui.coding_panel import CodingPanel
-from jarvis.ui.agent_panel import AgentPanel
-
-
 from jarvis.ui.command_palette import CommandPalette
-
-
 from jarvis.ui.dashboard_panel import DashboardPanel
-
-
 from jarvis.ui.deep_research_panel import DeepResearchPanel
-
-
 from jarvis.ui.help_panel import HelpPanel
-
-
 from jarvis.ui.hotkeys import HotkeyManager
-
-
 from jarvis.ui.log_panel import LogPanel
-
-
 from jarvis.ui.notes_panel import NotesPanel
-
-
 from jarvis.ui.onboarding_panel import OnboardingPanel
-
-
 from jarvis.ui.overlay import AmplitudeLatch, OverlayOrb, make_amplitude_callback
-
-
 from jarvis.ui.research_panel import ResearchPanel
-
-
 from jarvis.ui.settings import SettingsWindow
-
-
 from jarvis.ui.tool_confirm import QtToolConfirmer
-
-
 from jarvis.ui.tray import TrayIcon, ensure_system_tray_available
-
-
-
-
 
 log = logging.getLogger(__name__)
 
@@ -556,10 +424,8 @@ def _setup_logging(level_name: str = "INFO") -> None:
     try:
 
 
+
         from jarvis.paths import is_frozen
-
-
-        import os
 
 
         if is_frozen():
@@ -765,6 +631,7 @@ def _make_router_adapter(
             if memory_store is not None and memory_store.is_open:
                 try:
                     import asyncio
+
                     from jarvis.memory.auto_save import auto_save_facts
                     _facts_task = asyncio.create_task(
                         auto_save_facts(
@@ -1688,8 +1555,10 @@ async def _audio_main(
                 from jarvis.core.events import (
                     LLMResponseComplete,
                     ToolInvoked,
-                    ToolResult as _ToolResultEvent,
                     TranscriptionReady,
+                )
+                from jarvis.core.events import (
+                    ToolResult as _ToolResultEvent,
                 )
 
                 _rec = TraceRecorder()
@@ -1723,16 +1592,19 @@ async def _audio_main(
         getattr(proactive_engine, "_config", None), "enabled", False
     ):
         import asyncio as _aio
-        from datetime import datetime as _dt, timezone as _tz
+        from datetime import datetime as _dt
+
         from jarvis.memory.proactive_engine import (
             ProactiveScenarios as _Scen,
+        )
+        from jarvis.memory.proactive_engine import (
             foreground_window_title as _fg_title,
         )
 
         _scenarios = _Scen(proactive_engine)
 
         def _proactive_tick() -> None:
-            now = _dt.now(tz=_tz.utc)
+            now = _dt.now(tz=UTC)
             # B. upcoming dates from enabled integrations (birthdays/events).
             if integration_registry is not None:
                 try:
@@ -1782,7 +1654,7 @@ async def _audio_main(
 
     # Goodbye phrase: speak before any cleanup so TTS is still alive.
     try:
-        from jarvis.core.phrases import say, Lang
+        from jarvis.core.phrases import Lang, say
         stt_lang = getattr(stt, "language", None)
         if stt_lang in ("ru", "uk", "en"):
             lang: Lang = stt_lang  # type: ignore[assignment]
@@ -2228,8 +2100,8 @@ class JarvisApp:
         # legacy ~/.jarvis data into it — before the instance lock or config
         # (both live under the data dir) are touched.
         # ------------------------------------------------------------------
-        from jarvis.paths import log_data_dir_choice
         from jarvis.core.data_migration import migrate_from_dotjarvis
+        from jarvis.paths import log_data_dir_choice
 
         log_data_dir_choice()
         try:
@@ -2611,14 +2483,8 @@ class JarvisApp:
 
 
         from jarvis.paths import (
-
-
             default_silero_onnx_path,
-
-
             default_whisper_download_root,
-
-
         )
 
 
@@ -2936,9 +2802,9 @@ class JarvisApp:
         # Reads usage_stats, writes to jarvis/skills/user_generated/.
         if self.cfg.skill_forge.enabled:
             try:
-                from jarvis.skills.skill_forge import SkillForge
-                from jarvis.skills.sandbox import SkillSandbox
                 from jarvis.skills.decomposer import SkillDecomposer
+                from jarvis.skills.sandbox import SkillSandbox
+                from jarvis.skills.skill_forge import SkillForge
 
                 _sf_skills_dir = _data_root / "skills" / "user_generated"
                 _sf_sandbox = SkillSandbox(_sf_skills_dir)
@@ -3084,7 +2950,7 @@ class JarvisApp:
             [
 
 
-                self.vram_manager,  # T1.4: first to load (reads nvidia-smi), last to unload (release_all)
+                self.vram_manager,  # T1.4: first to load (nvidia-smi), last to unload
 
 
                 self.source, self.wake_word, self.vad, self.stt, self.tts, self.ollama,
@@ -3156,7 +3022,14 @@ class JarvisApp:
             tts=self.tts,
 
 
-            response_producer=_make_router_adapter(self.router, self.conversation, self.registry, self.memory_store, self.user_profile, personalization=self.personalization),
+            response_producer=_make_router_adapter(
+                self.router,
+                self.conversation,
+                self.registry,
+                self.memory_store,
+                self.user_profile,
+                personalization=self.personalization,
+            ),
 
 
             bus=self.bus,
@@ -3990,8 +3863,6 @@ class JarvisApp:
 
 
         from jarvis.llm.ollama_client import DEFAULT_ENDPOINT
-
-
         from jarvis.tools.local.deep_research_runner import build_deep_research_config
 
 
@@ -4395,20 +4266,10 @@ class JarvisApp:
 
 
         from jarvis.tools.local.research import (
-
-
             CloseResearchTool,
-
-
             CopyResearchTool,
-
-
             ReadMoreTool,
-
-
             ResearchTool,
-
-
         )
 
 
@@ -4470,38 +4331,16 @@ class JarvisApp:
 
 
         from jarvis.tools.local.deep_research_tools import (
-
-
             CloseDeepResearchTool,
-
-
             DeepResearchTool,
-
-
             DeleteAllDeepResearchTool,
-
-
             DeleteDeepResearchTool,
-
-
             PauseDeepResearchTool,
-
-
             ResumeDeepResearchTool,
-
-
         )
-
-
         from jarvis.tools.local.deep_research_ultra_tools import (
-
-
             DisableDeepResearchUltraTool,
-
-
             EnableDeepResearchUltraTool,
-
-
         )
 
 
@@ -4605,26 +4444,12 @@ class JarvisApp:
 
 
         from jarvis.tools.local.notes_tools import (
-
-
             AppendToNoteTool,
-
-
             CloseNotesTool,
-
-
             DeleteNoteTool,
-
-
             OpenNotesTool,
-
-
             ReadNoteTool,
-
-
             TakeNoteTool,
-
-
         )
 
 
@@ -4695,8 +4520,6 @@ class JarvisApp:
 
 
         from jarvis.tools.local.deep_research_store import list_sessions as _list_dr
-
-
         from jarvis.tools.local.notes_store import list_notes as _list_notes
 
 
@@ -4737,14 +4560,8 @@ class JarvisApp:
 
 
         from jarvis.tools.local.dashboard_tools import (
-
-
             CloseDashboardTool,
-
-
             ShowDashboardTool,
-
-
         )
 
 
@@ -4809,20 +4626,10 @@ class JarvisApp:
 
 
         from jarvis.tools.local.clipboard_history_tools import (
-
-
             ClearClipboardHistoryTool,
-
-
             CloseClipboardHistoryTool,
-
-
             PasteClipboardItemTool,
-
-
             ShowClipboardHistoryTool,
-
-
         )
 
 
@@ -4925,17 +4732,9 @@ class JarvisApp:
 
 
         from jarvis.tools.local.coding_tools import (
-
-
-            CodingAgentTool,
-
-
             CloseCodingPanelTool,
-
-
+            CodingAgentTool,
             OpenCodingPanelTool,
-
-
         )
 
 
@@ -5278,13 +5077,13 @@ def _show_startup_error(message: str) -> None:
 
 
 
-        MB_ICONERROR = 0x10
+        MB_ICONERROR = 0x10          # noqa: N806 — Win32 flag constant
 
 
-        MB_TOPMOST = 0x40000         # stay above other windows
+        MB_TOPMOST = 0x40000         # noqa: N806 — stay above other windows
 
 
-        MB_SETFOREGROUND = 0x10000   # ask Windows to bring it to front
+        MB_SETFOREGROUND = 0x10000   # noqa: N806 — bring it to front
 
 
         result = platform_ops.message_box(
@@ -5341,8 +5140,6 @@ def _open_target_planner():
 
 
     from jarvis.platform.windows_apps import build_installed_app_index
-
-
     from jarvis.tools.local.open_targets import make_installed_app_planner
 
 
