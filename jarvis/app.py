@@ -2620,6 +2620,7 @@ class JarvisApp:
 
 
             max_clarify_retries=self.cfg.stt.max_clarify_retries,
+            bus=self.bus,
 
 
         )
