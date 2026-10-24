@@ -30,6 +30,8 @@ pytest_crash.txt
 # Tool-internal working journal — kept on disk + in agent_files, not in git.
 # CHANGELOG.md is the single public changelog (Этап 7 decision).
 AMAZONQ_CHANGELOG.md
+# Agent working notes (CURRENT_TASK.md, DECISIONS.md) — local only, not in git.
+docs/agent/
 venv/
 env/
 
