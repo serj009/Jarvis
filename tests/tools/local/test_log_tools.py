@@ -41,13 +41,13 @@ def test_line_level_extraction():
     assert _line_level("              [INFO] indented") is None
 
 
-def test_default_log_path_under_appdata_on_windows(monkeypatch):
+def test_default_log_path_under_data_dir(monkeypatch, tmp_path):
     from jarvis.ui import log_panel as _lp
 
-    monkeypatch.setenv("APPDATA", r"C:\Users\test\AppData\Roaming")
-    monkeypatch.setattr(_lp, "sys", _lp.sys)  # keep sys reference
-    # Force sys.platform to win32 for this check
-    monkeypatch.setattr(_lp.sys, "platform", "win32", raising=False)
+    # default_log_path() now routes through the single data-dir resolver
+    # (jarvis.paths.data_path). JARVIS_DATA_DIR repoints it without touching
+    # real APPDATA — the layout stays <data_dir>/logs/jarvis.log.
+    monkeypatch.setenv("JARVIS_DATA_DIR", str(tmp_path))
     p = _lp.default_log_path()
-    assert "Jarvis" in str(p)
+    assert p == tmp_path / "logs" / "jarvis.log"
     assert p.name == "jarvis.log"

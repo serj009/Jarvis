@@ -16,7 +16,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-from pathlib import Path
 from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
@@ -58,16 +57,10 @@ def _load_profile() -> dict[str, Any]:
     """Load the user profile and return a flat dict of fillable fields."""
     try:
         from jarvis.memory.user_profile import UserProfile
+        from jarvis.paths import data_path
 
-        import os
-        if os.name == "nt":
-            appdata = os.environ.get("APPDATA")
-            if appdata:
-                profile_path = Path(appdata) / "Jarvis" / "user_profile.json"
-            else:
-                profile_path = Path.home() / ".jarvis" / "user_profile.json"
-        else:
-            profile_path = Path.home() / ".jarvis" / "user_profile.json"
+        # Layout unchanged: <data_dir>/user_profile.json.
+        profile_path = data_path("user_profile.json")
 
         profile = UserProfile(path=profile_path)
         data: dict[str, Any] = {}

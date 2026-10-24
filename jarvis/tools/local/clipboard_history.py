@@ -20,8 +20,6 @@ from __future__ import annotations
 
 import json
 import logging
-import os
-import sys
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -139,11 +137,11 @@ def _now_iso() -> str:
 
 
 def history_path() -> Path:
-    if sys.platform == "win32":
-        appdata = os.environ.get("APPDATA")
-        if appdata:
-            return Path(appdata) / "Jarvis" / "clipboard_history.json"
-    return Path.home() / ".jarvis" / "clipboard_history.json"
+    # Thin wrapper over the single data-dir resolver (jarvis.paths); layout
+    # unchanged: <data_dir>/clipboard_history.json. Resolved at call time.
+    from jarvis.paths import data_path
+
+    return data_path("clipboard_history.json")
 
 
 def load_history() -> ClipboardHistory:
