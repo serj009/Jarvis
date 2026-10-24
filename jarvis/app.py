@@ -2211,6 +2211,20 @@ class JarvisApp:
 
 
         # ------------------------------------------------------------------
+        # Task 4+B: resolve + announce the data dir FIRST, then migrate any
+        # legacy ~/.jarvis data into it — before the instance lock or config
+        # (both live under the data dir) are touched.
+        # ------------------------------------------------------------------
+        from jarvis.paths import log_data_dir_choice
+        from jarvis.core.data_migration import migrate_from_dotjarvis
+
+        log_data_dir_choice()
+        try:
+            migrate_from_dotjarvis()
+        except Exception:
+            log.warning("data migration failed (non-fatal)", exc_info=True)
+
+        # ------------------------------------------------------------------
         # T1.5 §1: Instance lock — prevent multiple Jarvis processes.
         # ------------------------------------------------------------------
         self._instance_lock = acquire_instance_lock()

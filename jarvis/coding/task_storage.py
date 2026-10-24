@@ -117,7 +117,10 @@ class TaskStorage:
 
     def __init__(self, path: str | Path | None = None) -> None:
         if path is None:
-            path = Path.home() / ".jarvis" / _DEFAULT_FILE
+            # Single data-dir resolver (jarvis.paths); layout unchanged:
+            # <data_dir>/<_DEFAULT_FILE>. Resolved at call time.
+            from jarvis.paths import data_path
+            path = data_path(_DEFAULT_FILE)
         self._path = Path(path)
         self._lock = threading.Lock()
 

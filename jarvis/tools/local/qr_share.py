@@ -30,7 +30,12 @@ log = logging.getLogger(__name__)
 # Output directory
 # ---------------------------------------------------------------------------
 
-_QR_DIR = Path.home() / ".jarvis" / "data" / "qr_codes"
+def _qr_dir() -> Path:
+    # Single data-dir resolver (jarvis.paths); layout unchanged:
+    # <data_dir>/data/qr_codes. Resolved at call time.
+    from jarvis.paths import data_path
+
+    return data_path("data", "qr_codes")
 
 
 # ---------------------------------------------------------------------------
@@ -178,7 +183,7 @@ class GenerateQrTool:
                 )
 
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        out_path = _QR_DIR / f"qr_{timestamp}.png"
+        out_path = _qr_dir() / f"qr_{timestamp}.png"
 
         err = await asyncio.to_thread(_generate_qr_image, data, out_path)
         if err:
@@ -239,7 +244,7 @@ class ShareToPhoneTool:
             )
 
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-        out_path = _QR_DIR / f"share_{timestamp}.png"
+        out_path = _qr_dir() / f"share_{timestamp}.png"
 
         err = await asyncio.to_thread(_generate_qr_image, url, out_path)
         if err:

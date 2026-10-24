@@ -10,7 +10,6 @@ import asyncio
 import logging
 import webbrowser
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field
@@ -24,18 +23,27 @@ log = logging.getLogger(__name__)
 # Storage
 # ---------------------------------------------------------------------------
 
-_BOOKMARKS_DIR = Path.home() / ".jarvis" / "data"
-_BOOKMARKS_FILE = _BOOKMARKS_DIR / "bookmarks.json"
-_BOOKMARKS_STORE = EncryptedJsonStore(_BOOKMARKS_FILE)
+_BOOKMARKS_STORE: EncryptedJsonStore | None = None
+
+
+def _store() -> EncryptedJsonStore:
+    # Lazily build the store so the data dir is resolved at call time via the
+    # single resolver (jarvis.paths); layout unchanged: <data_dir>/data/bookmarks.json.
+    global _BOOKMARKS_STORE
+    if _BOOKMARKS_STORE is None:
+        from jarvis.paths import data_path
+
+        _BOOKMARKS_STORE = EncryptedJsonStore(data_path("data", "bookmarks.json"))
+    return _BOOKMARKS_STORE
 
 
 def _load_bookmarks() -> list[dict[str, Any]]:
     """Load bookmarks from disk (empty list on first run)."""
-    return _BOOKMARKS_STORE.load(default=[])
+    return _store().load(default=[])
 
 
 def _save_bookmarks(bookmarks: list[dict[str, Any]]) -> None:
-    _BOOKMARKS_STORE.save(bookmarks)
+    _store().save(bookmarks)
 
 
 # ---------------------------------------------------------------------------

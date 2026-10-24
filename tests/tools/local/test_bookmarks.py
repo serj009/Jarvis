@@ -12,7 +12,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from jarvis.platform.encrypted_store import EncryptedJsonStore
 from jarvis.tools.local.bookmarks import (
     BookmarksTool,
     BookmarksArgs,
@@ -90,16 +89,15 @@ class TestVoicePatterns:
 
 class TestStorage:
     def test_load_empty_when_missing(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(
-            "jarvis.tools.local.bookmarks._BOOKMARKS_FILE",
-            tmp_path / "nonexistent.json",
-        )
+        # Empty data dir → no bookmarks file yet.
+        monkeypatch.setenv("JARVIS_DATA_DIR", str(tmp_path))
+        monkeypatch.setattr("jarvis.tools.local.bookmarks._BOOKMARKS_STORE", None)
         assert _load_bookmarks() == []
 
     def test_save_and_load(self, tmp_path, monkeypatch):
         bm_file = tmp_path / "data" / "bookmarks.json"
-        monkeypatch.setattr("jarvis.tools.local.bookmarks._BOOKMARKS_DIR", tmp_path / "data")
-        monkeypatch.setattr("jarvis.tools.local.bookmarks._BOOKMARKS_FILE", bm_file)
+        monkeypatch.setenv("JARVIS_DATA_DIR", str(tmp_path))
+        monkeypatch.setattr("jarvis.tools.local.bookmarks._BOOKMARKS_STORE", None)
 
         data = [{"name": "Test", "url": "https://test.com"}]
         _save_bookmarks(data)
@@ -114,11 +112,13 @@ class TestStorage:
 
 @pytest.fixture(autouse=True)
 def _temp_bookmarks(tmp_path, monkeypatch):
+    # Data dir is now resolved via jarvis.paths; repoint it with
+    # JARVIS_DATA_DIR and reset the lazily-built store. Layout unchanged:
+    # <data_dir>/data/bookmarks.json.
+    monkeypatch.setenv("JARVIS_DATA_DIR", str(tmp_path))
     bm_file = tmp_path / "data" / "bookmarks.json"
-    monkeypatch.setattr("jarvis.tools.local.bookmarks._BOOKMARKS_DIR", tmp_path / "data")
-    monkeypatch.setattr("jarvis.tools.local.bookmarks._BOOKMARKS_FILE", bm_file)
     monkeypatch.setattr(
-        "jarvis.tools.local.bookmarks._BOOKMARKS_STORE", EncryptedJsonStore(bm_file),
+        "jarvis.tools.local.bookmarks._BOOKMARKS_STORE", None,
     )
     # Mock browser
     mock_bc = MagicMock()

@@ -16,7 +16,6 @@ from __future__ import annotations
 import asyncio
 import logging
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field
@@ -30,18 +29,27 @@ log = logging.getLogger(__name__)
 # Storage
 # ---------------------------------------------------------------------------
 
-_RSS_DIR = Path.home() / ".jarvis" / "data"
-_RSS_FILE = _RSS_DIR / "rss_feeds.json"
-_RSS_STORE = EncryptedJsonStore(_RSS_FILE)
+_RSS_STORE: EncryptedJsonStore | None = None
+
+
+def _store() -> EncryptedJsonStore:
+    # Lazily build the store so the data dir is resolved at call time via the
+    # single resolver (jarvis.paths); layout unchanged: <data_dir>/data/rss_feeds.json.
+    global _RSS_STORE
+    if _RSS_STORE is None:
+        from jarvis.paths import data_path
+
+        _RSS_STORE = EncryptedJsonStore(data_path("data", "rss_feeds.json"))
+    return _RSS_STORE
 
 
 def _load_feeds() -> list[dict[str, Any]]:
     """Load feed subscriptions from disk."""
-    return _RSS_STORE.load(default=[])
+    return _store().load(default=[])
 
 
 def _save_feeds(feeds: list[dict[str, Any]]) -> None:
-    _RSS_STORE.save(feeds)
+    _store().save(feeds)
 
 
 # ---------------------------------------------------------------------------

@@ -38,9 +38,18 @@ log = logging.getLogger(__name__)
 # Storage
 # ---------------------------------------------------------------------------
 
-_FOCUS_DIR = Path.home() / ".jarvis" / "data"
-_FOCUS_FILE = _FOCUS_DIR / "focus_mode.json"
-_FOCUS_STORE = EncryptedJsonStore(_FOCUS_FILE)
+_FOCUS_STORE: EncryptedJsonStore | None = None
+
+
+def _store() -> EncryptedJsonStore:
+    # Lazily build the store so the data dir is resolved at call time via the
+    # single resolver (jarvis.paths); layout unchanged: <data_dir>/data/focus_mode.json.
+    global _FOCUS_STORE
+    if _FOCUS_STORE is None:
+        from jarvis.paths import data_path
+
+        _FOCUS_STORE = EncryptedJsonStore(data_path("data", "focus_mode.json"))
+    return _FOCUS_STORE
 
 # Default distraction sites
 _DEFAULT_BLOCKED: list[str] = [
@@ -64,13 +73,13 @@ _FOCUS_MARKER = "# JARVIS-FOCUS-MODE"
 
 def _load_state() -> dict[str, Any]:
     """Load focus mode state from disk."""
-    return _FOCUS_STORE.load(
+    return _store().load(
         default={"active": False, "blocked": [], "end_time": None, "mode": "soft"}
     )
 
 
 def _save_state(state: dict[str, Any]) -> None:
-    _FOCUS_STORE.save(state)
+    _store().save(state)
 
 
 def _is_expired(state: dict[str, Any]) -> bool:

@@ -138,10 +138,10 @@ class TestQrGeneration:
 
 @pytest.fixture()
 def mock_qr_dir(tmp_path, monkeypatch):
-    monkeypatch.setattr(
-        "jarvis.tools.local.qr_share._QR_DIR", tmp_path / "qr_codes",
-    )
-    return tmp_path / "qr_codes"
+    # Data dir resolved via jarvis.paths (_qr_dir()); repoint with
+    # JARVIS_DATA_DIR. Layout: <data_dir>/data/qr_codes.
+    monkeypatch.setenv("JARVIS_DATA_DIR", str(tmp_path))
+    return tmp_path / "data" / "qr_codes"
 
 
 class TestGenerateQr:

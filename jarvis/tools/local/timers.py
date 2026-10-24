@@ -21,7 +21,11 @@ from jarvis.platform.encrypted_store import EncryptedJsonStore
 log = logging.getLogger(__name__)
 
 # Default persistence path (inside Jarvis data dir).
-_DEFAULT_TIMERS_PATH = Path.home() / ".jarvis" / "timers.json"
+def _default_timers_path() -> Path:
+    # Single data-dir resolver (jarvis.paths); layout unchanged. Call-time.
+    from jarvis.paths import data_path
+
+    return data_path("timers.json")
 
 
 class _TimerEntry:
@@ -60,7 +64,7 @@ class TimerStore:
     ) -> None:
         self._timers: dict[str, _TimerEntry] = {}
         self._on_done = on_timer_done
-        self._persist_path = persist_path or _DEFAULT_TIMERS_PATH
+        self._persist_path = persist_path if persist_path is not None else _default_timers_path()
         self._counter = 0
 
     # -- persistence ----------------------------------------------------

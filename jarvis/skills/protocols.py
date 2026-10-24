@@ -322,8 +322,12 @@ async def _parse_steps_with_llm(
 
 
 def _default_db_path() -> Path:
-    """Default database path: ~/.jarvis/protocols.db"""
-    return Path.home() / ".jarvis" / "protocols.db"
+    """Default database path: <data_dir>/protocols.db.
+
+    Single data-dir resolver (jarvis.paths); resolved at call time."""
+    from jarvis.paths import data_path
+
+    return data_path("protocols.db")
 
 
 class ProtocolEngine:
