@@ -34,9 +34,7 @@ import json
 import logging
 import os
 import shutil
-import sys
 from collections.abc import Callable
-from os import environ
 from pathlib import Path
 from typing import Literal
 
@@ -894,15 +892,13 @@ from jarvis.core.migrations import (  # noqa: E402, F811
 def default_config_path() -> Path:
     """Default config location.
 
-    Windows: `%APPDATA%/Jarvis/config.json`
-    Other:   `~/.jarvis/config.json` (skeleton; full platform support is
-             out of scope for v1, see SPEC § Out of scope).
+    ``<data_dir>/config.json`` via the single data-dir resolver
+    (jarvis.paths.data_path); layout unchanged. Resolved at call time so
+    tests can repoint JARVIS_DATA_DIR.
     """
-    if sys.platform == "win32":
-        appdata = environ.get("APPDATA")
-        if appdata:
-            return Path(appdata) / "Jarvis" / "config.json"
-    return Path.home() / ".jarvis" / "config.json"
+    from jarvis.paths import data_path
+
+    return data_path("config.json")
 
 
 _log = logging.getLogger(__name__)

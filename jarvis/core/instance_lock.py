@@ -35,13 +35,13 @@ log = logging.getLogger(__name__)
 
 def _lock_path() -> Path:
     """Return the canonical lock-file path."""
-    if sys.platform == "win32":
-        base = Path(os.environ.get("APPDATA") or Path.home())
-    else:
-        base = Path.home() / ".jarvis"
-    lock_dir = base / "Jarvis"
-    lock_dir.mkdir(parents=True, exist_ok=True)
-    return lock_dir / "jarvis.lock"
+    # Single data-dir resolver (jarvis.paths); the lock lives at the data
+    # root as jarvis.lock. Resolved at call time (tests repoint the dir).
+    from jarvis.paths import data_path
+
+    path = data_path("jarvis.lock")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def acquire_instance_lock() -> IO[str] | None:

@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
-import sys
 import webbrowser
 from pathlib import Path
 
@@ -138,12 +136,12 @@ QTextEdit#lpView {{
 
 
 def default_log_path() -> Path:
-    """%APPDATA%/Jarvis/logs/jarvis.log — same path the frozen launcher uses."""
-    if sys.platform == "win32":
-        appdata = os.environ.get("APPDATA")
-        if appdata:
-            return Path(appdata) / "Jarvis" / "logs" / "jarvis.log"
-    return Path.home() / ".jarvis" / "logs" / "jarvis.log"
+    """<data_dir>/logs/jarvis.log — same path the frozen launcher uses.
+
+    Single data-dir resolver (jarvis.paths); resolved at call time."""
+    from jarvis.paths import data_path
+
+    return data_path("logs", "jarvis.log")
 
 
 def _line_level(line: str) -> str | None:

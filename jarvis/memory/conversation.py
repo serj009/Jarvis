@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -51,11 +50,11 @@ class ConversationTurn:
 # ---------------------------------------------------------------------------
 
 def _conversations_root() -> Path:
-    if os.name == "nt":
-        appdata = os.environ.get("APPDATA")
-        if appdata:
-            return Path(appdata) / "Jarvis" / "memory" / "conversations"
-    return Path.home() / ".jarvis" / "memory" / "conversations"
+    # Thin wrapper over the single data-dir resolver (jarvis.paths); layout
+    # unchanged: <data_dir>/memory/conversations. Resolved at call time.
+    from jarvis.paths import data_path
+
+    return data_path("memory", "conversations")
 
 
 def _current_quarter() -> str:

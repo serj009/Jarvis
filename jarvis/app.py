@@ -552,10 +552,10 @@ def _setup_logging(level_name: str = "INFO") -> None:
         if is_frozen():
 
 
-            appdata = os.environ.get("APPDATA") or str(Path.home())
+            from jarvis.paths import data_path
 
 
-            jsonl_path = Path(appdata) / "Jarvis" / "logs" / "jarvis.log.jsonl"
+            jsonl_path = data_path("logs", "jarvis.log.jsonl")
 
 
         else:

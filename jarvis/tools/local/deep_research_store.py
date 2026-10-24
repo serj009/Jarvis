@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import re
-import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
@@ -57,12 +56,12 @@ def _now_iso() -> str:
 
 
 def deep_research_root() -> Path:
-    """``%APPDATA%/Jarvis/deep_research`` on Windows."""
-    if sys.platform == "win32":
-        appdata = __import__("os").environ.get("APPDATA")
-        if appdata:
-            return Path(appdata) / "Jarvis" / "deep_research"
-    return Path.home() / ".jarvis" / "deep_research"
+    """``<data_dir>/deep_research`` — single data-dir resolver (jarvis.paths).
+
+    Layout unchanged; resolved at call time so tests can repoint the dir."""
+    from jarvis.paths import data_path
+
+    return data_path("deep_research")
 
 
 def _session_dir(session_id: str) -> Path:

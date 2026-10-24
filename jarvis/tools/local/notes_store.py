@@ -22,10 +22,8 @@ a second JSON state file per note (the markdown IS the state).
 
 from __future__ import annotations
 
-import os
 import re
 import shutil
-import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
@@ -62,11 +60,11 @@ class Note(BaseModel):
 
 
 def notes_root() -> Path:
-    if sys.platform == "win32":
-        appdata = os.environ.get("APPDATA")
-        if appdata:
-            return Path(appdata) / "Jarvis" / "notes"
-    return Path.home() / ".jarvis" / "notes"
+    # Thin wrapper over the single data-dir resolver (jarvis.paths); layout
+    # unchanged: <data_dir>/notes. Resolved at call time for tests.
+    from jarvis.paths import data_path
+
+    return data_path("notes")
 
 
 def _note_path(note_id: str) -> Path:

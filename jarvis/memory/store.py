@@ -43,7 +43,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import shutil
 import sqlite3
 from dataclasses import dataclass, field
@@ -110,11 +109,12 @@ class Fact:
 # ---------------------------------------------------------------------------
 
 def _memory_root() -> Path:
-    if os.name == "nt":
-        appdata = os.environ.get("APPDATA")
-        if appdata:
-            return Path(appdata) / "Jarvis" / "memory"
-    return Path.home() / ".jarvis" / "memory"
+    # Thin wrapper over the single data-dir resolver (jarvis.paths). Layout
+    # under the data root is unchanged: <data_dir>/memory. Path is resolved
+    # at call time so tests can repoint JARVIS_DATA_DIR.
+    from jarvis.paths import data_path
+
+    return data_path("memory")
 
 
 # ---------------------------------------------------------------------------

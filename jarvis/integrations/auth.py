@@ -14,7 +14,6 @@ zero new pip dependencies.
 from __future__ import annotations
 
 import logging
-import os
 from pathlib import Path
 from typing import Any
 
@@ -24,11 +23,11 @@ log = logging.getLogger(__name__)
 
 
 def _creds_path() -> Path:
-    if os.name == "nt":
-        appdata = os.environ.get("APPDATA")
-        if appdata:
-            return Path(appdata) / "Jarvis" / "integration_credentials.json"
-    return Path.home() / ".jarvis" / "integration_credentials.json"
+    # Thin wrapper over the single data-dir resolver (jarvis.paths); layout
+    # unchanged: <data_dir>/integration_credentials.json. Resolved at call time.
+    from jarvis.paths import data_path
+
+    return data_path("integration_credentials.json")
 
 
 class IntegrationAuth:

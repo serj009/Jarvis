@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-import os
 import time
 import traceback
 from pathlib import Path
@@ -13,8 +12,10 @@ RESTART_COOLDOWN = 5  # seconds
 
 
 def _frozen_log_path() -> Path:
-    appdata = os.environ.get("APPDATA") or str(Path.home())
-    return Path(appdata) / "Jarvis" / "logs" / "jarvis.log"
+    # Single data-dir resolver (jarvis.paths); layout unchanged: logs/jarvis.log.
+    from jarvis.paths import data_path
+
+    return data_path("logs", "jarvis.log")
 
 
 def _write_crash_log(exc: BaseException) -> Path:

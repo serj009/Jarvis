@@ -45,11 +45,11 @@ _DEFAULT_INDEX_DIR = "embeddings"
 
 def _default_index_root() -> Path:
     """Default path for embedding index files."""
-    if os.name == "nt":
-        appdata = os.environ.get("APPDATA")
-        if appdata:
-            return Path(appdata) / "Jarvis" / "memory" / _DEFAULT_INDEX_DIR
-    return Path.home() / ".jarvis" / "memory" / _DEFAULT_INDEX_DIR
+    # Thin wrapper over the single data-dir resolver (jarvis.paths); layout
+    # unchanged: <data_dir>/memory/<_DEFAULT_INDEX_DIR>. Resolved at call time.
+    from jarvis.paths import data_path
+
+    return data_path("memory", _DEFAULT_INDEX_DIR)
 
 
 class EmbeddingIndex:

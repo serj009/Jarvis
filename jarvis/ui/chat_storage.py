@@ -86,9 +86,10 @@ class ChatStorage:
         max_messages: int = _MAX_MESSAGES,
     ) -> None:
         if path is None:
-            import os
-            appdata = os.environ.get("APPDATA") or str(Path.home())
-            path = Path(appdata) / "Jarvis" / "data" / _DEFAULT_FILE
+            from jarvis.paths import data_path
+
+            # Layout unchanged: <data_dir>/data/chat_history.json.
+            path = data_path("data", _DEFAULT_FILE)
         self._path = path
         self._max = max_messages
         self._lock = threading.Lock()
