@@ -378,6 +378,14 @@ class FasterWhisperSTT:
         self.max_clarify_retries = max_clarify_retries
         self._model = None
         self.is_loaded: bool = False
+        # Effective device/compute/model actually loaded (set at end of
+        # load()). Used for the runtime CPU-fallback in transcribe() when the
+        # CUDA runtime DLLs (cuBLAS/cuDNN) are missing — ctranslate2 reports a
+        # CUDA device at construction but crashes on the first encode().
+        self._active_device: str = device
+        self._active_compute: str = compute_type
+        self._model_id: str | None = None
+        self._cuda_runtime_broken: bool = False
 
         # Auto-select hotwords by language if not explicitly provided.
         if hotwords is None:
@@ -536,6 +544,10 @@ class FasterWhisperSTT:
                     f"could not load whisper model {model_id!r}: {exc}"
                 ) from exc
         self.is_loaded = True
+        # Remember what actually loaded, for the transcribe() CPU-fallback.
+        self._active_device = device
+        self._active_compute = compute_type
+        self._model_id = model_id
         log.info(
             "STT loaded: model=%s, device=%s, compute=%s",
             model_id,
@@ -566,9 +578,46 @@ class FasterWhisperSTT:
         )
         try:
             result = await asyncio.to_thread(self._sync_transcribe, audio_np)
-        except Exception:
-            log.exception("whisper transcribe raised")
-            return TranscriptionResult(text="", confidence=0.0, action="ignore")
+        except Exception as exc:
+            # Runtime CPU-fallback: ctranslate2 can report a CUDA device at
+            # construction but then fail the first encode() because the CUDA
+            # runtime DLLs (cuBLAS/cuDNN) are missing — the user installed the
+            # base package without the gpu extra. Without this, EVERY turn
+            # crashes. Reload the model on CPU once and retry; subsequent
+            # turns use the CPU model directly.
+            if (
+                not self._cuda_runtime_broken
+                and self._active_device == "cuda"
+                and self._configured_device != "cuda"
+                and self._is_cuda_runtime_error(exc)
+            ):
+                log.warning(
+                    "STT CUDA runtime unavailable (%s); reloading on CPU. "
+                    "Install the GPU extra for CUDA acceleration: "
+                    "pip install -e \".[gpu]\"", exc,
+                )
+                reloaded = await self._reload_on_cpu()
+                if reloaded:
+                    try:
+                        result = await asyncio.to_thread(
+                            self._sync_transcribe, audio_np,
+                        )
+                    except Exception:
+                        log.exception(
+                            "whisper transcribe raised after CPU reload",
+                        )
+                        return TranscriptionResult(
+                            text="", confidence=0.0, action="ignore",
+                        )
+                else:
+                    return TranscriptionResult(
+                        text="", confidence=0.0, action="ignore",
+                    )
+            else:
+                log.exception("whisper transcribe raised")
+                return TranscriptionResult(
+                    text="", confidence=0.0, action="ignore",
+                )
 
         # faster-whisper sometimes emits leading/trailing whitespace;
         # strip so the pipeline's empty-text check works correctly.
@@ -594,6 +643,55 @@ class FasterWhisperSTT:
         )
 
     # -- internal --
+
+    @staticmethod
+    def _is_cuda_runtime_error(exc: BaseException) -> bool:
+        """True if *exc* looks like a missing/unloadable CUDA runtime library.
+
+        ctranslate2 raises a bare RuntimeError whose message names the DLL,
+        e.g. 'Library cublas64_12.dll is not found or cannot be loaded'. We
+        match on the library names rather than the exception type because
+        ctranslate2 does not expose a dedicated exception class."""
+        msg = str(exc).lower()
+        markers = (
+            "cublas", "cudnn", "cudart", "cuda",
+            ".dll is not found", "cannot be loaded", "libcublas", "libcudnn",
+        )
+        return any(m in msg for m in markers)
+
+    async def _reload_on_cpu(self) -> bool:
+        """Reload the Whisper model on CPU after a CUDA runtime failure.
+
+        Returns True on success. Sets ``_cuda_runtime_broken`` so we only do
+        this once per session (subsequent transcribe() calls go straight to
+        the CPU model). Never raises — returns False if even the CPU reload
+        fails, leaving the caller to degrade gracefully."""
+        self._cuda_runtime_broken = True
+        if self._model_id is None:
+            return False
+        try:
+            from faster_whisper import WhisperModel
+        except ImportError:
+            return False
+        compute_type = self._resolve_compute_type("cpu", self.compute_type)
+        kwargs: dict = {"device": "cpu", "compute_type": compute_type}
+        if self._download_root is not None:
+            kwargs["download_root"] = str(self._download_root)
+            kwargs["local_files_only"] = True
+        try:
+            self._model = await asyncio.to_thread(
+                WhisperModel, self._model_id, **kwargs,
+            )
+        except Exception:
+            log.exception("STT CPU reload failed")
+            return False
+        self._active_device = "cpu"
+        self._active_compute = compute_type
+        log.info(
+            "STT reloaded on CPU: model=%s, compute=%s",
+            self._model_id, compute_type,
+        )
+        return True
 
     def _sync_transcribe(self, audio: np.ndarray) -> TranscriptionResult:
         """Run faster-whisper inference synchronously. Always called inside
