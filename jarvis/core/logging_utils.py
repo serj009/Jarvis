@@ -151,13 +151,15 @@ def log_latency(fn: F) -> F:
 
 def _is_coroutine_function(fn: Any) -> bool:
     """Check if fn is async, handling wrapped / partial functions."""
-    import asyncio
     import inspect
 
-    if asyncio.iscoroutinefunction(fn):
+    # Task 6c: inspect.iscoroutinefunction unwraps functools.wraps chains and
+    # is the non-deprecated spelling (asyncio.iscoroutinefunction is slated
+    # for removal and merely delegates to inspect's implementation).
+    if inspect.iscoroutinefunction(fn):
         return True
     if isinstance(fn, functools.partial):
-        return asyncio.iscoroutinefunction(fn.func)
+        return inspect.iscoroutinefunction(fn.func)
     wrapped = getattr(fn, "__wrapped__", None)
     return inspect.iscoroutinefunction(wrapped) if wrapped else False
 

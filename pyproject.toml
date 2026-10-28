@@ -178,6 +178,13 @@ markers = [
   "integration: online integration tests (Google/Telegram); require network/credentials",
 ]
 addopts = "-m 'not manual and not slow'"
+# Task 6c: silence ONLY pytest_asyncio's own DeprecationWarning (its event-loop
+# redefinition notice under asyncio_mode="auto"). Scoped to the pytest_asyncio
+# module as the source so genuine DeprecationWarnings from jarvis or any other
+# dependency still surface.
+filterwarnings = [
+  "ignore::DeprecationWarning:pytest_asyncio",
+]
 
 [tool.ruff]
 line-length = 100
