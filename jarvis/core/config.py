@@ -39,11 +39,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
-CURRENT_SCHEMA_VERSION = 39
+CURRENT_SCHEMA_VERSION = 40
 
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -158,6 +158,17 @@ class STTConfig(_Base):
     confidence_clarify: float = Field(default=0.30, ge=0.0, le=1.0)
     # Max times JARVIS asks "could you repeat?" before giving up.
     max_clarify_retries: int = Field(default=3, ge=1, le=10)
+
+    @field_validator("language", mode="before")
+    @classmethod
+    def _language_none_to_auto(cls, v: object) -> object:
+        """Tolerate ``null``/empty ``stt.language`` from old or hand-edited
+        configs: coerce it to ``"auto"`` BEFORE validation so Jarvis still
+        starts (the config migration does the same on disk; this is the
+        in-memory safety net)."""
+        if v is None or v == "":
+            return "auto"
+        return v
 
 
 class TTSConfig(_Base):

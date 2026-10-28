@@ -1573,3 +1573,44 @@ def test_fresh_install_has_multilingual_prompt():
     assert "Don't hallucinate" in prompt
     # Prompt is shorter than v26 — critical for 8192 context window.
     assert len(prompt) < len(_SYSTEM_PROMPT_V26)
+
+
+# ---------------------------------------------------------------------------
+# Task 6a: stt.language null → "auto" (migration + field validator)
+# ---------------------------------------------------------------------------
+
+
+def test_migrate_v39_to_v40_null_language_to_auto():
+    out = migrate({"schema_version": 39, "stt": {"language": None}})
+    assert out["schema_version"] == CURRENT_SCHEMA_VERSION
+    assert out["stt"]["language"] == "auto"
+
+
+def test_migrate_v39_to_v40_empty_language_to_auto():
+    out = migrate({"schema_version": 39, "stt": {"language": ""}})
+    assert out["stt"]["language"] == "auto"
+
+
+def test_migrate_v39_to_v40_keeps_fixed_language():
+    out = migrate({"schema_version": 39, "stt": {"language": "ru"}})
+    assert out["stt"]["language"] == "ru"
+
+
+def test_stt_config_coerces_none_language_to_auto():
+    # The in-memory safety net: constructing STTConfig with language=None must
+    # not raise — it coerces to "auto".
+    cfg = cfg_mod.STTConfig(language=None)
+    assert cfg.language == "auto"
+
+
+def test_load_config_with_null_language_starts(tmp_path):
+    import json
+
+    p = tmp_path / "config.json"
+    data = JarvisConfig().model_dump(mode="json")
+    data["schema_version"] = 39
+    data["stt"]["language"] = None
+    p.write_text(json.dumps(data), encoding="utf-8")
+
+    cfg = load_config(p)  # must NOT raise ValidationError
+    assert cfg.stt.language == "auto"

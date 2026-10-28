@@ -822,6 +822,22 @@ def _migrate_v38_to_v39(data: dict) -> dict:
     return data
 
 
+def _migrate_v39_to_v40(data: dict) -> dict:
+    """Schema v40: repair ``stt.language: null``.
+
+    Older configs (and hand edits) could carry ``stt.language = null``, which
+    fails STTConfig validation (the field is a plain ``str``) and stops Jarvis
+    from starting. Normalise a null/missing/empty value to ``"auto"`` (the
+    recommended multilingual default). A valid fixed code ("en"/"ru"/"uk") is
+    left untouched.
+    """
+    stt = data.setdefault("stt", {})
+    if stt.get("language") in (None, ""):
+        stt["language"] = "auto"
+    data["schema_version"] = 40
+    return data
+
+
 def _migrate_v37_to_v38(data: dict) -> dict:
     """Schema v38: proactive ("initiative") engine settings.
 
@@ -898,6 +914,7 @@ MIGRATIONS: dict[int, Migration] = {
     36: _migrate_v36_to_v37,
     37: _migrate_v37_to_v38,
     38: _migrate_v38_to_v39,
+    39: _migrate_v39_to_v40,
 }
 
 
