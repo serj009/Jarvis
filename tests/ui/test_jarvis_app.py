@@ -682,3 +682,82 @@ def test_take_note_delegates_to_the_notes_panel():
 
     assert app._take_note("Shopping", "milk") == "Noted, sir."
     app.notes_panel.create_and_show.assert_called_once_with("Shopping", "milk")
+
+
+# ---------------------------------------------------------------------------
+# Task 6b: audio-thread crash must release boot_done and abort fast
+# ---------------------------------------------------------------------------
+# These exercise the real _run_audio_loop wrapper and the _boot_audio_stack
+# error branch. They import JarvisApp, which pulls in PySide6 via
+# jarvis.ui.bootstrap; in a venv without PySide6 (e.g. a minimal .test_venv)
+# the whole tests/ui package is uncollectable and these skip with it. Verify
+# on a machine that has PySide6 installed (see report: "проверить дома").
+
+
+def test_run_audio_loop_records_crash_and_releases_boot_done():
+    """A crash inside _audio_main is caught, recorded, logged, and boot_done set.
+
+    The threading excepthook would log a caught exception's traceback never
+    (it only fires for *uncaught* ones), and _boot_audio_stack would block on
+    boot_done for the full timeout. The wrapper must break both: record the
+    exception on self._audio_boot_error and release boot_done in finally.
+    """
+    app = JarvisApp()
+    app.audio_loop = asyncio.new_event_loop()
+    app.boot_done = __import__("threading").Event()
+    app.stop_event = MagicMock()
+    app.boot_error_holder = [None]
+    app._audio_boot_error = None
+    # Everything _run_audio_loop hands to _audio_main is irrelevant once
+    # _audio_main is replaced by a coroutine that raises immediately.
+    for name in (
+        "lm", "pipeline", "ollama", "tts", "stt", "wake_word", "bus", "sm",
+        "mode_coord", "source", "mcp_manager", "registry", "memory_store",
+        "conversation_memory", "game_mode", "reminder_store",
+        "reminder_scheduler", "proactive_engine", "integration_registry",
+    ):
+        setattr(app, name, MagicMock())
+    app.cfg = MagicMock()
+
+    async def _boom(*a, **k):
+        raise RuntimeError("audio engine exploded")
+
+    with patch("jarvis.app._audio_main", _boom):
+        app._run_audio_loop()
+
+    assert app.boot_done.is_set()
+    assert isinstance(app._audio_boot_error, RuntimeError)
+    assert str(app._audio_boot_error) == "audio engine exploded"
+    assert app.audio_loop.is_closed()
+
+
+def test_boot_audio_stack_aborts_fast_on_audio_crash():
+    """_boot_audio_stack returns 1 at once when the audio thread crashed.
+
+    It must NOT wait out _AUDIO_BOOT_TIMEOUT, and must surface the error to
+    the user instead of continuing with a half-booted stack.
+    """
+    import time
+
+    app = JarvisApp()
+
+    def _fake_run_audio_loop() -> None:
+        # Stand in for a crashing _run_audio_loop: record the error and
+        # release boot_done exactly as the real wrapper's finally does.
+        app._audio_boot_error = RuntimeError("device not found")
+        app.boot_done.set()
+
+    app._run_audio_loop = _fake_run_audio_loop  # type: ignore[method-assign]
+
+    started = time.monotonic()
+    with (
+        patch("jarvis.app.QMessageBox") as msgbox,
+        patch("jarvis.app._AUDIO_BOOT_TIMEOUT", 30.0),
+    ):
+        result = app._boot_audio_stack()
+    elapsed = time.monotonic() - started
+
+    assert result == 1
+    assert elapsed < 5.0  # released by boot_done.set(), not by the timeout
+    assert isinstance(app._audio_boot_error, RuntimeError)
+    as_mock(msgbox.critical).assert_called_once()

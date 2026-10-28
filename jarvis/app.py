@@ -3246,6 +3246,9 @@ class JarvisApp:
 
         self.boot_error_holder: list[str | None] = [None]
 
+        # Task 6b: set by _run_audio_loop if the audio thread crashes.
+        self._audio_boot_error: BaseException | None = None
+
 
         self.boot_done = threading.Event()
 
@@ -3298,7 +3301,7 @@ class JarvisApp:
             )
 
 
-            self.audio_loop.call_soon_threadsafe(self.stop_event.set)
+            self._request_stop()
 
 
             self.audio_thread.join(timeout=5.0)
@@ -3311,6 +3314,24 @@ class JarvisApp:
 
 
         error = self.boot_error_holder[0]
+
+        # Task 6b: the audio thread crashed (not a load_failure it reported
+        # itself, but an unhandled exception caught in _run_audio_loop). The
+        # loop is already closed; surface it and abort with a non-zero code
+        # instead of continuing with a half-booted audio stack.
+        if self._audio_boot_error is not None:
+            detail = f"{type(self._audio_boot_error).__name__}: {self._audio_boot_error}"
+            log.error("audio stack boot aborted: %s", detail)
+            QMessageBox.critical(
+                None,  # type: ignore[arg-type]
+                "Jarvis — Startup Error",
+                "The audio engine crashed while starting:\n\n"
+                f"{detail}\n\n"
+                "Check that all prerequisites are installed (models downloaded, "
+                "audio devices connected) and try again.",
+            )
+            self.audio_thread.join(timeout=5.0)
+            return 1
 
 
         # T1.5: If the pre-flight Ollama check found a problem but warm()
@@ -3394,7 +3415,7 @@ class JarvisApp:
                 )
 
 
-                self.audio_loop.call_soon_threadsafe(self.stop_event.set)
+                self._request_stop()
 
 
                 self.audio_thread.join(timeout=5.0)
@@ -3404,6 +3425,21 @@ class JarvisApp:
 
 
 
+
+
+    def _request_stop(self) -> None:
+        """Signal the audio loop to stop. Safe if the loop is already closed.
+
+        Hands the bound ``stop_event.set`` to the audio loop via
+        ``call_soon_threadsafe`` (the Event must be set from its own thread).
+        After the loop has closed — e.g. a second quit, or quit after an audio
+        crash — ``call_soon_threadsafe`` raises ``RuntimeError``; swallow it at
+        DEBUG since the stop it would signal has already happened.
+        """
+        try:
+            self.audio_loop.call_soon_threadsafe(self.stop_event.set)
+        except RuntimeError:
+            log.debug("audio loop already closed; stop request ignored", exc_info=True)
 
 
     def _run_audio_loop(self) -> None:
@@ -3421,51 +3457,61 @@ class JarvisApp:
         install_asyncio_exception_handler(self.audio_loop)
 
 
-        self.audio_loop.run_until_complete(
+        try:
+            self.audio_loop.run_until_complete(
 
 
-            _audio_main(
+                _audio_main(
 
 
-                self.lm, self.pipeline, self.ollama, self.tts, self.stt, self.wake_word,
+                    self.lm, self.pipeline, self.ollama, self.tts, self.stt, self.wake_word,
 
 
-                self.bus, self.sm, self.mode_coord, self.cfg.lifecycle,
+                    self.bus, self.sm, self.mode_coord, self.cfg.lifecycle,
 
 
-                self.stop_event, self.boot_error_holder, self.boot_done,
+                    self.stop_event, self.boot_error_holder, self.boot_done,
 
 
-                source=self.source,
+                    source=self.source,
 
 
-                mcp_manager=self.mcp_manager,
+                    mcp_manager=self.mcp_manager,
 
 
-                mcp_servers=self.cfg.mcp_servers,
+                    mcp_servers=self.cfg.mcp_servers,
 
 
-                registry=self.registry,
+                    registry=self.registry,
 
 
-                memory_store=self.memory_store,
+                    memory_store=self.memory_store,
 
 
-                conversation_memory=self.conversation_memory,
-                game_mode=self.game_mode,
-                reminder_store=self.reminder_store,
-                reminder_scheduler=self.reminder_scheduler,
-                self_eval_cfg=self.cfg.self_evaluation,
-                proactive_engine=self.proactive_engine,
-                integration_registry=self.integration_registry,
+                    conversation_memory=self.conversation_memory,
+                    game_mode=self.game_mode,
+                    reminder_store=self.reminder_store,
+                    reminder_scheduler=self.reminder_scheduler,
+                    self_eval_cfg=self.cfg.self_evaluation,
+                    proactive_engine=self.proactive_engine,
+                    integration_registry=self.integration_registry,
+
+                )
+
 
             )
-
-
-        )
-
-
-        self.audio_loop.close()
+        except Exception as exc:
+            # Task 6b: a crash on the audio thread (after modules loaded,
+            # or any failure _audio_main did not handle itself) must not
+            # leave the Qt thread blocked on boot_done for the full
+            # timeout. Record it and log ONCE here — the threading
+            # excepthook does not fire for a caught exception. boot_done
+            # is released in the finally so _boot_audio_stack wakes at once.
+            log.error("audio loop crashed: %s", exc, exc_info=True)
+            self._audio_boot_error = exc
+        finally:
+            self.boot_done.set()
+            self.audio_loop.close()
 
 
 
@@ -3667,7 +3713,7 @@ class JarvisApp:
         # Signal audio loop → triggers cleanup coroutine in audio thread
 
 
-        self.audio_loop.call_soon_threadsafe(self.stop_event.set)
+        self._request_stop()
 
 
 
