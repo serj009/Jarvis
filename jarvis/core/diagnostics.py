@@ -275,6 +275,39 @@ def nvidia_driver_version() -> str | None:
         return None
 
 
+def nvidia_gpu_name() -> str | None:
+    """Best-effort GPU model name via ``nvidia-smi``.
+
+    Read-only: queries the device name only, no state change. Returns None
+    when nvidia-smi is unavailable or fails. On a multi-GPU host the first
+    device is reported (the passport is a single-line summary). Mirrors
+    :func:`nvidia_driver_version` so the passport can fill in the GPU name
+    when the caller did not pass one.
+    """
+    import shutil
+
+    if shutil.which("nvidia-smi") is None:
+        return None
+    try:
+        result = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=name",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode != 0:
+            return None
+        line = result.stdout.strip().split("\n")[0].strip()
+        return line or None
+    except Exception:
+        log.debug("nvidia-smi name query failed", exc_info=True)
+        return None
+
+
 def build_environment_passport(
     *, gpu_name: str | None = None, stt_device: str | None = None
 ) -> dict[str, Any]:
@@ -282,7 +315,8 @@ def build_environment_passport(
 
     Pure data gathering — no user content. ``gpu_name`` / ``stt_device`` are
     passed in by the caller when known (from VRAMManager / the STT engine);
-    the driver version is probed here.
+    the GPU name (when not supplied) and driver version are probed here via
+    nvidia-smi.
     """
     from jarvis.paths import user_data_dir
 
@@ -299,7 +333,7 @@ def build_environment_passport(
         "faster_whisper": _pkg_version("faster-whisper"),
         "sounddevice": _pkg_version("sounddevice"),
         "torch": _pkg_version("torch") if _torch_present() else "-",
-        "gpu": gpu_name or "-",
+        "gpu": gpu_name or nvidia_gpu_name() or "-",
         "driver": nvidia_driver_version() or "-",
         "data_dir": data_dir,
         "stt_device": stt_device or "-",
