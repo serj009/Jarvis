@@ -38,6 +38,7 @@ mock on teardown.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -79,3 +80,32 @@ def _disable_dpapi_for_tests():
     """
     with patch("jarvis.platform.secrets.dpapi_available", return_value=False):
         yield
+
+
+@pytest.fixture(autouse=True)
+def _reset_cuda_dll_cache(monkeypatch: pytest.MonkeyPatch):
+    """Isolate jarvis.platform.cuda_dlls between tests.
+
+    ``add_cuda_dll_directories`` caches its result for the life of the process
+    and prepends the NVIDIA bin dirs to ``os.environ['PATH']``. Both are
+    process-global side effects, so without isolation one test's run would
+    leak into the next (and the pre-existing on/off-Windows tests, which don't
+    know about the cache, would otherwise see a stale result).
+
+    This fixture:
+      * snapshots PATH via ``monkeypatch.setenv`` so any PATH mutation a test
+        triggers is reverted automatically on teardown, and
+      * clears the module cache before AND after each test.
+
+    Import is lazy and tolerant: if the module can't be imported, the fixture
+    is a no-op rather than erroring every test.
+    """
+    monkeypatch.setenv("PATH", os.environ.get("PATH", ""))
+    try:
+        from jarvis.platform import cuda_dlls
+    except ImportError:
+        yield
+        return
+    cuda_dlls._reset_cache_for_tests()
+    yield
+    cuda_dlls._reset_cache_for_tests()
