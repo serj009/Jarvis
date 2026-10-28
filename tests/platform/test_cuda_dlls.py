@@ -119,3 +119,10 @@ def test_path_restored_after_test_via_fixture(monkeypatch, tmp_path):
     result = cuda_dlls.add_cuda_dll_directories()
     assert result
     assert result[0] in os.environ["PATH"].split(os.pathsep)
+
+
+def test_probe_cuda_libraries_not_windows(monkeypatch):
+    monkeypatch.setattr(cuda_dlls.sys, "platform", "linux")
+    ok, detail = cuda_dlls.probe_cuda_libraries()
+    assert ok is False
+    assert detail == "not Windows"
