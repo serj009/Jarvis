@@ -167,3 +167,49 @@ def test_passport_contains_no_user_content(monkeypatch):
     blob = " ".join(str(v) for v in p.values()).lower()
     assert "weather" not in blob
     assert "remind me" not in blob
+
+
+# ---------------------------------------------------------------------------
+# Task 6d: GPU name in the passport
+# ---------------------------------------------------------------------------
+
+
+def test_gpu_name_none_without_nvidia_smi(monkeypatch):
+    """nvidia_gpu_name returns None when nvidia-smi is absent."""
+    monkeypatch.setattr(shutil, "which", lambda name: None)
+    assert diag.nvidia_gpu_name() is None
+
+
+def test_passport_fills_gpu_name_when_caller_omits_it(monkeypatch):
+    """When no gpu_name is passed, the passport probes nvidia_gpu_name().
+
+    This is the real boot path: app.py calls the passport without a GPU name
+    (the field used to be stuck at "-"), so the probe must fill it in.
+    """
+    monkeypatch.setattr(diag, "nvidia_driver_version", lambda: "555.42")
+    monkeypatch.setattr(diag, "nvidia_gpu_name", lambda: "NVIDIA GeForce RTX 3060")
+    p = diag.build_environment_passport(stt_device="cuda")
+    assert p["gpu"] == "NVIDIA GeForce RTX 3060"
+
+
+def test_passport_prefers_explicit_gpu_name_over_probe(monkeypatch):
+    """An explicitly supplied gpu_name wins; the probe is not consulted."""
+    called = {"probe": False}
+
+    def _should_not_run():
+        called["probe"] = True
+        return "WRONG GPU"
+
+    monkeypatch.setattr(diag, "nvidia_driver_version", lambda: None)
+    monkeypatch.setattr(diag, "nvidia_gpu_name", _should_not_run)
+    p = diag.build_environment_passport(gpu_name="RTX 4070", stt_device="cuda")
+    assert p["gpu"] == "RTX 4070"
+    assert called["probe"] is False
+
+
+def test_passport_gpu_dash_when_probe_also_fails(monkeypatch):
+    """No caller name and no nvidia-smi -> gpu falls back to '-'."""
+    monkeypatch.setattr(diag, "nvidia_driver_version", lambda: None)
+    monkeypatch.setattr(diag, "nvidia_gpu_name", lambda: None)
+    p = diag.build_environment_passport(stt_device="cpu")
+    assert p["gpu"] == "-"
