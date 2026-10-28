@@ -37,10 +37,17 @@ jobs:
     name: ${{ matrix.os }} / py${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    # 3.14 is tracked as an early-warning signal, not a gate: a failure on
+    # that leg must not fail the workflow. All other legs (incl. 3.13) stay
+    # blocking. Evaluated per matrix job — true only for the 3.14 cells.
+    continue-on-error: ${{ matrix.python-version == '3.14' }}
 
     strategy:
       # One red cell must not hide the other three. A break that only shows
       # up on Windows, or only on 3.12, is exactly what this matrix is for.
+      # fail-fast: false is also load-bearing for continue-on-error above:
+      # without it, a failing experimental 3.14 cell would cancel its still
+      # running siblings before they report.
       fail-fast: false
       matrix:
         # Jarvis ships as a Windows application, so windows-latest is the
@@ -50,27 +57,35 @@ jobs:
         # majority of the code is platform-independent.
         os: [ubuntu-latest, windows-latest]
         # pyproject.toml sets requires-python = ">=3.11"; ruff and pyright
-        # are both configured for py311. 3.12 guards against the next
-        # interpreter bump landing as a surprise.
-        python-version: ["3.11", "3.12"]
+        # are both configured for py311. 3.12/3.13 guard against the next
+        # interpreter bumps landing as a surprise; 3.14 runs ahead of support
+        # as a non-blocking early-warning leg (see continue-on-error above).
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
         exclude:
-          # ubuntu + 3.12 cannot install the package at all, for an upstream
-          # reason we cannot fix here: openwakeword declares
+          # ubuntu + 3.12/3.13/3.14 cannot install the package at all, for an
+          # upstream reason we cannot fix here: openwakeword declares
           #   tflite-runtime <3,>=2.8.0 ; platform_system == "Linux"
           # and tflite-runtime has exactly one release (2.14.0) with no
-          # cp312 wheels, so pip resolves to "from versions: none".
+          # cp312+ wheels (no cp312/cp313/cp314), so on Linux pip resolves to
+          # "from versions: none" for every interpreter past 3.11.
           #
           # This is Linux-only: the marker means Windows never pulls
-          # tflite-runtime, so windows-latest/3.12 still runs and remains the
-          # real guard against the next interpreter bump — which is the leg
-          # that matters, since Jarvis ships as a Windows application.
-          # Linux stays covered on 3.11.
+          # tflite-runtime, so windows-latest/3.12/3.13/3.14 still run and
+          # remain the real guard against the next interpreter bump — which is
+          # the leg that matters, since Jarvis ships as a Windows application.
+          # Linux stays covered on 3.11 only.
           #
-          # Revisit when tflite-runtime ships cp312 wheels, or when
+          # Checked 2026-10-28 (openwakeword still pins tflite-runtime
+          # <3,>=2.8.0 on Linux; 2.14.0 remains its only release, cp311-only).
+          # Revisit when tflite-runtime ships cp312+ wheels, or when
           # openwakeword drops it in favour of the onnxruntime backend it
           # already depends on.
           - os: ubuntu-latest
             python-version: "3.12"
+          - os: ubuntu-latest
+            python-version: "3.13"
+          - os: ubuntu-latest
+            python-version: "3.14"
 
     env:
       # The UI tests in tests/ui/ construct real QWidgets, so Qt needs a
