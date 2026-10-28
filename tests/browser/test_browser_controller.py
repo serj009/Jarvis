@@ -11,7 +11,6 @@ import pytest
 
 from jarvis.browser.browser_controller import BrowserController, _normalise_url
 
-
 # -- URL normalisation ---------------------------------------------------
 
 
@@ -109,7 +108,13 @@ class TestAdvancedMode:
         result = bc.open_tab("https://github.com")
         assert result["success"] is True
         assert result["mode"] == "selenium"
-        driver.execute_script.assert_called_once()
+        # Task 5: open_tab now opens a real tab and navigates to the URL as
+        # data — it must NOT build a window.open("<url>") JS string (the old
+        # injection vector). Verify the new safe path and the absence of the
+        # old one.
+        driver.switch_to.new_window.assert_called_once_with("tab")
+        driver.get.assert_called_once_with("https://github.com")
+        driver.execute_script.assert_not_called()
 
     def test_close_tab(self, bc_with_driver):
         bc, driver = bc_with_driver

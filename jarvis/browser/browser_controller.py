@@ -120,17 +120,22 @@ class BrowserController:
     def open_tab(self, url: str) -> dict[str, Any]:
         """Open *url* in a new browser tab.
 
-        Advanced mode: Selenium ``window.open``.
+        Advanced mode: Selenium ``switch_to.new_window`` + ``get`` (no JS
+        string interpolation — the raw URL is passed as data, not code).
         Simple fallback: ``webbrowser.open_new_tab``.
         """
-        url = _normalise_url(url)
+        try:
+            url = _normalise_url(url)
+        except UnsafeUrlError as exc:
+            return {"success": False, "error": str(exc)}
 
         if self._ensure_driver():
             try:
-                self._driver.execute_script(
-                    "window.open(arguments[0], '_blank');", url,
-                )
-                self._driver.switch_to.window(self._driver.window_handles[-1])
+                # Open a real new tab and navigate to the URL as data. Avoids
+                # building a window.open("<url>") JS string, which a crafted
+                # URL could break out of.
+                self._driver.switch_to.new_window("tab")
+                self._driver.get(url)
                 return {
                     "success": True,
                     "url": url,
@@ -234,6 +239,11 @@ class BrowserController:
             return {"success": False, "error": "No browser control"}
         try:
             text = self._driver.find_element("tag name", "body").text
+            # Security Layer 3: page text is untrusted and flows into the LLM
+            # context — strip prompt-injection payloads before returning it.
+            from jarvis.security.output_sanitizer import clean_external_text
+
+            text = clean_external_text(text, source="browser:page")
             truncated = len(text) > max_chars
             return {
                 "success": True,
@@ -249,7 +259,12 @@ class BrowserController:
         if not self._driver:
             return {"success": False, "error": "No browser control"}
         try:
-            return {"success": True, "html": self._driver.page_source}
+            # Same injection risk as get_page_text: raw HTML reaches the LLM
+            # via callers (e.g. image_scraper), so sanitise it first.
+            from jarvis.security.output_sanitizer import clean_external_text
+
+            html = clean_external_text(self._driver.page_source, source="browser:page")
+            return {"success": True, "html": html}
         except Exception as exc:
             return {"success": False, "error": str(exc)}
 
@@ -280,8 +295,33 @@ class BrowserController:
 # -- helpers ----------------------------------------------------------
 
 
+class UnsafeUrlError(ValueError):
+    """Raised when a URL uses a scheme we refuse to open in a browser."""
+
+
+# Only web schemes may be opened. javascript:/data:/file:/vbscript: can run
+# code or read local files, so they are rejected outright (Task 5).
+_ALLOWED_URL_SCHEMES = ("http://", "https://")
+_BLOCKED_URL_SCHEMES = ("javascript:", "data:", "file:", "vbscript:", "about:")
+
+
 def _normalise_url(url: str) -> str:
-    """Prepend ``https://`` when the caller omits the scheme."""
-    if not url.startswith(("http://", "https://")):
-        return "https://" + url
-    return url
+    """Normalise + validate a URL for browser navigation.
+    Prepends ``https://`` when no scheme is given, and rejects dangerous
+    schemes (javascript:/data:/file:/vbscript:/about:) with
+    ``UnsafeUrlError``. Only http/https survive.
+    """
+    stripped = url.strip()
+    lowered = stripped.lower()
+    for bad in _BLOCKED_URL_SCHEMES:
+        if lowered.startswith(bad):
+            raise UnsafeUrlError(f"refusing to open {bad!r} URL")
+    if not lowered.startswith(_ALLOWED_URL_SCHEMES):
+        # No (or unknown) scheme → default to https. If it still contains a
+        # scheme-like "word:" prefix that isn't http(s), reject it.
+        scheme_sep = stripped.find(":")
+        slash = stripped.find("/")
+        if scheme_sep != -1 and (slash == -1 or scheme_sep < slash):
+            raise UnsafeUrlError("refusing to open non-http(s) URL scheme")
+        return "https://" + stripped
+    return stripped
