@@ -249,4 +249,102 @@ def test_the_confirmation_gated_local_tool_set_is_pinned():
         for name in local_tool_names()
         if (t := reg.get(name)) is not None and t.requires_confirmation
     )
-    assert gated == ["change_vault_password", "delete_protocol", "delete_skill", "disable_all_skills", "remove_credential", "type_into_active_window"]
+    assert gated == [
+        "change_vault_password",
+        "delete_protocol",
+        "delete_skill",
+        "disable_all_skills",
+        "remove_credential",
+        "type_into_active_window",
+    ]
+
+
+# ---------------------------------------------------------------------------
+# Task 4: failure reason in the "[tool] X failed" log line
+# ---------------------------------------------------------------------------
+
+from jarvis.tools.registry import _short_reason  # noqa: E402
+
+
+class _FailArgs(BaseModel):
+    pass
+
+
+def _make_failing_tool(error_msg):
+    class _FailTool:
+        name: str = "boom"
+        description: str = "Always fails."
+        args_schema: type[BaseModel] = _FailArgs
+        requires_confirmation: bool = False
+
+        async def execute(self, args):
+            return ToolResult(success=False, error=error_msg)
+
+    return _FailTool()
+
+
+def test_short_reason_none_and_plain():
+    assert _short_reason(None) == "no reason reported"
+    assert _short_reason("No URL provided") == "No URL provided"
+
+
+def test_short_reason_collapses_whitespace():
+    assert _short_reason("multi\nline\n   error") == "multi line error"
+
+
+def test_short_reason_truncates_to_cap():
+    out = _short_reason("x" * 500)
+    assert len(out) == 200
+    assert out.endswith("\u2026") or out.endswith("…")
+
+
+def test_short_reason_redacts_secret_fragments():
+    # When a secret-looking keyword appears, everything from it to the end of
+    # the (single-line) string is replaced. Values are obviously-fake tokens
+    # built at runtime so nothing real is embedded in the test file.
+    tok = "ZZZ" + "1234567890"  # stand-in secret value
+    cases = [
+        f"auth failed api_key={tok}",
+        f"authorization bearer {tok}",
+        f"token = {tok}",
+    ]
+    for raw in cases:
+        out = _short_reason(raw)
+        assert "[redacted]" in out
+        assert tok not in out, f"secret leaked: {out!r}"
+
+    # Non-secret technical text is left intact.
+    assert _short_reason("connection timed out after 5s") == (
+        "connection timed out after 5s"
+    )
+
+
+def test_failed_tool_logs_reason(caplog):
+    import asyncio
+    import logging
+
+    reg = ToolRegistry(ToolsConfig())
+    reg.register(_make_failing_tool("Bookmark error: no active tab"))
+
+    with caplog.at_level(logging.INFO, logger="jarvis.tools.registry"):
+        result = asyncio.run(reg.execute("boom", {}))
+
+    assert result.success is False
+    lines = [r.getMessage() for r in caplog.records if "[tool] boom failed" in r.getMessage()]
+    assert lines, "failed tool must log a [tool] ... failed line"
+    assert "Bookmark error: no active tab" in lines[0]
+
+
+def test_failed_tool_log_redacts_secret(caplog):
+    import asyncio
+    import logging
+
+    reg = ToolRegistry(ToolsConfig())
+    reg.register(_make_failing_tool("login failed token=sk-DEADBEEF"))
+
+    with caplog.at_level(logging.INFO, logger="jarvis.tools.registry"):
+        asyncio.run(reg.execute("boom", {}))
+
+    joined = " ".join(r.getMessage() for r in caplog.records)
+    assert "sk-DEADBEEF" not in joined
+    assert "[redacted]" in joined

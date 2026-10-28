@@ -78,8 +78,7 @@ from typing import Any, ClassVar, Protocol, TypeVar, runtime_checkable
 from pydantic import BaseModel, ValidationError
 
 from jarvis.core.config import ToolsConfig
-
-from jarvis.tools.risk import RiskLevel, risk_level_for_tool, should_confirm
+from jarvis.tools.risk import risk_level_for_tool, should_confirm
 
 log = logging.getLogger(__name__)
 
@@ -87,6 +86,37 @@ log = logging.getLogger(__name__)
 # constraint lives in one place; MCPTool sanitisation (Task 3) checks
 # against it and raises if the resulting name is empty or invalid.
 TOOL_NAME_REGEX = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
+
+# Task 4: cap for the failure reason appended to the "[tool] X failed" log.
+_MAX_REASON_CHARS = 200
+
+# Redact secret-looking fragments before they reach the log. When a key name
+# that hints at a secret (api_key / token / password / authorization /
+# bearer / ...) appears, everything from that keyword to END OF STRING is
+# replaced — so ``Authorization: Bearer <jwt>`` (two keywords then the token)
+# cannot leak its tail. The reason is a technical message, so dropping the
+# remainder after a secret keyword is an acceptable trade for safety.
+_SECRET_RE = re.compile(
+    r"(?i)\b(?:api[_-]?key|token|password|passwd|secret|authorization|bearer)\b.*$"
+)
+
+
+def _short_reason(error: str | None) -> str:
+    """One-line, length-capped failure reason for the tool log.
+
+    ``error`` is a ToolResult.error (technical message), never user speech or
+    tool output. Collapses whitespace/newlines to keep the turn log one line
+    per stage, redacts secret-looking fragments (defence-in-depth for tools
+    whose error could embed a key/token), and truncates so a stack-trace-y
+    message can't flood the log.
+    """
+    if not error:
+        return "no reason reported"
+    collapsed = " ".join(str(error).split())
+    collapsed = _SECRET_RE.sub("[redacted]", collapsed)
+    if len(collapsed) > _MAX_REASON_CHARS:
+        collapsed = collapsed[: _MAX_REASON_CHARS - 1] + "…"
+    return collapsed
 
 
 class EmptyArgs(BaseModel):
@@ -491,11 +521,19 @@ class ToolRegistry:
             )
         # T1.2: tool stage in the turn log. Name and outcome only -- the
         # arguments may contain user text, so they are not logged.
-        log.info(
-            "[tool] %s %s in %d ms (risk=%s)",
-            name,
-            "ok" if result.success else "failed",
-            int((time.monotonic() - started) * 1000),
-            tool_risk.name,
-        )
+        # Task 4: on failure, append a short reason so "[tool] X failed" is
+        # actionable. result.error is a technical message (exception text /
+        # status), NOT user speech or tool OUTPUT — safe to log. It is
+        # collapsed to one line and capped so a stack-trace-y error can't
+        # flood the log or leak a long payload.
+        elapsed_ms = int((time.monotonic() - started) * 1000)
+        if result.success:
+            log.info(
+                "[tool] %s ok in %d ms (risk=%s)", name, elapsed_ms, tool_risk.name
+            )
+        else:
+            log.info(
+                "[tool] %s failed in %d ms (risk=%s): %s",
+                name, elapsed_ms, tool_risk.name, _short_reason(result.error),
+            )
         return result
