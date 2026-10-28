@@ -135,9 +135,36 @@ def test_integrations_missing_token_warns(monkeypatch):
 
 
 def test_extras_never_fails():
-    r = check_extras()
+    # With no NVIDIA GPU present, extras are purely informational → PASS,
+    # regardless of which optional packages are installed. Mock the GPU probe
+    # so this is hardware-independent.
+    monkeypatch_mod = __import__("unittest.mock", fromlist=["patch"])
+    with monkeypatch_mod.patch(
+        "jarvis.core.doctor._nvidia_gpu_present", return_value=False
+    ):
+        r = check_extras()
     assert r.status == PASS
     assert "installed:" in r.detail
+
+
+def test_extras_warns_when_gpu_absent_but_nvidia_present(monkeypatch):
+    """gpu extra missing + an NVIDIA card present → WARN with install hint."""
+    import importlib.util as _ilu
+
+    real_find_spec = _ilu.find_spec
+
+    def fake_find_spec(name, *a, **k):
+        if name == "nvidia.cublas":
+            return None  # pretend the gpu runtime wheels are not installed
+        return real_find_spec(name, *a, **k)
+
+    monkeypatch.setattr(_ilu, "find_spec", fake_find_spec)
+    monkeypatch.setattr(doctor, "_nvidia_gpu_present", lambda: True)
+
+    r = check_extras()
+    assert r.status == WARN
+    assert "gpu" in r.detail
+    assert ".[gpu]" in r.hint
 
 
 # ---------------------------------------------------------------------------
@@ -236,3 +263,80 @@ def test_format_report_shows_hints_only_for_non_pass():
     text = format_report(rep)
     assert "SHOULD-SHOW" in text
     assert "SHOULD-NOT-SHOW" not in text
+
+
+# ---------------------------------------------------------------------------
+# Task 2: doctor tells the truth (STT CUDA, Silero runtime path, migration list)
+# ---------------------------------------------------------------------------
+
+
+def test_stt_warns_when_cuda_libraries_fail(monkeypatch):
+    """configured=cuda but the CUDA DLL does not load → WARN, not PASS."""
+    # Resolve to cuda, model present, but the probe reports a load failure.
+    import jarvis.audio.stt as stt_mod
+    monkeypatch.setattr(stt_mod.FasterWhisperSTT, "_resolve_device",
+                        staticmethod(lambda d: "cuda"))
+    import jarvis.paths as paths_mod
+    monkeypatch.setattr(paths_mod, "default_whisper_download_root",
+                        lambda: None)  # model not downloaded is irrelevant here
+    import jarvis.platform.cuda_dlls as cd
+    monkeypatch.setattr(cd, "probe_cuda_libraries",
+                        lambda: (False, "cublas64_12.dll failed to load (x)"))
+
+    r = doctor.check_stt("cuda")
+    assert r.status == WARN
+    assert "DO NOT load" in r.detail
+    assert "cublas" in r.detail.lower()
+
+
+def test_stt_pass_when_cuda_loads(monkeypatch):
+    import jarvis.audio.stt as stt_mod
+    monkeypatch.setattr(stt_mod.FasterWhisperSTT, "_resolve_device",
+                        staticmethod(lambda d: "cuda"))
+    import jarvis.paths as paths_mod
+    monkeypatch.setattr(paths_mod, "default_whisper_download_root",
+                        lambda: paths_mod.user_data_dir())  # pretend present dir
+    import jarvis.platform.cuda_dlls as cd
+    monkeypatch.setattr(cd, "probe_cuda_libraries",
+                        lambda: (True, "cublas64_12.dll loaded"))
+
+    r = doctor.check_stt("cuda")
+    assert r.status == PASS
+    assert "CUDA libraries load OK" in r.detail
+
+
+def test_wakeword_vad_uses_runtime_silero(monkeypatch, tmp_path):
+    """Silero found via the runtime site-packages resolver (vad._find_silero_onnx)."""
+    onnx = tmp_path / "silero_vad.onnx"
+    onnx.write_bytes(b"x")
+    import jarvis.audio.vad as vad_mod
+    monkeypatch.setattr(vad_mod, "_find_silero_onnx", lambda: onnx)
+
+    import importlib.util as _ilu
+    real = _ilu.find_spec
+    monkeypatch.setattr(
+        _ilu, "find_spec",
+        lambda n, *a, **k: object() if n == "openwakeword" else real(n, *a, **k),
+    )
+    r = doctor.check_wakeword_and_vad()
+    assert r.status == PASS
+    assert "silero_vad.onnx" in r.detail
+
+
+def test_migration_lists_pending_paths(monkeypatch, tmp_path):
+    """Legacy ~/.jarvis with un-migrated files → WARN listing relative paths."""
+    monkeypatch.setattr(doctor.sys, "platform", "win32")
+    legacy = tmp_path / "dotjarvis"
+    (legacy / "memory").mkdir(parents=True)
+    (legacy / "config.json").write_text("{}", encoding="utf-8")
+    (legacy / "memory" / "memory.db").write_text("x", encoding="utf-8")
+    new_root = tmp_path / "appdata"
+    new_root.mkdir()
+    monkeypatch.setenv("JARVIS_DATA_DIR", str(new_root))
+    import jarvis.core.data_migration as dm
+    monkeypatch.setattr(dm, "_legacy_root", lambda: legacy)
+
+    r = doctor.check_migration_state()
+    assert r.status == WARN
+    assert "config.json" in r.detail
+    assert "memory/memory.db" in r.detail

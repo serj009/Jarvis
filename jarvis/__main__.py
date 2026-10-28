@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 import time
 import traceback
 from pathlib import Path
@@ -141,6 +142,14 @@ def _cli(argv: list[str] | None = None) -> None:
 
     args = _parse_args(argv)
     if args.doctor:
+        # Doctor prints Unicode (paths, box chars, non-ASCII device names). A
+        # Windows console defaults to a legacy code page and would render that
+        # as mojibake — force UTF-8 on the std streams first.
+        for _stream in (sys.stdout, sys.stderr):
+            try:
+                _stream.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
+            except Exception:
+                pass
         from jarvis.core.doctor import run_doctor
 
         code = run_doctor(

@@ -268,7 +268,14 @@ def check_audio_devices() -> CheckResult:
 
 
 def check_stt(configured_device: str) -> CheckResult:
-    """Report the resolved STT device + whether a Whisper model is available."""
+    """Report the STT device AND whether CUDA libraries actually load.
+
+    A mere "device=cuda" resolution is NOT proof the GPU path works — on
+    Windows without the gpu extra, ctranslate2 resolves cuda but then crashes
+    at transcribe() with ``cublas64_12.dll is not found``. So when CUDA is
+    requested we actually try to load the CUDA DLL and WARN (not PASS) if it
+    fails, surfacing the real problem up front.
+    """
     from jarvis.paths import default_whisper_download_root
 
     try:
@@ -280,8 +287,35 @@ def check_stt(configured_device: str) -> CheckResult:
 
     model_root = default_whisper_download_root()
     have_model = model_root is not None and model_root.is_dir()
-    _model_state = "present" if have_model else "not downloaded"
-    detail = f"device={resolved} (configured {configured_device!r}), model={_model_state}"
+    model_state = "present" if have_model else "not downloaded"
+
+    # If CUDA is the intended device, verify the libraries really load.
+    cuda_detail = ""
+    cuda_broken = False
+    if resolved == "cuda" or (configured_device != "cpu" and resolved != "cpu"):
+        try:
+            from jarvis.platform.cuda_dlls import probe_cuda_libraries
+
+            ok, reason = probe_cuda_libraries()
+            if ok:
+                cuda_detail = "; CUDA libraries load OK"
+            elif reason == "not Windows":
+                cuda_detail = ""  # Linux resolves via loader; nothing to probe
+            else:
+                cuda_broken = True
+                cuda_detail = f"; CUDA libraries DO NOT load: {reason}"
+        except Exception as exc:  # pragma: no cover - defensive
+            cuda_detail = f"; CUDA probe error: {exc}"
+
+    detail = (
+        f"device={resolved} (configured {configured_device!r}), "
+        f"model={model_state}{cuda_detail}"
+    )
+    if cuda_broken:
+        return CheckResult("STT", WARN, detail,
+                           hint="CUDA was requested but its libraries fail to load — "
+                                "STT will crash or fall back to CPU. Install the gpu "
+                                "extra, or set stt.device = 'cpu'.")
     if not have_model:
         return CheckResult("STT", WARN, detail,
                            hint="Whisper model not found locally; "
@@ -352,10 +386,23 @@ def check_tts_voices(enabled_languages: list[str], voices_by_lang: dict[str, str
 
 
 def check_wakeword_and_vad() -> CheckResult:
-    from jarvis.paths import default_silero_onnx_path
+    # Silero VAD lives in the installed silero_vad wheel at runtime
+    # (site-packages/silero_vad/data/silero_vad.onnx). The bundle-only path
+    # (default_silero_onnx_path) misses that, giving a false "missing" — so
+    # prefer the same resolver the VAD engine uses at runtime, then fall back
+    # to the bundled location.
+    silero = None
+    try:
+        from jarvis.audio.vad import _find_silero_onnx  # noqa: SLF001
 
-    silero = default_silero_onnx_path()
-    have_vad = silero is not None and silero.is_file()
+        silero = _find_silero_onnx()
+    except Exception:
+        silero = None
+    if silero is None:
+        from jarvis.paths import default_silero_onnx_path
+
+        silero = default_silero_onnx_path()
+    have_vad = silero is not None and Path(silero).is_file()
     # openwakeword ships its own bundled models; presence of the package is the
     # practical check (its weights live inside the installed package).
     try:
@@ -366,7 +413,8 @@ def check_wakeword_and_vad() -> CheckResult:
         have_wake = False
 
     if have_vad and have_wake:
-        return CheckResult("Wake word & VAD", PASS, "Silero VAD + openWakeWord present")
+        return CheckResult("Wake word & VAD", PASS,
+                           f"Silero VAD ({silero}) + openWakeWord present")
     missing = []
     if not have_wake:
         missing.append("openWakeWord")
@@ -391,12 +439,27 @@ def check_gpu() -> CheckResult:
     return CheckResult("GPU", PASS, f"{snap.gpu_name}, {snap.free_mb} MB free / {snap.total_mb} MB")
 
 
+# Each extra -> the import name whose presence proves the extra is installed.
+# NOTE: "gpu" is NOT probed via ctranslate2 — that ships with the BASE install,
+# so it was always reported "installed" even without the GPU runtime wheels.
+# The gpu extra is the NVIDIA CUDA runtime wheels (cublas/cudnn), so probe one
+# of those instead; that is what actually makes the CUDA backend work.
 _EXTRAS = {
-    "gpu": "ctranslate2",
+    "gpu": "nvidia.cublas",
     "security": "cryptography",
     "embeddings": "sentence_transformers",
     "browser": "selenium",
 }
+
+
+def _nvidia_gpu_present() -> bool:
+    """True if an NVIDIA GPU is detectable (nvidia-smi parsed snapshot)."""
+    try:
+        from jarvis.core.vram_manager import _parse_nvidia_smi  # noqa: SLF001
+
+        return _parse_nvidia_smi() is not None
+    except Exception:
+        return False
 
 
 def check_extras() -> CheckResult:
@@ -411,7 +474,16 @@ def check_extras() -> CheckResult:
             ok = False
         (present if ok else absent).append(extra)
     detail = f"installed: {', '.join(present) or 'none'}; missing: {', '.join(absent) or 'none'}"
-    # Extras are optional — never FAIL, just report.
+
+    # GPU extra missing but an NVIDIA card is present -> worth a WARN (the user
+    # is running CPU-only STT on capable hardware).
+    if "gpu" in absent and _nvidia_gpu_present():
+        return CheckResult(
+            "Optional extras", WARN, detail,
+            hint='NVIDIA GPU detected but the gpu extra is not installed; '
+                 'run `pip install -e ".[gpu]"` for CUDA-accelerated STT.',
+        )
+    # Otherwise extras are optional — never FAIL, just report.
     return CheckResult("Optional extras", PASS, detail)
 
 
@@ -470,18 +542,34 @@ def check_migration_state() -> CheckResult:
     if marker.exists():
         return CheckResult("Legacy migration", PASS, "already migrated (marker present)")
     # Legacy exists, not yet migrated — count files not present in new root.
-    pending = 0
+    # (list up to 10 relative paths; voices/ is never copied).
+    pending_paths: list[str] = []
+    overflow = 0
     try:
         for src in legacy.rglob("*"):
             if src.is_dir() or (src.parts and "voices" in src.relative_to(legacy).parts[:1]):
                 continue
             rel = src.relative_to(legacy)
             if not (root / rel).exists():
-                pending += 1
+                if len(pending_paths) < 10:
+                    pending_paths.append(str(rel).replace("\\", "/"))
+                else:
+                    overflow += 1
     except Exception:
-        pending = -1
+        return CheckResult("Legacy migration", WARN,
+                           "legacy ~/.jarvis present; could not enumerate pending files",
+                           hint="Migration runs automatically on next normal startup.")
+
+    total = len(pending_paths) + overflow
+    if total == 0:
+        return CheckResult("Legacy migration", PASS,
+                           "legacy ~/.jarvis present but all files already migrated "
+                           "(marker not yet written)")
+    listed = ", ".join(pending_paths)
+    more = f" (+{overflow} more)" if overflow else ""
     return CheckResult("Legacy migration", WARN,
-                       f"legacy ~/.jarvis present, {pending} file(s) not yet migrated",
+                       f"legacy ~/.jarvis present, {total} file(s) not yet migrated: "
+                       f"{listed}{more}",
                        hint="Migration runs automatically on next normal startup.")
 
 

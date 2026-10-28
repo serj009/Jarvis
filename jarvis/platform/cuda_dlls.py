@@ -161,3 +161,44 @@ def _reset_cache_for_tests() -> None:
     """Test helper: clear the process cache so a fresh scan can be exercised."""
     global _added_dirs
     _added_dirs = None
+
+
+# The CUDA runtime DLL the faster-whisper CUDA backend needs first; its
+# presence+loadability is the single best signal that the GPU path will work.
+_PROBE_DLL = "cublas64_12.dll"
+
+
+def probe_cuda_libraries() -> tuple[bool, str]:
+    """Try to actually LOAD the key CUDA DLL on Windows (read-only probe).
+
+    Registers the NVIDIA wheel dirs first (so the loader can find the DLL),
+    then attempts ``ctypes.WinDLL(cublas64_12.dll)``. Returns ``(ok, detail)``:
+
+      * ``(True, "<dll> loaded")`` when the library loads — the real signal
+        that ctranslate2's CUDA backend will work, catching the live
+        ``cublas64_12.dll is not found`` failure that a mere "device=cuda"
+        resolution misses;
+      * ``(False, "<reason>")`` when it cannot load (not Windows, no wheels,
+        or the DLL is missing/unloadable).
+
+    Never raises. ``ctypes.WinDLL`` (NOT ``ctypes.windll``) is used, so this
+    stays clear of the win32 architecture gate while still living under
+    ``jarvis/platform/`` where Windows-specific code belongs.
+    """
+    if sys.platform != "win32":
+        return False, "not Windows"
+
+    add_cuda_dll_directories()  # ensure PATH / dll dirs are registered
+
+    import ctypes
+
+    try:
+        ctypes.WinDLL(_PROBE_DLL)  # type: ignore[attr-defined]
+    except OSError as exc:
+        return False, (
+            f"{_PROBE_DLL} failed to load ({exc}); install the gpu extra "
+            "(CUDA 12 / cuDNN 9 runtime wheels)"
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        return False, f"{_PROBE_DLL} load error: {exc}"
+    return True, f"{_PROBE_DLL} loaded"
