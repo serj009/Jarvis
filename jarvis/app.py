@@ -2096,6 +2096,17 @@ class JarvisApp:
 
 
         # ------------------------------------------------------------------
+        # Task 3: configure logging (console + rotating file) BEFORE the data
+        # dir / migration calls below, otherwise their INFO lines ("data dir:"
+        # and the migration summary) are emitted before any handler exists and
+        # vanish. _setup_logging is idempotent — install_rotating_file_log
+        # dedups by baseFilename and basicConfig is a no-op once a handler
+        # exists — so the later _setup_logging(cfg.general.log_level) in
+        # _load_config only changes the level, it does not add handlers again.
+        # ------------------------------------------------------------------
+        _setup_logging("INFO")
+
+        # ------------------------------------------------------------------
         # Task 4+B: resolve + announce the data dir FIRST, then migrate any
         # legacy ~/.jarvis data into it — before the instance lock or config
         # (both live under the data dir) are touched.
