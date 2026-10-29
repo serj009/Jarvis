@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from jarvis.audio.aec import BargeInManager, BargeInMode
-from jarvis.audio.protocols import FRAME_BYTES, SAMPLE_RATE
+from jarvis.audio.protocols import FRAME_BYTES
 
 SILENCE_FRAME: bytes = b"\x00" * FRAME_BYTES
 

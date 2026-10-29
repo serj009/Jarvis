@@ -20,7 +20,7 @@ from jarvis.tools.local.tab_manager import (
     FindTabArgs,
     FindTabTool,
 )
-from jarvis.tools.registry import ToolResult, VoicePattern
+from jarvis.tools.registry import VoicePattern
 
 # ---------------------------------------------------------------------------
 # Protocol conformance

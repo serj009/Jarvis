@@ -14,7 +14,6 @@ Covers:
 from __future__ import annotations
 
 from datetime import UTC
-from pathlib import Path
 
 import pytest
 
@@ -168,7 +167,7 @@ class TestGenerationGate:
 
     def test_daily_limit(self, forge):
         forge._skills_generated_today = 1
-        from datetime import datetime, timezone
+        from datetime import datetime
         forge._today_date = datetime.now(tz=UTC).strftime("%Y-%m-%d")
         ok, reason = forge.can_generate(idle_minutes=60)
         assert not ok

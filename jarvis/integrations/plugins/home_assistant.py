@@ -97,7 +97,6 @@ class HomeAssistantIntegration(BaseIntegration):
     async def execute_tool(self, tool_name: str, args: dict) -> str:
         if not self._token():
             return "Home Assistant is not connected, sir."
-        import httpx  # lazy
 
         base = self._url()
         try:

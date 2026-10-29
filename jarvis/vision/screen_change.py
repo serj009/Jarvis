@@ -118,7 +118,6 @@ class ScreenChangeDetector:
         if self._last_frame is None:
             return None
 
-        from PIL import Image
 
         current = self.capture()
         current_small = self._to_comparable(current)

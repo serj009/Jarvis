@@ -61,7 +61,6 @@ class WikipediaIntegration(BaseIntegration):
         ]
 
     async def execute_tool(self, tool_name: str, args: dict) -> str:
-        import httpx  # lazy
 
         try:
             if tool_name == "wiki_search":

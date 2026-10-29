@@ -10,7 +10,7 @@ Enhanced from the original CPU/RAM-only version to include:
 from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from pydantic import BaseModel
 

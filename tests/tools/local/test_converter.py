@@ -15,12 +15,10 @@ import re
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
-import pytest
 
 from jarvis.tools.local.converter import (
     ConverterArgs,
     ConverterTool,
-    _fmt,
     _normalize_unit,
     convert_temperature,
     convert_units,

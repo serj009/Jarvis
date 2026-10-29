@@ -12,7 +12,6 @@ This module must NOT import win32 / ctypes / winreg / PySide6.
 
 from __future__ import annotations
 
-from typing import Optional
 
 from jarvis.platform.base import NotSupportedError
 

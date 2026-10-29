@@ -16,7 +16,6 @@ Plus: voice pattern coverage and wiring in catalogue/risk.
 
 from __future__ import annotations
 
-from pathlib import Path
 
 import pytest
 

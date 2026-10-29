@@ -49,11 +49,10 @@ the most recent 100 messages.
 
 from __future__ import annotations
 
-import html
 import logging
 import re
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import datetime
 
 from PySide6.QtCore import Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QKeyEvent
@@ -66,7 +65,6 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
-    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -79,7 +77,6 @@ from jarvis.ui.settings.theme import (
     BG_CARD,
     BG_INPUT,
     BORDER,
-    CARD_RADIUS,
     TEXT_MUTED,
     TEXT_PRIMARY,
     TEXT_SECONDARY,

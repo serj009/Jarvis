@@ -20,7 +20,7 @@ from typing import ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
-from jarvis.core.phrases import Lang, say
+from jarvis.core.phrases import Lang
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)

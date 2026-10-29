@@ -20,7 +20,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from jarvis.skills.protocols import Protocol, ProtocolEngine, ProtocolStep
+from jarvis.skills.protocols import ProtocolEngine
 from jarvis.tools.local.protocol_tools import (
     CreateProtocolTool,
     DeleteProtocolTool,

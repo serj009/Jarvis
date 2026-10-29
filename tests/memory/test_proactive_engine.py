@@ -252,7 +252,7 @@ def test_migration_v37_to_v38():
 # Layer 2: scenarios, cooldowns, foreground tracking, loop
 # ═══════════════════════════════════════════════════════════════════
 
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 
 def _engine(store, **cfg_over):

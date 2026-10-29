@@ -10,9 +10,6 @@ from unittest.mock import patch
 import pytest
 
 from jarvis.audio.device_detector import (
-    PHYSICAL_INPUT_PATTERNS,
-    PHYSICAL_OUTPUT_PATTERNS,
-    VIRTUAL_DEVICE_PATTERNS,
     RankedDevice,
     _is_virtual,
     _score_input_device,

@@ -18,14 +18,12 @@ What is pinned here:
 
 from __future__ import annotations
 
-import pytest
 from pydantic import BaseModel, Field
 
 from jarvis.core.config import ToolsConfig
 from jarvis.tools.registry import (
     ConfirmationRequest,
     EmptyArgs,
-    ToolConfirmer,
     ToolRegistry,
     ToolResult,
 )

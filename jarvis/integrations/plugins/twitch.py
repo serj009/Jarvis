@@ -86,7 +86,6 @@ class TwitchIntegration(BaseIntegration):
     async def execute_tool(self, tool_name: str, args: dict) -> str:
         if not self._client_id() or not self._access_token():
             return "Twitch is not connected, sir."
-        import httpx  # lazy
 
         try:
             if tool_name == "twitch_live":

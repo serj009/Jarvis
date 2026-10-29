@@ -21,7 +21,7 @@ from jarvis.tools.local.dictation import (
     is_dictation_active,
     process_dictation_text,
 )
-from jarvis.tools.registry import ToolResult, VoicePattern
+from jarvis.tools.registry import VoicePattern
 
 # ---------------------------------------------------------------------------
 # Fixtures

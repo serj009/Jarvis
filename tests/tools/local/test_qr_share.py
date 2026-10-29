@@ -6,7 +6,6 @@ QR generation and browser interaction are mocked.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -18,7 +17,7 @@ from jarvis.tools.local.qr_share import (
     ShareToPhoneTool,
     _generate_qr_image,
 )
-from jarvis.tools.registry import ToolResult, VoicePattern
+from jarvis.tools.registry import VoicePattern
 
 # ---------------------------------------------------------------------------
 # Protocol conformance

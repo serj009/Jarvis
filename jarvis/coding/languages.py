@@ -17,11 +17,9 @@ from __future__ import annotations
 
 import ast
 import logging
-import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 log = logging.getLogger(__name__)
 

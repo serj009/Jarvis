@@ -5,7 +5,7 @@ All disk access (psutil, os.walk, os.remove) is mocked — no real cleanup.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 

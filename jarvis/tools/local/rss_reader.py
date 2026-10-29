@@ -15,8 +15,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import UTC, datetime, timezone
-from typing import Any, ClassVar, Literal
+from datetime import UTC, datetime
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
 

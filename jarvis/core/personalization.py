@@ -12,13 +12,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from jarvis.core.game_mode import GameMode
-    from jarvis.memory.personal_aliases import PersonalAliasStore
-    from jarvis.memory.relations import RelationStore
-    from jarvis.memory.store import MemoryStore
-    from jarvis.memory.tool_examples import ToolExampleStore
-    from jarvis.memory.usage_stats import UsageStats
-    from jarvis.memory.user_profile import UserProfile
+    pass
 
 
 @dataclass

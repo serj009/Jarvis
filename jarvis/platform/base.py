@@ -35,7 +35,7 @@ Operation groups (matching the three tool files being refactored):
 
 from __future__ import annotations
 
-from typing import Optional, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 
 class NotSupportedError(NotImplementedError):

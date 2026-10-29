@@ -23,7 +23,6 @@ Works across languages (капхед/балдурсгейт -> games).
 from __future__ import annotations
 
 import logging
-import os
 import re
 import sqlite3
 from pathlib import Path

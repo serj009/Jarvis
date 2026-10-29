@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import webbrowser
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field

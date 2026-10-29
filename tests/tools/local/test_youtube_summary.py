@@ -5,11 +5,8 @@ All tests mock yt-dlp and LLM client to avoid real network calls.
 
 from __future__ import annotations
 
-import sys
-import types
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 
 from jarvis.tools.local.youtube_summary import (
     YoutubeSummaryArgs,

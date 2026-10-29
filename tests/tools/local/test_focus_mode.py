@@ -5,10 +5,8 @@ Uses temp directory for state storage. No real hosts file is modified.
 
 from __future__ import annotations
 
-import json
 import re
 import time
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -25,7 +23,7 @@ from jarvis.tools.local.focus_mode import (
     _save_state,
     is_site_blocked,
 )
-from jarvis.tools.registry import ToolResult, VoicePattern
+from jarvis.tools.registry import VoicePattern
 
 # ---------------------------------------------------------------------------
 # Protocol conformance

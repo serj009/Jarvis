@@ -111,7 +111,6 @@ from jarvis.core.phrases import reply_language, say
 from jarvis.llm.conversation import ToolExchange
 
 if TYPE_CHECKING:
-    from jarvis.core.game_mode import GameMode
     from jarvis.core.personalization import PersonalizationContext
     from jarvis.llm.conversation import Conversation
     from jarvis.llm.ollama_client import OllamaClient

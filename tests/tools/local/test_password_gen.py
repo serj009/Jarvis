@@ -6,8 +6,7 @@ Tests password generation, passphrase mode, clipboard, and constraints.
 from __future__ import annotations
 
 import re
-import string
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -17,7 +16,7 @@ from jarvis.tools.local.password_gen import (
     GeneratePasswordArgs,
     GeneratePasswordTool,
 )
-from jarvis.tools.registry import ToolResult, VoicePattern
+from jarvis.tools.registry import VoicePattern
 
 # ---------------------------------------------------------------------------
 # Protocol conformance

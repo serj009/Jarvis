@@ -28,7 +28,6 @@ import time
 from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from jarvis.platform.encrypted_store import EncryptedJsonStore
 

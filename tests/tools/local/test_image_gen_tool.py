@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import re
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 
 from jarvis.core.config import ImageGenConfig
 from jarvis.tools.local.image_gen_tool import ImageGenArgs, ImageGenTool

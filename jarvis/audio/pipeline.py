@@ -68,7 +68,6 @@ from jarvis.audio.protocols import (
     ResponseProducer,
     SpeechToText,
     TextToSpeech,
-    TranscriptionResult,
     VADEvent,
     VoiceActivityDetector,
     WakeWordDetector,

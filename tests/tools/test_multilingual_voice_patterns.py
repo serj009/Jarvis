@@ -11,7 +11,6 @@ Validates that every RU/UK voice pattern:
 from __future__ import annotations
 
 import re
-from urllib.parse import quote_plus
 
 import pytest
 
@@ -870,7 +869,6 @@ class TestDisambiguationPriority:
 
     def test_music_keyword_beats_open_app(self):
         """'включи музыку джаз' → play_youtube_music, NOT open_app."""
-        from jarvis.tools.local.open_app import OpenAppTool
         from jarvis.tools.local.play_youtube_music import PlayYoutubeMusicTool
 
         for mp in PlayYoutubeMusicTool.voice_patterns:
@@ -879,7 +877,6 @@ class TestDisambiguationPriority:
     def test_steam_keyword_beats_open_app(self):
         """'запусти сталкер в стиме' → launch_steam_game, NOT open_app."""
         from jarvis.tools.local.launch_steam_game import LaunchSteamGameTool
-        from jarvis.tools.local.open_app import OpenAppTool
 
         for gp in LaunchSteamGameTool.voice_patterns:
             assert gp.priority < PRIORITY_CATCH_ALL

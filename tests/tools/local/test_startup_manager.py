@@ -5,9 +5,8 @@ All registry access (winreg) is mocked — no system changes.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 
 from jarvis.tools.local.startup_manager import (
     AddToStartupArgs,

@@ -17,7 +17,6 @@ Offline handling:
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 from typing import Any, ClassVar
 
@@ -55,7 +54,6 @@ def _fetch_text(url: str) -> tuple[str, str, str | None]:
     """Fetch page text.  Returns (text, resolved_url, error)."""
     from jarvis.tools.local.content_reader import (
         _extract_readable,
-        _extract_title,
         _httpx_fetch,
     )
 

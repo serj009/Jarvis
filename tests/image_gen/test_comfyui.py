@@ -2,11 +2,8 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 
 from jarvis.core.config import ImageGenConfig
 from jarvis.image_gen.comfyui import ComfyUIProvider, _build_txt2img_workflow

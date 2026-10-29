@@ -14,21 +14,16 @@ Covers:
 
 from __future__ import annotations
 
-import asyncio
-import json
 
 # Tests that shell out to a real ``git`` binary are skipped when git is not
 # on PATH (e.g. portable git installs) — otherwise they fail with WinError 2.
 import shutil
-import textwrap
 from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
 
 from jarvis.coding.voice_confirm import (
-    _NEGATIVE,
-    _POSITIVE,
     VoiceConfirm,
     is_negative,
     is_positive,

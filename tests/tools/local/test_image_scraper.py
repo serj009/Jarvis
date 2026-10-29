@@ -5,10 +5,8 @@ All tests mock httpx to avoid real network calls.
 
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from jarvis.tools.local.image_scraper import (
     ScrapeImagesArgs,

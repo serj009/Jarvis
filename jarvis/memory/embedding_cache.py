@@ -20,7 +20,6 @@ import hashlib
 import logging
 from collections import OrderedDict
 from collections.abc import Callable
-from typing import Optional
 
 log = logging.getLogger(__name__)
 

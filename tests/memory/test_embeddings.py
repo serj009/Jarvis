@@ -11,8 +11,6 @@ Run with ``pytest -m slow`` to include them.
 
 from __future__ import annotations
 
-import asyncio
-import json
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -97,7 +95,6 @@ class TestEmbeddingIndexMocked:
             idx = EmbeddingIndex(index_path=tmp_path / "emb")
             # Manually set model and index
             import faiss
-            import numpy as np
             idx._model = mock_st_module.SentenceTransformer()
             idx._index = faiss.IndexFlatIP(4)
             idx._id_map = {}

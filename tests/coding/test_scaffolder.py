@@ -1,6 +1,5 @@
 """Tests for jarvis.coding.scaffolder — project scaffolding system."""
 
-import os
 import tempfile
 from pathlib import Path
 

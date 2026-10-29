@@ -37,7 +37,7 @@ import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from jarvis.memory.auto_classifier import AutoClassifier, ClassificationResult
+from jarvis.memory.auto_classifier import AutoClassifier
 from jarvis.memory.auto_cleanup import AutoCleanup
 from jarvis.memory.cache import IntentCache, ResponseCache, ShortTermMemory
 from jarvis.memory.conversation import ConversationMemory

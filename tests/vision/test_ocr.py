@@ -10,9 +10,7 @@ import sys
 import types
 from unittest.mock import MagicMock, patch
 
-import pytest
 
-from tests._typing import fake_module
 
 # ── helpers ──────────────────────────────────────────────────────────
 

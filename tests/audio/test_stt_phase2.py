@@ -6,7 +6,6 @@ in test_stt.py.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -16,7 +15,6 @@ from jarvis.audio.protocols import TranscriptionResult  # noqa: E402
 from jarvis.audio.stt import (  # noqa: E402
     HOTWORDS_AUTO,
     HOTWORDS_BY_LANG,
-    HOTWORDS_EN,
     HOTWORDS_RU,
     HOTWORDS_UK,
     FasterWhisperSTT,

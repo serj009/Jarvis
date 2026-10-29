@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from jarvis.security.leak_scanner import DataLeakScanner, ScanResult
-from jarvis.security.origin_tracker import RequestContext, RequestOrigin
+from jarvis.security.origin_tracker import RequestContext
 
 log = logging.getLogger(__name__)
 

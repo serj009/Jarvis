@@ -80,7 +80,6 @@ class VRAMError(JarvisError):
 
 # Re-export OllamaError so callers can import everything from one place.
 # OllamaError predates this module and lives in llm/ollama_client.py.
-from jarvis.llm.ollama_client import OllamaError  # noqa: E402
 
 # Error phrases (error_generic, error_stt, error_tts, error_vram,
 # error_ollama, error_degraded) are defined directly in core.phrases.PHRASES

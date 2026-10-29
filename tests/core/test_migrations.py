@@ -21,7 +21,6 @@ def test_migrations_exports():
         _SYSTEM_PROMPT_V26,
         MIGRATIONS,
         ConfigMigrationError,
-        Migration,
         migrate,
     )
     assert callable(migrate)

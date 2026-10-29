@@ -86,7 +86,6 @@ class SlackIntegration(BaseIntegration):
     async def execute_tool(self, tool_name: str, args: dict) -> str:
         if not self._token():
             return "Slack is not connected, sir."
-        import httpx  # lazy
 
         try:
             if tool_name == "slack_send":

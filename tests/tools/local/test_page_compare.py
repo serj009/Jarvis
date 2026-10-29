@@ -5,9 +5,8 @@ Fully mocked: no real browser, no real LLM, no real network.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
-import pytest
 
 from jarvis.tools.local.page_compare import (
     ComparePageArgs,
@@ -15,7 +14,6 @@ from jarvis.tools.local.page_compare import (
     _collect_text,
     _llm_compare,
 )
-from jarvis.tools.registry import VoicePattern
 
 FAKE_PAGE_1 = "Product A\nPrice: $100\nRAM: 8GB\nScreen: 15 inch"
 FAKE_PAGE_2 = "Product B\nPrice: $200\nRAM: 16GB\nScreen: 14 inch"

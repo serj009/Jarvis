@@ -17,7 +17,6 @@ is the right surface for open-ended online actions anyway.
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, create_model
 

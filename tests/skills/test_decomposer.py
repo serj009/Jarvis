@@ -2,11 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
 
 from jarvis.skills.decomposer import (
     ComplexityLevel,
-    SkillComplexity,
     SkillDecomposer,
     SkillNeed,
     SkillPart,

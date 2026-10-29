@@ -11,7 +11,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
-from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
+from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
 

@@ -15,7 +15,6 @@ LLM context, logs, ToolResult, or any persistent store.
 from __future__ import annotations
 
 import logging
-import re
 from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field

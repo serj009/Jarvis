@@ -18,10 +18,7 @@ deterministic.  25+ tests covering:
 from __future__ import annotations
 
 import asyncio
-import json
-import time
-from dataclasses import dataclass
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
