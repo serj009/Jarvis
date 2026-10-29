@@ -162,7 +162,7 @@ class SaveCredentialTool:
                 notes=args.notes,
                 aliases=args.aliases,
             )
-        except Exception as exc:
+        except Exception:
             log.debug("[vault] save_credential failed", exc_info=True)
             return ToolResult(
                 success=False,
@@ -376,7 +376,7 @@ class UnlockVaultTool:
             # Create new vault
             try:
                 vault.create(args.master_password)
-            except Exception as exc:
+            except Exception:
                 log.debug("[vault] create failed", exc_info=True)
                 return ToolResult(
                     success=False,

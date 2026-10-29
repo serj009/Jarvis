@@ -357,7 +357,6 @@ class TestRequiresConfirmation:
 # Gaps 1-4: recurring, date, snooze, edit
 # ═══════════════════════════════════════════════════════════════════
 
-from datetime import UTC
 from datetime import datetime as _dt
 
 from jarvis.memory.scheduled_reminders import (

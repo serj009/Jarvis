@@ -136,6 +136,7 @@ async def test_reminder_scheduler_fires_and_publishes(tmp_path) -> None:
         await asyncio.sleep(0.2)  # Let at least one tick run
         scheduler.stop()
         await asyncio.sleep(0.1)
+        await task  # ensure the scheduler task finishes cleanly
 
         assert len(fired_reminders) == 1
         assert fired_reminders[0].text == "buy milk"

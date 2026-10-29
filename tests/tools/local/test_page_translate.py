@@ -92,7 +92,6 @@ def test_split_long_text():
     chunks = _split_chunks(text, chunk_size=15)
     assert len(chunks) >= 2
     # All text preserved.
-    joined = "\n\n".join(chunks) if len(chunks) > 1 else chunks[0]
     # The original content should be present across chunks.
     assert "Line 1" in "".join(chunks)
     assert "Line 5" in "".join(chunks)

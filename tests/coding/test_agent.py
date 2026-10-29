@@ -258,7 +258,7 @@ class TestFileOperations:
     async def test_create_file_creates_subdirectories(self, tmp_path):
         response = '```filepath: src/lib/utils.py\ndef helper(): pass\n```'
         agent, _ = _make_agent(tmp_path, responses=[response])
-        result = await agent._create_file("src/lib/utils.py", "utility")
+        await agent._create_file("src/lib/utils.py", "utility")
         assert (tmp_path / "src" / "lib" / "utils.py").exists()
 
     @pytest.mark.asyncio

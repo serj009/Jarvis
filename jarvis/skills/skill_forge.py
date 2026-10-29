@@ -303,7 +303,6 @@ class SkillForge:
         """
         conn = self._ensure()
         report = AnalysisReport()
-        now = datetime.now(tz=UTC)
 
         # --- Repeating failures ---
         failing_tools = self._find_failing_tools(conn)

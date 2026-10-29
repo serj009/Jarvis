@@ -407,7 +407,7 @@ class SkillSandbox:
                 "[sandbox] %s failed after %.1fs: %s",
                 skill_name, duration, exc, exc_info=True,
             )
-            just_opened = self._circuit_breaker.record_failure(skill_name)
+            self._circuit_breaker.record_failure(skill_name)
             return SandboxResult(
                 success=False,
                 error=str(exc),

@@ -80,7 +80,7 @@ class TestOpenAIDalleProvider:
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
         with patch("jarvis.image_gen.openai_dalle.httpx.AsyncClient", return_value=mock_client):
-            result = await provider.generate(
+            await provider.generate(
                 prompt="a cat", negative_prompt="dogs, blurry",
             )
 

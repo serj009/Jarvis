@@ -59,7 +59,7 @@ class RememberTool:
             return ToolResult(success=False, error="Memory is not available.")
 
         lang = reply_language()
-        fact_id = await self._store.add(
+        await self._store.add(
             args.fact,
             category=args.category,
             source="user",

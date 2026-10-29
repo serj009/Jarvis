@@ -403,7 +403,7 @@ class TestAgentVoiceConfirmIntegration:
         """git init does NOT require confirmation."""
         vc, speak, _ = _make_vc(listen_responses=["yes"])
         agent, _ = _make_agent(tmp_path, confirm=vc)
-        result = await agent._git_operation("init")
+        await agent._git_operation("init")
         # speak should not be called for init.
         speak.assert_not_awaited()
 

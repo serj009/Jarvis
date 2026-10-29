@@ -90,7 +90,6 @@ class TestPressMediaKey:
     @patch("jarvis.tools.local.media_control.pynput", create=True)
     def test_pynput_success(self, monkeypatch):
         """When pynput can be imported and works, returns success."""
-        mock_controller = MagicMock()
         mock_key = MagicMock()
         mock_key.media_play_pause = "play_pause_key"
 
