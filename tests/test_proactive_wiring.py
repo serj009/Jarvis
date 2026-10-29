@@ -11,14 +11,13 @@ Validates that:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from unittest.mock import MagicMock
 
 import pytest
 
-from jarvis.core.events import ProactiveSpeech
 from jarvis.core.config import ToolsConfig
-
+from jarvis.core.events import ProactiveSpeech
 
 # ---------------------------------------------------------------------------
 # 1. ProactiveSpeech event contract
@@ -124,7 +123,7 @@ async def test_reminder_scheduler_fires_and_publishes(tmp_path) -> None:
         # Schedule a reminder in the past → immediately due
         store.add(
             text="buy milk",
-            trigger_at=datetime.now(tz=timezone.utc) - timedelta(seconds=5),
+            trigger_at=datetime.now(tz=UTC) - timedelta(seconds=5),
         )
 
         fired_reminders: list = []

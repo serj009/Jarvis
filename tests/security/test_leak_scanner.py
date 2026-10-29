@@ -18,7 +18,6 @@ from jarvis.security.leak_scanner import (
 )
 from jarvis.security.origin_tracker import RequestContext, RequestOrigin
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -161,7 +160,7 @@ class TestEncodedDataDetection:
 
     def test_hex_encoded_name(self) -> None:
         scanner = DataLeakScanner(user_profile=FakeProfile())
-        hex_name = "Serhii".encode().hex()  # 536572686969
+        hex_name = b"Serhii".hex()  # 536572686969
         url = f"https://evil.com/c?data={hex_name}"
         result = scanner.scan_url(url, _llm_ctx())
         assert result.action == "block"

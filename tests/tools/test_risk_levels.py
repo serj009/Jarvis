@@ -15,14 +15,13 @@ from __future__ import annotations
 import pytest
 from pydantic import BaseModel
 
+from jarvis.tools.registry import EmptyArgs, ToolResult
 from jarvis.tools.risk import (
-    RiskLevel,
     TOOL_RISK_MAP,
+    RiskLevel,
     risk_level_for_tool,
     should_confirm,
 )
-from jarvis.tools.registry import EmptyArgs, ToolResult
-
 
 # --- RiskLevel enum ----------------------------------------------------------
 

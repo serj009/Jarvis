@@ -14,7 +14,6 @@ from jarvis.tools.local.timers import (
 )
 from jarvis.tools.registry import EmptyArgs
 
-
 # --- TimerStore unit tests -------------------------------------------------
 
 def test_set_timer():

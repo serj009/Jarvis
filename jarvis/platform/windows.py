@@ -677,7 +677,7 @@ def set_brightness(level: int) -> str:
 
     # Fallback: ctypes Dxva2 SetMonitorBrightness (physical monitors)
     try:
-        from ctypes import byref, c_ulong, Structure
+        from ctypes import Structure, byref, c_ulong
 
         # Try to get physical monitor handle
         user32 = _windll().user32

@@ -29,6 +29,7 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
+
 from jarvis.platform.encrypted_store import EncryptedJsonStore
 
 log = logging.getLogger(__name__)
@@ -194,7 +195,7 @@ class AutoClassifier:
 
     async def _classify_with_llm(
         self, entity: str, context: str
-    ) -> Optional[ClassificationResult]:
+    ) -> ClassificationResult | None:
         """Call local Ollama for entity classification."""
         try:
             import httpx

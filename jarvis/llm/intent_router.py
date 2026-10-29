@@ -98,10 +98,10 @@ Deliberate tradeoffs (documented at point of choice)
 
 from __future__ import annotations
 
+import asyncio
 import datetime
 import json
 import logging
-import asyncio
 import re
 from collections.abc import AsyncGenerator, AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
@@ -111,18 +111,18 @@ from jarvis.core.phrases import reply_language, say
 from jarvis.llm.conversation import ToolExchange
 
 if TYPE_CHECKING:
-    from jarvis.core.personalization import PersonalizationContext
-    from jarvis.memory.store import MemoryStore
-    from jarvis.memory.tool_examples import ToolExampleStore
-    from jarvis.memory.relations import RelationStore
-    from jarvis.memory.personal_aliases import PersonalAliasStore
-    from jarvis.memory.user_profile import UserProfile
-    from jarvis.memory.usage_stats import UsageStats
     from jarvis.core.game_mode import GameMode
+    from jarvis.core.personalization import PersonalizationContext
     from jarvis.llm.conversation import Conversation
     from jarvis.llm.ollama_client import OllamaClient
-    from jarvis.tools.registry import ToolRegistry, ToolResult
+    from jarvis.memory.personal_aliases import PersonalAliasStore
+    from jarvis.memory.relations import RelationStore
+    from jarvis.memory.store import MemoryStore
+    from jarvis.memory.tool_examples import ToolExampleStore
+    from jarvis.memory.usage_stats import UsageStats
+    from jarvis.memory.user_profile import UserProfile
     from jarvis.skills.protocols import ProtocolEngine
+    from jarvis.tools.registry import ToolRegistry, ToolResult
 
 log = logging.getLogger(__name__)
 
@@ -454,8 +454,8 @@ class IntentRouter:
         # execution path (_run_tools) fails CLOSED for network/exec tools.
         self._security_degraded = False
         try:
-            from jarvis.security.tool_guard import ToolGuard
             from jarvis.security.leak_scanner import DataLeakScanner
+            from jarvis.security.tool_guard import ToolGuard
 
             self._tool_guard: ToolGuard | None = ToolGuard(
                 leak_scanner=DataLeakScanner(user_profile=self._pctx.user_profile),
@@ -579,8 +579,8 @@ class IntentRouter:
         # Function-local import: avoids importing tool modules at
         # router import time (same idiom as _build_patterns).
         from jarvis.tools.local.dictation import (
-            is_dictation_active,
             DICTATION_STOP_PATTERN,
+            is_dictation_active,
             process_dictation_text,
             type_dictation_text,
         )
@@ -1055,7 +1055,7 @@ class IntentRouter:
                     )
                 except StopAsyncIteration:
                     break
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     log.error("[router] LLM stream stalled for %.0fs — aborting round", _STREAM_CHUNK_TIMEOUT_S)
                     text_parts.append(say("generic_fail"))
                     break
@@ -1178,7 +1178,11 @@ class IntentRouter:
             if self._tool_guard is not None:
                 from jarvis.security.origin_tracker import (
                     RequestContext as _RC,
+                )
+                from jarvis.security.origin_tracker import (
                     RequestOrigin as _RO,
+                )
+                from jarvis.security.origin_tracker import (
                     get_request_context as _get_ctx,
                 )
                 _user_ctx = _get_ctx()
@@ -1206,8 +1210,8 @@ class IntentRouter:
                 # exec is safe to run unguarded (read-only, no egress), so
                 # read-only queries still work.
                 from jarvis.security.tool_guard import EXEC_TOOLS, NETWORK_TOOLS
-                from jarvis.tools.risk import RiskLevel, risk_level_for_tool
                 from jarvis.tools.registry import ToolResult
+                from jarvis.tools.risk import RiskLevel, risk_level_for_tool
 
                 _tool = registry.get(intent.tool_name)
                 _is_sensitive = (

@@ -16,7 +16,6 @@ from jarvis.tools.local.win_notifications import (
     ShowNotificationTool,
 )
 
-
 # --- ShowNotificationTool -------------------------------------------------
 
 async def test_show_notification_success():

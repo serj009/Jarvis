@@ -17,11 +17,10 @@ PIL = pytest.importorskip("PIL")
 from PIL import Image  # noqa: E402
 
 from jarvis.vision.screen_change import (  # noqa: E402
-    ScreenChangeDetector,
     _COMPARE_HEIGHT,
     _COMPARE_WIDTH,
+    ScreenChangeDetector,
 )
-
 
 # --- helpers ----------------------------------------------------------
 

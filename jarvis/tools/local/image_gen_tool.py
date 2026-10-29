@@ -12,13 +12,12 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import ClassVar, TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from pydantic import BaseModel, Field
 
-from jarvis.tools.registry import ToolResult, VoicePattern
 from jarvis.image_gen.provider import ImageProvider
-
+from jarvis.tools.registry import ToolResult, VoicePattern
 
 if TYPE_CHECKING:
     from jarvis.core.config import ImageGenConfig

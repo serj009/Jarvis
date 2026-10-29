@@ -11,22 +11,22 @@ import re
 
 import pytest
 
-from jarvis.integrations.registry import IntegrationRegistry
+from jarvis.integrations.plugins.ci_cd import CiCdIntegration
+from jarvis.integrations.plugins.currency_crypto import CurrencyCryptoIntegration
+from jarvis.integrations.plugins.discord_bot import DiscordIntegration
+from jarvis.integrations.plugins.docker_local import DockerIntegration
 
 # ── Lazy imports of all plugins ─────────────────────────────────────
 from jarvis.integrations.plugins.github import GitHubIntegration
-from jarvis.integrations.plugins.ci_cd import CiCdIntegration
-from jarvis.integrations.plugins.docker_local import DockerIntegration
-from jarvis.integrations.plugins.spotify import SpotifyIntegration
-from jarvis.integrations.plugins.youtube import YouTubeIntegration
-from jarvis.integrations.plugins.whatsapp import WhatsAppIntegration
 from jarvis.integrations.plugins.monobank import MonobankIntegration
-from jarvis.integrations.plugins.privatbank import PrivatBankIntegration
-from jarvis.integrations.plugins.currency_crypto import CurrencyCryptoIntegration
 from jarvis.integrations.plugins.news import NewsIntegration
-from jarvis.integrations.plugins.weather_extended import WeatherExtendedIntegration
+from jarvis.integrations.plugins.privatbank import PrivatBankIntegration
+from jarvis.integrations.plugins.spotify import SpotifyIntegration
 from jarvis.integrations.plugins.translation import TranslationIntegration
-from jarvis.integrations.plugins.discord_bot import DiscordIntegration
+from jarvis.integrations.plugins.weather_extended import WeatherExtendedIntegration
+from jarvis.integrations.plugins.whatsapp import WhatsAppIntegration
+from jarvis.integrations.plugins.youtube import YouTubeIntegration
+from jarvis.integrations.registry import IntegrationRegistry
 
 
 class _FakeAuth:

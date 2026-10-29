@@ -8,16 +8,15 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from jarvis.memory.auto_classifier import (
+    ENTITY_TYPE_TO_SHARD,
     AutoClassifier,
     ClassificationResult,
-    ENTITY_TYPE_TO_SHARD,
 )
-
 
 # ---------------------------------------------------------------------------
 # ClassificationResult tests

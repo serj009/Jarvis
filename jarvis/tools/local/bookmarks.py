@@ -9,13 +9,13 @@ from __future__ import annotations
 import asyncio
 import logging
 import webbrowser
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
-from jarvis.tools.registry import ToolResult, VoicePattern
 from jarvis.platform.encrypted_store import EncryptedJsonStore
+from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
 
@@ -185,7 +185,7 @@ class BookmarksTool:
             "name": name,
             "url": url,
             "title": title,
-            "saved_at": datetime.now(timezone.utc).isoformat(),
+            "saved_at": datetime.now(UTC).isoformat(),
         }
 
         def _do_save() -> None:

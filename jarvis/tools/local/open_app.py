@@ -30,9 +30,10 @@ from pydantic import BaseModel, Field
 from jarvis.core.phrases import opening_phrase
 from jarvis.core.request_context import current_user_transcription
 from jarvis.memory.personal_aliases import PersonalAliasStore
-from jarvis.tools.local.app_aliases import APP_ALIASES as _APP_ALIASES, resolve_app_alias
 from jarvis.platform import windows as winplat
 from jarvis.platform.app_discovery import normalize_open_query
+from jarvis.tools.local.app_aliases import APP_ALIASES as _APP_ALIASES
+from jarvis.tools.local.app_aliases import resolve_app_alias
 from jarvis.tools.registry import PRIORITY_CATCH_ALL, ToolResult, VoicePattern
 
 if TYPE_CHECKING:

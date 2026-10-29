@@ -14,19 +14,18 @@ from unittest.mock import patch
 import pytest
 
 from jarvis.tools.local.focus_mode import (
-    StartFocusModeTool,
-    StartFocusModeArgs,
-    StopFocusModeTool,
-    StopFocusModeArgs,
-    FocusModeStatusTool,
+    _DEFAULT_BLOCKED,
     FocusModeStatusArgs,
+    FocusModeStatusTool,
+    StartFocusModeArgs,
+    StartFocusModeTool,
+    StopFocusModeArgs,
+    StopFocusModeTool,
     _load_state,
     _save_state,
-    _DEFAULT_BLOCKED,
     is_site_blocked,
 )
 from jarvis.tools.registry import ToolResult, VoicePattern
-
 
 # ---------------------------------------------------------------------------
 # Protocol conformance

@@ -116,7 +116,7 @@ class GitLabIntegration(BaseIntegration):
         if not projects:
             return "No projects, sir."
         lines = [f"  \u2022 {p.name} (id:{p.id})" for p in projects[:15]]
-        return f"Your GitLab projects, sir:\n" + "\n".join(lines)
+        return "Your GitLab projects, sir:\n" + "\n".join(lines)
 
     def _issues(self, gl, project_id: str) -> str:
         proj = gl.projects.get(project_id)
@@ -148,7 +148,7 @@ class GitLabIntegration(BaseIntegration):
         if not pipes:
             return "No pipelines, sir."
         lines = [f"  \u2022 #{p.id} {p.status} ({p.ref})" for p in pipes[:10]]
-        return f"Recent pipelines, sir:\n" + "\n".join(lines)
+        return "Recent pipelines, sir:\n" + "\n".join(lines)
 
 
 def _make_gitlab(url: str, token: str):

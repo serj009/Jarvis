@@ -22,8 +22,7 @@ from unittest.mock import patch
 
 import pytest
 
-from jarvis.security.audit_log import SecurityAuditLog, _GENESIS_HASH
-
+from jarvis.security.audit_log import _GENESIS_HASH, SecurityAuditLog
 
 # ---------------------------------------------------------------------------
 # Shared DPAPI mocks (same pattern as test_data_encryption.py)

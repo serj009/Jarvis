@@ -10,7 +10,6 @@ import pytest
 from jarvis.tools.local.get_time import GetTimeTool
 from jarvis.tools.registry import EmptyArgs
 
-
 # ── execution ─────────────────────────────────────────────────────
 
 

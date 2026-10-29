@@ -20,7 +20,6 @@ from jarvis.tools.local.window_manager import (
 )
 from jarvis.tools.registry import EmptyArgs
 
-
 # --- helpers ---------------------------------------------------------------
 
 def _fake_window(title="Chrome", visible=True, minimized=False, maximized=False, active=False):

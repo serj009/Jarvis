@@ -17,7 +17,6 @@ from jarvis.tools.local.smart_form_fill import (
 )
 from jarvis.tools.registry import EmptyArgs
 
-
 # ---------------------------------------------------------------------------
 # Mock helpers
 # ---------------------------------------------------------------------------

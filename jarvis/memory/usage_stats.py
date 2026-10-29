@@ -19,6 +19,7 @@ import logging
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
+
 from jarvis.platform.encrypted_store import EncryptedJsonStore
 
 log = logging.getLogger(__name__)

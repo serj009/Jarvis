@@ -19,7 +19,8 @@ from __future__ import annotations
 import hashlib
 import logging
 from collections import OrderedDict
-from typing import Callable, Optional
+from collections.abc import Callable
+from typing import Optional
 
 log = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ class EmbeddingCache:
         """Compute cache key from normalized text."""
         return hashlib.md5(text.lower().strip().encode("utf-8")).hexdigest()
 
-    def get(self, text: str) -> Optional[list[float]]:
+    def get(self, text: str) -> list[float] | None:
         """Get a cached embedding vector, or None if not cached."""
         key = self._key(text)
         if key in self._cache:

@@ -7,9 +7,9 @@ import pytest
 from jarvis.llm.conversation import (
     Conversation,
     ToolExchange,
+    _filter_turns_for_llm,
     _is_summary_message,
     _summarize_turns,
-    _filter_turns_for_llm,
 )
 
 # --- helpers ---

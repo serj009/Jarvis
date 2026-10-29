@@ -7,7 +7,6 @@ import pytest
 from jarvis.memory.auto_save import auto_save_facts, extract_facts
 from jarvis.memory.store import MemoryStore
 
-
 # ---------------------------------------------------------------------------
 # extract_facts (synchronous, no store needed)
 # ---------------------------------------------------------------------------

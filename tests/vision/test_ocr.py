@@ -14,7 +14,6 @@ import pytest
 
 from tests._typing import fake_module
 
-
 # ── helpers ──────────────────────────────────────────────────────────
 
 def _make_fake_pytesseract(

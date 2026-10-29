@@ -115,8 +115,9 @@ def _capture_viewport_fallback() -> bytes | None:
     Returns PNG bytes or None on failure.
     """
     try:
-        import pyautogui
         import io
+
+        import pyautogui
         image = pyautogui.screenshot()
         buffer = io.BytesIO()
         image.save(buffer, format="PNG")
@@ -126,8 +127,9 @@ def _capture_viewport_fallback() -> bytes | None:
 
     # Try mss as a second fallback.
     try:
-        import mss
         import io
+
+        import mss
         with mss.mss() as sct:
             monitor = sct.monitors[1]  # Primary monitor.
             shot = sct.grab(monitor)

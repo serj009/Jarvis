@@ -15,24 +15,24 @@ Optional:
                         Defaults to "python" when absent.
 """
 
-from jarvis.coding.templates.python_basic import TEMPLATE as _python_basic
-from jarvis.coding.templates.flask_api import TEMPLATE as _flask_api
-from jarvis.coding.templates.fastapi_tmpl import TEMPLATE as _fastapi
-from jarvis.coding.templates.telegram_bot import TEMPLATE as _telegram_bot
-from jarvis.coding.templates.discord_bot import TEMPLATE as _discord_bot
-from jarvis.coding.templates.cli_tool import TEMPLATE as _cli_tool
-from jarvis.coding.templates.scraper import TEMPLATE as _scraper
-from jarvis.coding.templates.data_analysis import TEMPLATE as _data_analysis
-from jarvis.coding.templates.pygame_game import TEMPLATE as _pygame_game
 from jarvis.coding.templates.automation import TEMPLATE as _automation
+from jarvis.coding.templates.cli_tool import TEMPLATE as _cli_tool
+from jarvis.coding.templates.csharp_console import TEMPLATE as _csharp_console
+from jarvis.coding.templates.data_analysis import TEMPLATE as _data_analysis
+from jarvis.coding.templates.discord_bot import TEMPLATE as _discord_bot
+from jarvis.coding.templates.fastapi_tmpl import TEMPLATE as _fastapi
+from jarvis.coding.templates.flask_api import TEMPLATE as _flask_api
+from jarvis.coding.templates.go_basic import TEMPLATE as _go_basic
 
 # Multi-language templates
 from jarvis.coding.templates.js_node_basic import TEMPLATE as _js_node_basic
-from jarvis.coding.templates.ts_node_basic import TEMPLATE as _ts_node_basic
+from jarvis.coding.templates.pygame_game import TEMPLATE as _pygame_game
+from jarvis.coding.templates.python_basic import TEMPLATE as _python_basic
 from jarvis.coding.templates.react_app import TEMPLATE as _react_app
-from jarvis.coding.templates.csharp_console import TEMPLATE as _csharp_console
-from jarvis.coding.templates.go_basic import TEMPLATE as _go_basic
 from jarvis.coding.templates.rust_basic import TEMPLATE as _rust_basic
+from jarvis.coding.templates.scraper import TEMPLATE as _scraper
+from jarvis.coding.templates.telegram_bot import TEMPLATE as _telegram_bot
+from jarvis.coding.templates.ts_node_basic import TEMPLATE as _ts_node_basic
 
 TEMPLATES: list[dict] = [
     _python_basic,

@@ -21,14 +21,13 @@ from pathlib import Path
 import pytest
 
 from jarvis.coding.project_map import (
-    ProjectMap,
+    SKIP_DIRS,
     FileSummary,
+    ProjectMap,
     _extract_python_symbols,
     _extract_symbols,
     _summarise_requirements,
-    SKIP_DIRS,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -22,7 +22,6 @@ from jarvis.tools.local.remind_me import (
     resolve_tomorrow_time,
 )
 from jarvis.tools.registry import EmptyArgs
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -106,13 +105,13 @@ class TestParseClockTime:
 class TestResolveAbsoluteTime:
     def test_future_today(self) -> None:
         # Request a time far enough in the future to always be "today"
-        now = datetime.now(tz=timezone.utc).astimezone()
+        now = datetime.now(tz=UTC).astimezone()
         hour = (now.hour + 2) % 24
         result = resolve_absolute_time(hour, 0)
-        assert result >= datetime.now(tz=timezone.utc)
+        assert result >= datetime.now(tz=UTC)
 
     def test_past_wraps_to_tomorrow(self) -> None:
-        now = datetime.now(tz=timezone.utc).astimezone()
+        now = datetime.now(tz=UTC).astimezone()
         # Pick an hour in the past
         past_hour = (now.hour - 2) % 24
         result = resolve_absolute_time(past_hour, 0)
@@ -123,7 +122,7 @@ class TestResolveAbsoluteTime:
 
 class TestResolveTomorrowTime:
     def test_tomorrow(self) -> None:
-        now = datetime.now(tz=timezone.utc).astimezone()
+        now = datetime.now(tz=UTC).astimezone()
         result = resolve_tomorrow_time(9, 0)
         local_result = result.astimezone()
         assert local_result.date() == now.date() + timedelta(days=1)
@@ -311,8 +310,8 @@ class TestListRemindersToolExecute:
 
     @pytest.mark.asyncio()
     async def test_list_with_reminders(self, store: ReminderStore) -> None:
-        store.add("buy milk", datetime.now(tz=timezone.utc) + timedelta(hours=1))
-        store.add("call mom", datetime.now(tz=timezone.utc) + timedelta(hours=2))
+        store.add("buy milk", datetime.now(tz=UTC) + timedelta(hours=1))
+        store.add("call mom", datetime.now(tz=UTC) + timedelta(hours=2))
         tool = ListRemindersTool(store=store)
         result = await tool.execute(EmptyArgs())
         assert result.success
@@ -324,7 +323,7 @@ class TestListRemindersToolExecute:
 class TestDeleteReminderToolExecute:
     @pytest.mark.asyncio()
     async def test_delete_by_id(self, store: ReminderStore) -> None:
-        r = store.add("buy milk", datetime.now(tz=timezone.utc) + timedelta(hours=1))
+        r = store.add("buy milk", datetime.now(tz=UTC) + timedelta(hours=1))
         tool = DeleteReminderTool(store=store)
         result = await tool.execute(DeleteReminderArgs(query=r.id))
         assert result.success
@@ -332,7 +331,7 @@ class TestDeleteReminderToolExecute:
 
     @pytest.mark.asyncio()
     async def test_delete_by_text(self, store: ReminderStore) -> None:
-        store.add("buy milk", datetime.now(tz=timezone.utc) + timedelta(hours=1))
+        store.add("buy milk", datetime.now(tz=UTC) + timedelta(hours=1))
         tool = DeleteReminderTool(store=store)
         result = await tool.execute(DeleteReminderArgs(query="milk"))
         assert result.success
@@ -358,6 +357,7 @@ class TestRequiresConfirmation:
 # Gaps 1-4: recurring, date, snooze, edit
 # ═══════════════════════════════════════════════════════════════════
 
+from datetime import UTC
 from datetime import datetime as _dt
 
 from jarvis.memory.scheduled_reminders import (
@@ -374,7 +374,6 @@ from jarvis.tools.local.remind_me import (
     parse_date,
     resolve_date_time,
 )
-
 
 # ── Gap 1: recurring — compute_next_trigger ────────────────────────
 
@@ -429,7 +428,7 @@ async def test_recurring_tool_rejects_bad_recurrence(store):
 
 def test_scheduler_reschedules_recurring(store):
     """A fired recurring reminder is rescheduled, not marked done."""
-    past = datetime.now(tz=timezone.utc) - timedelta(minutes=5)
+    past = datetime.now(tz=UTC) - timedelta(minutes=5)
     r = store.add(text="daily thing", trigger_at=past,
                   recurrence="daily", recurrence_time="09:00")
     fired = []
@@ -439,11 +438,11 @@ def test_scheduler_reschedules_recurring(store):
     # Not left fired — rescheduled into the future, still pending.
     refreshed = store.get(r.id)
     assert refreshed.fired is False
-    assert refreshed.trigger_at > datetime.now(tz=timezone.utc)
+    assert refreshed.trigger_at > datetime.now(tz=UTC)
 
 
 def test_scheduler_marks_oneshot_fired(store):
-    past = datetime.now(tz=timezone.utc) - timedelta(minutes=5)
+    past = datetime.now(tz=UTC) - timedelta(minutes=5)
     r = store.add(text="one time", trigger_at=past)
     sched = ReminderScheduler(store, on_fire=lambda rem: None)
     sched._tick()
@@ -502,23 +501,23 @@ async def test_remind_at_without_date_unchanged(store):
 # ── Gap 3: snooze ──────────────────────────────────────────────────
 
 async def test_snooze_default_10_min(store):
-    past = datetime.now(tz=timezone.utc) - timedelta(minutes=1)
+    past = datetime.now(tz=UTC) - timedelta(minutes=1)
     r = store.add(text="meeting", trigger_at=past)
     store.mark_fired(r.id)
     result = await SnoozeReminderTool(store=store).execute(SnoozeReminderArgs())
     assert result.success
     refreshed = store.get(r.id)
     assert refreshed.fired is False
-    assert refreshed.trigger_at > datetime.now(tz=timezone.utc)
+    assert refreshed.trigger_at > datetime.now(tz=UTC)
 
 
 async def test_snooze_custom_minutes(store):
-    past = datetime.now(tz=timezone.utc) - timedelta(minutes=1)
+    past = datetime.now(tz=UTC) - timedelta(minutes=1)
     r = store.add(text="meeting", trigger_at=past)
     store.mark_fired(r.id)
     result = await SnoozeReminderTool(store=store).execute(SnoozeReminderArgs(minutes=30))
     assert result.success
-    delta = store.get(r.id).trigger_at - datetime.now(tz=timezone.utc)
+    delta = store.get(r.id).trigger_at - datetime.now(tz=UTC)
     assert timedelta(minutes=25) < delta < timedelta(minutes=35)
 
 
@@ -530,7 +529,7 @@ async def test_snooze_nothing_fired(store):
 # ── Gap 4: edit ────────────────────────────────────────────────────
 
 async def test_edit_changes_text(store):
-    r = store.add(text="meeting", trigger_at=datetime.now(tz=timezone.utc) + timedelta(hours=2))
+    r = store.add(text="meeting", trigger_at=datetime.now(tz=UTC) + timedelta(hours=2))
     result = await EditReminderTool(store=store).execute(
         EditReminderArgs(query="meeting", new_text="standup")
     )
@@ -539,7 +538,7 @@ async def test_edit_changes_text(store):
 
 
 async def test_edit_changes_time(store):
-    r = store.add(text="call", trigger_at=datetime.now(tz=timezone.utc) + timedelta(hours=2))
+    r = store.add(text="call", trigger_at=datetime.now(tz=UTC) + timedelta(hours=2))
     old_trigger = store.get(r.id).trigger_at
     result = await EditReminderTool(store=store).execute(
         EditReminderArgs(query="call", new_time="23:59")
@@ -556,7 +555,7 @@ async def test_edit_not_found(store):
 
 
 async def test_edit_nothing_to_change(store):
-    store.add(text="meeting", trigger_at=datetime.now(tz=timezone.utc) + timedelta(hours=2))
+    store.add(text="meeting", trigger_at=datetime.now(tz=UTC) + timedelta(hours=2))
     result = await EditReminderTool(store=store).execute(
         EditReminderArgs(query="meeting")
     )

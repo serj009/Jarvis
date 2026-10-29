@@ -18,7 +18,6 @@ from jarvis.tools.local.page_translate import (
 )
 from jarvis.tools.registry import VoicePattern
 
-
 FAKE_PAGE_TEXT = "Hello, this is a test page.\nIt has some content.\nEnd of page."
 FAKE_TRANSLATION = "Привет, это тестовая страница.\nУ неё есть контент.\nКонец страницы."
 

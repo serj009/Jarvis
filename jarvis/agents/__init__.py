@@ -7,10 +7,10 @@ Public surface:
 """
 
 from jarvis.agents.autonomous import (
+    AGENT_SYSTEM_PROMPT,
     AgentAction,
     AgentStep,
     AutonomousAgent,
-    AGENT_SYSTEM_PROMPT,
 )
 
 __all__ = [

@@ -16,6 +16,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+
+# Tests that shell out to a real ``git`` binary are skipped when git is not
+# on PATH (e.g. portable git installs) — otherwise they fail with WinError 2.
+import shutil
 import textwrap
 from pathlib import Path
 from unittest.mock import AsyncMock
@@ -23,17 +27,12 @@ from unittest.mock import AsyncMock
 import pytest
 
 from jarvis.coding.voice_confirm import (
-    VoiceConfirm,
-    is_positive,
-    is_negative,
-    _POSITIVE,
     _NEGATIVE,
+    _POSITIVE,
+    VoiceConfirm,
+    is_negative,
+    is_positive,
 )
-
-
-# Tests that shell out to a real ``git`` binary are skipped when git is not
-# on PATH (e.g. portable git installs) — otherwise they fail with WinError 2.
-import shutil
 
 _GIT_AVAILABLE = shutil.which("git") is not None
 requires_git = pytest.mark.skipif(

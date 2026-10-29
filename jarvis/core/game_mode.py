@@ -49,9 +49,9 @@ from enum import Enum
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from jarvis.audio.stt import FasterWhisperSTT
     from jarvis.core.vram_manager import VRAMManager
     from jarvis.llm.ollama_client import OllamaClient
-    from jarvis.audio.stt import FasterWhisperSTT
     from jarvis.memory.store import MemoryStore
 
 log = logging.getLogger(__name__)

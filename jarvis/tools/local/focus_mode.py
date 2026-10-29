@@ -23,14 +23,14 @@ import asyncio
 import logging
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
-from jarvis.tools.registry import ToolResult, VoicePattern
 from jarvis.platform.encrypted_store import EncryptedJsonStore
+from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
 
@@ -301,7 +301,7 @@ class StartFocusModeTool:
             "blocked": blocked,
             "end_time": end_time,
             "mode": mode,
-            "started_at": datetime.now(timezone.utc).isoformat(),
+            "started_at": datetime.now(UTC).isoformat(),
             "duration_minutes": args.duration_minutes,
         }
         await asyncio.to_thread(_save_state, state)

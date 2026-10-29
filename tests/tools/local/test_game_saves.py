@@ -20,7 +20,6 @@ from jarvis.tools.local.game_saves import (
 )
 from jarvis.tools.registry import EmptyArgs
 
-
 # --- Game resolution unit tests -------------------------------------------
 
 def test_resolve_game_exact():

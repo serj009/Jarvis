@@ -16,7 +16,7 @@ import logging
 import os
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -182,7 +182,7 @@ class GenerateQrTool:
                     error="No text/URL provided and no active browser tab.",
                 )
 
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         out_path = _qr_dir() / f"qr_{timestamp}.png"
 
         err = await asyncio.to_thread(_generate_qr_image, data, out_path)
@@ -243,7 +243,7 @@ class ShareToPhoneTool:
                 error="No active browser tab. Open a page first.",
             )
 
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         out_path = _qr_dir() / f"share_{timestamp}.png"
 
         err = await asyncio.to_thread(_generate_qr_image, url, out_path)

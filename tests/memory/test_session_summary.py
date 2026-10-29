@@ -5,12 +5,11 @@ from __future__ import annotations
 import pytest
 
 from jarvis.memory.session_summary import (
-    summarize_session,
-    save_session_summary,
     MAX_SUMMARY_LENGTH,
+    save_session_summary,
+    summarize_session,
 )
 from jarvis.memory.store import MemoryStore
-
 
 # ---------------------------------------------------------------------------
 # summarize_session (synchronous, no store needed)

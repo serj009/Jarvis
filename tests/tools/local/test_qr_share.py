@@ -12,14 +12,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from jarvis.tools.local.qr_share import (
-    GenerateQrTool,
     GenerateQrArgs,
-    ShareToPhoneTool,
+    GenerateQrTool,
     ShareToPhoneArgs,
+    ShareToPhoneTool,
     _generate_qr_image,
 )
 from jarvis.tools.registry import ToolResult, VoicePattern
-
 
 # ---------------------------------------------------------------------------
 # Protocol conformance

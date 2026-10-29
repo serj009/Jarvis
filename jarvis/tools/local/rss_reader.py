@@ -15,13 +15,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
-from jarvis.tools.registry import ToolResult, VoicePattern
 from jarvis.platform.encrypted_store import EncryptedJsonStore
+from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
 
@@ -236,7 +236,7 @@ class SubscribeRssTool:
             feeds.append({
                 "name": name,
                 "url": url,
-                "added_at": datetime.now(timezone.utc).isoformat(),
+                "added_at": datetime.now(UTC).isoformat(),
             })
             _save_feeds(feeds)
 

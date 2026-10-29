@@ -7,14 +7,13 @@ from pathlib import Path
 import pytest
 
 from jarvis.coding.scaffolder import (
+    REQUIRED_TEMPLATE_KEYS,
     find_template,
     get_template,
     list_templates,
     scaffold_project,
-    REQUIRED_TEMPLATE_KEYS,
 )
 from jarvis.coding.templates import TEMPLATES
-
 
 # ── find_template ───────────────────────────────────────────────────
 

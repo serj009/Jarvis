@@ -11,7 +11,6 @@ from jarvis.memory.context_inference import ContextInference
 from jarvis.memory.store import MemoryStore
 from jarvis.memory.tool_examples import ToolExampleStore
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

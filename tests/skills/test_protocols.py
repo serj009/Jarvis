@@ -30,7 +30,6 @@ from jarvis.skills.protocols import (
 )
 from jarvis.tools.registry import ToolResult
 
-
 # --- helpers / fixtures ------------------------------------------------
 
 @pytest.fixture

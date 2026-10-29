@@ -340,7 +340,8 @@ def render_report_markdown(report: dict, *, generated_at: str = "") -> str:
 # ---------------------------------------------------------------------------
 
 import asyncio as _asyncio
-from datetime import UTC as _UTC, datetime as _dt
+from datetime import UTC as _UTC
+from datetime import datetime as _dt
 from pathlib import Path as _Path
 
 

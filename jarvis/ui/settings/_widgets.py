@@ -26,7 +26,6 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-
 # ---------------------------------------------------------------------------
 # Badge — colored pill label (e.g. "Connected", "GPU", "~4.7 GB")
 # ---------------------------------------------------------------------------
@@ -280,8 +279,8 @@ def make_setting_divider(parent: QWidget | None = None) -> QFrame:
 # ---------------------------------------------------------------------------
 
 def slider_with_label(
-    slider: "QWidget",  # QSlider
-    label: "QWidget",   # QLabel
+    slider: QWidget,  # QSlider
+    label: QWidget,   # QLabel
 ) -> QWidget:
     """Wrap a slider + its value label in a horizontal row widget."""
     row = QWidget()

@@ -51,7 +51,7 @@ import re
 import sqlite3
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -378,7 +378,7 @@ class ProtocolEngine:
     # -- CRUD ----------------------------------------------------------
 
     def _now_iso(self) -> str:
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.now(UTC).isoformat()
 
     async def create_protocol(
         self,

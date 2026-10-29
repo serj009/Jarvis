@@ -34,14 +34,12 @@ from typing import Any
 
 import httpx
 
-from jarvis.llm.ollama_client import ChatChunk
 from jarvis.llm.model_provider import (
-    ChatChunk as ProviderChunk,
+    AnthropicProvider,
     ChatMessage,
+    GroqProvider,
     ModelProvider,
     OpenAIProvider,
-    AnthropicProvider,
-    GroqProvider,
     ProviderAuthError,
     ProviderConnectionError,
     ProviderError,
@@ -50,6 +48,10 @@ from jarvis.llm.model_provider import (
     _api_timeout,
     _raise_for_status,
 )
+from jarvis.llm.model_provider import (
+    ChatChunk as ProviderChunk,
+)
+from jarvis.llm.ollama_client import ChatChunk
 
 log = logging.getLogger(__name__)
 

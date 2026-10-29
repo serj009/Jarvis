@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-
 from types import SimpleNamespace
 
 import pytest
@@ -16,7 +15,6 @@ from jarvis.memory.proactive_engine import (
     classify_leisure,
     jaccard,
 )
-
 
 # ── fixtures ───────────────────────────────────────────────────────
 
@@ -242,7 +240,7 @@ def test_proactive_config_defaults():
 
 
 def test_migration_v37_to_v38():
-    from jarvis.core.migrations import _migrate_v37_to_v38, MIGRATIONS
+    from jarvis.core.migrations import MIGRATIONS, _migrate_v37_to_v38
 
     data = _migrate_v37_to_v38({"schema_version": 37})
     assert data["schema_version"] == 38
@@ -254,7 +252,7 @@ def test_migration_v37_to_v38():
 # Layer 2: scenarios, cooldowns, foreground tracking, loop
 # ═══════════════════════════════════════════════════════════════════
 
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 
 def _engine(store, **cfg_over):
@@ -263,7 +261,7 @@ def _engine(store, **cfg_over):
     return eng, bus
 
 
-_NOW = datetime(2026, 10, 21, 14, 0, tzinfo=timezone.utc)  # Wed
+_NOW = datetime(2026, 10, 21, 14, 0, tzinfo=UTC)  # Wed
 
 
 # ── A. abandoned project ───────────────────────────────────────────
@@ -306,7 +304,7 @@ class TestAbandonedProject:
         sc = ProactiveScenarios(eng)
         r = sc.abandoned_project(
             foreground="Steam", leisure_seconds=3 * 3600,
-            now=datetime.now(tz=timezone.utc),
+            now=datetime.now(tz=UTC),
             stale_project={"name": "Jarvis", "days_idle": 5},
         )
         assert r is None  # snoozed
@@ -382,7 +380,7 @@ class TestLongWork:
 class TestBootRoutine:
     def test_fires_on_matching_context(self, store):
         eng, _ = _engine(store, boot_similarity_threshold=0.7)
-        boot_now = datetime(2026, 10, 21, 9, 0, tzinfo=timezone.utc)  # Wed
+        boot_now = datetime(2026, 10, 21, 9, 0, tzinfo=UTC)  # Wed
         # Context is derived in LOCAL time (that's the point of "boot time"),
         # so build the expected context the same way to stay tz-robust.
         local_hour = boot_now.astimezone().hour
@@ -395,7 +393,7 @@ class TestBootRoutine:
 
     def test_no_fire_below_3_repeats(self, store):
         eng, _ = _engine(store)
-        boot_now = datetime(2026, 10, 21, 9, 0, tzinfo=timezone.utc)
+        boot_now = datetime(2026, 10, 21, 9, 0, tzinfo=UTC)
         ctx = {f"h{boot_now.astimezone().hour}", "weekday"}
         eng.record_boot_sequence(["chrome"], now=boot_now)
         sc = ProactiveScenarios(eng)
@@ -404,7 +402,7 @@ class TestBootRoutine:
     def test_no_fire_on_dissimilar_context(self, store):
         eng, _ = _engine(store)
         for _ in range(3):
-            eng.record_boot_sequence(["chrome"], now=datetime(2026, 10, 21, 9, 0, tzinfo=timezone.utc))
+            eng.record_boot_sequence(["chrome"], now=datetime(2026, 10, 21, 9, 0, tzinfo=UTC))
         sc = ProactiveScenarios(eng)
         assert sc.boot_routine(current_context={"h22", "weekend"}) is None
 
@@ -443,21 +441,21 @@ class TestCommandSequence:
 class TestForegroundTracking:
     def test_focus_timer_accumulates(self, store):
         eng, _ = _engine(store)
-        t0 = datetime(2026, 10, 21, 10, 0, tzinfo=timezone.utc)
+        t0 = datetime(2026, 10, 21, 10, 0, tzinfo=UTC)
         assert eng.observe_foreground("VS Code", t0) == 0.0
         secs = eng.observe_foreground("VS Code", t0 + timedelta(hours=2))
         assert secs == pytest.approx(7200)
 
     def test_focus_resets_on_switch(self, store):
         eng, _ = _engine(store)
-        t0 = datetime(2026, 10, 21, 10, 0, tzinfo=timezone.utc)
+        t0 = datetime(2026, 10, 21, 10, 0, tzinfo=UTC)
         eng.observe_foreground("VS Code", t0)
         eng.observe_foreground("VS Code", t0 + timedelta(hours=1))
         assert eng.observe_foreground("Chrome", t0 + timedelta(hours=1)) == 0.0
 
     def test_cooldown_ok_then_blocked(self, store):
         eng, _ = _engine(store)
-        t0 = datetime(2026, 10, 21, 10, 0, tzinfo=timezone.utc)
+        t0 = datetime(2026, 10, 21, 10, 0, tzinfo=UTC)
         assert eng.cooldown_ok("k", 3600, t0) is True
         assert eng.cooldown_ok("k", 3600, t0 + timedelta(minutes=30)) is False
         assert eng.cooldown_ok("k", 3600, t0 + timedelta(hours=2)) is True

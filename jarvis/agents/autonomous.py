@@ -280,7 +280,7 @@ class AutonomousAgent:
                 self._create_plan(goal),
                 timeout=min(60, self._config.max_time_seconds),
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             yield "Не удалось создать план — таймаут, sir."
             return
         except Exception as exc:
@@ -336,7 +336,7 @@ class AutonomousAgent:
                     self._decide_next_action(goal),
                     timeout=min(60, remaining),
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 yield "Таймаут при принятии решения, sir."
                 break
             except Exception as exc:
@@ -440,7 +440,7 @@ class AutonomousAgent:
                             self._execute_tool(action),
                             timeout=min(120, remaining),
                         )
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         result = ToolResult(
                             success=False, error="Tool execution timed out"
                         )
@@ -740,7 +740,7 @@ class AutonomousAgent:
         detail = self._format_steps_detailed(recent)
 
         return (
-            f"Previous steps (summary):\n"
+            "Previous steps (summary):\n"
             + "\n".join(summary_lines)
             + "\n\n"
             + f"Recent steps (detail):\n{detail}"
@@ -962,7 +962,7 @@ class AutonomousAgent:
                 if asyncio.iscoroutine(result):
                     return str(await asyncio.wait_for(result, timeout=120))
                 return str(result)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 log.warning("User did not respond within 120 s — using default")
                 return "default"
             except asyncio.CancelledError:

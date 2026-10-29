@@ -11,17 +11,16 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pytest
 
 from jarvis.tools.local.tab_manager import (
-    CloseOtherTabsTool,
     CloseOtherTabsArgs,
-    CountTabsTool,
+    CloseOtherTabsTool,
     CountTabsArgs,
-    FindTabTool,
-    FindTabArgs,
-    DuplicateTabTool,
+    CountTabsTool,
     DuplicateTabArgs,
+    DuplicateTabTool,
+    FindTabArgs,
+    FindTabTool,
 )
 from jarvis.tools.registry import ToolResult, VoicePattern
-
 
 # ---------------------------------------------------------------------------
 # Protocol conformance

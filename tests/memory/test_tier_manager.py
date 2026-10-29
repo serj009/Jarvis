@@ -11,10 +11,9 @@ from jarvis.memory.store import MemoryStore
 from jarvis.memory.tier_manager import (
     COLD_TO_ARCHIVE_DAYS,
     HOT_TO_WARM_DAYS,
-    TierManager,
     WARM_TO_COLD_DAYS,
+    TierManager,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

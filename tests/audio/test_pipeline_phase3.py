@@ -10,7 +10,6 @@ import pytest
 
 from jarvis.core.phrases import PHRASES
 
-
 # ---------------------------------------------------------------------------
 # Thinking phrases exist in PHRASES (T3.4)
 # ---------------------------------------------------------------------------
@@ -110,6 +109,7 @@ class TestPipelineConstructorParams:
         """Verify AudioPipeline.__init__ accepts the new keyword args
         without TypeError. Actual behavior tested in integration."""
         import inspect
+
         from jarvis.audio.pipeline import AudioPipeline
 
         sig = inspect.signature(AudioPipeline.__init__)

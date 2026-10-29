@@ -11,14 +11,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from jarvis.tools.local.content_reader import (
-    ContentReaderTool,
     ContentReaderArgs,
+    ContentReaderTool,
     _extract_readable,
     _extract_title,
     _httpx_fetch,
 )
 from jarvis.tools.registry import VoicePattern
-
 
 # -- protocol conformance -----------------------------------------------
 

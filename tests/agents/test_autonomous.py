@@ -27,17 +27,16 @@ import pytest
 
 from jarvis.agents.autonomous import (
     AGENT_SYSTEM_PROMPT,
-    AgentAction,
-    AgentStep,
-    AutonomousAgent,
     DETAILED_HISTORY_SIZE,
     MAX_RETRIES,
     REPLAN_INTERVAL,
+    AgentAction,
+    AgentStep,
+    AutonomousAgent,
     _extract_json,
 )
 from jarvis.tools.registry import ToolResult
 from jarvis.tools.risk import RiskLevel
-
 
 # ---------------------------------------------------------------------------
 # Helpers — mock provider

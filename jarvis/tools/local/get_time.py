@@ -10,7 +10,6 @@ from pydantic import BaseModel
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 from jarvis.tools.risk import RiskLevel
 
-
 # Month names in genitive case (required by RU/UK date format).
 _MONTHS_RU = [
     "января", "февраля", "марта", "апреля", "мая", "июня",

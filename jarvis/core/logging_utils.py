@@ -50,7 +50,7 @@ import json
 import logging
 import time
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any, TypeVar
 
 from jarvis.core.request_context import correlation_id, ms_since_turn_start
@@ -84,7 +84,7 @@ class JsonFormatter(logging.Formatter):
         turn_ms = ms_since_turn_start()
 
         payload: dict[str, Any] = {
-            "ts": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            "ts": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "correlation_id": cid,

@@ -12,11 +12,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from jarvis.tools.local.switch_language import (
+    _CONFIRMATIONS,
     SwitchLanguageArgs,
     SwitchLanguageTool,
-    _CONFIRMATIONS,
 )
-
 
 # ---------------------------------------------------------------------------
 # Voice pattern matching

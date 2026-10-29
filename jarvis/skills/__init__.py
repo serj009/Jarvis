@@ -13,8 +13,8 @@ User-generated skill files live under ``jarvis/skills/user_generated/``.
 Deleting that directory returns Jarvis to its built-in-only baseline.
 """
 
+from jarvis.skills.decomposer import SkillComplexity, SkillDecomposer, SkillNeed, SkillPart
 from jarvis.skills.sandbox import SkillSandbox, SkillValidator
-from jarvis.skills.decomposer import SkillDecomposer, SkillComplexity, SkillNeed, SkillPart
 from jarvis.skills.skill_forge import SkillForge
 
 __all__ = [

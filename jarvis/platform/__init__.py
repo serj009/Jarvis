@@ -62,7 +62,7 @@ def set_brightness(level: int) -> str:
     return get_platform().set_brightness(level)
 
 
-def get_brightness() -> Optional[int]:
+def get_brightness() -> int | None:
     return get_platform().get_brightness()
 
 

@@ -18,7 +18,6 @@ from jarvis.tools.local.startup_manager import (
 )
 from jarvis.tools.registry import EmptyArgs
 
-
 # --- ListStartupTool ------------------------------------------------------
 
 async def test_list_startup_success():

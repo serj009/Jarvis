@@ -12,14 +12,13 @@ from unittest.mock import patch
 import pytest
 
 from jarvis.security.origin_tracker import (
+    _MAX_TOKEN_AGE_S,
     OriginTracker,
     RequestContext,
     RequestOrigin,
-    _MAX_TOKEN_AGE_S,
     get_request_context,
     set_request_context,
 )
-
 
 # ---------------------------------------------------------------------------
 # OriginTracker — signing & verification

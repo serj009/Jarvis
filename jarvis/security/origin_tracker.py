@@ -83,7 +83,7 @@ class RequestContext:
 # ContextVar for async propagation
 # ---------------------------------------------------------------------------
 
-_request_context_var: ContextVar[Optional[RequestContext]] = ContextVar(
+_request_context_var: ContextVar[RequestContext | None] = ContextVar(
     "security_request_context",
     default=None,
 )

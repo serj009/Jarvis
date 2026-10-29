@@ -321,7 +321,7 @@ class YoutubeSummaryTool:
     ) -> str:
         """Send subtitle text to the LLM for summarisation."""
         prompt = (
-            f"Summarise the following video"
+            "Summarise the following video"
             + (f' titled "{title}"' if title else "")
             + ". List the key points as bullet points.\n\n"
             + text[:12000]

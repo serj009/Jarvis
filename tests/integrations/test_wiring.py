@@ -102,8 +102,9 @@ class TestWiring:
         assert out2["added"] == [] and out2["removed"] == []
 
     def test_does_not_clobber_existing_local_tool(self):
-        from jarvis.tools.registry import ToolResult
         from pydantic import BaseModel
+
+        from jarvis.tools.registry import ToolResult
 
         class _Local:
             name = "example_ping"

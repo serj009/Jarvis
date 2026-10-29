@@ -143,7 +143,7 @@ class WhatsAppIntegration(BaseIntegration):
             name = await c.get_attribute("title")
             if name:
                 names.append(f"  \u2022 {name}")
-        return f"Matching chats, sir:\n" + "\n".join(names)
+        return "Matching chats, sir:\n" + "\n".join(names)
 
 
 def _fn(name: str, desc: str, props: dict, required: list[str] | None = None) -> dict:

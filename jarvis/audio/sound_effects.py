@@ -37,7 +37,7 @@ _RATE: int = 44_100
 
 def _lazy_imports() -> tuple:
     """Return ``(numpy, sounddevice)`` or raise *ImportError*."""
-    import numpy as np        # noqa: WPS433 — lazy by design
+    import numpy as np  # noqa: WPS433 — lazy by design
     import sounddevice as sd  # noqa: WPS433
     return np, sd
 

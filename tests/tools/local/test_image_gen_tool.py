@@ -11,7 +11,6 @@ import pytest
 from jarvis.core.config import ImageGenConfig
 from jarvis.tools.local.image_gen_tool import ImageGenArgs, ImageGenTool
 
-
 # ---------------------------------------------------------------------------
 # Voice pattern tests
 # ---------------------------------------------------------------------------

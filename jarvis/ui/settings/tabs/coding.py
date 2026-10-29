@@ -15,10 +15,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from jarvis.coding.languages import LANGUAGES
 from jarvis.core.config import JarvisConfig, save_config
 from jarvis.ui.settings._widgets import SectionCard, ToggleSwitch, slider_with_label
 
-from jarvis.coding.languages import LANGUAGES
 log = logging.getLogger(__name__)
 
 _PROVIDERS = [

@@ -62,13 +62,13 @@ from PySide6.QtWidgets import (
 )
 
 from jarvis.ui.settings.theme import (
+    ACCENT,
+    ACCENT_DIM,
     BG,
     BG_CARD,
     BORDER,
     TEXT_PRIMARY,
     TEXT_SECONDARY,
-    ACCENT,
-    ACCENT_DIM,
 )
 
 log = logging.getLogger(__name__)

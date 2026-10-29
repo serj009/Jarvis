@@ -7,18 +7,17 @@ from __future__ import annotations
 
 import re
 import string
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from jarvis.tools.local.password_gen import (
-    GeneratePasswordTool,
-    GeneratePasswordArgs,
-    _PASSPHRASE_WORDS,
     _AMBIGUOUS,
+    _PASSPHRASE_WORDS,
+    GeneratePasswordArgs,
+    GeneratePasswordTool,
 )
 from jarvis.tools.registry import ToolResult, VoicePattern
-
 
 # ---------------------------------------------------------------------------
 # Protocol conformance

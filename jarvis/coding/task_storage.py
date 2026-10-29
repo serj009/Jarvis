@@ -26,7 +26,7 @@ import logging
 import threading
 import uuid
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -63,7 +63,7 @@ class CodingTask:
     status: str = "running"  # "running" | "done" | "failed" | "cancelled"
     steps: list[TaskStep] = field(default_factory=list)
     created_at: str = field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+        default_factory=lambda: datetime.now(UTC).isoformat()
     )
     completed_at: str | None = None
     workspace_path: str = ""

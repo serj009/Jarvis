@@ -17,7 +17,6 @@ from jarvis.tools.local.page_compare import (
 )
 from jarvis.tools.registry import VoicePattern
 
-
 FAKE_PAGE_1 = "Product A\nPrice: $100\nRAM: 8GB\nScreen: 15 inch"
 FAKE_PAGE_2 = "Product B\nPrice: $200\nRAM: 16GB\nScreen: 14 inch"
 

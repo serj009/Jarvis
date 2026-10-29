@@ -6,7 +6,6 @@ import pytest
 
 from jarvis.tools.local.app_aliases import APP_ALIASES, resolve_app_alias
 
-
 # ── Structural invariants of the dictionary ────────────────────────────
 
 

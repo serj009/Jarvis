@@ -50,96 +50,22 @@ Covers all 5 protection levels:
 
 from __future__ import annotations
 
-
-
-
-
-
-
-
+import time
+from pathlib import Path
 
 import pytest
 
-
-import time
-
-
-
-
-from pathlib import Path
-
-
-
-
-
-
-
-
-
 from jarvis.skills.sandbox import (
-
-
-
-
-    ASTViolation,
-
-
-
-
-    CircuitBreaker,
-
-
-
-
-    CircuitBreakerState,
-
-
-
-
-    SkillSandbox,
-
-
-
-
-    SkillValidator,
-
-
-
-
     ALLOWED_IMPORTS,
-
-
-
-
-    BLOCKED_IMPORTS,
-
-
-
-
     BLOCKED_CALLS,
-
-
-
-
+    BLOCKED_IMPORTS,
+    ASTViolation,
+    CircuitBreaker,
+    CircuitBreakerState,
     SandboxResult,
-
-
-
-
+    SkillSandbox,
+    SkillValidator,
 )
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 # ── Level 3: AST Validator ───────────────────────────────────────────────
 

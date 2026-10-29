@@ -14,10 +14,8 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
-
 
 # ---------------------------------------------------------------------------
 # ChatMessage tests (no Qt needed)
@@ -175,8 +173,8 @@ class TestChatStorage:
 
 def _make_panel(qapp, tmp_path: Path, submit_text=None, tts_speak=None):
     """Build a ChatPanel with temp storage and no real callbacks."""
-    from jarvis.ui.chat_storage import ChatStorage
     from jarvis.ui.chat_panel import ChatPanel
+    from jarvis.ui.chat_storage import ChatStorage
 
     storage = ChatStorage(path=tmp_path / "panel_chat.json")
     panel = ChatPanel(
@@ -352,9 +350,10 @@ class TestChatInput:
     """ChatInput Enter/Shift+Enter and command history."""
 
     def test_enter_emits_submitted(self, qapp):
-        from jarvis.ui.chat_panel import ChatInput
-        from PySide6.QtGui import QKeyEvent
         from PySide6.QtCore import QEvent
+        from PySide6.QtGui import QKeyEvent
+
+        from jarvis.ui.chat_panel import ChatInput
 
         widget = ChatInput()
         received = []
@@ -373,9 +372,10 @@ class TestChatInput:
         assert widget.toPlainText() == ""  # cleared after submit
 
     def test_shift_enter_does_not_submit(self, qapp):
-        from jarvis.ui.chat_panel import ChatInput
-        from PySide6.QtGui import QKeyEvent
         from PySide6.QtCore import QEvent
+        from PySide6.QtGui import QKeyEvent
+
+        from jarvis.ui.chat_panel import ChatInput
 
         widget = ChatInput()
         received = []
@@ -393,9 +393,10 @@ class TestChatInput:
         assert received == []  # not submitted
 
     def test_empty_text_not_submitted(self, qapp):
-        from jarvis.ui.chat_panel import ChatInput
-        from PySide6.QtGui import QKeyEvent
         from PySide6.QtCore import QEvent
+        from PySide6.QtGui import QKeyEvent
+
+        from jarvis.ui.chat_panel import ChatInput
 
         widget = ChatInput()
         received = []
@@ -430,9 +431,10 @@ class TestChatInput:
         assert widget.command_history == ["same"]
 
     def test_command_history_up_arrow(self, qapp):
-        from jarvis.ui.chat_panel import ChatInput
-        from PySide6.QtGui import QKeyEvent
         from PySide6.QtCore import QEvent
+        from PySide6.QtGui import QKeyEvent
+
+        from jarvis.ui.chat_panel import ChatInput
 
         widget = ChatInput()
         widget.add_to_history("cmd1")
@@ -452,9 +454,10 @@ class TestChatInput:
         assert widget.toPlainText() == "cmd1"
 
     def test_command_history_down_arrow_back_to_draft(self, qapp):
-        from jarvis.ui.chat_panel import ChatInput
-        from PySide6.QtGui import QKeyEvent
         from PySide6.QtCore import QEvent
+        from PySide6.QtGui import QKeyEvent
+
+        from jarvis.ui.chat_panel import ChatInput
 
         widget = ChatInput()
         widget.add_to_history("cmd1")
@@ -488,32 +491,32 @@ class TestMessageBubble:
     """MessageBubble rendering for different roles."""
 
     def test_user_bubble_object_name(self, qapp):
-        from jarvis.ui.chat_storage import ChatMessage
         from jarvis.ui.chat_panel import MessageBubble
+        from jarvis.ui.chat_storage import ChatMessage
 
         msg = ChatMessage(role="user", text="hello")
         bubble = MessageBubble(msg)
         assert bubble.objectName() == "msgUser"
 
     def test_assistant_bubble_object_name(self, qapp):
-        from jarvis.ui.chat_storage import ChatMessage
         from jarvis.ui.chat_panel import MessageBubble
+        from jarvis.ui.chat_storage import ChatMessage
 
         msg = ChatMessage(role="assistant", text="Yes, sir.")
         bubble = MessageBubble(msg)
         assert bubble.objectName() == "msgAssistant"
 
     def test_system_bubble_object_name(self, qapp):
-        from jarvis.ui.chat_storage import ChatMessage
         from jarvis.ui.chat_panel import MessageBubble
+        from jarvis.ui.chat_storage import ChatMessage
 
         msg = ChatMessage(role="system", text="connected")
         bubble = MessageBubble(msg)
         assert bubble.objectName() == "msgSystem"
 
     def test_timestamp_displayed(self, qapp):
-        from jarvis.ui.chat_storage import ChatMessage
         from jarvis.ui.chat_panel import MessageBubble
+        from jarvis.ui.chat_storage import ChatMessage
 
         msg = ChatMessage(
             role="user",

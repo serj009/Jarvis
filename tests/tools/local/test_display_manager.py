@@ -18,7 +18,6 @@ from jarvis.tools.local.display_manager import (
 )
 from jarvis.tools.registry import EmptyArgs
 
-
 # --- SetBrightnessTool ----------------------------------------------------
 
 async def test_set_brightness_success():

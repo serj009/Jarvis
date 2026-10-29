@@ -12,13 +12,13 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from jarvis.memory.store import MemoryStore
-    from jarvis.memory.relations import RelationStore
-    from jarvis.memory.tool_examples import ToolExampleStore
-    from jarvis.memory.personal_aliases import PersonalAliasStore
-    from jarvis.memory.user_profile import UserProfile
-    from jarvis.memory.usage_stats import UsageStats
     from jarvis.core.game_mode import GameMode
+    from jarvis.memory.personal_aliases import PersonalAliasStore
+    from jarvis.memory.relations import RelationStore
+    from jarvis.memory.store import MemoryStore
+    from jarvis.memory.tool_examples import ToolExampleStore
+    from jarvis.memory.usage_stats import UsageStats
+    from jarvis.memory.user_profile import UserProfile
 
 
 @dataclass
@@ -56,7 +56,7 @@ _GENERIC_ALIAS_WORDS = {
 
 
 def record_tool_success(
-    pctx: "PersonalizationContext",
+    pctx: PersonalizationContext,
     transcription: str,
     tool_name: str,
     args: dict,

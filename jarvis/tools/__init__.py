@@ -16,8 +16,6 @@ table and the Settings -> Tools list — is jarvis/tools/catalogue.py.
 from collections.abc import Callable
 from typing import Any, cast
 
-from jarvis.tools.risk import RiskLevel, risk_level_for_tool, should_confirm
-from jarvis.tools.sandbox import PathValidator, SandboxViolationError
 from jarvis.tools.mcp_client import MCPManager, MCPServerConnection, MCPTool
 from jarvis.tools.registry import (
     PRIORITY_CATCH_ALL,
@@ -33,6 +31,8 @@ from jarvis.tools.registry import (
     VoicePattern,
     VoiceRoutable,
 )
+from jarvis.tools.risk import RiskLevel, risk_level_for_tool, should_confirm
+from jarvis.tools.sandbox import PathValidator, SandboxViolationError
 
 
 def setup_local_tools(
@@ -67,47 +67,182 @@ def setup_local_tools(
     cleanly (they fail-fast with a "no vision available" error).
     `vram_manager` is the live VRAMManager (T1.4) — passed to SystemStatsTool
     so it can report GPU/VRAM status; None disables GPU reporting."""
-    from jarvis.tools.local.clipboard import ClipboardTool
     from jarvis.core.config import SandboxConfig
-    from jarvis.tools.local.close_app import CloseAppTool
-    from jarvis.tools.local.dictation import DictationTool
+
+    # Password vault tools
+    from jarvis.tools.local.auto_login import AutoLoginTool
+    from jarvis.tools.local.bookmarks import BookmarksTool
+    from jarvis.tools.local.browser_tabs import BrowserTabsTool
     from jarvis.tools.local.calculator import CalculatorTool
+    from jarvis.tools.local.cli_runner import CLIRunnerTool
+    from jarvis.tools.local.clipboard import ClipboardTool
+    from jarvis.tools.local.close_app import CloseAppTool
+    from jarvis.tools.local.code_runner import CodeRunnerTool
+    from jarvis.tools.local.content_reader import ContentReaderTool
     from jarvis.tools.local.converter import ConverterTool
+    from jarvis.tools.local.dictation import DictationTool
+    from jarvis.tools.local.disk_cleaner import (
+        CleanTempFilesTool,
+        DiskSpaceTool,
+        FindLargeFoldersTool,
+    )
+
+    # Phase 6 batch 2: Windows tools
+    from jarvis.tools.local.display_manager import (
+        DisplayInfoTool,
+        SetBrightnessTool,
+        ToggleNightModeTool,
+    )
+    from jarvis.tools.local.download_manager import DownloadFileTool
     from jarvis.tools.local.file_manager import (
         ArchiveTool,
         CreateFileTool,
         FileManagerTool,
     )
     from jarvis.tools.local.files import ListDirectoryTool
+    from jarvis.tools.local.focus_mode import (
+        FocusModeStatusTool,
+        StartFocusModeTool,
+        StopFocusModeTool,
+    )
+    from jarvis.tools.local.full_page_screenshot import FullPageScreenshotTool
+    from jarvis.tools.local.game_saves import (
+        BackupGameSavesTool,
+        FindGameSavesTool,
+        ListKnownGamesTool,
+    )
     from jarvis.tools.local.get_time import GetTimeTool
     from jarvis.tools.local.git_tool import GitTool
-    from jarvis.tools.local.web_knowledge import SavePageKnowledgeTool
+    from jarvis.tools.local.hotkey_sender import SendHotkeyTool
+
+    # Image generation
+    from jarvis.tools.local.image_gen_tool import ImageGenTool
+    from jarvis.tools.local.image_scraper import ScrapeImagesTool
     from jarvis.tools.local.launch_steam_game import LaunchSteamGameTool
     from jarvis.tools.local.launch_workspace import LaunchWorkspaceTool
     from jarvis.tools.local.lock_screen import LockScreenTool
-    from jarvis.tools.local.open_app import OpenAppTool
-    from jarvis.tools.local.open_url import OpenUrlTool
-    from jarvis.tools.local.play_youtube_music import PlayYoutubeMusicTool
-    from jarvis.tools.local.repeat_last import RepeatLastTool
-    from jarvis.tools.local.read_screen_text import ReadScreenTextTool
-    from jarvis.tools.local.screenshot import ScreenshotTool
-    from jarvis.tools.local.browser_tabs import BrowserTabsTool
-    from jarvis.tools.local.content_reader import ContentReaderTool
-    from jarvis.tools.local.bookmarks import BookmarksTool
+    from jarvis.tools.local.media_control import MediaControlTool
     from jarvis.tools.local.mouse_control import (
         MouseClickTool,
-        MouseMoveTool,
-        MouseScrollTool,
         MouseDragTool,
+        MouseMoveTool,
         MousePositionTool,
+        MouseScrollTool,
     )
-    from jarvis.tools.local.media_control import MediaControlTool
-    from jarvis.tools.local.switch_language import SwitchLanguageTool
+    from jarvis.tools.local.network_tools import (
+        MyIpTool,
+        NetworkInfoTool,
+        SpeedTestTool,
+    )
+    from jarvis.tools.local.open_app import OpenAppTool
+    from jarvis.tools.local.open_url import OpenUrlTool
+    from jarvis.tools.local.package_manager import (
+        PackageInstallTool,
+        PackageSearchTool,
+        PackageUninstallTool,
+    )
+    from jarvis.tools.local.page_compare import ComparePagesTool
+    from jarvis.tools.local.page_monitor import (
+        CheckPageChangesTool,
+        ListPageMonitorsTool,
+        StartPageMonitorTool,
+        StopPageMonitorTool,
+    )
+    from jarvis.tools.local.page_translate import TranslatePageTool
+    from jarvis.tools.local.password_gen import GeneratePasswordTool
+    from jarvis.tools.local.play_youtube_music import PlayYoutubeMusicTool
+    from jarvis.tools.local.power_control import PowerControlTool
+
+    # Phase 7 batch 2: browser-power tools
+    from jarvis.tools.local.price_lookup import PriceLookupTool
+    from jarvis.tools.local.proactive_tools import (
+        DismissProactiveTool,
+        ProactiveStatusTool,
+        SetInitiativeLevelTool,
+    )
+    from jarvis.tools.local.process_monitor import (
+        HeavyProcessesTool,
+        ProcessInfoTool,
+        WaitForProcessTool,
+    )
+
+    # Phase 12: User-defined voice protocols
+    from jarvis.tools.local.protocol_tools import (
+        CreateProtocolTool,
+        DeleteProtocolTool,
+        DisableProtocolTool,
+        EditProtocolTool,
+        EnableProtocolTool,
+        ListProtocolsTool,
+        RunProtocolTool,
+    )
+    from jarvis.tools.local.qr_share import GenerateQrTool, ShareToPhoneTool
+    from jarvis.tools.local.read_screen_text import ReadScreenTextTool
+    from jarvis.tools.local.remind_me import (
+        DeleteReminderTool,
+        EditReminderTool,
+        ListRemindersTool,
+        RecurringReminderTool,
+        RemindMeAtTool,
+        RemindMeTool,
+        SnoozeReminderTool,
+    )
+    from jarvis.tools.local.repeat_last import RepeatLastTool
+    from jarvis.tools.local.rss_reader import (
+        GetLatestNewsTool,
+        ListRssFeedsTool,
+        SubscribeRssTool,
+        UnsubscribeRssTool,
+    )
+    from jarvis.tools.local.screenshot import ScreenshotTool
     from jarvis.tools.local.see_screen import SeeScreenTool
+    from jarvis.tools.local.skill_tools import (
+        AnalyzeSkillsTool,
+        ApproveSkillTool,
+        DeleteSkillTool,
+        DisableAllSkillsTool,
+        ImproveSkillTool,
+        ListSkillsTool,
+        RejectSkillTool,
+        SkillDetailTool,
+        SkillHistoryTool,
+    )
+    from jarvis.tools.local.smart_form_fill import SmartFormFillTool
+    from jarvis.tools.local.startup_manager import (
+        AddToStartupTool,
+        ListStartupTool,
+        RemoveFromStartupTool,
+    )
+    from jarvis.tools.local.switch_language import SwitchLanguageTool
     from jarvis.tools.local.system_stats import SystemStatsTool
+
+    # Phase 7 batch 3: browser/cross tools
+    from jarvis.tools.local.tab_manager import (
+        CloseOtherTabsTool,
+        CountTabsTool,
+        DuplicateTabTool,
+        FindTabTool,
+    )
+    from jarvis.tools.local.timers import CancelTimerTool, ListTimersTool, SetTimerTool, TimerStore
     from jarvis.tools.local.type_into_active_window import TypeIntoActiveWindowTool
+    from jarvis.tools.local.vault_manager import (
+        ChangeVaultPasswordTool,
+        ListSavedSitesTool,
+        LockVaultTool,
+        RemoveCredentialTool,
+        SaveCredentialTool,
+        UnlockVaultTool,
+    )
     from jarvis.tools.local.volume import VolumeTool
+
+    # Phase 8: Vision tools
+    from jarvis.tools.local.watch_screen import WatchScreenTool
     from jarvis.tools.local.weather import WeatherTool
+    from jarvis.tools.local.web_knowledge import SavePageKnowledgeTool
+    from jarvis.tools.local.win_notifications import (
+        ScheduleNotificationTool,
+        ShowNotificationTool,
+    )
 
     # Phase 6: Windows control modules
     from jarvis.tools.local.window_manager import (
@@ -117,109 +252,6 @@ def setup_local_tools(
         SnapLayoutTool,
         VirtualDesktopTool,
         WindowActionTool,
-    )
-    from jarvis.tools.local.timers import SetTimerTool, CancelTimerTool, ListTimersTool, TimerStore
-    from jarvis.tools.local.power_control import PowerControlTool
-    from jarvis.tools.local.cli_runner import CLIRunnerTool
-    from jarvis.tools.local.code_runner import CodeRunnerTool
-    from jarvis.tools.local.download_manager import DownloadFileTool
-    from jarvis.tools.local.package_manager import (
-        PackageSearchTool,
-        PackageInstallTool,
-        PackageUninstallTool,
-    )
-    # Phase 7 batch 2: browser-power tools
-    from jarvis.tools.local.price_lookup import PriceLookupTool
-    from jarvis.tools.local.full_page_screenshot import FullPageScreenshotTool
-    from jarvis.tools.local.image_scraper import ScrapeImagesTool
-    from jarvis.tools.local.game_saves import (
-        FindGameSavesTool, BackupGameSavesTool, ListKnownGamesTool,
-    )
-    from jarvis.tools.local.process_monitor import (
-        ProcessInfoTool, HeavyProcessesTool, WaitForProcessTool,
-    )
-    from jarvis.tools.local.page_monitor import (
-        StartPageMonitorTool, StopPageMonitorTool,
-        CheckPageChangesTool, ListPageMonitorsTool,
-    )
-    from jarvis.tools.local.page_compare import ComparePagesTool
-    from jarvis.tools.local.smart_form_fill import SmartFormFillTool
-    from jarvis.tools.local.page_translate import TranslatePageTool
-    # Phase 6 batch 2: Windows tools
-    from jarvis.tools.local.display_manager import (
-        SetBrightnessTool, ToggleNightModeTool, DisplayInfoTool,
-    )
-    from jarvis.tools.local.startup_manager import (
-        ListStartupTool, RemoveFromStartupTool, AddToStartupTool,
-    )
-    from jarvis.tools.local.network_tools import (
-        MyIpTool, SpeedTestTool, NetworkInfoTool,
-    )
-    from jarvis.tools.local.disk_cleaner import (
-        DiskSpaceTool, FindLargeFoldersTool, CleanTempFilesTool,
-    )
-    from jarvis.tools.local.hotkey_sender import SendHotkeyTool
-    from jarvis.tools.local.win_notifications import (
-        ShowNotificationTool, ScheduleNotificationTool,
-    )
-    # Phase 7 batch 3: browser/cross tools
-    from jarvis.tools.local.tab_manager import (
-        CloseOtherTabsTool, CountTabsTool, FindTabTool, DuplicateTabTool,
-    )
-    from jarvis.tools.local.password_gen import GeneratePasswordTool
-    from jarvis.tools.local.rss_reader import (
-        SubscribeRssTool, UnsubscribeRssTool,
-        ListRssFeedsTool, GetLatestNewsTool,
-    )
-    from jarvis.tools.local.proactive_tools import (
-        SetInitiativeLevelTool,
-        ProactiveStatusTool,
-        DismissProactiveTool,
-    )
-    from jarvis.tools.local.skill_tools import (
-        ListSkillsTool,
-        SkillDetailTool,
-        ApproveSkillTool,
-        RejectSkillTool,
-        DeleteSkillTool,
-        DisableAllSkillsTool,
-        AnalyzeSkillsTool,
-        ImproveSkillTool,
-        SkillHistoryTool,
-    )
-    from jarvis.tools.local.remind_me import (
-        RemindMeTool,
-        RemindMeAtTool,
-        ListRemindersTool,
-        DeleteReminderTool,
-        RecurringReminderTool,
-        SnoozeReminderTool,
-        EditReminderTool,
-    )
-    from jarvis.tools.local.qr_share import GenerateQrTool, ShareToPhoneTool
-    from jarvis.tools.local.focus_mode import (
-        StartFocusModeTool, StopFocusModeTool, FocusModeStatusTool,
-    )
-    # Phase 8: Vision tools
-    from jarvis.tools.local.watch_screen import WatchScreenTool
-    # Password vault tools
-    from jarvis.tools.local.auto_login import AutoLoginTool
-    from jarvis.tools.local.vault_manager import (
-        SaveCredentialTool, ListSavedSitesTool, RemoveCredentialTool,
-        UnlockVaultTool, LockVaultTool, ChangeVaultPasswordTool,
-    )
-    # Image generation
-    from jarvis.tools.local.image_gen_tool import ImageGenTool
-
-    # Phase 12: User-defined voice protocols
-    from jarvis.tools.local.protocol_tools import (
-        CreateProtocolTool,
-        RunProtocolTool,
-        ListProtocolsTool,
-        DeleteProtocolTool,
-        EditProtocolTool,
-        EnableProtocolTool,
-        DisableProtocolTool,
     )
 
     weather_cfg = getattr(config, "weather", None)

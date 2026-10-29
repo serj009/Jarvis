@@ -9,7 +9,6 @@ import pytest
 from jarvis.memory.auto_cleanup import AutoCleanup, backup_before_cleanup
 from jarvis.memory.store import MemoryStore
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

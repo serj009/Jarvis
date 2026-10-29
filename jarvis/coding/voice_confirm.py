@@ -20,7 +20,8 @@ Timeout: 15 seconds → treated as "no" (safe default).
 from __future__ import annotations
 
 import re
-from typing import Any, Callable, Awaitable, Protocol, runtime_checkable
+from collections.abc import Awaitable, Callable
+from typing import Any, Protocol, runtime_checkable
 
 _POSITIVE = re.compile(
     r"^(?:yes|yeah|yep|sure|ok|okay|confirm|go ahead"

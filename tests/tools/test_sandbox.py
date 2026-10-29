@@ -25,7 +25,6 @@ import pytest
 
 from jarvis.tools.sandbox import PathValidator, SandboxViolationError
 
-
 # --- helpers ----------------------------------------------------------------
 
 def _make_validator(tmp_path: Path, dirs: list[str] | None = None) -> PathValidator:
