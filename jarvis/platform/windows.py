@@ -763,9 +763,9 @@ def toggle_night_mode(enable: bool) -> str:
         raise NotImplementedError(
             "Night Light registry key not found. "
             "This may require Windows 10 1703+ or later."
-        )
+        ) from None
     except Exception as exc:
-        raise NotImplementedError(f"Night mode toggle failed: {exc}")
+        raise NotImplementedError(f"Night mode toggle failed: {exc}") from exc
 
 
 def display_info() -> dict:

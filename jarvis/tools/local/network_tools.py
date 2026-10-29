@@ -96,7 +96,7 @@ def _speed_test_impl() -> dict:
         ("https://proof.ovh.net/files/1Mb.dat", 1_000_000),
     ]
 
-    for url, expected_size in test_urls:
+    for url, _expected_size in test_urls:
         try:
             start = time.monotonic()
             resp = httpx.get(url, timeout=30, follow_redirects=True)
@@ -171,7 +171,7 @@ def _ping_impl(host: str, count: int = 4) -> str:
         )
         return result.stdout.strip() or result.stderr.strip()
     except FileNotFoundError:
-        raise NotImplementedError("ping command not found.")
+        raise NotImplementedError("ping command not found.") from None
     except subprocess.TimeoutExpired:
         return f"Ping to {host} timed out after 15 seconds."
 

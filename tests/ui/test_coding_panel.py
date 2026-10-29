@@ -534,7 +534,7 @@ class TestSummaryCard:
         paths: list[str] = []
         card.open_folder_requested.connect(paths.append)
         # Find and click the Open Folder button
-        for child in card.findChildren(type(card._task)):  # type: ignore
+        for _child in card.findChildren(type(card._task)):  # type: ignore
             pass  # just confirming construction
         # Signal is wired; we trust the button click path.
 

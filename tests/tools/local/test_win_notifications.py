@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+from pydantic import ValidationError
 import pytest
 
 from jarvis.tools.local.win_notifications import (
@@ -56,9 +57,9 @@ async def test_show_notification_generic_error():
 def test_show_notification_timeout_bounds():
     ShowNotificationArgs(title="T", message="M", timeout=1)  # OK
     ShowNotificationArgs(title="T", message="M", timeout=60)  # OK
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ShowNotificationArgs(title="T", message="M", timeout=0)
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ShowNotificationArgs(title="T", message="M", timeout=61)
 
 
@@ -103,9 +104,9 @@ async def test_schedule_notification_hours():
 def test_schedule_notification_delay_bounds():
     ScheduleNotificationArgs(title="T", message="M", delay_seconds=1)  # OK
     ScheduleNotificationArgs(title="T", message="M", delay_seconds=86400)  # OK
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ScheduleNotificationArgs(title="T", message="M", delay_seconds=0)
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         ScheduleNotificationArgs(title="T", message="M", delay_seconds=86401)
 
 

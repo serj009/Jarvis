@@ -72,7 +72,7 @@ class TestErrorHandler:
 
     @pytest.mark.asyncio()
     async def test_consecutive_errors_accumulate(self, handler: ErrorHandler) -> None:
-        for i in range(3):
+        for _ in range(3):
             async def fail() -> None:
                 raise TTSError("synth failed")
 

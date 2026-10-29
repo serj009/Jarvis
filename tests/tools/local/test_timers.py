@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pydantic import ValidationError
 import pytest
 
 from jarvis.tools.local.timers import (
@@ -115,7 +116,7 @@ def test_requires_confirmation_false():
 
 
 def test_timer_seconds_bounds():
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         SetTimerArgs(seconds=0)
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         SetTimerArgs(seconds=100000)

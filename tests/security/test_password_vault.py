@@ -232,7 +232,7 @@ class TestEncryption:
 
         # Tamper with the tag
         bad_tag = bytes((tag[0] ^ 0xFF,)) + tag[1:]
-        with pytest.raises(Exception):  # VaultCorruptError or crypto exception
+        with pytest.raises(Exception):  # noqa: B017 - VaultCorruptError or crypto-lib exception
             PasswordVault._aes_decrypt(nonce, ct, bad_tag, key)
 
     def test_key_derivation_deterministic(self):
@@ -583,7 +583,7 @@ def _write_v1_vault(
                 key, nonce + i.to_bytes(4, "big"), _hashlib.sha256,
             ).digest()
         keystream = keystream[: len(plaintext)]
-        ct = bytes(a ^ b for a, b in zip(plaintext, keystream))
+        ct = bytes(a ^ b for a, b in zip(plaintext, keystream, strict=True))
         tag = _hmac.new(key, nonce + ct, _hashlib.sha256).digest()[:16]
         return nonce, ct, tag
 
@@ -670,7 +670,7 @@ class TestV1Migration:
 
     def test_migration_write_failure_leaves_original(self, vault_path):
         """If writing the v2 temp file fails, the original v1 is untouched."""
-        from jarvis.security.password_vault import PasswordVault
+        from jarvis.security.password_vault import PasswordVault, VaultCorruptError
 
         _write_v1_vault(
             vault_path, "master123",
@@ -688,7 +688,7 @@ class TestV1Migration:
             PasswordVault, "_write_vault_bytes",
             side_effect=OSError("disk full"),
         ):
-            with pytest.raises(Exception):
+            with pytest.raises(VaultCorruptError):
                 v.unlock("master123")
         # Original file unchanged; still a valid v1 that opens.
         assert vault_path.read_bytes() == original

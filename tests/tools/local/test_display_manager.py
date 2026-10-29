@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+from pydantic import ValidationError
 import pytest
 
 from jarvis.tools.local.display_manager import (
@@ -56,9 +57,9 @@ async def test_set_brightness_generic_error():
 
 
 def test_brightness_bounds():
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         SetBrightnessArgs(level=-1)
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         SetBrightnessArgs(level=101)
 
 

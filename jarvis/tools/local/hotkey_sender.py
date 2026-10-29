@@ -108,7 +108,7 @@ def _send_hotkey_impl(keys: list[str]) -> str:
         pyautogui.hotkey(*keys)
         return f"Pressed {'+'.join(keys)}, sir."
     except Exception as exc:
-        raise RuntimeError(f"Failed to send hotkey: {exc}")
+        raise RuntimeError(f"Failed to send hotkey: {exc}") from exc
 
 
 def _is_dangerous(combo_str: str) -> bool:

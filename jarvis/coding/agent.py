@@ -409,7 +409,7 @@ class CodingAgent:
 
         yield f"Plan ready — {len(steps)} step(s). Executing..."
 
-        for i, step in enumerate(steps, 1):
+        for step in steps:
             action = step.action
             details = step.details
 
@@ -593,7 +593,7 @@ class CodingAgent:
         except ValueError:
             raise ValueError(
                 f"Path {path!r} escapes the workspace ({self._workspace})"
-            )
+            ) from None
         return resolved
 
     async def _create_file(self, path: str, description: str) -> str:

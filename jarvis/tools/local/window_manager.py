@@ -60,7 +60,7 @@ def _list_windows_impl() -> list[dict]:
         raise NotImplementedError(
             "Window management requires pygetwindow or pywin32. "
             "Install: pip install pygetwindow"
-        )
+        ) from None
 
 
 def _find_window(title_part: str):

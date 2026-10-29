@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+from pydantic import ValidationError
 import pytest
 
 from jarvis.tools.local.process_monitor import (
@@ -131,14 +132,14 @@ def test_requires_confirmation_false():
 
 
 def test_top_n_bounds():
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         HeavyProcessesArgs(top_n=0)
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         HeavyProcessesArgs(top_n=100)
 
 
 def test_wait_timeout_bounds():
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         WaitForExitArgs(name="test", timeout=5)
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         WaitForExitArgs(name="test", timeout=9999)
