@@ -23,7 +23,11 @@ async def test_search_success():
     with patch("jarvis.tools.local.package_manager._run_winget") as mock_wg:
         mock_wg.return_value = {
             "success": True,
-            "output": "Name        Id               Version\n---\nVLC         VideoLAN.VLC     3.0.20",
+            "output": (
+                "Name        Id               Version\n"
+                "---\n"
+                "VLC         VideoLAN.VLC     3.0.20"
+            ),
             "stderr": "",
             "return_code": 0,
         }

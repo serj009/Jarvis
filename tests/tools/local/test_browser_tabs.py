@@ -87,7 +87,12 @@ class TestVoicePatterns:
 
 def _make_mock_browser(**overrides):
     bc = MagicMock()
-    bc.open_tab.return_value = {"success": True, "url": "https://x.com", "mode": "selenium", "tab_count": 2}
+    bc.open_tab.return_value = {
+        "success": True,
+        "url": "https://x.com",
+        "mode": "selenium",
+        "tab_count": 2,
+    }
     bc.close_tab.return_value = {"success": True, "remaining_tabs": 1}
     bc.switch_tab.return_value = {"success": True, "tab": 0, "title": "Page"}
     bc.go_back.return_value = {"success": True, "action": "back"}

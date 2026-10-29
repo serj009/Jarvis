@@ -975,8 +975,14 @@ class TestTypeIntoActiveWindowMultilingual:
     @pytest.mark.parametrize(
         "phrase, expected_text",
         [
-            ("\u043d\u0430\u043f\u0435\u0447\u0430\u0442\u0430\u0439 \u043f\u0440\u0438\u0432\u0435\u0442 \u043c\u0438\u0440", "\u043f\u0440\u0438\u0432\u0435\u0442 \u043c\u0438\u0440"),
-            ("\u043d\u0430\u043f\u0435\u0447\u0430\u0442\u0430\u0439 \u043c\u043e\u0439 \u0435\u043c\u0435\u0439\u043b", "\u043c\u043e\u0439 \u0435\u043c\u0435\u0439\u043b"),
+            (
+                "напечатай привет мир",
+                "\u043f\u0440\u0438\u0432\u0435\u0442 \u043c\u0438\u0440",
+            ),
+            (
+                "напечатай мой емейл",
+                "\u043c\u043e\u0439 \u0435\u043c\u0435\u0439\u043b",
+            ),
         ],
     )
     def test_ru_napechataj(self, patterns, phrase, expected_text):
@@ -986,8 +992,14 @@ class TestTypeIntoActiveWindowMultilingual:
     @pytest.mark.parametrize(
         "phrase, expected_text",
         [
-            ("\u043d\u0430\u043f\u0438\u0448\u0438 \u043f\u0440\u0438\u0432\u0435\u0442", "\u043f\u0440\u0438\u0432\u0435\u0442"),
-            ("\u043d\u0430\u043f\u0438\u0448\u0438 \u0434\u043e\u0431\u0440\u043e\u0435 \u0443\u0442\u0440\u043e", "\u0434\u043e\u0431\u0440\u043e\u0435 \u0443\u0442\u0440\u043e"),
+            (
+                "\u043d\u0430\u043f\u0438\u0448\u0438 \u043f\u0440\u0438\u0432\u0435\u0442",
+                "\u043f\u0440\u0438\u0432\u0435\u0442",
+            ),
+            (
+                "напиши доброе утро",
+                "\u0434\u043e\u0431\u0440\u043e\u0435 \u0443\u0442\u0440\u043e",
+            ),
         ],
     )
     def test_ru_napishi(self, patterns, phrase, expected_text):
@@ -997,8 +1009,14 @@ class TestTypeIntoActiveWindowMultilingual:
     @pytest.mark.parametrize(
         "phrase, expected_text",
         [
-            ("\u0432\u0432\u0435\u0434\u0438 \u043f\u0430\u0440\u043e\u043b\u044c 123", "\u043f\u0430\u0440\u043e\u043b\u044c 123"),
-            ("\u0432\u0432\u0435\u0434\u0438 \u0442\u0435\u043a\u0441\u0442", "\u0442\u0435\u043a\u0441\u0442"),
+            (
+                "\u0432\u0432\u0435\u0434\u0438 \u043f\u0430\u0440\u043e\u043b\u044c 123",
+                "\u043f\u0430\u0440\u043e\u043b\u044c 123",
+            ),
+            (
+                "\u0432\u0432\u0435\u0434\u0438 \u0442\u0435\u043a\u0441\u0442",
+                "\u0442\u0435\u043a\u0441\u0442",
+            ),
         ],
     )
     def test_ru_vvedi(self, patterns, phrase, expected_text):
@@ -1010,8 +1028,14 @@ class TestTypeIntoActiveWindowMultilingual:
     @pytest.mark.parametrize(
         "phrase, expected_text",
         [
-            ("\u043d\u0430\u0434\u0440\u0443\u043a\u0443\u0439 \u043f\u0440\u0438\u0432\u0456\u0442 \u0441\u0432\u0456\u0442", "\u043f\u0440\u0438\u0432\u0456\u0442 \u0441\u0432\u0456\u0442"),
-            ("\u043d\u0430\u0434\u0440\u0443\u043a\u0443\u0439 \u043c\u0456\u0439 \u0435\u043c\u0435\u0439\u043b", "\u043c\u0456\u0439 \u0435\u043c\u0435\u0439\u043b"),
+            (
+                "надрукуй привіт світ",
+                "\u043f\u0440\u0438\u0432\u0456\u0442 \u0441\u0432\u0456\u0442",
+            ),
+            (
+                "надрукуй мій емейл",
+                "\u043c\u0456\u0439 \u0435\u043c\u0435\u0439\u043b",
+            ),
         ],
     )
     def test_uk_nadrukuj(self, patterns, phrase, expected_text):
@@ -1021,8 +1045,14 @@ class TestTypeIntoActiveWindowMultilingual:
     @pytest.mark.parametrize(
         "phrase, expected_text",
         [
-            ("\u043d\u0430\u043f\u0438\u0448\u0438 \u043f\u0440\u0438\u0432\u0456\u0442", "\u043f\u0440\u0438\u0432\u0456\u0442"),
-            ("\u043d\u0430\u043f\u0438\u0448\u0438 \u0434\u043e\u0431\u0440\u0438\u0439 \u0440\u0430\u043d\u043e\u043a", "\u0434\u043e\u0431\u0440\u0438\u0439 \u0440\u0430\u043d\u043e\u043a"),
+            (
+                "\u043d\u0430\u043f\u0438\u0448\u0438 \u043f\u0440\u0438\u0432\u0456\u0442",
+                "\u043f\u0440\u0438\u0432\u0456\u0442",
+            ),
+            (
+                "напиши добрий ранок",
+                "\u0434\u043e\u0431\u0440\u0438\u0439 \u0440\u0430\u043d\u043e\u043a",
+            ),
         ],
     )
     def test_uk_napyshi(self, patterns, phrase, expected_text):
@@ -1032,7 +1062,10 @@ class TestTypeIntoActiveWindowMultilingual:
     @pytest.mark.parametrize(
         "phrase, expected_text",
         [
-            ("\u0432\u0432\u0435\u0434\u0438 \u043f\u0430\u0440\u043e\u043b\u044c", "\u043f\u0430\u0440\u043e\u043b\u044c"),
+            (
+                "\u0432\u0432\u0435\u0434\u0438 \u043f\u0430\u0440\u043e\u043b\u044c",
+                "\u043f\u0430\u0440\u043e\u043b\u044c",
+            ),
             ("\u0432\u0432\u0435\u0434\u0438 \u043a\u043e\u0434 5678", "\u043a\u043e\u0434 5678"),
         ],
     )
@@ -1050,9 +1083,12 @@ class TestTypeIntoActiveWindowMultilingual:
         _assert_no_match(patterns[3], "\u043d\u0430\u043f\u0435\u0447\u0430\u0442\u0430\u0439")
 
     def test_zapishi_does_not_match_type_pattern(self, patterns):
-        """\"\u0437\u0430\u043f\u0438\u0448\u0438 X\" is note-taking, not typing — must not match here."""
+        """\"запиши X\" is note-taking, not typing — must not match here."""
         for p in patterns:
-            _assert_no_match(p, "\u0437\u0430\u043f\u0438\u0448\u0438 \u043a\u0443\u043f\u0438\u0442\u044c \u043c\u043e\u043b\u043e\u043a\u043e")
+            _assert_no_match(
+                p,
+                "запиши купить молоко",
+            )
 
     # -- priority ordering -------------------------------------------------
 

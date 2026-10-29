@@ -203,7 +203,9 @@ class TestClipboard:
     @pytest.mark.asyncio
     async def test_clipboard_copy_pyperclip(self):
         tool = GeneratePasswordTool()
-        with patch("jarvis.tools.local.password_gen.GeneratePasswordTool._copy_to_clipboard") as mock_copy:
+        with patch(
+            "jarvis.tools.local.password_gen.GeneratePasswordTool._copy_to_clipboard"
+        ) as mock_copy:
             mock_copy.return_value = " Copied to clipboard."
             result = await tool.execute(GeneratePasswordArgs(
                 mode="random", length=16, copy_to_clipboard=True,

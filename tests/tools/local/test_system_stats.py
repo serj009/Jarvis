@@ -77,7 +77,9 @@ async def test_gpu_info_included_with_vram_manager():
 
     with patch.dict(sys.modules, {"psutil": _fake_psutil(30.0, 50.0)}):
         # Patch refresh_snapshot to return existing snapshot (no nvidia-smi)
-        with patch.object(mgr, "refresh_snapshot", new_callable=AsyncMock, return_value=mgr.snapshot):
+        with patch.object(
+            mgr, "refresh_snapshot", new_callable=AsyncMock, return_value=mgr.snapshot
+        ):
             result = await SystemStatsTool(vram_manager=mgr).execute(EmptyArgs())
 
     assert result.success

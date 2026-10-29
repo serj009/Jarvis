@@ -72,7 +72,9 @@ class TestEmbeddingIndexMocked:
             for t in texts:
                 # Simple deterministic "embedding" based on hash
                 h = hash(t) % 10000
-                v = np.array([h % 10, (h // 10) % 10, (h // 100) % 10, (h // 1000) % 10], dtype=np.float32)
+                v = np.array(
+                    [h % 10, (h // 10) % 10, (h // 100) % 10, (h // 1000) % 10], dtype=np.float32
+                )
                 norm = np.linalg.norm(v)
                 if norm > 0:
                     v = v / norm

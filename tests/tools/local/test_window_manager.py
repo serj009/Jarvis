@@ -96,8 +96,20 @@ async def test_list_windows():
         # Patch _list_windows_impl to use pygetwindow path
         with patch("jarvis.tools.local.window_manager._list_windows_impl") as mock_list:
             mock_list.return_value = [
-                {"title": "Chrome", "hwnd": 1, "minimized": False, "maximized": False, "active": True},
-                {"title": "Discord", "hwnd": 2, "minimized": True, "maximized": False, "active": False},
+                {
+                    "title": "Chrome",
+                    "hwnd": 1,
+                    "minimized": False,
+                    "maximized": False,
+                    "active": True,
+                },
+                {
+                    "title": "Discord",
+                    "hwnd": 2,
+                    "minimized": True,
+                    "maximized": False,
+                    "active": False,
+                },
             ]
             result = await ListWindowsTool().execute(EmptyArgs())
     assert result.success

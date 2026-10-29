@@ -181,7 +181,10 @@ class TestGmailHelpers:
             "mimeType": "multipart/alternative",
             "body": {},
             "parts": [
-                {"mimeType": "text/html", "body": {"data": base64.urlsafe_b64encode(b"<p>x</p>").decode()}},
+                {
+                    "mimeType": "text/html",
+                    "body": {"data": base64.urlsafe_b64encode(b"<p>x</p>").decode()},
+                },
                 {"mimeType": "text/plain", "body": {"data": raw}},
             ],
         }

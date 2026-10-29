@@ -271,18 +271,68 @@ class TestRealisticScenario:
 
     DEVICES = [
         # WASAPI
-        _dev("Microphone (TONOR TM20 Audio Device)", max_input_channels=1, hostapi=WASAPI, default_samplerate=48000),
-        _dev("Stereo Mix (Realtek HD Audio)", max_input_channels=2, hostapi=WASAPI, default_samplerate=48000),
-        _dev("Speakers (Realtek HD Audio)", max_output_channels=2, hostapi=WASAPI, default_samplerate=48000),
-        _dev("Digital Audio (S/PDIF) (Realtek)", max_output_channels=2, hostapi=WASAPI, default_samplerate=48000),
+        _dev(
+            "Microphone (TONOR TM20 Audio Device)",
+            max_input_channels=1,
+            hostapi=WASAPI,
+            default_samplerate=48000,
+        ),
+        _dev(
+            "Stereo Mix (Realtek HD Audio)",
+            max_input_channels=2,
+            hostapi=WASAPI,
+            default_samplerate=48000,
+        ),
+        _dev(
+            "Speakers (Realtek HD Audio)",
+            max_output_channels=2,
+            hostapi=WASAPI,
+            default_samplerate=48000,
+        ),
+        _dev(
+            "Digital Audio (S/PDIF) (Realtek)",
+            max_output_channels=2,
+            hostapi=WASAPI,
+            default_samplerate=48000,
+        ),
         # MME duplicates
-        _dev("Microphone (TONOR TM20 Audio Device)", max_input_channels=1, hostapi=MME, default_samplerate=48000),
-        _dev("Stereo Mix (Realtek HD Audio)", max_input_channels=2, hostapi=MME, default_samplerate=48000),
-        _dev("Speakers (Realtek HD Audio)", max_output_channels=2, hostapi=MME, default_samplerate=48000),
+        _dev(
+            "Microphone (TONOR TM20 Audio Device)",
+            max_input_channels=1,
+            hostapi=MME,
+            default_samplerate=48000,
+        ),
+        _dev(
+            "Stereo Mix (Realtek HD Audio)",
+            max_input_channels=2,
+            hostapi=MME,
+            default_samplerate=48000,
+        ),
+        _dev(
+            "Speakers (Realtek HD Audio)",
+            max_output_channels=2,
+            hostapi=MME,
+            default_samplerate=48000,
+        ),
         # DirectSound duplicates
-        _dev("Microphone (TONOR TM20 Audio Device)", max_input_channels=1, hostapi=DS, default_samplerate=48000),
-        _dev("Stereo Mix (Realtek HD Audio)", max_input_channels=2, hostapi=DS, default_samplerate=48000),
-        _dev("Speakers (Realtek HD Audio)", max_output_channels=2, hostapi=DS, default_samplerate=48000),
+        _dev(
+            "Microphone (TONOR TM20 Audio Device)",
+            max_input_channels=1,
+            hostapi=DS,
+            default_samplerate=48000,
+        ),
+        _dev(
+            "Stereo Mix (Realtek HD Audio)",
+            max_input_channels=2,
+            hostapi=DS,
+            default_samplerate=48000,
+        ),
+        _dev(
+            "Speakers (Realtek HD Audio)",
+            max_output_channels=2,
+            hostapi=DS,
+            default_samplerate=48000,
+        ),
     ]
 
     def test_user_sees_one_mic(self, patch_sd) -> None:
