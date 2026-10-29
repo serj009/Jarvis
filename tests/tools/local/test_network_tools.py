@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+from pydantic import ValidationError
 import pytest
 
 from jarvis.tools.local.network_tools import (
@@ -142,7 +143,7 @@ def test_voice_patterns_exist():
 def test_ping_args_bounds():
     PingArgs(host="google.com", count=1)  # OK
     PingArgs(host="google.com", count=20)  # OK
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         PingArgs(host="google.com", count=0)
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         PingArgs(host="google.com", count=21)

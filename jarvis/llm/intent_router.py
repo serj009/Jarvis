@@ -805,7 +805,7 @@ class IntentRouter:
 
         # Collect app/game names from successful launch tools
         targets: list[str] = []
-        for intent, exchange in zip(intents, exchanges):
+        for intent, exchange in zip(intents, exchanges, strict=True):
             if exchange.result.startswith("Error:"):
                 continue
             if intent.tool_name == "launch_steam_game":
@@ -914,7 +914,7 @@ class IntentRouter:
         """Record successful tool calls for self-learning.  Non-fatal."""
         if self._pctx.tool_examples is None:
             return
-        for intent, exchange in zip(intents, exchanges):
+        for intent, exchange in zip(intents, exchanges, strict=True):
             # Only record successes (result doesn't start with "Error:")
             if exchange.result.startswith("Error:"):
                 continue
@@ -939,7 +939,7 @@ class IntentRouter:
         """Record tool and app usage stats. Non-fatal."""
         if self._pctx.usage_stats is None:
             return
-        for intent, exchange in zip(intents, exchanges):
+        for intent, exchange in zip(intents, exchanges, strict=True):
             if exchange.result.startswith("Error:"):
                 continue
             try:
@@ -972,7 +972,7 @@ class IntentRouter:
             "пошта", "музыка", "music", "музика", "архиватор", "archiver",
             "терминал", "terminal", "термінал", "ide", "іде",
         }
-        for intent, exchange in zip(intents, exchanges):
+        for intent, exchange in zip(intents, exchanges, strict=True):
             if intent.tool_name != "open_app":
                 continue
             if exchange.result.startswith("Error:"):
@@ -1011,7 +1011,7 @@ class IntentRouter:
             return
         from jarvis.memory.action_logger import log_action
 
-        for intent, exchange in zip(intents, exchanges):
+        for intent, exchange in zip(intents, exchanges, strict=True):
             success = not exchange.result.startswith("Error:")
             try:
                 asyncio.create_task(

@@ -310,7 +310,7 @@ class PasswordVault:
                 key, nonce + i.to_bytes(4, "big"), hashlib.sha256
             ).digest()
         keystream = keystream[: len(ciphertext)]
-        return bytes(a ^ b for a, b in zip(ciphertext, keystream))
+        return bytes(a ^ b for a, b in zip(ciphertext, keystream, strict=True))
 
     # -- Secure memory wiping -----------------------------------------------
 

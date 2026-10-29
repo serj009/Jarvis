@@ -236,7 +236,7 @@ class TestProactive:
 
     def test_default_proactive_none(self):
         """Plugins without proactive should return None."""
-        for cls, name, _, _, has_proactive in TIER3_PLUGINS:
+        for cls, _name, _, _, has_proactive in TIER3_PLUGINS:
             if not has_proactive:
                 inst = cls()
                 inst.connected = False

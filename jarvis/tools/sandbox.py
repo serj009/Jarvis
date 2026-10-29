@@ -173,7 +173,7 @@ class PathValidator:
             log.warning(
                 "sandbox: path resolution failed for %r: %s", raw, e,
             )
-            raise SandboxViolationError(raw, f"path resolution failed: {e}")
+            raise SandboxViolationError(raw, f"path resolution failed: {e}") from e
 
         # Step 3: detect traversal attempts in the raw input.
         # We normalise separators for cross-platform traversal detection.

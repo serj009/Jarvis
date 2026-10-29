@@ -169,7 +169,7 @@ class ScreenChangeDetector:
             return 0.0
         changed = sum(
             1
-            for av, bv in zip(a_bytes, b_bytes)
+            for av, bv in zip(a_bytes, b_bytes, strict=False)
             if abs(av - bv) > _PER_PIXEL_THRESHOLD
         )
         return changed / total
@@ -184,5 +184,5 @@ class ScreenChangeDetector:
         b_bytes = b.tobytes()
         return [
             abs(av - bv) > _PER_PIXEL_THRESHOLD
-            for av, bv in zip(a_bytes, b_bytes)
+            for av, bv in zip(a_bytes, b_bytes, strict=False)
         ]

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+from pydantic import ValidationError
 import pytest
 
 from jarvis.tools.local.power_control import PowerArgs, PowerControlTool
@@ -79,7 +80,7 @@ async def test_not_implemented_returns_error():
 
 async def test_unknown_action():
     # Pydantic validates the literal, so this should raise
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         PowerArgs(action="explode")
 
 
@@ -90,7 +91,7 @@ def test_requires_confirmation_false():
 
 
 def test_delay_bounds():
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         PowerArgs(action="shutdown", delay_sec=-1)
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         PowerArgs(action="shutdown", delay_sec=9999)

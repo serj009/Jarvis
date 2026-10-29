@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from unittest.mock import MagicMock, patch
 
+from pydantic import ValidationError
 import pytest
 
 from jarvis.tools.local.git_tool import (
@@ -59,7 +60,7 @@ class TestGitArgs:
         assert args.branch == "feature/new"
 
     def test_invalid_action_rejected(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             GitArgs(action="rebase")
 
     def test_all_actions_accepted(self):

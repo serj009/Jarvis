@@ -106,7 +106,7 @@ def _find_large_folders_impl(path: str, top_n: int = 10) -> list[dict]:
                 except (PermissionError, OSError):
                     continue
     except PermissionError:
-        raise PermissionError(f"Cannot access directory: {path}")
+        raise PermissionError(f"Cannot access directory: {path}") from None
 
     folder_sizes.sort(key=lambda x: x["size_mb"], reverse=True)
     return folder_sizes[:top_n]

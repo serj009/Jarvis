@@ -62,7 +62,7 @@ def _run_subprocess(cmd: list[str], timeout: int = 10) -> str:
             raise RuntimeError(result.stderr.strip() or f"exit code {result.returncode}")
         return result.stdout.strip()
     except FileNotFoundError:
-        raise NotImplementedError(f"Command not found: {cmd[0]}")
+        raise NotImplementedError(f"Command not found: {cmd[0]}") from None
 
 
 def _shutdown(delay: int) -> str:
@@ -85,7 +85,7 @@ def _sleep() -> str:
         from jarvis import platform as platform_ops
         platform_ops.sleep_system()
     except (ImportError, AttributeError, OSError) as e:
-        raise NotImplementedError(f"Sleep not available: {e}")
+        raise NotImplementedError(f"Sleep not available: {e}") from e
     return "Going to sleep."
 
 
@@ -94,7 +94,7 @@ def _hibernate() -> str:
         from jarvis import platform as platform_ops
         platform_ops.hibernate_system()
     except (ImportError, AttributeError, OSError) as e:
-        raise NotImplementedError(f"Hibernate not available: {e}")
+        raise NotImplementedError(f"Hibernate not available: {e}") from e
     return "Hibernating."
 
 
@@ -104,7 +104,7 @@ def _caffeinate(minutes: int) -> str:
         from jarvis import platform as platform_ops
         platform_ops.prevent_sleep()
     except (ImportError, AttributeError, OSError) as e:
-        raise NotImplementedError(f"Caffeinate not available: {e}")
+        raise NotImplementedError(f"Caffeinate not available: {e}") from e
     return f"Preventing sleep for {minutes} minutes."
 
 

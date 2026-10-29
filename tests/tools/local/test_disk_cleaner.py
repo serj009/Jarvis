@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+from pydantic import ValidationError
 import pytest
 
 from jarvis.tools.local.disk_cleaner import (
@@ -169,7 +170,7 @@ def test_voice_patterns_exist():
 def test_find_large_folders_args_bounds():
     FindLargeFoldersArgs(path="C:\\", top_n=1)  # OK
     FindLargeFoldersArgs(path="C:\\", top_n=50)  # OK
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         FindLargeFoldersArgs(path="C:\\", top_n=0)
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         FindLargeFoldersArgs(path="C:\\", top_n=51)
