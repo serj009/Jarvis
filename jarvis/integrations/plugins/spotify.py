@@ -81,11 +81,23 @@ class SpotifyIntegration(BaseIntegration):
             (r"^play\s+(?:some\s+)?(.+)$", "spotify_play", 300),
             (r"^\u0432\u043a\u043b\u044e\u0447\u0438\s+(.+)$", "spotify_play", 300),
             (r"^what(?:'s|\s+is)\s+playing$", "spotify_current", 310),
-            (r"^\u0447\u0442\u043e\s+\u0438\u0433\u0440\u0430\u0435\u0442$", "spotify_current", 310),
+            (
+                r"^\u0447\u0442\u043e\s+\u0438\u0433\u0440\u0430\u0435\u0442$",
+                "spotify_current",
+                310,
+            ),
             (r"^\u0449\u043e\s+\u0433\u0440\u0430\u0454$", "spotify_current", 310),
             (r"^next\s+(?:song|track)$", "spotify_next", 320),
-            (r"^\u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0430\u044f\s+\u043f\u0435\u0441\u043d\u044f$", "spotify_next", 320),
-            (r"^\u043d\u0430\u0441\u0442\u0443\u043f\u043d\u0430\s+\u043f\u0456\u0441\u043d\u044f$", "spotify_next", 320),
+            (
+                r"^\u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0430\u044f\s+\u043f\u0435\u0441\u043d\u044f$",
+                "spotify_next",
+                320,
+            ),
+            (
+                r"^\u043d\u0430\u0441\u0442\u0443\u043f\u043d\u0430\s+\u043f\u0456\u0441\u043d\u044f$",
+                "spotify_next",
+                320,
+            ),
             (r"^pause\s*(?:music)?$", "spotify_pause", 320),
             (r"^\u043f\u0430\u0443\u0437\u0430$", "spotify_pause", 320),
         ]

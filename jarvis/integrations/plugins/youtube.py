@@ -59,13 +59,33 @@ class YouTubeIntegration(BaseIntegration):
     def get_voice_patterns(self) -> list[tuple]:
         return [
             (r"^find\s+video\s+(?:about\s+)?(.+)$", "youtube_search", 300),
-            (r"^\u043d\u0430\u0439\u0434\u0438\s+\u0432\u0438\u0434\u0435\u043e\s+(?:\u043f\u0440\u043e\s+)?(.+)$", "youtube_search", 300),
-            (r"^\u0437\u043d\u0430\u0439\u0434\u0438\s+\u0432\u0456\u0434\u0435\u043e\s+(?:\u043f\u0440\u043e\s+)?(.+)$", "youtube_search", 300),
+            (
+                r"^\u043d\u0430\u0439\u0434\u0438\s+\u0432\u0438\u0434\u0435\u043e\s+(?:\u043f\u0440\u043e\s+)?(.+)$",
+                "youtube_search",
+                300,
+            ),
+            (
+                r"^\u0437\u043d\u0430\u0439\u0434\u0438\s+\u0432\u0456\u0434\u0435\u043e\s+(?:\u043f\u0440\u043e\s+)?(.+)$",
+                "youtube_search",
+                300,
+            ),
             (r"^what(?:'s|\s+is)\s+trending$", "youtube_trending", 310),
-            (r"^\u0447\u0442\u043e\s+\u0432\s+\u0442\u0440\u0435\u043d\u0434\u0430\u0445$", "youtube_trending", 310),
-            (r"^\u0449\u043e\s+\u0432\s+\u0442\u0440\u0435\u043d\u0434\u0430\u0445$", "youtube_trending", 310),
+            (
+                r"^\u0447\u0442\u043e\s+\u0432\s+\u0442\u0440\u0435\u043d\u0434\u0430\u0445$",
+                "youtube_trending",
+                310,
+            ),
+            (
+                r"^\u0449\u043e\s+\u0432\s+\u0442\u0440\u0435\u043d\u0434\u0430\u0445$",
+                "youtube_trending",
+                310,
+            ),
             (r"^play\s+(.+)\s+on\s+youtube$", "youtube_play", 320),
-            (r"^\u0432\u043a\u043b\u044e\u0447\u0438\s+(.+)\s+\u043d\u0430\s+\u044e\u0442\u0443\u0431\u0435$", "youtube_play", 320),
+            (
+                r"^\u0432\u043a\u043b\u044e\u0447\u0438\s+(.+)\s+\u043d\u0430\s+\u044e\u0442\u0443\u0431\u0435$",
+                "youtube_play",
+                320,
+            ),
         ]
 
     async def execute_tool(self, tool_name: str, args: dict) -> str:

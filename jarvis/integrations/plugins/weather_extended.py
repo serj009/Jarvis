@@ -62,13 +62,33 @@ class WeatherExtendedIntegration(BaseIntegration):
     def get_voice_patterns(self) -> list[tuple]:
         return [
             (r"^weather\s+this\s+week$", "weather_week", 310),
-            (r"^\u043f\u043e\u0433\u043e\u0434\u0430\s+\u043d\u0430\s+\u043d\u0435\u0434\u0435\u043b\u044e$", "weather_week", 310),
-            (r"^\u043f\u043e\u0433\u043e\u0434\u0430\s+\u043d\u0430\s+\u0442\u0438\u0436\u0434\u0435\u043d\u044c$", "weather_week", 310),
+            (
+                r"^\u043f\u043e\u0433\u043e\u0434\u0430\s+\u043d\u0430\s+\u043d\u0435\u0434\u0435\u043b\u044e$",
+                "weather_week",
+                310,
+            ),
+            (
+                r"^\u043f\u043e\u0433\u043e\u0434\u0430\s+\u043d\u0430\s+\u0442\u0438\u0436\u0434\u0435\u043d\u044c$",
+                "weather_week",
+                310,
+            ),
             (r"^weather\s+alerts?$", "weather_alerts", 310),
-            (r"^\u043f\u043e\u0433\u043e\u0434\u043d\u0456\s+\u043f\u043e\u043f\u0435\u0440\u0435\u0434\u0436\u0435\u043d\u043d\u044f$", "weather_alerts", 310),
+            (
+                r"^\u043f\u043e\u0433\u043e\u0434\u043d\u0456\s+\u043f\u043e\u043f\u0435\u0440\u0435\u0434\u0436\u0435\u043d\u043d\u044f$",
+                "weather_alerts",
+                310,
+            ),
             (r"^air\s+quality$", "weather_aqi", 310),
-            (r"^\u043a\u0430\u0447\u0435\u0441\u0442\u0432\u043e\s+\u0432\u043e\u0437\u0434\u0443\u0445\u0430$", "weather_aqi", 310),
-            (r"^\u044f\u043a\u0456\u0441\u0442\u044c\s+\u043f\u043e\u0432\u0456\u0442\u0440\u044f$", "weather_aqi", 310),
+            (
+                r"^\u043a\u0430\u0447\u0435\u0441\u0442\u0432\u043e\s+\u0432\u043e\u0437\u0434\u0443\u0445\u0430$",
+                "weather_aqi",
+                310,
+            ),
+            (
+                r"^\u044f\u043a\u0456\u0441\u0442\u044c\s+\u043f\u043e\u0432\u0456\u0442\u0440\u044f$",
+                "weather_aqi",
+                310,
+            ),
         ]
 
     async def execute_tool(self, tool_name: str, args: dict) -> str:

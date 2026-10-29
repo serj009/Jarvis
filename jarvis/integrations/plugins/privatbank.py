@@ -48,8 +48,16 @@ class PrivatBankIntegration(BaseIntegration):
     def get_voice_patterns(self) -> list[tuple]:
         return [
             (r"^privatbank\s+rates?$", "privat_rates", 310),
-            (r"^\u043a\u0443\u0440\u0441\s+\u043f\u0440\u0438\u0432\u0430\u0442\u0431\u0430\u043d\u043a\u0430$", "privat_rates", 310),
-            (r"^\u043a\u0443\u0440\u0441\s+\u043f\u0440\u0438\u0432\u0430\u0442\u0431\u0430\u043d\u043a\u0443$", "privat_rates", 310),
+            (
+                r"^\u043a\u0443\u0440\u0441\s+\u043f\u0440\u0438\u0432\u0430\u0442\u0431\u0430\u043d\u043a\u0430$",
+                "privat_rates",
+                310,
+            ),
+            (
+                r"^\u043a\u0443\u0440\u0441\s+\u043f\u0440\u0438\u0432\u0430\u0442\u0431\u0430\u043d\u043a\u0443$",
+                "privat_rates",
+                310,
+            ),
         ]
 
     async def execute_tool(self, tool_name: str, args: dict) -> str:

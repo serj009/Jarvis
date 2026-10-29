@@ -31,7 +31,9 @@ if TYPE_CHECKING:
 
 class RememberArgs(BaseModel):
     fact: str = Field(description="The fact or information to remember")
-    category: str = Field(default="general", description="Category: personal, games, tech, work, general")
+    category: str = Field(
+        default="general", description="Category: personal, games, tech, work, general"
+    )
 
 
 class RememberTool:
@@ -94,7 +96,7 @@ class RecallTool:
     requires_confirmation: bool = False
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
         VoicePattern(
-            regex=r"^(?:what do you (?:know|remember)|do you remember|что (?:ты )?знаешь|що (?:ти )?знаєш)\b",
+            regex=r"^(?:what do you (?:know|remember)|do you remember|что (?:ты )?знаешь|що (?:ти )?знаєш)\b",  # noqa: E501 - voice-match regex; splitting hurts readability
             priority=210,
         ),
     )

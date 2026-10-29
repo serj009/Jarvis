@@ -148,22 +148,70 @@ STYLE_NAMES: list[str] = list(STYLES.keys())
 _STYLE_VOICE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     # RU / UK: "в стиле аниме", "стиль аниме"
     (re.compile(r"(?:в\s+стил[еі]\s+|стиль\s+)(?:аніме|аниме)", re.IGNORECASE), "anime"),
-    (re.compile(r"(?:в\s+стил[еі]\s+|стиль\s+)(?:реалістичн|реалистичн|фото)", re.IGNORECASE), "photorealistic"),
+    (
+        re.compile(r"(?:в\s+стил[еі]\s+|стиль\s+)(?:реалістичн|реалистичн|фото)", re.IGNORECASE),
+        "photorealistic",
+    ),
     (re.compile(r"(?:в\s+стил[еі]\s+|стиль\s+)(?:масл|олійн)", re.IGNORECASE), "oil_painting"),
     (re.compile(r"(?:в\s+стил[еі]\s+|стиль\s+)(?:акварел)", re.IGNORECASE), "watercolor"),
-    (re.compile(r"(?:в\s+стил[еі]\s+|стиль\s+)(?:цифров|діджітал|диджитал)", re.IGNORECASE), "digital_art"),
-    (re.compile(r"(?:в\s+стил[еі]\s+|стиль\s+)(?:скетч|ескіз|эскиз|наброс)", re.IGNORECASE), "sketch"),
+    (
+        re.compile(r"(?:в\s+стил[еі]\s+|стиль\s+)(?:цифров|діджітал|диджитал)", re.IGNORECASE),
+        "digital_art",
+    ),
+    (
+        re.compile(r"(?:в\s+стил[еі]\s+|стиль\s+)(?:скетч|ескіз|эскиз|наброс)", re.IGNORECASE),
+        "sketch",
+    ),
     (re.compile(r"(?:в\s+стил[еі]\s+|стиль\s+)(?:3d|3д|рендер)", re.IGNORECASE), "3d_render"),
     (re.compile(r"(?:в\s+стил[еі]\s+|стиль\s+)(?:піксел|пиксел)", re.IGNORECASE), "pixel_art"),
     # EN: "in anime style", "anime style", "in the style of anime"
-    (re.compile(r"(?:in\s+(?:the\s+)?(?:style\s+(?:of\s+)?)?|(?:style\s+))anime", re.IGNORECASE), "anime"),
-    (re.compile(r"(?:in\s+(?:the\s+)?(?:style\s+(?:of\s+)?)?|(?:style\s+))(?:photo)?realistic", re.IGNORECASE), "photorealistic"),
-    (re.compile(r"(?:in\s+(?:the\s+)?(?:style\s+(?:of\s+)?)?|(?:style\s+))oil\s*paint", re.IGNORECASE), "oil_painting"),
-    (re.compile(r"(?:in\s+(?:the\s+)?(?:style\s+(?:of\s+)?)?|(?:style\s+))watercolor", re.IGNORECASE), "watercolor"),
-    (re.compile(r"(?:in\s+(?:the\s+)?(?:style\s+(?:of\s+)?)?|(?:style\s+))digital\s*art", re.IGNORECASE), "digital_art"),
-    (re.compile(r"(?:in\s+(?:the\s+)?(?:style\s+(?:of\s+)?)?|(?:style\s+))sketch", re.IGNORECASE), "sketch"),
-    (re.compile(r"(?:in\s+(?:the\s+)?(?:style\s+(?:of\s+)?)?|(?:style\s+))3d\s*render", re.IGNORECASE), "3d_render"),
-    (re.compile(r"(?:in\s+(?:the\s+)?(?:style\s+(?:of\s+)?)?|(?:style\s+))pixel\s*art", re.IGNORECASE), "pixel_art"),
+    (
+        re.compile(r"(?:in\s+(?:the\s+)?(?:style\s+(?:of\s+)?)?|(?:style\s+))anime", re.IGNORECASE),
+        "anime",
+    ),
+    (
+        re.compile(
+            r"(?:in\s+(?:the\s+)?(?:style\s+(?:of\s+)?)?|(?:style\s+))(?:photo)?realistic",
+            re.IGNORECASE,
+        ),
+        "photorealistic",
+    ),
+    (
+        re.compile(
+            r"(?:in\s+(?:the\s+)?(?:style\s+(?:of\s+)?)?|(?:style\s+))oil\s*paint", re.IGNORECASE
+        ),
+        "oil_painting",
+    ),
+    (
+        re.compile(
+            r"(?:in\s+(?:the\s+)?(?:style\s+(?:of\s+)?)?|(?:style\s+))watercolor", re.IGNORECASE
+        ),
+        "watercolor",
+    ),
+    (
+        re.compile(
+            r"(?:in\s+(?:the\s+)?(?:style\s+(?:of\s+)?)?|(?:style\s+))digital\s*art", re.IGNORECASE
+        ),
+        "digital_art",
+    ),
+    (
+        re.compile(
+            r"(?:in\s+(?:the\s+)?(?:style\s+(?:of\s+)?)?|(?:style\s+))sketch", re.IGNORECASE
+        ),
+        "sketch",
+    ),
+    (
+        re.compile(
+            r"(?:in\s+(?:the\s+)?(?:style\s+(?:of\s+)?)?|(?:style\s+))3d\s*render", re.IGNORECASE
+        ),
+        "3d_render",
+    ),
+    (
+        re.compile(
+            r"(?:in\s+(?:the\s+)?(?:style\s+(?:of\s+)?)?|(?:style\s+))pixel\s*art", re.IGNORECASE
+        ),
+        "pixel_art",
+    ),
     # Shorthand EN adjectives (no "style" keyword)
     (re.compile(r"\b(?:a\s+)?realistic\b", re.IGNORECASE), "photorealistic"),
     (re.compile(r"\banime\b", re.IGNORECASE), "anime"),

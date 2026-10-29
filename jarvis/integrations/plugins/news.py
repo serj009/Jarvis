@@ -60,13 +60,33 @@ class NewsIntegration(BaseIntegration):
     def get_voice_patterns(self) -> list[tuple]:
         return [
             (r"^latest\s+news$", "news_top", 300),
-            (r"^\u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0435\s+\u043d\u043e\u0432\u043e\u0441\u0442\u0438$", "news_top", 300),
-            (r"^\u043e\u0441\u0442\u0430\u043d\u043d\u0456\s+\u043d\u043e\u0432\u0438\u043d\u0438$", "news_top", 300),
+            (
+                r"^\u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0435\s+\u043d\u043e\u0432\u043e\u0441\u0442\u0438$",
+                "news_top",
+                300,
+            ),
+            (
+                r"^\u043e\u0441\u0442\u0430\u043d\u043d\u0456\s+\u043d\u043e\u0432\u0438\u043d\u0438$",
+                "news_top",
+                300,
+            ),
             (r"^tech\s+news$", "news_tech", 310),
-            (r"^\u043d\u043e\u0432\u043e\u0441\u0442\u0438\s+\u0442\u0435\u0445\u043d\u043e\u043b\u043e\u0433\u0438\u0439$", "news_tech", 310),
+            (
+                r"^\u043d\u043e\u0432\u043e\u0441\u0442\u0438\s+\u0442\u0435\u0445\u043d\u043e\u043b\u043e\u0433\u0438\u0439$",
+                "news_tech",
+                310,
+            ),
             (r"^news\s+about\s+ukraine$", "news_ukraine", 310),
-            (r"^\u043d\u043e\u0432\u043e\u0441\u0442\u0438\s+\u0443\u043a\u0440\u0430\u0438\u043d\u044b$", "news_ukraine", 310),
-            (r"^\u043d\u043e\u0432\u0438\u043d\u0438\s+\u0443\u043a\u0440\u0430\u0457\u043d\u0438$", "news_ukraine", 310),
+            (
+                r"^\u043d\u043e\u0432\u043e\u0441\u0442\u0438\s+\u0443\u043a\u0440\u0430\u0438\u043d\u044b$",
+                "news_ukraine",
+                310,
+            ),
+            (
+                r"^\u043d\u043e\u0432\u0438\u043d\u0438\s+\u0443\u043a\u0440\u0430\u0457\u043d\u0438$",
+                "news_ukraine",
+                310,
+            ),
         ]
 
     async def execute_tool(self, tool_name: str, args: dict) -> str:

@@ -31,7 +31,18 @@ if TYPE_CHECKING:
     from jarvis.memory.auto_classifier import AutoClassifier
 _LATIN = re.compile(r"[a-z]", re.IGNORECASE)
 _UK_LETTERS = re.compile(r"[\u0456\u0457\u0454\u0491]", re.IGNORECASE)
-_UK_WORDS = frozenset({"\u0449\u043e", "\u0449\u043e\u0441\u044c", "\u0449\u0435", "\u0446\u0435", "\u044f\u043a", "\u0434\u0443\u0436\u0435", "\u0439", "\u0448\u043e"})
+_UK_WORDS = frozenset(
+    {
+        "\u0449\u043e",
+        "\u0449\u043e\u0441\u044c",
+        "\u0449\u0435",
+        "\u0446\u0435",
+        "\u044f\u043a",
+        "\u0434\u0443\u0436\u0435",
+        "\u0439",
+        "\u0448\u043e",
+    }
+)
 _WORD = re.compile(r"[\u0430-\u044f\u0451\u0456\u0457\u0454\u0491']+", re.IGNORECASE)
 
 

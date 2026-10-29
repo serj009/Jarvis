@@ -78,7 +78,11 @@ def _index_python(source: str, rel_path: str) -> list[SymbolEntry]:
             # Also index methods.
             for child in ast.iter_child_nodes(node):
                 if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                    ctx2 = source_lines[child.lineno - 1].strip() if child.lineno <= len(source_lines) else ""
+                    ctx2 = (
+                        source_lines[child.lineno - 1].strip()
+                        if child.lineno <= len(source_lines)
+                        else ""
+                    )
                     entries.append(SymbolEntry(
                         name=child.name, file=rel_path,
                         line=child.lineno, kind="method", context=ctx2,
@@ -90,7 +94,11 @@ def _index_python(source: str, rel_path: str) -> list[SymbolEntry]:
                 for p in ast.walk(tree)
                 if hasattr(p, "body") and node in getattr(p, "body", [])
             ):
-                ctx = source_lines[node.lineno - 1].strip() if node.lineno <= len(source_lines) else ""
+                ctx = (
+                    source_lines[node.lineno - 1].strip()
+                    if node.lineno <= len(source_lines)
+                    else ""
+                )
                 entries.append(SymbolEntry(
                     name=node.name, file=rel_path,
                     line=node.lineno, kind="function", context=ctx,

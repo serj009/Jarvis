@@ -463,16 +463,16 @@ class RemindMeAtTool:
             ),
             priority=138,
             args=lambda m: {
-                "time": m.group(1).replace(".", ":") if ":" in m.group(1) or "." in m.group(1) else m.group(1) + ":00",
+                "time": m.group(1).replace(".", ":")
+                if ":" in m.group(1) or "." in m.group(1)
+                else m.group(1) + ":00",
                 "text": (m.group(2) or "Reminder").strip(),
                 "tomorrow": True,
             },
         ),
         # RU: "напомни в 15:00 позвонить маме"
         VoicePattern(
-            regex=(
-                r"^напомни\s+(?:мне\s+)?(?:в\s+)?(\d{1,2}[:.]\d{2})\s+(.+)$"
-            ),
+            regex=(r"^напомни\s+(?:мне\s+)?(?:в\s+)?(\d{1,2}[:.]\d{2})\s+(.+)$"),
             priority=139,
             args=lambda m: {
                 "time": m.group(1).replace(".", ":"),
@@ -482,21 +482,19 @@ class RemindMeAtTool:
         ),
         # RU: "напомни завтра в 9:00 проверить почту"
         VoicePattern(
-            regex=(
-                r"^напомни\s+(?:мне\s+)?завтра\s+(?:в\s+)?(\d{1,2}(?:[:.]\d{2})?)\s*(.+)?$"
-            ),
+            regex=(r"^напомни\s+(?:мне\s+)?завтра\s+(?:в\s+)?(\d{1,2}(?:[:.]\d{2})?)\s*(.+)?$"),
             priority=138,
             args=lambda m: {
-                "time": m.group(1).replace(".", ":") if ":" in m.group(1) or "." in m.group(1) else m.group(1) + ":00",
+                "time": m.group(1).replace(".", ":")
+                if ":" in m.group(1) or "." in m.group(1)
+                else m.group(1) + ":00",
                 "text": (m.group(2) or "Напоминание").strip(),
                 "tomorrow": True,
             },
         ),
         # UK: "нагадай о 15:00 зателефонувати мамі"
         VoicePattern(
-            regex=(
-                r"^нагадай\s+(?:мені\s+)?(?:о\s+)?(\d{1,2}[:.]\d{2})\s+(.+)$"
-            ),
+            regex=(r"^нагадай\s+(?:мені\s+)?(?:о\s+)?(\d{1,2}[:.]\d{2})\s+(.+)$"),
             priority=139,
             args=lambda m: {
                 "time": m.group(1).replace(".", ":"),
@@ -506,12 +504,12 @@ class RemindMeAtTool:
         ),
         # UK: "нагадай завтра о 9:00 перевірити пошту"
         VoicePattern(
-            regex=(
-                r"^нагадай\s+(?:мені\s+)?завтра\s+(?:о\s+)?(\d{1,2}(?:[:.]\d{2})?)\s*(.+)?$"
-            ),
+            regex=(r"^нагадай\s+(?:мені\s+)?завтра\s+(?:о\s+)?(\d{1,2}(?:[:.]\d{2})?)\s*(.+)?$"),
             priority=138,
             args=lambda m: {
-                "time": m.group(1).replace(".", ":") if ":" in m.group(1) or "." in m.group(1) else m.group(1) + ":00",
+                "time": m.group(1).replace(".", ":")
+                if ":" in m.group(1) or "." in m.group(1)
+                else m.group(1) + ":00",
                 "text": (m.group(2) or "Нагадування").strip(),
                 "tomorrow": True,
             },

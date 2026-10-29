@@ -63,11 +63,27 @@ class MonobankIntegration(BaseIntegration):
             (r"^\u043c\u043e\u0439\s+\u0431\u0430\u043b\u0430\u043d\u0441$", "mono_balance", 300),
             (r"^\u043c\u0456\u0439\s+\u0431\u0430\u043b\u0430\u043d\u0441$", "mono_balance", 300),
             (r"^last\s+transactions?$", "mono_transactions", 310),
-            (r"^\u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0435\s+\u0442\u0440\u0430\u043d\u0437\u0430\u043a\u0446\u0438\u0438$", "mono_transactions", 310),
-            (r"^\u043e\u0441\u0442\u0430\u043d\u043d\u0456\s+\u0442\u0440\u0430\u043d\u0437\u0430\u043a\u0446\u0456\u0457$", "mono_transactions", 310),
+            (
+                r"^\u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0435\s+\u0442\u0440\u0430\u043d\u0437\u0430\u043a\u0446\u0438\u0438$",
+                "mono_transactions",
+                310,
+            ),
+            (
+                r"^\u043e\u0441\u0442\u0430\u043d\u043d\u0456\s+\u0442\u0440\u0430\u043d\u0437\u0430\u043a\u0446\u0456\u0457$",
+                "mono_transactions",
+                310,
+            ),
             (r"^dollar\s+rate$", "mono_rates", 310),
-            (r"^\u043a\u0443\u0440\u0441\s+\u0434\u043e\u043b\u043b\u0430\u0440\u0430$", "mono_rates", 310),
-            (r"^\u043a\u0443\u0440\u0441\s+\u0434\u043e\u043b\u0430\u0440\u0430$", "mono_rates", 310),
+            (
+                r"^\u043a\u0443\u0440\u0441\s+\u0434\u043e\u043b\u043b\u0430\u0440\u0430$",
+                "mono_rates",
+                310,
+            ),
+            (
+                r"^\u043a\u0443\u0440\u0441\s+\u0434\u043e\u043b\u0430\u0440\u0430$",
+                "mono_rates",
+                310,
+            ),
         ]
 
     async def execute_tool(self, tool_name: str, args: dict) -> str:
@@ -133,9 +149,13 @@ class MonobankIntegration(BaseIntegration):
                      and x.get("currencyCodeB") == 980), None)
         lines = []
         if usd:
-            lines.append(f"  USD/UAH: buy {usd.get('rateBuy', '?')}, sell {usd.get('rateSell', '?')}")
+            lines.append(
+                f"  USD/UAH: buy {usd.get('rateBuy', '?')}, sell {usd.get('rateSell', '?')}"
+            )
         if eur:
-            lines.append(f"  EUR/UAH: buy {eur.get('rateBuy', '?')}, sell {eur.get('rateSell', '?')}")
+            lines.append(
+                f"  EUR/UAH: buy {eur.get('rateBuy', '?')}, sell {eur.get('rateSell', '?')}"
+            )
         return "Monobank rates, sir:\n" + "\n".join(lines) if lines else "No rates available, sir."
 
 

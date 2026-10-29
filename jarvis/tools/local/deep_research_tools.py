@@ -115,9 +115,13 @@ class PauseDeepResearchTool:
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
         VoicePattern(regex=r"^pause\s+deep\s+research$", priority=130),
         # RU: "пауза исследование", "поставь на паузу исследование"
-        VoicePattern(regex=r"^(?:пауза|поставь\s+на\s+паузу)\s+(?:глубокое\s+)?исследование$", priority=131),
+        VoicePattern(
+            regex=r"^(?:пауза|поставь\s+на\s+паузу)\s+(?:глубокое\s+)?исследование$", priority=131
+        ),
         # UK: "пауза дослідження", "постав на паузу дослідження"
-        VoicePattern(regex=r"^(?:пауза|постав\s+на\s+паузу)\s+(?:глибоке\s+)?дослідження$", priority=132),
+        VoicePattern(
+            regex=r"^(?:пауза|постав\s+на\s+паузу)\s+(?:глибоке\s+)?дослідження$", priority=132
+        ),
     )
 
     def __init__(self, *, on_pause: Callable[[], None]) -> None:

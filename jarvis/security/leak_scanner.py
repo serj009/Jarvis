@@ -377,7 +377,9 @@ _HEX_RE = re.compile(r"(?:[0-9a-fA-F]{2}){6,}")
 # Regex for extracting "entity-like" fragments from memory text.
 # Matches sequences of word chars (including unicode letters), optionally
 # separated by single spaces — e.g. "Zielona Góra", "Serhii".
-_ENTITY_RE = re.compile(r"\b[A-ZА-ЯІЇЄҐ][a-zа-яіїєґA-ZА-ЯІЇЄҐ]+(?:\s+[A-ZА-ЯІЇЄҐ][a-zа-яіїєґA-ZА-ЯІЇЄҐ]+)*\b")
+_ENTITY_RE = re.compile(
+    r"\b[A-ZА-ЯІЇЄҐ][a-zа-яіїєґA-ZА-ЯІЇЄҐ]+(?:\s+[A-ZА-ЯІЇЄҐ][a-zа-яіїєґA-ZА-ЯІЇЄҐ]+)*\b"
+)
 
 
 def _extract_entity_fragments(text: str) -> list[str]:

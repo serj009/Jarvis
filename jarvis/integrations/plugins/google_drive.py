@@ -55,16 +55,44 @@ class GoogleDriveIntegration(GoogleIntegrationMixin, BaseIntegration):
     def get_voice_patterns(self) -> list[tuple]:
         return [
             (r"^list\s+my\s+drive\s+files$", "drive_list", 300),
-            (r"^\u043f\u043e\u043a\u0430\u0436\u0438\s+\u0444\u0430\u0439\u043b\u044b\s+\u0434\u0438\u0441\u043a\u0430$", "drive_list", 300),
-            (r"^\u043f\u043e\u043a\u0430\u0436\u0438\s+\u0444\u0430\u0439\u043b\u0438\s+\u0434\u0438\u0441\u043a\u0430$", "drive_list", 300),
+            (
+                r"^\u043f\u043e\u043a\u0430\u0436\u0438\s+\u0444\u0430\u0439\u043b\u044b\s+\u0434\u0438\u0441\u043a\u0430$",
+                "drive_list",
+                300,
+            ),
+            (
+                r"^\u043f\u043e\u043a\u0430\u0436\u0438\s+\u0444\u0430\u0439\u043b\u0438\s+\u0434\u0438\u0441\u043a\u0430$",
+                "drive_list",
+                300,
+            ),
             (r"^search\s+drive\s+(?:for\s+)?(.+)$", "drive_search", 310),
-            (r"^\u043d\u0430\u0439\u0434\u0438\s+\u043d\u0430\s+\u0434\u0438\u0441\u043a\u0435\s+(.+)$", "drive_search", 310),
-            (r"^\u0437\u043d\u0430\u0439\u0434\u0438\s+\u043d\u0430\s+\u0434\u0438\u0441\u043a\u0443\s+(.+)$", "drive_search", 310),
+            (
+                r"^\u043d\u0430\u0439\u0434\u0438\s+\u043d\u0430\s+\u0434\u0438\u0441\u043a\u0435\s+(.+)$",
+                "drive_search",
+                310,
+            ),
+            (
+                r"^\u0437\u043d\u0430\u0439\u0434\u0438\s+\u043d\u0430\s+\u0434\u0438\u0441\u043a\u0443\s+(.+)$",
+                "drive_search",
+                310,
+            ),
             (r"^upload\s+(?:to\s+drive\s+)?(.+)$", "drive_upload", 320),
-            (r"^\u0437\u0430\u0433\u0440\u0443\u0437\u0438\s+\u043d\u0430\s+\u0434\u0438\u0441\u043a\s+(.+)$", "drive_upload", 320),
-            (r"^\u0437\u0430\u0432\u0430\u043d\u0442\u0430\u0436\u0020?(?:\u043d\u0430\s+\u0434\u0438\u0441\u043a)\s+(.+)$", "drive_upload", 320),
+            (
+                r"^\u0437\u0430\u0433\u0440\u0443\u0437\u0438\s+\u043d\u0430\s+\u0434\u0438\u0441\u043a\s+(.+)$",
+                "drive_upload",
+                320,
+            ),
+            (
+                r"^\u0437\u0430\u0432\u0430\u043d\u0442\u0430\u0436\u0020?(?:\u043d\u0430\s+\u0434\u0438\u0441\u043a)\s+(.+)$",
+                "drive_upload",
+                320,
+            ),
             (r"^download\s+(?:from\s+drive\s+)?(.+)$", "drive_download", 320),
-            (r"^\u0441\u043a\u0430\u0447\u0430\u0439\s+\u0441\s+\u0434\u0438\u0441\u043a\u0430\s+(.+)$", "drive_download", 320),
+            (
+                r"^\u0441\u043a\u0430\u0447\u0430\u0439\s+\u0441\s+\u0434\u0438\u0441\u043a\u0430\s+(.+)$",
+                "drive_download",
+                320,
+            ),
         ]
 
     async def execute_tool(self, tool_name: str, args: dict) -> str:

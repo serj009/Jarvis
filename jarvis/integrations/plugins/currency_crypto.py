@@ -66,11 +66,27 @@ class CurrencyCryptoIntegration(BaseIntegration):
     def get_voice_patterns(self) -> list[tuple]:
         return [
             (r"^bitcoin\s+price$", "crypto_price", 310),
-            (r"^\u0446\u0435\u043d\u0430\s+\u0431\u0438\u0442\u043a\u043e\u0438\u043d\u0430$", "crypto_price", 310),
-            (r"^\u0446\u0456\u043d\u0430\s+\u0431\u0456\u0442\u043a\u043e\u0457\u043d\u0430$", "crypto_price", 310),
+            (
+                r"^\u0446\u0435\u043d\u0430\s+\u0431\u0438\u0442\u043a\u043e\u0438\u043d\u0430$",
+                "crypto_price",
+                310,
+            ),
+            (
+                r"^\u0446\u0456\u043d\u0430\s+\u0431\u0456\u0442\u043a\u043e\u0457\u043d\u0430$",
+                "crypto_price",
+                310,
+            ),
             (r"^convert\s+(\d+)\s+(\w+)\s+to\s+(\w+)$", "currency_convert", 320),
-            (r"^\u043a\u043e\u043d\u0432\u0435\u0440\u0442\u0438\u0440\u0443\u0439\s+(.+)$", "currency_convert", 320),
-            (r"^\u043a\u043e\u043d\u0432\u0435\u0440\u0442\u0443\u0439\s+(.+)$", "currency_convert", 320),
+            (
+                r"^\u043a\u043e\u043d\u0432\u0435\u0440\u0442\u0438\u0440\u0443\u0439\s+(.+)$",
+                "currency_convert",
+                320,
+            ),
+            (
+                r"^\u043a\u043e\u043d\u0432\u0435\u0440\u0442\u0443\u0439\s+(.+)$",
+                "currency_convert",
+                320,
+            ),
         ]
 
     async def execute_tool(self, tool_name: str, args: dict) -> str:

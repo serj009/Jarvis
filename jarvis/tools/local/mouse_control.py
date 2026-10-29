@@ -219,7 +219,9 @@ class MouseClickTool:
 
         button = args.button.lower()
         try:
-            await asyncio.to_thread(self._do_click, pyautogui, target_x, target_y, button, args.clicks)
+            await asyncio.to_thread(
+                self._do_click, pyautogui, target_x, target_y, button, args.clicks
+            )
         except Exception as e:
             log.exception("mouse_click failed")
             return ToolResult(success=False, error=f"Click failed: {e}")
@@ -358,7 +360,9 @@ class MouseScrollTool:
             regex=r"^прокрути\s+(вверх|вниз|влево|вправо)\s+(\d{1,3})(?:\s+раз[а]?)?$",
             priority=230,
             args=lambda m: {
-                "direction": {"вверх": "up", "вниз": "down", "влево": "left", "вправо": "right"}[m.group(1)],
+                "direction": {"вверх": "up", "вниз": "down", "влево": "left", "вправо": "right"}[
+                    m.group(1)
+                ],
                 "amount": int(m.group(2)),
             },
         ),
@@ -366,7 +370,9 @@ class MouseScrollTool:
             regex=r"^прокрути\s+(?:в\s+самый\s+)?(вверх|вниз|низ|верх)$",
             priority=235,
             args=lambda m: {
-                "direction": {"вверх": "up", "верх": "up", "вниз": "down", "низ": "down"}[m.group(1)],
+                "direction": {"вверх": "up", "верх": "up", "вниз": "down", "низ": "down"}[
+                    m.group(1)
+                ],
                 "amount": 50 if m.group(1) in ("низ", "верх") else 3,
             },
         ),
@@ -375,7 +381,9 @@ class MouseScrollTool:
             regex=r"^прокрути\s+(вгору|вниз|вліво|вправо)\s+(\d{1,3})(?:\s+раз[иів]?)?$",
             priority=230,
             args=lambda m: {
-                "direction": {"вгору": "up", "вниз": "down", "вліво": "left", "вправо": "right"}[m.group(1)],
+                "direction": {"вгору": "up", "вниз": "down", "вліво": "left", "вправо": "right"}[
+                    m.group(1)
+                ],
                 "amount": int(m.group(2)),
             },
         ),
@@ -400,7 +408,9 @@ class MouseScrollTool:
         if direction not in ("up", "down", "left", "right"):
             return ToolResult(success=False, error=f"Unknown direction '{args.direction}', sir.")
         try:
-            await asyncio.to_thread(self._do_scroll, pyautogui, direction, args.amount, args.x, args.y)
+            await asyncio.to_thread(
+                self._do_scroll, pyautogui, direction, args.amount, args.x, args.y
+            )
         except Exception as e:
             log.exception("mouse_scroll failed")
             return ToolResult(success=False, error=f"Scroll failed: {e}")

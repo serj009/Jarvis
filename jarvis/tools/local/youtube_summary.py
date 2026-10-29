@@ -288,7 +288,9 @@ class YoutubeSummaryTool:
         sub_result = await asyncio.to_thread(_download_subtitles, url)
 
         if not sub_result.get("success"):
-            return ToolResult(success=False, error=sub_result.get("error", "Failed to get subtitles."))
+            return ToolResult(
+                success=False, error=sub_result.get("error", "Failed to get subtitles.")
+            )
 
         sub_text = sub_result["text"]
         video_title = sub_result.get("title", "")
