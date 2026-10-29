@@ -103,7 +103,7 @@ class TestQrGeneration:
         mock_qr.make.return_value = mock_img
 
         with patch.dict("sys.modules", {"qrcode": mock_qr}):
-            err = _generate_qr_image("https://test.com", out)
+            _generate_qr_image("https://test.com", out)
             # Should succeed (or fall through to httpx if mock doesn't work)
             # We just check it doesn't crash
 

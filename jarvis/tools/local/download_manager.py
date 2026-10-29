@@ -60,7 +60,6 @@ def _download_file(url: str, dest_dir: Path, filename: str | None = None) -> dic
         resp = requests.get(url, stream=True, timeout=60, allow_redirects=True)
         resp.raise_for_status()
 
-        total = int(resp.headers.get("content-length", 0))
         downloaded = 0
 
         with open(dest_path, "wb") as f:

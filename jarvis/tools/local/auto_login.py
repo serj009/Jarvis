@@ -168,7 +168,7 @@ class AutoLoginTool:
                 cred.password,
                 cred.url,
             )
-        except Exception as exc:
+        except Exception:
             # NEVER include credentials in error messages
             log.debug(
                 "[auto_login] form fill failed for site '%s'",

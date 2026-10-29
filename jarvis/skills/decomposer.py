@@ -276,7 +276,6 @@ class SkillDecomposer:
         total = min(self.MAX_PARTS, complexity.estimated_parts)
 
         # Split tools/steps among sub-skills
-        tools = need.tools_involved
         steps = need.steps
         chunk_size = max(1, len(steps) // (total - 1)) if total > 1 else len(steps)
 

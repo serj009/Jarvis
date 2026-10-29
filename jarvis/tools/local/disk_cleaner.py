@@ -322,7 +322,7 @@ class FindLargeFoldersTool:
             )
         except FileNotFoundError as e:
             return ToolResult(success=False, error=str(e))
-        except PermissionError as e:
+        except PermissionError:
             return ToolResult(success=False, error=_UAC_MSG)
         except OSError as e:
             if _is_access_denied(e):

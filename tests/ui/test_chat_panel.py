@@ -219,15 +219,10 @@ class TestChatPanel:
         assert received == ["open chrome"]
 
     def test_submit_adds_user_bubble(self, qapp, tmp_path):
-        from jarvis.ui.chat_storage import ChatStorage
-
-        storage = ChatStorage(path=tmp_path / "panel_chat.json")
         panel = _make_panel(qapp, tmp_path, submit_text=lambda t: None)
 
         panel._on_submit("hello JARVIS")
 
-        # Check storage has the user message
-        messages = storage.load_history()
         # Storage is separate instance; check panel's storage
         panel_messages = panel._storage.load_history()
         assert len(panel_messages) >= 1
@@ -521,7 +516,7 @@ class TestMessageBubble:
         )
         bubble = MessageBubble(msg)
         # The timestamp label should exist and show formatted time
-        ts_labels = bubble.findChildren(
+        bubble.findChildren(
             type(bubble).mro()[1],  # QFrame -> QWidget
         )
         # Just check construction succeeded (no crash)

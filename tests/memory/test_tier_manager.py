@@ -278,8 +278,8 @@ class TestTierStats:
 
     @pytest.mark.asyncio()
     async def test_stats_counts_tiers(self, store) -> None:
-        f1 = await store.add("hot fact 1")
-        f2 = await store.add("hot fact 2")
+        await store.add("hot fact 1")
+        await store.add("hot fact 2")
         f3 = await store.add("warm fact")
         await store.update_tier(f3, "warm", "warm...")
 
