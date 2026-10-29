@@ -20,7 +20,6 @@ from jarvis.security.tool_guard import (
     _CHECKED_TOOLS,
     EXEC_TOOLS,
     NETWORK_TOOLS,
-    GuardResult,
     ToolGuard,
 )
 

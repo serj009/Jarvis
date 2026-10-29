@@ -8,12 +8,8 @@ directly and by simulating cross-thread signals on the Qt event loop.
 
 from __future__ import annotations
 
-import json
-import queue
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
-import pytest
 from PySide6.QtWidgets import QApplication
 
 # ---------------------------------------------------------------------------

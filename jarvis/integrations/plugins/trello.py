@@ -92,7 +92,6 @@ class TrelloIntegration(BaseIntegration):
         key, token = self._creds()
         if not key or not token:
             return "Trello is not connected, sir."
-        import httpx  # lazy
 
         try:
             if tool_name == "trello_boards":

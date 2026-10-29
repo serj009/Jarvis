@@ -23,7 +23,7 @@ import pytest
 
 pytest.importorskip("faster_whisper")
 
-from jarvis.audio.protocols import SAMPLE_RATE, SpeechToText, TranscriptionResult  # noqa: E402
+from jarvis.audio.protocols import SAMPLE_RATE, SpeechToText  # noqa: E402
 from jarvis.audio.stt import FasterWhisperSTT, STTLoadError, _resolve_model_id  # noqa: E402
 from jarvis.core.lifecycle import Loadable  # noqa: E402
 

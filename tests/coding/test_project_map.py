@@ -18,11 +18,8 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-import pytest
 
 from jarvis.coding.project_map import (
-    SKIP_DIRS,
-    FileSummary,
     ProjectMap,
     _extract_python_symbols,
     _extract_symbols,

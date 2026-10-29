@@ -7,7 +7,7 @@ task via natural voice commands.
 from __future__ import annotations
 
 import logging
-from typing import Any, ClassVar, Literal
+from typing import ClassVar, Literal
 
 from pydantic import BaseModel, Field
 

@@ -19,7 +19,6 @@ from __future__ import annotations
 
 import sys
 from types import ModuleType
-from typing import Optional
 
 
 def get_platform() -> ModuleType:

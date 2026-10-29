@@ -96,7 +96,6 @@ class PhilipsHueIntegration(BaseIntegration):
     async def execute_tool(self, tool_name: str, args: dict) -> str:
         if not self._api_key():
             return "Philips Hue is not connected, sir."
-        import httpx  # lazy
 
         try:
             if tool_name == "hue_on":

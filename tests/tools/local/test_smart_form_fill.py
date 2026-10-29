@@ -7,12 +7,10 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from jarvis.tools.local.smart_form_fill import (
     SmartFormFillTool,
     _fill_via_selenium,
-    _load_profile,
     _match_field,
 )
 from jarvis.tools.registry import EmptyArgs

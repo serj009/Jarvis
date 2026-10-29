@@ -25,7 +25,7 @@ Physical device indicators:
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 try:
     import sounddevice as sd

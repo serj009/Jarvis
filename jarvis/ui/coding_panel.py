@@ -44,22 +44,19 @@ import logging
 import os
 import subprocess
 import sys
-import time
 from collections.abc import Callable
-from datetime import UTC, datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from PySide6.QtCore import (
     QEasingCurve,
     QPoint,
     QPropertyAnimation,
-    QSize,
     Qt,
     QTimer,
     Signal,
     Slot,
 )
-from PySide6.QtGui import QColor, QFont, QPainter, QPen
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -73,7 +70,6 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QScrollArea,
-    QSizePolicy,
     QSplitter,
     QVBoxLayout,
     QWidget,
@@ -94,7 +90,6 @@ from jarvis.ui.settings.theme import (
     TEXT_PRIMARY,
     TEXT_SECONDARY,
     WARNING,
-    WARNING_DIM,
 )
 
 log = logging.getLogger(__name__)

@@ -32,12 +32,10 @@ from PySide6.QtWidgets import (
 
 from jarvis.ui.commands_widget import CommandsWidget
 from jarvis.ui.settings.theme import (
-    ACCENT,
     BG,
     BORDER,
     TEXT_MUTED,
     TEXT_PRIMARY,
-    TEXT_SECONDARY,
     apply_theme,
 )
 

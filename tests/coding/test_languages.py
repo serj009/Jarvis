@@ -17,7 +17,6 @@ import pytest
 
 from jarvis.coding.languages import (
     LANGUAGES,
-    LanguageConfig,
     _validate_js_ts,
     _validate_python,
     detect_from_description,

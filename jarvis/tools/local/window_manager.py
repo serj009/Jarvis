@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import ClassVar, Literal, Optional
+from typing import ClassVar, Literal
 
 from pydantic import BaseModel, Field
 

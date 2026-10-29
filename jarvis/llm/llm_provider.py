@@ -26,8 +26,6 @@ get an error that's clear enough.
 from __future__ import annotations
 
 import asyncio
-import base64
-import json
 import logging
 from collections.abc import AsyncIterator
 from typing import Any
@@ -43,13 +41,8 @@ from jarvis.llm.model_provider import (
     ProviderAuthError,
     ProviderConnectionError,
     ProviderError,
-    ProviderModelNotFoundError,
     ProviderRateLimitError,
-    _api_timeout,
     _raise_for_status,
-)
-from jarvis.llm.model_provider import (
-    ChatChunk as ProviderChunk,
 )
 from jarvis.llm.ollama_client import ChatChunk
 

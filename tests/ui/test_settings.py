@@ -530,7 +530,6 @@ def test_tools_tab_lists_existing_mcp_servers(qapp):
 
 def test_tools_tab_checkboxes_have_friendly_names(qapp):
     """Tool checkboxes use human-readable display names, not raw tool ids."""
-    from jarvis.ui.settings.tabs.tools import TOOL_DISPLAY_NAMES
 
     cfg = _cfg()
     tab = ToolsTab(config=cfg, on_change=lambda: None)

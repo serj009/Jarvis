@@ -9,11 +9,9 @@ from __future__ import annotations
 import base64
 import time
 
-import pytest
 
 from jarvis.security.leak_scanner import (
     DataLeakScanner,
-    ScanResult,
     _extract_entity_fragments,
 )
 from jarvis.security.origin_tracker import RequestContext, RequestOrigin

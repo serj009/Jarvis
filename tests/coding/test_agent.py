@@ -5,9 +5,7 @@ Uses a mocked ModelProvider so tests are fast and deterministic.
 
 from __future__ import annotations
 
-import asyncio
 import json
-import os
 import re
 
 # Some tests need a real ``git`` binary on PATH. On machines where git is
@@ -15,17 +13,14 @@ import re
 # tests would fail with WinError 2 — skip them instead.
 import shutil
 import textwrap
-from collections.abc import AsyncIterator
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from jarvis.coding.agent import (
     CODING_SYSTEM_PROMPT,
     CodingAgent,
-    FileBlock,
-    PlanStep,
     ResponseParser,
 )
 

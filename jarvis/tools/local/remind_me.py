@@ -25,12 +25,12 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import UTC, datetime, timedelta, timezone
-from typing import ClassVar, Optional
+from datetime import UTC, datetime, timedelta
+from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
-from jarvis.memory.scheduled_reminders import ReminderStore, ScheduledReminder
+from jarvis.memory.scheduled_reminders import ReminderStore
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)

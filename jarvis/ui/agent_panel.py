@@ -50,25 +50,21 @@ from PySide6.QtWidgets import (
     QProgressBar,
     QPushButton,
     QScrollArea,
-    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
 
 from jarvis.ui.settings.theme import (
     ACCENT,
-    ACCENT_DIM,
     BG,
     BG_CARD,
     BG_INPUT,
     BORDER,
     CARD_RADIUS,
     ERROR,
-    SUCCESS,
     TEXT_MUTED,
     TEXT_PRIMARY,
     TEXT_SECONDARY,
-    WARNING,
 )
 
 log = logging.getLogger(__name__)

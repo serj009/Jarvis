@@ -13,7 +13,6 @@ What is pinned here:
 from __future__ import annotations
 
 import pytest
-from pydantic import BaseModel
 
 from jarvis.tools.registry import EmptyArgs, ToolResult
 from jarvis.tools.risk import (

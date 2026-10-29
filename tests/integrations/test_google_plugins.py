@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import re
 from datetime import date
-from types import SimpleNamespace
 
 from jarvis.integrations.plugins.google_calendar import GoogleCalendarIntegration
 from jarvis.integrations.plugins.google_contacts import (

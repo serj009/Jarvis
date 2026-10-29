@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import pytest
 
-from jarvis.security.output_sanitizer import OutputSanitizer, SanitizeResult
+from jarvis.security.output_sanitizer import OutputSanitizer
 
 
 @pytest.fixture()

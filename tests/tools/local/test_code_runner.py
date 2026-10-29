@@ -9,7 +9,6 @@ Test count: 25
 from __future__ import annotations
 
 import ast
-import textwrap
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -17,8 +16,6 @@ import pytest
 from pydantic import ValidationError
 
 from jarvis.tools.local.code_runner import (
-    _MAX_OUTPUT_CHARS,
-    _MAX_READ_CHARS,
     _SCRIPT_TIMEOUT,
     _TEST_TIMEOUT,
     CodeRunnerArgs,

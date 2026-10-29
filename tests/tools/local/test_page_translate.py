@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from jarvis.tools.local.page_translate import (
     TranslatePageArgs,
@@ -16,7 +15,6 @@ from jarvis.tools.local.page_translate import (
     _split_chunks,
     _translate_chunk,
 )
-from jarvis.tools.registry import VoicePattern
 
 FAKE_PAGE_TEXT = "Hello, this is a test page.\nIt has some content.\nEnd of page."
 FAKE_TRANSLATION = "Привет, это тестовая страница.\nУ неё есть контент.\nКонец страницы."

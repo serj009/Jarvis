@@ -5,10 +5,8 @@ All tests mock requests to avoid real network calls.
 
 from __future__ import annotations
 
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from jarvis.tools.local.download_manager import (
     DownloadArgs,

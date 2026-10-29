@@ -31,15 +31,12 @@ from PySide6.QtWidgets import (
 
 from jarvis.ui.settings.theme import (
     ACCENT,
-    ACCENT_DIM,
     BG,
     BG_CARD,
-    BG_INPUT,
     BORDER,
     CARD_RADIUS,
     ERROR,
     SUCCESS,
-    TEXT_MUTED,
     TEXT_PRIMARY,
     TEXT_SECONDARY,
     WARNING,

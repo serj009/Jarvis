@@ -40,7 +40,7 @@ import gc
 import logging
 import shutil
 import subprocess
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from jarvis.core.errors import VRAMError

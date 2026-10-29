@@ -124,7 +124,6 @@ class GoogleDriveIntegration(GoogleIntegrationMixin, BaseIntegration):
         return f"Uploaded '{name}' to Drive, sir."
 
     def _download(self, svc, query: str, dest: str) -> str:
-        import io  # lazy
 
         from googleapiclient.http import MediaIoBaseDownload  # lazy
 

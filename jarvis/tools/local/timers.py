@@ -8,11 +8,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, ClassVar, Literal, Optional
+from typing import ClassVar
 
 from pydantic import BaseModel, Field
 

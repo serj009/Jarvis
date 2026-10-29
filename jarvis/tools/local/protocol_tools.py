@@ -21,7 +21,7 @@ generic catch-all patterns like ``open_app``'s ``^open\s+(.+)$``.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, ClassVar, Literal
+from typing import TYPE_CHECKING, ClassVar
 
 from pydantic import BaseModel, Field
 

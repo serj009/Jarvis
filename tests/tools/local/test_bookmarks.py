@@ -5,9 +5,7 @@ Uses a temp directory for bookmark storage — no real files are touched.
 
 from __future__ import annotations
 
-import json
 import re
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest

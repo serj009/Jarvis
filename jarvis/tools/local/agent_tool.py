@@ -290,7 +290,6 @@ class AgentTool:
 
     def _build_provider(self) -> Any:
         """Build a ModelProvider from the agent config."""
-        from jarvis.llm.model_provider import ModelProvider
 
         provider_name = self._agent_config.model_provider
 

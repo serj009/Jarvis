@@ -5,9 +5,8 @@ All pyautogui calls are mocked — no real keystrokes sent.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 
 from jarvis.tools.local.hotkey_sender import (
     SendHotkeyArgs,

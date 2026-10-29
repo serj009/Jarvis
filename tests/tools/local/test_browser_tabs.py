@@ -6,13 +6,12 @@ All browser interactions are mocked — no real browser is launched.
 from __future__ import annotations
 
 import re
-from typing import ClassVar
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 from jarvis.tools.local.browser_tabs import BrowserTabsArgs, BrowserTabsTool
-from jarvis.tools.registry import ToolResult, VoicePattern
+from jarvis.tools.registry import VoicePattern
 
 # -- protocol conformance -----------------------------------------------
 

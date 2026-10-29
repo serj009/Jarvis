@@ -11,7 +11,6 @@ import types
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from jarvis.tools.local.full_page_screenshot import (
     FullPageScreenshotTool,

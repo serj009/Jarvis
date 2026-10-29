@@ -12,7 +12,7 @@ import os
 import shutil
 import time
 from pathlib import Path
-from typing import ClassVar, Literal
+from typing import ClassVar
 
 from pydantic import BaseModel, Field
 

@@ -5,7 +5,7 @@ All tests mock psutil and subprocess to avoid inspecting real processes.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -17,7 +17,6 @@ from jarvis.tools.local.process_monitor import (
     WaitForExitArgs,
     WaitForProcessTool,
 )
-from jarvis.tools.registry import EmptyArgs
 
 # --- ProcessInfoTool -------------------------------------------------------
 

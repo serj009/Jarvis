@@ -40,7 +40,7 @@ from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from jarvis.memory.store import Fact, MemoryStore
+    from jarvis.memory.store import MemoryStore
 
 log = logging.getLogger(__name__)
 

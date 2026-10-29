@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
 

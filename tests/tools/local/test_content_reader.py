@@ -6,7 +6,7 @@ All network and browser interactions are mocked.
 from __future__ import annotations
 
 import re
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 

@@ -9,13 +9,11 @@ Verifies that:
 
 from __future__ import annotations
 
-import datetime
-from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
-from jarvis.llm.intent_router import IntentRouter, ToolIntent, _normalize
+from jarvis.llm.intent_router import IntentRouter, ToolIntent
 
 # --- minimal fakes (same pattern as tests/llm/test_router*.py) ---------
 

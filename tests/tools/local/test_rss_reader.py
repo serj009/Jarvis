@@ -5,9 +5,7 @@ Uses temp directory for RSS storage and mocked httpx for feed fetching.
 
 from __future__ import annotations
 
-import json
 import re
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -25,7 +23,7 @@ from jarvis.tools.local.rss_reader import (
     _parse_feed_xml,
     _save_feeds,
 )
-from jarvis.tools.registry import ToolResult, VoicePattern
+from jarvis.tools.registry import VoicePattern
 
 # ---------------------------------------------------------------------------
 # Sample RSS/Atom XML

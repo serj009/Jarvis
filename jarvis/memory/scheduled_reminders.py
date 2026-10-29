@@ -25,8 +25,8 @@ import logging
 import sqlite3
 import uuid
 from collections.abc import Callable
-from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta, timezone
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 log = logging.getLogger(__name__)

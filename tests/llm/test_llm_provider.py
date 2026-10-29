@@ -11,21 +11,17 @@ All external calls are fully mocked; no real APIs needed. Tests cover:
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import AsyncIterator
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from jarvis.llm.llm_provider import APILLMClient, _build_llm_provider, _VisionAPIProvider
 from jarvis.llm.model_provider import (
     AnthropicProvider,
-    ChatMessage,
     GroqProvider,
     OpenAIProvider,
     ProviderAuthError,
     ProviderConnectionError,
-    ProviderError,
 )
 from jarvis.llm.model_provider import (
     ChatChunk as ProviderChunk,

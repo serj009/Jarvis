@@ -6,9 +6,8 @@ All tests mock filesystem operations (shutil.copytree, Path.exists).
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 
 from jarvis.tools.local.game_saves import (
     BackupGameSavesTool,

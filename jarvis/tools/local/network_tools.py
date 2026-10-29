@@ -11,7 +11,7 @@ import logging
 import platform
 import subprocess
 import time
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from pydantic import BaseModel, Field
 

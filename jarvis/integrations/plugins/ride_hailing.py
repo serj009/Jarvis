@@ -92,7 +92,6 @@ class RideHailingIntegration(BaseIntegration):
     async def execute_tool(self, tool_name: str, args: dict) -> str:
         if not self._token():
             return "Ride hailing is not connected, sir."
-        import httpx  # lazy
 
         base = self._base_url()
         try:

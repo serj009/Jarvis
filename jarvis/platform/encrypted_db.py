@@ -37,7 +37,6 @@ import logging
 
 from jarvis.platform.secrets import (
     decrypt_secret,
-    dpapi_available,
     encrypt_secret,
     is_encrypted,
 )

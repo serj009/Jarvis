@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 import re
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -659,7 +659,6 @@ async def test_open_last_download(tmp_path: Path):
     new = dl / "new.pdf"
     new.write_text("new")
     # Make new.pdf newer.
-    import time
     os.utime(str(old), (1000, 1000))
     os.utime(str(new), (2000, 2000))
 

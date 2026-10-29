@@ -9,12 +9,6 @@ import time
 import pytest
 
 from jarvis.core.logging_utils import JsonFormatter, PipelineTracker, log_latency
-from jarvis.core.request_context import (
-    NO_CORRELATION_ID,
-    correlation_id,
-    new_correlation_id,
-    turn_started_at,
-)
 
 # ---------------------------------------------------------------------------
 # JsonFormatter

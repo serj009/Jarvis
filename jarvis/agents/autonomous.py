@@ -65,7 +65,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from jarvis.core.config import AgentConfig
-    from jarvis.llm.model_provider import ChatMessage, ModelProvider
+    from jarvis.llm.model_provider import ModelProvider
     from jarvis.tools.registry import ToolRegistry
 
 from jarvis.agents.scratchpad import AgentScratchpad

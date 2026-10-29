@@ -21,7 +21,6 @@ import logging
 import re
 import shlex
 import subprocess
-import sys
 from typing import ClassVar
 
 from pydantic import BaseModel, Field

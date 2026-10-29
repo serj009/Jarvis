@@ -12,7 +12,6 @@ What is pinned here:
 
 from __future__ import annotations
 
-import pytest
 
 from jarvis.tools.tool_filter import (
     ALWAYS_INCLUDED,

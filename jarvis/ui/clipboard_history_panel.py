@@ -42,14 +42,10 @@ from jarvis.ui.settings.theme import (
     ACCENT,
     ACCENT_DIM,
     BG,
-    BG_CARD,
     BG_INPUT,
     BORDER,
-    CARD_RADIUS,
-    TEXT_MUTED,
     TEXT_PRIMARY,
     TEXT_SECONDARY,
-    WARNING,
 )
 
 log = logging.getLogger(__name__)

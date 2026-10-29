@@ -9,12 +9,10 @@ from __future__ import annotations
 import time
 from unittest.mock import patch
 
-import pytest
 
 from jarvis.security.origin_tracker import (
     _MAX_TOKEN_AGE_S,
     OriginTracker,
-    RequestContext,
     RequestOrigin,
     get_request_context,
     set_request_context,

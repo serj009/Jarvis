@@ -11,12 +11,11 @@ Verifies:
 from __future__ import annotations
 
 import re
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from jarvis.tools.local.auto_login import AutoLoginArgs, AutoLoginTool
-from jarvis.tools.registry import ToolResult
 
 
 @pytest.fixture()

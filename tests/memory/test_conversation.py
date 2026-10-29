@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from jarvis.memory.conversation import ConversationMemory, ConversationTurn
+from jarvis.memory.conversation import ConversationMemory
 
 
 @pytest.fixture()

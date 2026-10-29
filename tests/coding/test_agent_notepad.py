@@ -13,7 +13,6 @@ Verifies:
 
 from __future__ import annotations
 
-import pytest
 
 from jarvis.coding.agent_notepad import AgentNotepad
 

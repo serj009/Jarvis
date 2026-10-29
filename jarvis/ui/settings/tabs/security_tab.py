@@ -5,17 +5,15 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
-    QSlider,
     QVBoxLayout,
     QWidget,
 )
 
 from jarvis.core.config import JarvisConfig, save_config
-from jarvis.ui.settings._widgets import Badge, SectionCard, ToggleSwitch, slider_with_label
+from jarvis.ui.settings._widgets import Badge, SectionCard, ToggleSwitch
 
 log = logging.getLogger(__name__)
 

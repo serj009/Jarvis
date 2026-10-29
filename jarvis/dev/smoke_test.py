@@ -37,7 +37,6 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
 OLLAMA_API = "http://127.0.0.1:11434"

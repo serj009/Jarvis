@@ -35,7 +35,6 @@ Usage::
 
 from __future__ import annotations
 
-import ast
 import asyncio
 import json
 import logging
@@ -54,7 +53,7 @@ if TYPE_CHECKING:
     from jarvis.coding.project_map import ProjectMap
     from jarvis.coding.voice_confirm import VoiceConfirm
     from jarvis.core.config import CodingConfig
-    from jarvis.llm.model_provider import ChatMessage, ChatResponse, ModelProvider
+    from jarvis.llm.model_provider import ModelProvider
 
 from jarvis.coding.languages import (
     LANGUAGES,

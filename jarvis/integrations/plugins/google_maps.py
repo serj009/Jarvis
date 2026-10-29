@@ -90,7 +90,6 @@ class GoogleMapsIntegration(BaseIntegration):
     async def execute_tool(self, tool_name: str, args: dict) -> str:
         if not self._key():
             return "Google Maps is not connected, sir."
-        import httpx  # lazy
 
         try:
             if tool_name == "maps_route":

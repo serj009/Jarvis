@@ -82,7 +82,6 @@ class TodoistIntegration(BaseIntegration):
     async def execute_tool(self, tool_name: str, args: dict) -> str:
         if not self._token():
             return "Todoist is not connected, sir."
-        import httpx  # lazy
 
         try:
             if tool_name == "todoist_today":

@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import re
 from collections.abc import Awaitable, Callable
-from typing import Any, Protocol, runtime_checkable
 
 _POSITIVE = re.compile(
     r"^(?:yes|yeah|yep|sure|ok|okay|confirm|go ahead"

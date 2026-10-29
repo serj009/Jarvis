@@ -16,7 +16,6 @@ within a token budget.
 
 from __future__ import annotations
 
-import textwrap
 from dataclasses import dataclass, field
 
 # Rough estimate: 1 token ≈ 4 characters for English text.

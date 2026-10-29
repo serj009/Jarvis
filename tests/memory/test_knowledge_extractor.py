@@ -14,7 +14,6 @@ import pytest
 from jarvis.memory.knowledge_extractor import (
     EXTRACTION_PROMPT,
     MAX_PAGE_CHARS,
-    TRUNCATED_CHARS,
     KnowledgeExtractor,
 )
 

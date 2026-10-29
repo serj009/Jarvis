@@ -12,19 +12,14 @@ Covers:
 
 from __future__ import annotations
 
-import asyncio
-import json
-import re
-import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from jarvis.skills.protocols import (
     Protocol,
     ProtocolEngine,
-    ProtocolExecutionResult,
     ProtocolStep,
     _parse_simple_steps,
 )
