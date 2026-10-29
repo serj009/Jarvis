@@ -43,7 +43,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
-CURRENT_SCHEMA_VERSION = 40
+CURRENT_SCHEMA_VERSION = 41
 
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -261,9 +261,13 @@ class HotkeysConfig(_Base):
     # Opens the command palette — keyboard-driven fuzzy launcher for
     # every Jarvis capability. Set to "" to disable the binding.
     command_palette: str = "ctrl+shift+p"
-    # Opens / closes the text chat panel (alternative to voice).
-    # Set to "" to disable.
-    chat: str = "ctrl+enter"
+    # Opens / closes the text chat panel (alternative to voice). Disabled by
+    # default: Ctrl+Enter is a common in-app shortcut (send message / run
+    # cell) and the global hook does not suppress the keypress, so a default
+    # binding leaked into other apps. Set a value (e.g. "ctrl+shift+c") to
+    # enable. Existing configs that still carry the old "ctrl+enter" default
+    # are cleared by the v40->v41 migration; a value the user chose is kept.
+    chat: str | None = None
 
 
 # Default Trayce MCP endpoint. The port is overridden at connect time by
