@@ -102,7 +102,7 @@ class TestVoiceProfile:
         v = VoiceProfile(name="test", language="en")
         try:
             v.name = "changed"  # type: ignore
-            assert False, "should be frozen"
+            raise AssertionError("should be frozen")
         except AttributeError:
             pass
 

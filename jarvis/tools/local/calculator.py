@@ -140,7 +140,7 @@ def safe_math_eval(expr: str) -> float:
 _UNIT_ALIASES: dict[str, str] = {
     # Length
     "km": "km", "kilometers": "km", "километров": "km", "км": "km", "кілометрів": "km",
-    "mi": "miles", "miles": "miles", "миль": "miles", "миля": "miles", "мілі": "miles", "миле": "miles", "миль": "miles",
+    "mi": "miles", "miles": "miles", "миль": "miles", "миля": "miles", "мілі": "miles", "миле": "miles",
     "m": "m", "meters": "m", "metres": "m", "метров": "m", "м": "m", "метрів": "m",
     "ft": "feet", "feet": "feet", "foot": "feet", "футов": "feet", "фут": "feet", "футів": "feet",
     "cm": "cm", "centimeters": "cm", "сантиметров": "cm", "см": "cm", "сантиметрів": "cm",
