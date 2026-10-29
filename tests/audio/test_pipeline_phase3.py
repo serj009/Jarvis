@@ -6,7 +6,6 @@ T3.4: Pipeline timeouts + thinking phrases
 
 from __future__ import annotations
 
-
 from jarvis.core.phrases import PHRASES
 
 # ---------------------------------------------------------------------------

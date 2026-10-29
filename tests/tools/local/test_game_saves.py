@@ -8,7 +8,6 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-
 from jarvis.tools.local.game_saves import (
     BackupGameSavesTool,
     BackupSavesArgs,

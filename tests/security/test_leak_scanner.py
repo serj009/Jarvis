@@ -9,7 +9,6 @@ from __future__ import annotations
 import base64
 import time
 
-
 from jarvis.security.leak_scanner import (
     DataLeakScanner,
     _extract_entity_fragments,

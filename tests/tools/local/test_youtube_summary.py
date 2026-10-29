@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-
 from jarvis.tools.local.youtube_summary import (
     YoutubeSummaryArgs,
     YoutubeSummaryTool,

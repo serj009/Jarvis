@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 import pytest
 
 from jarvis.memory.usage_stats import UsageStats

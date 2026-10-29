@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from pydantic import ValidationError
 import pytest
+from pydantic import ValidationError
 
 from jarvis.tools.local.network_tools import (
     MyIpTool,

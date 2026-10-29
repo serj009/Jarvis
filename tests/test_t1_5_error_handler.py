@@ -5,7 +5,6 @@ import ast
 from pathlib import Path
 from unittest.mock import patch
 
-
 # ---------------------------------------------------------------------------
 # 0. Syntax / import smoke tests
 # ---------------------------------------------------------------------------

@@ -18,7 +18,6 @@ import logging
 import re
 from typing import Any, ClassVar
 
-
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)

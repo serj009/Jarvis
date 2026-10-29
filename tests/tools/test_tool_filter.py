@@ -12,7 +12,6 @@ What is pinned here:
 
 from __future__ import annotations
 
-
 from jarvis.tools.tool_filter import (
     ALWAYS_INCLUDED,
     MAX_FILTERED_TOOLS,
