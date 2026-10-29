@@ -41,8 +41,8 @@ import json
 import logging
 import os
 import re
-import sys
 import subprocess
+import sys
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -50,9 +50,9 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from jarvis.coding.agent_notepad import AgentNotepad
-    from jarvis.coding.voice_confirm import VoiceConfirm
     from jarvis.coding.code_search import CodeSearch
     from jarvis.coding.project_map import ProjectMap
+    from jarvis.coding.voice_confirm import VoiceConfirm
     from jarvis.core.config import CodingConfig
     from jarvis.llm.model_provider import ChatMessage, ChatResponse, ModelProvider
 
@@ -440,7 +440,7 @@ class CodingAgent:
                 try:
                     stdout, stderr, rc = await self._run_command(command)
                     if rc == 0:
-                        yield f"Command succeeded."
+                        yield "Command succeeded."
                     else:
                         yield f"Command failed (exit {rc}): {stderr or stdout}"
                 except Exception as exc:
@@ -453,7 +453,7 @@ class CodingAgent:
                     if success:
                         yield "All tests passed."
                     else:
-                        yield f"Tests failed. Attempting to fix..."
+                        yield "Tests failed. Attempting to fix..."
                         fixed = await self._fix_errors(output)
                         if fixed:
                             yield "Errors fixed, tests pass now."

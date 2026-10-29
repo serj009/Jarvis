@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import json
 import sys
-from typing import Any
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -485,10 +485,10 @@ class TestV2Format:
 
 class TestBackendMissing:
     def test_create_without_argon2_refuses(self, vault, vault_path):
-        from jarvis.security.password_vault import VaultBackendMissingError
-
         # Simulate argon2-cffi absent.
         import builtins
+
+        from jarvis.security.password_vault import VaultBackendMissingError
         real_import = builtins.__import__
 
         def _no_argon2(name, *a, **k):
@@ -503,9 +503,9 @@ class TestBackendMissing:
         assert not vault_path.exists()
 
     def test_create_without_cryptography_refuses(self, vault, vault_path):
-        from jarvis.security.password_vault import VaultBackendMissingError
-
         import builtins
+
+        from jarvis.security.password_vault import VaultBackendMissingError
         real_import = builtins.__import__
 
         def _no_crypto(name, *a, **k):
@@ -525,11 +525,12 @@ class TestBackendMissing:
 
 class TestTamperingDistinct:
     def test_tampered_entry_ciphertext_raises_corrupt(self, vault):
+        import base64 as _b64
+
         from jarvis.security.password_vault import (
             PasswordVault,
             VaultCorruptError,
         )
-        import base64 as _b64
 
         vault.create("master123")
         vault.add_credential("steam", "user", password="pw")
@@ -562,6 +563,7 @@ def _write_v1_vault(
     import hmac as _hmac
     import json as _json
     import os as _os
+
     from jarvis.security.password_vault import PasswordVault
 
     salt = _os.urandom(32)

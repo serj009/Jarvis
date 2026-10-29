@@ -16,7 +16,6 @@ from jarvis.tools.local.hotkey_sender import (
     _parse_hotkey,
 )
 
-
 # --- _parse_hotkey --------------------------------------------------------
 
 def test_parse_ctrl_c():

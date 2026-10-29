@@ -17,7 +17,6 @@ import pytest
 from jarvis.platform.encrypted_store import MAGIC_HEADER
 from jarvis.platform.secrets import SCHEME_PREFIX
 
-
 # ---------------------------------------------------------------------------
 # Shared DPAPI mocks
 # ---------------------------------------------------------------------------

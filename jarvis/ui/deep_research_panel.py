@@ -48,13 +48,13 @@ from jarvis.tools.local.deep_research_store import (
     read_report,
 )
 from jarvis.ui.settings.theme import (
+    ACCENT,
+    ACCENT_DIM,
     BG,
     BG_INPUT,
     BORDER,
     TEXT_PRIMARY,
     TEXT_SECONDARY,
-    ACCENT,
-    ACCENT_DIM,
 )
 
 log = logging.getLogger(__name__)

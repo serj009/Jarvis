@@ -6,10 +6,14 @@ import sqlite3
 
 import pytest
 
-from jarvis.memory.auto_recall import get_relevant_memories, _text_for_injection, _is_preference_fact, _PREFERENCE_TAGS
-from jarvis.memory.store import Fact, MemoryStore
+from jarvis.memory.auto_recall import (
+    _PREFERENCE_TAGS,
+    _is_preference_fact,
+    _text_for_injection,
+    get_relevant_memories,
+)
 from jarvis.memory.relations import RelationStore
-
+from jarvis.memory.store import Fact, MemoryStore
 
 # ---------------------------------------------------------------------------
 # Helpers

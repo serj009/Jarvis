@@ -16,28 +16,29 @@ Plus: voice pattern coverage and wiring in catalogue/risk.
 
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
 
-from jarvis.skills.skill_forge import SkillForge
-from jarvis.skills.sandbox import SkillSandbox
+import pytest
+
 from jarvis.skills.decomposer import SkillDecomposer
+from jarvis.skills.sandbox import SkillSandbox
+from jarvis.skills.skill_forge import SkillForge
 from jarvis.tools.local.skill_tools import (
-    ListSkillsTool,
-    SkillDetailTool,
+    AnalyzeSkillsTool,
+    ApproveArgs,
     ApproveSkillTool,
-    RejectSkillTool,
+    DeleteSkillArgs,
     DeleteSkillTool,
     DisableAllSkillsTool,
-    AnalyzeSkillsTool,
-    ImproveSkillTool,
-    SkillHistoryTool,
     EmptySkillArgs,
-    SkillNameArgs,
-    ApproveArgs,
-    RejectArgs,
-    DeleteSkillArgs,
     ImproveSkillArgs,
+    ImproveSkillTool,
+    ListSkillsTool,
+    RejectArgs,
+    RejectSkillTool,
+    SkillDetailTool,
+    SkillHistoryTool,
+    SkillNameArgs,
 )
 
 
@@ -278,8 +279,8 @@ class TestRegistration:
 
     def test_setup_local_tools_registers_skills(self):
         """setup_local_tools(skill_forge=None) should register all 9 tools."""
-        from jarvis.tools import ToolRegistry, setup_local_tools
         from jarvis.core.config import ToolsConfig
+        from jarvis.tools import ToolRegistry, setup_local_tools
         registry = ToolRegistry(ToolsConfig())
         setup_local_tools(registry, skill_forge=None)
         for name in ["list_skills", "skill_detail", "approve_skill",

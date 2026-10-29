@@ -11,25 +11,24 @@ import re
 
 import pytest
 
-from jarvis.integrations.registry import IntegrationRegistry
-
-# -- imports for every Tier 3 plugin ------------------------------------
-
-from jarvis.integrations.plugins.notion import NotionIntegration
-from jarvis.integrations.plugins.trello import TrelloIntegration
-from jarvis.integrations.plugins.todoist import TodoistIntegration
-from jarvis.integrations.plugins.slack import SlackIntegration
+from jarvis.integrations.plugins.banking_generic import BankingIntegration
 from jarvis.integrations.plugins.dropbox import DropboxIntegration
-from jarvis.integrations.plugins.onedrive import OneDriveIntegration
 from jarvis.integrations.plugins.gitlab import GitLabIntegration
-from jarvis.integrations.plugins.twitch import TwitchIntegration
-from jarvis.integrations.plugins.wikipedia import WikipediaIntegration
+from jarvis.integrations.plugins.google_maps import GoogleMapsIntegration
 from jarvis.integrations.plugins.home_assistant import HomeAssistantIntegration
 from jarvis.integrations.plugins.hue import PhilipsHueIntegration
 from jarvis.integrations.plugins.mqtt import MqttIntegration
-from jarvis.integrations.plugins.banking_generic import BankingIntegration
-from jarvis.integrations.plugins.google_maps import GoogleMapsIntegration
+
+# -- imports for every Tier 3 plugin ------------------------------------
+from jarvis.integrations.plugins.notion import NotionIntegration
+from jarvis.integrations.plugins.onedrive import OneDriveIntegration
 from jarvis.integrations.plugins.ride_hailing import RideHailingIntegration
+from jarvis.integrations.plugins.slack import SlackIntegration
+from jarvis.integrations.plugins.todoist import TodoistIntegration
+from jarvis.integrations.plugins.trello import TrelloIntegration
+from jarvis.integrations.plugins.twitch import TwitchIntegration
+from jarvis.integrations.plugins.wikipedia import WikipediaIntegration
+from jarvis.integrations.registry import IntegrationRegistry
 
 
 class _FakeAuth:

@@ -320,7 +320,7 @@ class AnalyzeSkillsTool:
             )
         lines = [f"Analysis: {report.summary}"]
         if report.needs_detected:
-            lines.append(f"\nPotential new skills:")
+            lines.append("\nPotential new skills:")
             for need in report.needs_detected[:5]:
                 lines.append(f"  • {need.name}: {need.description[:80]}...")
         if report.stale_skills:
@@ -328,7 +328,7 @@ class AnalyzeSkillsTool:
             for name in report.stale_skills[:5]:
                 lines.append(f"  • {name}")
         if report.inefficient_skills:
-            lines.append(f"\nInefficient skills (>20% failure rate):")
+            lines.append("\nInefficient skills (>20% failure rate):")
             for name in report.inefficient_skills[:5]:
                 lines.append(f"  • {name}")
         return ToolResult(success=True, output="\n".join(lines))

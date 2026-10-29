@@ -38,7 +38,6 @@ log = logging.getLogger(__name__)
 
 from jarvis.platform.encrypted_db import decrypt_value
 
-
 # ---------------------------------------------------------------------------
 # Schema (added to the same DB as facts/fact_tags)
 # ---------------------------------------------------------------------------
@@ -148,7 +147,7 @@ class RelationStore:
     def get_related(
         self,
         fact_id: str,
-        relation_type: Optional[str] = None,
+        relation_type: str | None = None,
         depth: int = 1,
     ) -> list[dict]:
         """Find related facts via graph traversal.
@@ -172,7 +171,7 @@ class RelationStore:
         self,
         conn: sqlite3.Connection,
         fact_id: str,
-        relation_type: Optional[str],
+        relation_type: str | None,
         max_depth: int,
         visited: set[str],
         results: list[dict],

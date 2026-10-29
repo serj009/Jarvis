@@ -18,15 +18,14 @@ import pytest
 from jarvis.coding.languages import (
     LANGUAGES,
     LanguageConfig,
+    _validate_js_ts,
+    _validate_python,
     detect_from_description,
     detect_language,
     get_language_config,
     get_language_for_extension,
-    _validate_python,
-    _validate_js_ts,
 )
 from jarvis.coding.templates import TEMPLATES
-
 
 # ── detect_language (by files in directory) ─────────────────────────
 

@@ -20,11 +20,12 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import httpx
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+import httpx
 
 if TYPE_CHECKING:
     from jarvis.core.config import ImageGenConfig

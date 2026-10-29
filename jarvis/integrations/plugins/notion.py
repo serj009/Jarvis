@@ -165,8 +165,9 @@ class NotionIntegration(BaseIntegration):
         return f"Page '{args['title']}' created, sir."
 
     async def _add_to_db(self, args: dict) -> str:
-        import httpx
         import json as _json
+
+        import httpx
 
         props = _json.loads(args.get("properties", "{}"))
         body = {"parent": {"database_id": args["database_id"]},

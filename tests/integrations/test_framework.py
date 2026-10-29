@@ -7,7 +7,6 @@ import pytest
 from jarvis.integrations.base import BaseIntegration, _pip_to_module
 from jarvis.integrations.registry import IntegrationRegistry
 
-
 # ── discovery ───────────────────────────────────────────────────────
 
 class TestDiscovery:
@@ -230,7 +229,7 @@ def test_integrations_config_default():
 
 
 def test_migration_v38_to_v39():
-    from jarvis.core.migrations import _migrate_v38_to_v39, MIGRATIONS
+    from jarvis.core.migrations import MIGRATIONS, _migrate_v38_to_v39
     data = _migrate_v38_to_v39({"schema_version": 38})
     assert data["schema_version"] == 39
     assert data["integrations"]["enabled"] == []

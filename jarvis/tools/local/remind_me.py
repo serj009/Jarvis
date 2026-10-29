@@ -25,13 +25,13 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from typing import ClassVar, Optional
 
 from pydantic import BaseModel, Field
 
-from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 from jarvis.memory.scheduled_reminders import ReminderStore, ScheduledReminder
+from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
 
@@ -118,20 +118,20 @@ def _norm_time(clock: str | None) -> str:
 
 def resolve_absolute_time(hour: int, minute: int) -> datetime:
     """Today at H:M (local), or tomorrow if that time has already passed."""
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     local_now = now.astimezone()
     target = local_now.replace(hour=hour, minute=minute, second=0, microsecond=0)
     if target <= local_now:
         target += timedelta(days=1)
-    return target.astimezone(timezone.utc)
+    return target.astimezone(UTC)
 
 
 def resolve_tomorrow_time(hour: int, minute: int) -> datetime:
     """Tomorrow at H:M (local)."""
-    local_now = datetime.now(tz=timezone.utc).astimezone()
+    local_now = datetime.now(tz=UTC).astimezone()
     target = local_now.replace(hour=hour, minute=minute, second=0, microsecond=0)
     target += timedelta(days=1)
-    return target.astimezone(timezone.utc)
+    return target.astimezone(UTC)
 
 
 # Month name -> number (EN / RU / UK), lowercased. RU/UK use the genitive
@@ -181,7 +181,7 @@ def resolve_date_time(month: int, day: int, hour: int, minute: int) -> datetime:
 
     If the date/time has already passed this year, roll to next year.
     """
-    local_now = datetime.now(tz=timezone.utc).astimezone()
+    local_now = datetime.now(tz=UTC).astimezone()
     year = local_now.year
     try:
         target = local_now.replace(
@@ -193,7 +193,7 @@ def resolve_date_time(month: int, day: int, hour: int, minute: int) -> datetime:
         raise
     if target <= local_now:
         target = target.replace(year=year + 1)
-    return target.astimezone(timezone.utc)
+    return target.astimezone(UTC)
 
 
 # ---------------------------------------------------------------------------
@@ -365,7 +365,7 @@ class RemindMeTool:
 
     async def execute(self, args: RemindMeArgs) -> ToolResult:
         store = self._get_store()
-        trigger_at = datetime.now(tz=timezone.utc) + timedelta(seconds=args.seconds)
+        trigger_at = datetime.now(tz=UTC) + timedelta(seconds=args.seconds)
         reminder = store.add(text=args.text, trigger_at=trigger_at)
 
         # Human-readable delay
@@ -770,7 +770,7 @@ class RecurringReminderTool:
             local = trigger_at.astimezone()
             while local.weekday() >= 5:
                 local += timedelta(days=1)
-            trigger_at = local.astimezone(timezone.utc)
+            trigger_at = local.astimezone(UTC)
 
         store = self._get_store()
         reminder = store.add(
@@ -877,7 +877,7 @@ class SnoozeReminderTool:
             when = new_trigger.astimezone().strftime("%H:%M")
             note = f"until {when}"
         else:
-            new_trigger = datetime.now(tz=timezone.utc) + timedelta(minutes=args.minutes)
+            new_trigger = datetime.now(tz=UTC) + timedelta(minutes=args.minutes)
             note = f"for {args.minutes} min"
         store.update_reminder(last.id, trigger_at=new_trigger, fired=False)
         return ToolResult(

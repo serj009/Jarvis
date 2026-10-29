@@ -13,7 +13,6 @@ from jarvis.platform.encrypted_db import (
 )
 from jarvis.platform.secrets import SCHEME_PREFIX
 
-
 # ---------------------------------------------------------------------------
 # Helpers: fake DPAPI for non-Windows test runners
 # ---------------------------------------------------------------------------

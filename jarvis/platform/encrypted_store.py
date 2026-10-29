@@ -169,7 +169,7 @@ class EncryptedJsonStore:
     @staticmethod
     def _encrypt(plaintext_bytes: bytes) -> bytes:
         """DPAPI encrypt (Windows) or passthrough (non-Windows)."""
-        from jarvis.platform.secrets import dpapi_available, _protect
+        from jarvis.platform.secrets import _protect, dpapi_available
 
         if not dpapi_available():
             _warn_plaintext_once()
@@ -187,7 +187,7 @@ class EncryptedJsonStore:
     @staticmethod
     def _decrypt(encrypted_bytes: bytes) -> bytes:
         """DPAPI decrypt (Windows) or passthrough (non-Windows)."""
-        from jarvis.platform.secrets import dpapi_available, _unprotect
+        from jarvis.platform.secrets import _unprotect, dpapi_available
 
         if not dpapi_available():
             _warn_plaintext_once()

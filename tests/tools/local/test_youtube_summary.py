@@ -19,7 +19,6 @@ from jarvis.tools.local.youtube_summary import (
     _is_youtube_url,
 )
 
-
 # --- Unit tests: URL detection --------------------------------------------
 
 def test_is_youtube_url_standard():

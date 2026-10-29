@@ -17,7 +17,6 @@ from jarvis.tools.local.web_knowledge import (
 )
 from jarvis.tools.registry import VoicePattern
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

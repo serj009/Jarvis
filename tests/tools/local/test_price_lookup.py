@@ -14,10 +14,9 @@ from jarvis.tools.local.price_lookup import (
     PriceLookupTool,
     _build_search_urls,
     _extract_prices,
-    _is_game_product,
     _format_results,
+    _is_game_product,
 )
-
 
 # --- Unit tests: game detection -------------------------------------------
 

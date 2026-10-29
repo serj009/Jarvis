@@ -296,7 +296,7 @@ class SkillDecomposer:
         parts.append(SkillPart(
             index=total - 1, total=total,
             name=need.name,
-            description=f"Orchestrator: calls sub-skills in sequence",
+            description="Orchestrator: calls sub-skills in sequence",
             focus="macro: call sub-skills, pass results between them",
             depends_on=list(range(total - 1)),
         ))

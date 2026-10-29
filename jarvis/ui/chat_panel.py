@@ -79,10 +79,10 @@ from jarvis.ui.settings.theme import (
     BG_CARD,
     BG_INPUT,
     BORDER,
+    CARD_RADIUS,
     TEXT_MUTED,
     TEXT_PRIMARY,
     TEXT_SECONDARY,
-    CARD_RADIUS,
 )
 
 log = logging.getLogger(__name__)

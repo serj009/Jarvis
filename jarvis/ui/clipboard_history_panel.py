@@ -39,17 +39,17 @@ from jarvis.tools.local.clipboard_history import (
     save_history,
 )
 from jarvis.ui.settings.theme import (
+    ACCENT,
+    ACCENT_DIM,
     BG,
     BG_CARD,
     BG_INPUT,
     BORDER,
+    CARD_RADIUS,
+    TEXT_MUTED,
     TEXT_PRIMARY,
     TEXT_SECONDARY,
-    TEXT_MUTED,
-    ACCENT,
-    ACCENT_DIM,
     WARNING,
-    CARD_RADIUS,
 )
 
 log = logging.getLogger(__name__)

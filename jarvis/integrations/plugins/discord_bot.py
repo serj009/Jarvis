@@ -114,7 +114,7 @@ class DiscordIntegration(BaseIntegration):
             return f"No messages in channel {channel_id}, sir."
         lines = [f"  \u2022 {m.get('author', {}).get('username', '?')}: {m.get('content', '')[:100]}"
                  for m in messages[:10]]
-        return f"Recent messages, sir:\n" + "\n".join(lines)
+        return "Recent messages, sir:\n" + "\n".join(lines)
 
     def _status_info(self, args: dict) -> str:
         status = args.get("status", "online")

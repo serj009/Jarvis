@@ -16,7 +16,6 @@ from jarvis.tools.local.download_manager import (
     _filename_from_url,
 )
 
-
 # --- Unit tests ------------------------------------------------------------
 
 def test_filename_from_url_basic():

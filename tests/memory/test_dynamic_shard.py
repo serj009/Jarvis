@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from jarvis.memory.dynamic_shard_manager import DynamicShardManager, STANDARD_SHARDS
+from jarvis.memory.dynamic_shard_manager import STANDARD_SHARDS, DynamicShardManager
 from jarvis.memory.shard_manager import ShardManager
 
 

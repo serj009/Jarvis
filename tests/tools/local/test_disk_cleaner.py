@@ -17,7 +17,6 @@ from jarvis.tools.local.disk_cleaner import (
 )
 from jarvis.tools.registry import EmptyArgs
 
-
 # --- DiskSpaceTool --------------------------------------------------------
 
 async def test_disk_space_success():

@@ -6,7 +6,6 @@ import pytest
 
 from jarvis.core.config import CURRENT_SCHEMA_VERSION
 
-
 # --- module imports compile -----------------------------------------------
 
 def test_migrations_module_imports():
@@ -17,13 +16,13 @@ def test_migrations_module_imports():
 def test_migrations_exports():
     """Key symbols are accessible from migrations."""
     from jarvis.core.migrations import (
+        _SYSTEM_PROMPT_V3,
+        _SYSTEM_PROMPT_V6,
+        _SYSTEM_PROMPT_V26,
         MIGRATIONS,
         ConfigMigrationError,
         Migration,
         migrate,
-        _SYSTEM_PROMPT_V3,
-        _SYSTEM_PROMPT_V6,
-        _SYSTEM_PROMPT_V26,
     )
     assert callable(migrate)
     assert isinstance(MIGRATIONS, dict)
@@ -38,8 +37,8 @@ def test_migrations_exports():
 def test_config_reexports_migration_symbols():
     """config.py re-exports migrate, MIGRATIONS, ConfigMigrationError."""
     from jarvis.core.config import (
-        ConfigMigrationError,
         MIGRATIONS,
+        ConfigMigrationError,
         migrate,
     )
     assert callable(migrate)
@@ -63,8 +62,8 @@ def test_config_reexports_old_prompts():
 
 def test_migrate_from_migrations_module():
     """migrate() from migrations.py works on a current-version dict."""
-    from jarvis.core.migrations import migrate
     from jarvis.core.config import JarvisConfig
+    from jarvis.core.migrations import migrate
     data = JarvisConfig().model_dump(mode="json")
     result = migrate(data)
     assert result["schema_version"] == CURRENT_SCHEMA_VERSION
@@ -72,7 +71,7 @@ def test_migrate_from_migrations_module():
 
 def test_migrate_from_config_module():
     """migrate() re-exported through config.py works identically."""
-    from jarvis.core.config import migrate, JarvisConfig
+    from jarvis.core.config import JarvisConfig, migrate
     data = JarvisConfig().model_dump(mode="json")
     result = migrate(data)
     assert result["schema_version"] == CURRENT_SCHEMA_VERSION

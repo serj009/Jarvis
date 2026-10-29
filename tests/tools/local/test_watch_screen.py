@@ -13,7 +13,6 @@ import pytest
 from jarvis.tools.local.watch_screen import WatchScreenArgs, WatchScreenTool
 from jarvis.tools.registry import VoicePattern
 
-
 # --- voice-pattern tests ---------------------------------------------
 
 _EN_PATTERNS = [

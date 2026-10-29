@@ -10,13 +10,14 @@ import asyncio
 import logging
 import os
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, ClassVar, Literal, Optional
+from typing import Any, ClassVar, Literal, Optional
 
 from pydantic import BaseModel, Field
 
-from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 from jarvis.platform.encrypted_store import EncryptedJsonStore
+from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
 

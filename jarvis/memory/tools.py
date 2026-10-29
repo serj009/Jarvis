@@ -18,8 +18,8 @@ from typing import TYPE_CHECKING, ClassVar
 from pydantic import BaseModel, Field
 
 from jarvis.core.phrases import reply_language
-from jarvis.tools.registry import ToolResult, VoicePattern
 from jarvis.memory.smart_search import SmartSearch
+from jarvis.tools.registry import ToolResult, VoicePattern
 
 if TYPE_CHECKING:
     from jarvis.memory.store import MemoryStore
@@ -67,9 +67,9 @@ class RememberTool:
         )
 
         responses = {
-            "en": f"Got it, sir. I'll remember that.",
-            "ru": f"Понял, сэр. Запомнил.",
-            "uk": f"Зрозумів, сер. Запам'ятав.",
+            "en": "Got it, sir. I'll remember that.",
+            "ru": "Понял, сэр. Запомнил.",
+            "uk": "Зрозумів, сер. Запам'ятав.",
         }
         return ToolResult(success=True, output=responses.get(lang, responses["en"]))
 
@@ -116,9 +116,9 @@ class RecallTool:
 
         if not facts:
             responses = {
-                "en": f"I don't have anything stored about that, sir.",
-                "ru": f"У меня нет информации об этом, сэр.",
-                "uk": f"У мене немає інформації про це, сер.",
+                "en": "I don't have anything stored about that, sir.",
+                "ru": "У меня нет информации об этом, сэр.",
+                "uk": "У мене немає інформації про це, сер.",
             }
             return ToolResult(success=True, output=responses.get(lang, responses["en"]))
 

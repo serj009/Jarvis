@@ -90,7 +90,7 @@ class WikipediaIntegration(BaseIntegration):
         if not results:
             return f"No results for '{query}', sir."
         lines = [f"  \u2022 {a.get('title', '?')}" for a in results[:10]]
-        return f"Wikipedia results, sir:\n" + "\n".join(lines)
+        return "Wikipedia results, sir:\n" + "\n".join(lines)
 
     async def _summary(self, title: str) -> str:
         import httpx

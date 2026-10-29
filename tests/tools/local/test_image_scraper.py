@@ -19,7 +19,6 @@ from jarvis.tools.local.image_scraper import (
     _safe_filename,
 )
 
-
 # --- Unit tests: image URL extraction -------------------------------------
 
 def test_extract_image_urls_basic():

@@ -23,7 +23,6 @@ from jarvis.tools.local.dictation import (
 )
 from jarvis.tools.registry import ToolResult, VoicePattern
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

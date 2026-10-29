@@ -13,7 +13,6 @@ from jarvis.core.last_spoken import clear_last_spoken, get_last_spoken, set_last
 from jarvis.tools.local.repeat_last import RepeatLastTool
 from jarvis.tools.registry import EmptyArgs
 
-
 # ── fixtures ──────────────────────────────────────────────────────────
 
 

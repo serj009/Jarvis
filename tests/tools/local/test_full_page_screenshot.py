@@ -22,7 +22,6 @@ from jarvis.tools.local.full_page_screenshot import (
 )
 from jarvis.tools.registry import EmptyArgs
 
-
 # --- Unit tests: helpers ---------------------------------------------------
 
 def test_generate_filename():

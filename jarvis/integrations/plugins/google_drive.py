@@ -125,6 +125,7 @@ class GoogleDriveIntegration(GoogleIntegrationMixin, BaseIntegration):
 
     def _download(self, svc, query: str, dest: str) -> str:
         import io  # lazy
+
         from googleapiclient.http import MediaIoBaseDownload  # lazy
 
         resp = svc.files().list(

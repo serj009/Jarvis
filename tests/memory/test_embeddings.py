@@ -11,17 +11,16 @@ Run with ``pytest -m slow`` to include them.
 
 from __future__ import annotations
 
-import json
 import asyncio
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from jarvis.memory.smart_search import SmartSearch, ScoredFact
+from jarvis.memory.smart_search import ScoredFact, SmartSearch
 from jarvis.memory.store import Fact
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -97,7 +96,8 @@ class TestEmbeddingIndexMocked:
             from jarvis.memory.embeddings import EmbeddingIndex
             idx = EmbeddingIndex(index_path=tmp_path / "emb")
             # Manually set model and index
-            import faiss, numpy as np
+            import faiss
+            import numpy as np
             idx._model = mock_st_module.SentenceTransformer()
             idx._index = faiss.IndexFlatIP(4)
             idx._id_map = {}
@@ -174,8 +174,9 @@ class TestEmbeddingIndexMocked:
         mock_st_module, _ = mock_st
 
         with patch.dict("sys.modules", {"sentence_transformers": mock_st_module}):
-            from jarvis.memory.embeddings import EmbeddingIndex
             import faiss
+
+            from jarvis.memory.embeddings import EmbeddingIndex
             idx = EmbeddingIndex(index_path=tmp_path / "emb")
             idx._model = mock_st_module.SentenceTransformer()
             idx._index = faiss.IndexFlatIP(4)
@@ -218,8 +219,9 @@ class TestEmbeddingIndexMocked:
         mock_st_module, _ = mock_st
 
         with patch.dict("sys.modules", {"sentence_transformers": mock_st_module}):
-            from jarvis.memory.embeddings import EmbeddingIndex
             import faiss
+
+            from jarvis.memory.embeddings import EmbeddingIndex
             idx = EmbeddingIndex(index_path=tmp_path / "emb")
             idx._model = mock_st_module.SentenceTransformer()
             idx._index = faiss.IndexFlatIP(4)

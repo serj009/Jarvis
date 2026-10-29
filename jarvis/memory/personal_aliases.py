@@ -23,6 +23,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 from pathlib import Path
+
 from jarvis.platform.encrypted_store import EncryptedJsonStore
 
 log = logging.getLogger(__name__)

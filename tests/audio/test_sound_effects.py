@@ -10,8 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from jarvis.audio.sound_effects import SoundEffects, _GENERATORS, _RATE
-
+from jarvis.audio.sound_effects import _GENERATORS, _RATE, SoundEffects
 
 # ---------------------------------------------------------------------------
 # Helpers

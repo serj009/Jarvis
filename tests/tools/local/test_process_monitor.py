@@ -19,7 +19,6 @@ from jarvis.tools.local.process_monitor import (
 )
 from jarvis.tools.registry import EmptyArgs
 
-
 # --- ProcessInfoTool -------------------------------------------------------
 
 async def test_process_info_found():

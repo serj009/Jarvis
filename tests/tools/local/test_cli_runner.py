@@ -21,7 +21,6 @@ from jarvis.tools.local.cli_runner import (
     is_command_allowed,
 )
 
-
 # ---------------------------------------------------------------------------
 # Shell metacharacter rejection
 # ---------------------------------------------------------------------------
@@ -204,16 +203,16 @@ class TestConfirmationRequired:
     """run_command has RiskLevel.SYSTEM which requires confirmation."""
 
     def test_risk_level_is_system(self) -> None:
-        from jarvis.tools.risk import RiskLevel, risk_level_for_tool
         from jarvis.tools.local.cli_runner import CLIRunnerTool
+        from jarvis.tools.risk import RiskLevel, risk_level_for_tool
 
         tool = CLIRunnerTool()
         level = risk_level_for_tool(tool)
         assert level == RiskLevel.SYSTEM
 
     def test_should_confirm_returns_true(self) -> None:
-        from jarvis.tools.risk import should_confirm
         from jarvis.tools.local.cli_runner import CLIRunnerTool
+        from jarvis.tools.risk import should_confirm
 
         tool = CLIRunnerTool()
         assert should_confirm(tool) is True

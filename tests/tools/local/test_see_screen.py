@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import sys
 import types
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from jarvis.core.config import VisionConfig

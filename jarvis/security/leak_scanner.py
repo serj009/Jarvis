@@ -333,8 +333,8 @@ class DataLeakScanner:
             for label in labels:
                 if len(label) > 63:
                     reasons.append(
-                        f"Subdomain label exceeds 63 chars "
-                        f"(possible DNS exfiltration)"
+                        "Subdomain label exceeds 63 chars "
+                        "(possible DNS exfiltration)"
                     )
                     break
 

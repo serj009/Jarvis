@@ -11,12 +11,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from jarvis.tools.local.media_control import (
-    MediaControlTool,
     MediaControlArgs,
+    MediaControlTool,
     _press_media_key,
 )
 from jarvis.tools.registry import VoicePattern
-
 
 # -- protocol conformance -----------------------------------------------
 

@@ -9,6 +9,11 @@ import asyncio
 import json
 import os
 import re
+
+# Some tests need a real ``git`` binary on PATH. On machines where git is
+# not installed (or only available as a portable build outside PATH) these
+# tests would fail with WinError 2 — skip them instead.
+import shutil
 import textwrap
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -23,12 +28,6 @@ from jarvis.coding.agent import (
     PlanStep,
     ResponseParser,
 )
-
-
-# Some tests need a real ``git`` binary on PATH. On machines where git is
-# not installed (or only available as a portable build outside PATH) these
-# tests would fail with WinError 2 — skip them instead.
-import shutil
 
 _GIT_AVAILABLE = shutil.which("git") is not None
 requires_git = pytest.mark.skipif(
@@ -609,7 +608,7 @@ class TestCodingAgentTool:
 
     @pytest.mark.asyncio
     async def test_tool_returns_error_without_provider(self):
-        from jarvis.tools.local.coding_tools import CodingAgentTool, CodingAgentArgs
+        from jarvis.tools.local.coding_tools import CodingAgentArgs, CodingAgentTool
 
         tool = CodingAgentTool()
         result = await tool.execute(CodingAgentArgs(task="create something"))
@@ -618,7 +617,7 @@ class TestCodingAgentTool:
 
     @pytest.mark.asyncio
     async def test_tool_runs_with_provider(self, tmp_path):
-        from jarvis.tools.local.coding_tools import CodingAgentTool, CodingAgentArgs
+        from jarvis.tools.local.coding_tools import CodingAgentArgs, CodingAgentTool
 
         plan = json.dumps([
             {"action": "create_file", "details": {"path": "x.py", "description": "test"}},

@@ -48,9 +48,7 @@ import sqlite3
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
-from typing import TYPE_CHECKING
-
+from typing import TYPE_CHECKING, Literal
 from uuid import uuid4
 
 log = logging.getLogger(__name__)

@@ -29,14 +29,14 @@ from PySide6.QtWidgets import (
 )
 
 from jarvis.ui.settings.theme import (
+    ACCENT,
     BG,
     BG_CARD,
     BG_INPUT,
     BORDER,
+    ERROR,
     TEXT_PRIMARY,
     TEXT_SECONDARY,
-    ACCENT,
-    ERROR,
     WARNING,
 )
 

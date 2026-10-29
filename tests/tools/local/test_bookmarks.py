@@ -13,13 +13,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from jarvis.tools.local.bookmarks import (
-    BookmarksTool,
     BookmarksArgs,
+    BookmarksTool,
     _load_bookmarks,
     _save_bookmarks,
 )
 from jarvis.tools.registry import VoicePattern
-
 
 # -- protocol conformance -----------------------------------------------
 

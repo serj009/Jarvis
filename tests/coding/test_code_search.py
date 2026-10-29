@@ -23,11 +23,10 @@ import pytest
 from jarvis.coding.code_search import (
     CodeSearch,
     SymbolEntry,
-    _extract_python_node,
     _extract_brace_block,
+    _extract_python_node,
     _index_python,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

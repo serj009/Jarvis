@@ -154,7 +154,7 @@ KNOWN_FOLDERS: dict[str, Path] = {
 }
 
 
-def _parse_age(text: str) -> "timedelta | None":
+def _parse_age(text: str) -> timedelta | None:
     """Parse '3d' / '1w' / '2m' into a timedelta. None if unparseable.
 
     d = days, w = weeks, m = months (~30 days).

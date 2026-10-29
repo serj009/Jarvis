@@ -14,7 +14,6 @@ import pytest
 from jarvis.memory.relations import RelationStore
 from jarvis.memory.store import MemoryStore
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

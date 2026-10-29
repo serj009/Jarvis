@@ -25,7 +25,7 @@ import logging
 import sqlite3
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -270,7 +270,7 @@ class SkillForge:
         """
         try:
             conn = self._ensure()
-            now = datetime.now(tz=timezone.utc).isoformat()
+            now = datetime.now(tz=UTC).isoformat()
             conn.execute(
                 """INSERT INTO skill_observations
                    (timestamp, tool_name, args, success, confidence,
@@ -306,7 +306,7 @@ class SkillForge:
         """
         conn = self._ensure()
         report = AnalysisReport()
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
 
         # --- Repeating failures ---
         failing_tools = self._find_failing_tools(conn)
@@ -468,7 +468,7 @@ class SkillForge:
 
         Returns (allowed, reason_if_not).
         """
-        today = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+        today = datetime.now(tz=UTC).strftime("%Y-%m-%d")
         if today != self._today_date:
             self._today_date = today
             self._skills_generated_today = 0
@@ -550,7 +550,7 @@ class SkillForge:
                 msgs = [f"  Line {v.line}: {v.message}" for v in violations]
                 return False, "Code validation failed:\n" + "\n".join(msgs)
 
-        now = datetime.now(tz=timezone.utc).isoformat()
+        now = datetime.now(tz=UTC).isoformat()
         conn.execute(
             """INSERT INTO skill_forge
                (status, skill_name, skill_type, description, code,
@@ -587,7 +587,7 @@ class SkillForge:
     def approve_skill(self, skill_id: int) -> tuple[bool, str]:
         """Approve a proposed skill.  Returns (success, message)."""
         conn = self._ensure()
-        now = datetime.now(tz=timezone.utc).isoformat()
+        now = datetime.now(tz=UTC).isoformat()
         row = conn.execute(
             "SELECT status, skill_name, code, skill_type FROM skill_forge WHERE id = ?",
             (skill_id,),
@@ -612,7 +612,7 @@ class SkillForge:
     def reject_skill(self, skill_id: int, reason: str = "") -> tuple[bool, str]:
         """Reject a proposed skill.  Returns (success, message)."""
         conn = self._ensure()
-        now = datetime.now(tz=timezone.utc).isoformat()
+        now = datetime.now(tz=UTC).isoformat()
         row = conn.execute(
             "SELECT status, skill_name FROM skill_forge WHERE id = ?",
             (skill_id,),
@@ -732,7 +732,7 @@ class SkillForge:
                 msgs = [f"  Line {v.line}: {v.message}" for v in violations]
                 return False, "New code validation failed:\n" + "\n".join(msgs)
 
-        now = datetime.now(tz=timezone.utc).isoformat()
+        now = datetime.now(tz=UTC).isoformat()
         new_version = old_version + 1
 
         # Save old version for rollback
@@ -786,7 +786,7 @@ class SkillForge:
             return False, f"No previous version of '{skill_name}' to rollback to."
 
         prev_version, prev_code, prev_desc = prev
-        now = datetime.now(tz=timezone.utc).isoformat()
+        now = datetime.now(tz=UTC).isoformat()
 
         conn.execute(
             """UPDATE skill_forge
@@ -909,7 +909,7 @@ class SkillForge:
         """Record that a skill was used (for stale/efficiency tracking)."""
         try:
             conn = self._ensure()
-            now = datetime.now(tz=timezone.utc).isoformat()
+            now = datetime.now(tz=UTC).isoformat()
             if success:
                 conn.execute(
                     """UPDATE skill_forge

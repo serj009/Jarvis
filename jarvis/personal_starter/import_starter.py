@@ -7,14 +7,7 @@
 Читає my_preferences.yaml → записує в personal.db
 Безпечний повторний запуск — перевіряє чи вже імпортовано.
 """
-import sys
-import os
-import json
-import sqlite3
-from pathlib import Path
-
-
-def import_starter(yaml_path="personal_starter/my_preferences.yaml",
+import jsonimport osimport sqlite3import sysfrom pathlib import Pathdef import_starter(yaml_path="personal_starter/my_preferences.yaml",
                    stores_dir="./memory/stores"):
     """Імпортувати стартові дані."""
 
@@ -24,7 +17,7 @@ def import_starter(yaml_path="personal_starter/my_preferences.yaml",
     # ── Завантажити YAML ──
     try:
         import yaml
-        with open(yaml_path, "r", encoding="utf-8") as f:
+        with open(yaml_path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
         print(f"📄 Файл: {yaml_path}")
     except ImportError:
@@ -75,7 +68,7 @@ def import_starter(yaml_path="personal_starter/my_preferences.yaml",
             stats["preferences"] += 1
 
         # Facts
-        print(f"\n📝 Facts:")
+        print("\n📝 Facts:")
         for fact in data.get("facts", []):
             shard, fid = sm.remember(
                 content=fact["content"],
@@ -87,7 +80,7 @@ def import_starter(yaml_path="personal_starter/my_preferences.yaml",
             stats["facts"] += 1
 
         # Projects
-        print(f"\n📋 Projects:")
+        print("\n📋 Projects:")
         for proj in data.get("projects", []):
             desc = proj.get("description", "")
             sm.remember(
@@ -103,7 +96,7 @@ def import_starter(yaml_path="personal_starter/my_preferences.yaml",
         # Work Schedule
         schedule = data.get("work_schedule")
         if schedule:
-            print(f"\n📅 Work Schedule:")
+            print("\n📅 Work Schedule:")
             schedule_text = (
                 f"Робочий графік: {schedule.get('type', 'shift')}, "
                 f"ротація {schedule.get('rotation', 'monthly')}. "
@@ -144,7 +137,7 @@ def import_starter(yaml_path="personal_starter/my_preferences.yaml",
     # ── Підсумок ──
     total = sum(stats.values())
     print(f"\n{'=' * 50}")
-    print(f"✅ Імпорт завершено!")
+    print("✅ Імпорт завершено!")
     print(f"   Preferences: {stats['preferences']}")
     print(f"   Facts:       {stats['facts']}")
     print(f"   Projects:    {stats['projects']}")
@@ -193,7 +186,7 @@ def _import_direct_sqlite(data, db_path, stats):
         stats["preferences"] += 1
 
     # Facts
-    print(f"\n📝 Facts:")
+    print("\n📝 Facts:")
     for fact in data.get("facts", []):
         conn.execute(
             """INSERT INTO facts (content, category, tags, is_permanent)
@@ -206,7 +199,7 @@ def _import_direct_sqlite(data, db_path, stats):
         stats["facts"] += 1
 
     # Projects
-    print(f"\n📋 Projects:")
+    print("\n📋 Projects:")
     for proj in data.get("projects", []):
         desc = proj.get("description", "")
         conn.execute(

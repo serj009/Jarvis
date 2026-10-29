@@ -18,9 +18,10 @@ from __future__ import annotations
 import ast
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
 
 log = logging.getLogger(__name__)
 
@@ -48,7 +49,7 @@ def _validate_js_ts(content: str, filepath: str) -> bool:
     """
     pairs = {"{": "}", "[": "]", "(": ")"}
     stack: list[str] = []
-    in_string: Optional[str] = None
+    in_string: str | None = None
     escape = False
 
     for ch in content:
@@ -112,13 +113,13 @@ class LanguageConfig:
     name: str
     display_name: str
     extensions: tuple
-    test_command: Optional[str]
-    run_command: Optional[str]
-    build_command: Optional[str]
-    lint_command: Optional[str]
+    test_command: str | None
+    run_command: str | None
+    build_command: str | None
+    lint_command: str | None
     package_file: str
-    install_command: Optional[str]
-    validate_syntax: Optional[Callable] = None
+    install_command: str | None
+    validate_syntax: Callable | None = None
     system_prompt_rules: str = ""
 
 

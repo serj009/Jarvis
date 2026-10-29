@@ -28,12 +28,12 @@ def start_app_index_refresh() -> None:
     if sys.platform != "win32":
         return
 
+    from jarvis.core.config import default_config_path
     from jarvis.platform.windows_apps import (
         load_installed_app_index,
         prime_installed_app_index,
         refresh_installed_app_index,
     )
-    from jarvis.core.config import default_config_path
 
     path = default_config_path().parent / "installed_apps.json"
     cached = load_installed_app_index(path)

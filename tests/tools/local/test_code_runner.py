@@ -17,16 +17,15 @@ import pytest
 from pydantic import ValidationError
 
 from jarvis.tools.local.code_runner import (
-    CodeRunnerArgs,
-    CodeRunnerTool,
     _MAX_OUTPUT_CHARS,
     _MAX_READ_CHARS,
     _SCRIPT_TIMEOUT,
     _TEST_TIMEOUT,
+    CodeRunnerArgs,
+    CodeRunnerTool,
     _truncate,
 )
 from jarvis.tools.sandbox import PathValidator
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

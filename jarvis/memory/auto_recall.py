@@ -39,8 +39,8 @@ from typing import TYPE_CHECKING
 from jarvis.memory.smart_search import SmartSearch
 
 if TYPE_CHECKING:
-    from jarvis.memory.store import Fact, MemoryStore
     from jarvis.memory.relations import RelationStore
+    from jarvis.memory.store import Fact, MemoryStore
 
 log = logging.getLogger(__name__)
 

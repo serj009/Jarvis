@@ -13,12 +13,14 @@ Covers:
 
 from __future__ import annotations
 
-import pytest
+from datetime import UTC
 from pathlib import Path
 
-from jarvis.skills.skill_forge import SkillForge
-from jarvis.skills.sandbox import SkillSandbox
+import pytest
+
 from jarvis.skills.decomposer import SkillDecomposer, SkillNeed
+from jarvis.skills.sandbox import SkillSandbox
+from jarvis.skills.skill_forge import SkillForge
 
 
 @pytest.fixture
@@ -167,7 +169,7 @@ class TestGenerationGate:
     def test_daily_limit(self, forge):
         forge._skills_generated_today = 1
         from datetime import datetime, timezone
-        forge._today_date = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+        forge._today_date = datetime.now(tz=UTC).strftime("%Y-%m-%d")
         ok, reason = forge.can_generate(idle_minutes=60)
         assert not ok
         assert "already" in reason.lower()

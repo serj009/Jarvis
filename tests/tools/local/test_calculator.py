@@ -26,7 +26,6 @@ from jarvis.tools.local.calculator import (
 )
 from tests._typing import output_text
 
-
 # ── safe_math_eval tests ──────────────────────────────────────────────
 
 

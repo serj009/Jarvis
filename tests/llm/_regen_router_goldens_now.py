@@ -10,8 +10,10 @@ Then inspect the diff:
 Delete this file after using it (it's the same as _regen_router_goldens.py).
 """
 from __future__ import annotations
+
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from tests.llm._regen_router_goldens import main

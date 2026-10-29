@@ -17,7 +17,6 @@ import pytest
 
 from jarvis.llm.intent_router import IntentRouter, ToolIntent, _normalize
 
-
 # --- minimal fakes (same pattern as tests/llm/test_router*.py) ---------
 
 def _fake_llm() -> MagicMock:

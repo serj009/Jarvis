@@ -14,12 +14,12 @@ the user via the ``coding_agent`` voice tool
 (``jarvis.tools.local.coding_tools.CodingAgentTool``).
 """
 
-from jarvis.coding.agent import CodingAgent, ResponseParser, CODING_SYSTEM_PROMPT
+from jarvis.coding.agent import CODING_SYSTEM_PROMPT, CodingAgent, ResponseParser
 from jarvis.coding.agent_notepad import AgentNotepad
 from jarvis.coding.code_search import CodeSearch
 from jarvis.coding.project_map import ProjectMap
-from jarvis.coding.voice_confirm import VoiceConfirm
 from jarvis.coding.task_storage import CodingTask, TaskStep, TaskStorage
+from jarvis.coding.voice_confirm import VoiceConfirm
 
 __all__ = [
     "AgentNotepad",

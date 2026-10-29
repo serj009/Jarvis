@@ -11,10 +11,11 @@ is rejected.
 from __future__ import annotations
 
 import logging
-import httpx
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+import httpx
 
 if TYPE_CHECKING:
     from jarvis.core.config import ImageGenConfig

@@ -23,7 +23,6 @@ from jarvis.tools.local.page_monitor import (
 )
 from jarvis.tools.registry import EmptyArgs
 
-
 FAKE_PAGE_V1 = "Hello World\nThis is version 1.\nPrice: $100"
 FAKE_PAGE_V2 = "Hello World\nThis is version 2.\nPrice: $200\nNew section added."
 

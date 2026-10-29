@@ -16,9 +16,9 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field
 
+from jarvis.tools.registry import ToolResult
 from jarvis.tools.risk import RiskLevel
 from jarvis.tools.sandbox import PathValidator, SandboxViolationError
-from jarvis.tools.registry import ToolResult
 
 log = logging.getLogger(__name__)
 

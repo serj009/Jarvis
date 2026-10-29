@@ -12,6 +12,8 @@ Layer 4: SecurityAuditLog — tamper-evident, encrypted, append-only audit
                             trail of every security-relevant event.
 """
 
+from jarvis.security.audit_log import SecurityAuditLog
+from jarvis.security.leak_scanner import DataLeakScanner, ScanResult
 from jarvis.security.origin_tracker import (
     OriginTracker,
     RequestContext,
@@ -19,11 +21,9 @@ from jarvis.security.origin_tracker import (
     get_request_context,
     set_request_context,
 )
-from jarvis.security.leak_scanner import DataLeakScanner, ScanResult
-from jarvis.security.tool_guard import ToolGuard, GuardResult
 from jarvis.security.output_sanitizer import OutputSanitizer
-from jarvis.security.audit_log import SecurityAuditLog
 from jarvis.security.password_vault import PasswordVault, VaultEntry, VaultError, VaultLockedError
+from jarvis.security.tool_guard import GuardResult, ToolGuard
 
 __all__ = [
     # Layer 1

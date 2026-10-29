@@ -18,9 +18,8 @@ Usage:
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
 from dataclasses import dataclass, field
-
+from typing import TYPE_CHECKING
 
 # ---------------------------------------------------------------------------
 # Language detection (same logic as phrases.py but standalone)

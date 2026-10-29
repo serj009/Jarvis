@@ -18,7 +18,6 @@ from jarvis.tools.local.package_manager import (
     PackageUninstallTool,
 )
 
-
 # --- PackageSearchTool -----------------------------------------------------
 
 async def test_search_success():

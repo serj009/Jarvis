@@ -25,7 +25,6 @@ from jarvis.llm.intent_router import IntentRouter, SpeakIntent
 from jarvis.llm.ollama_client import ChatChunk
 from jarvis.tools.registry import EmptyArgs, ToolRegistry, ToolResult
 
-
 # --- harness (mirrors tests/llm/test_tool_feedback_loop.py) ----------
 
 

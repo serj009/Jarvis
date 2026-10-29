@@ -48,7 +48,7 @@ class NotSupportedError(NotImplementedError):
     """
 
     @staticmethod
-    def for_feature(feature: str, platform_name: str) -> "NotSupportedError":
+    def for_feature(feature: str, platform_name: str) -> NotSupportedError:
         """Build a ``NotSupportedError`` with a clear, consistent message.
 
         Example: ``NotSupportedError.for_feature("set_brightness", "macOS")``
@@ -111,7 +111,7 @@ class PlatformOps(Protocol):
         """
         ...
 
-    def get_brightness(self) -> Optional[int]:
+    def get_brightness(self) -> int | None:
         """Return the current brightness (0-100), or ``None`` if unknown."""
         ...
 

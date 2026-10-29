@@ -18,7 +18,6 @@ from jarvis.tools.local.git_tool import (
     _run_git,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -86,8 +85,8 @@ class TestFindGitRoot:
         assert _find_git_root(str(child)) == str(tmp_path)
 
     def test_returns_none_when_missing(self, tmp_path):
-        import tempfile
         import os
+        import tempfile
         isolated = tempfile.mkdtemp()
         child = os.path.join(isolated, "no_git_here")
         os.makedirs(child)

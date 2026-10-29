@@ -17,7 +17,6 @@ from jarvis.tools.local.network_tools import (
 )
 from jarvis.tools.registry import EmptyArgs
 
-
 # --- MyIpTool -------------------------------------------------------------
 
 async def test_my_ip_success():

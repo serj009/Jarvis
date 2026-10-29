@@ -54,9 +54,7 @@ import random
 import time
 from collections.abc import Callable
 
-from jarvis.audio.sound_effects import SoundEffects
 from jarvis.audio.aec import BargeInManager, BargeInMode
-from jarvis.core.last_spoken import set_last_spoken
 from jarvis.audio.protocols import (
     FRAME_BYTES,
     FRAME_DURATION_MS,
@@ -67,15 +65,16 @@ from jarvis.audio.protocols import (
     TTS_BARGE_IN_GRACE_SECONDS,
     AudioFrame,
     AudioSource,
-    TranscriptionResult,
     ResponseProducer,
     SpeechToText,
     TextToSpeech,
+    TranscriptionResult,
     VADEvent,
     VoiceActivityDetector,
     WakeWordDetector,
     WakeWordResult,
 )
+from jarvis.audio.sound_effects import SoundEffects
 from jarvis.core.events import (
     EventBus,
     LLMResponseChunk,
@@ -84,6 +83,7 @@ from jarvis.core.events import (
     TranscriptionReady,
     WakeWordDetected,
 )
+from jarvis.core.last_spoken import set_last_spoken
 from jarvis.core.request_context import (
     correlation_id,
     ms_since_turn_start,
@@ -458,6 +458,7 @@ class AudioPipeline:
             self._last_greeting_time = now
             try:
                 from datetime import datetime
+
                 from jarvis.core.phrases import say
                 hour = datetime.now().hour
                 if 5 <= hour < 12:
@@ -597,7 +598,7 @@ class AudioPipeline:
                     )
                 else:
                     result = await self._stt.transcribe(audio)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 log.warning("[stt] timeout after %.1f s", self._stt_timeout_s)
                 from jarvis.core.phrases import say
                 await self._tts.speak(say("error_stt_timeout"))

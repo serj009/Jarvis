@@ -19,7 +19,6 @@ from jarvis.tools.local.read_screen_text import (
 from jarvis.vision.ocr import ScreenOCR
 from tests._typing import fake_module
 
-
 # ── helpers ──────────────────────────────────────────────────────────
 
 def _make_ocr_mock(*, available: bool = True, text: str = "Login") -> MagicMock:

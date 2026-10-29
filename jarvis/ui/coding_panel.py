@@ -46,7 +46,7 @@ import subprocess
 import sys
 import time
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Any
 
 from PySide6.QtCore import (
@@ -129,7 +129,7 @@ _STATUS_COLOR: dict[str, str] = {
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 # ---------------------------------------------------------------------------

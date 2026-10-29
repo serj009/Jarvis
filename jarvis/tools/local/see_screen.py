@@ -31,9 +31,7 @@ import base64
 import io
 import logging
 from datetime import datetime
-from typing import ClassVar
-
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from pydantic import BaseModel, Field
 
@@ -43,8 +41,8 @@ from jarvis.tools.registry import ToolResult, VoicePattern
 log = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from jarvis.vision.ocr import ScreenOCR
     from jarvis.core.game_mode import GameMode
+    from jarvis.vision.ocr import ScreenOCR
 
 
 _DEFAULT_PROMPT = (
@@ -249,8 +247,9 @@ class SeeScreenTool:
         # 2. OCR text (helps the vision model read small UI text)
         if self._ocr and self._ocr.is_available():
             try:
-                from PIL import Image as _PILImage  # lazy
                 import io as _io
+
+                from PIL import Image as _PILImage  # lazy
                 raw = base64.b64decode(image_b64)
                 img = _PILImage.open(_io.BytesIO(raw))
                 ocr_text = self._ocr.extract_text(img)

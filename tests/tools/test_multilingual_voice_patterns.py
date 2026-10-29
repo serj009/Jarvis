@@ -17,7 +17,6 @@ import pytest
 
 from jarvis.tools.registry import PRIORITY_CATCH_ALL, VoicePattern
 
-
 # -- helpers ---------------------------------------------------------------
 
 
@@ -871,8 +870,8 @@ class TestDisambiguationPriority:
 
     def test_music_keyword_beats_open_app(self):
         """'включи музыку джаз' → play_youtube_music, NOT open_app."""
-        from jarvis.tools.local.play_youtube_music import PlayYoutubeMusicTool
         from jarvis.tools.local.open_app import OpenAppTool
+        from jarvis.tools.local.play_youtube_music import PlayYoutubeMusicTool
 
         for mp in PlayYoutubeMusicTool.voice_patterns:
             assert mp.priority < PRIORITY_CATCH_ALL
@@ -907,8 +906,8 @@ class TestDisambiguationPriority:
         Steam patterns require 'стим' or 'игру'.
         So 'включи хром' falls through to open_app at PRIORITY_CATCH_ALL.
         """
-        from jarvis.tools.local.play_youtube_music import PlayYoutubeMusicTool
         from jarvis.tools.local.launch_steam_game import LaunchSteamGameTool
+        from jarvis.tools.local.play_youtube_music import PlayYoutubeMusicTool
 
         for p in PlayYoutubeMusicTool.voice_patterns:
             _assert_no_match(p, "включи хром")

@@ -21,7 +21,7 @@ import asyncio
 import json
 import logging
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 
@@ -49,19 +49,19 @@ class InitiativeLevel(Enum):
     SILENT = "silent"  # never speaks unprompted
 
     @classmethod
-    def from_str(cls, value: str) -> "InitiativeLevel":
+    def from_str(cls, value: str) -> InitiativeLevel:
         try:
             return cls(value.strip().lower())
         except (ValueError, AttributeError):
             return cls.HIGH
 
-    def downgraded(self) -> "InitiativeLevel":
+    def downgraded(self) -> InitiativeLevel:
         """Return the next quieter level (SILENT is the floor)."""
         order = [self.HIGH, self.MEDIUM, self.LOW, self.SILENT]
         idx = order.index(self)
         return order[min(idx + 1, len(order) - 1)]
 
-    def upgraded(self) -> "InitiativeLevel":
+    def upgraded(self) -> InitiativeLevel:
         """Return the next louder level (HIGH is the ceiling)."""
         order = [self.HIGH, self.MEDIUM, self.LOW, self.SILENT]
         idx = order.index(self)
@@ -164,7 +164,7 @@ class ProactivePatternStore:
     ) -> int:
         """Upsert a pattern observation; increments count. Returns new count."""
         conn = self._ensure()
-        now = datetime.now(tz=timezone.utc).isoformat()
+        now = datetime.now(tz=UTC).isoformat()
         value_json = json.dumps(value) if value is not None else None
         row = conn.execute(
             "SELECT count FROM proactive_patterns "
@@ -520,7 +520,7 @@ class ProactiveScenarios:
     ``focus_seconds`` so tests can drive them deterministically.
     """
 
-    def __init__(self, engine: "ProactiveEngine") -> None:
+    def __init__(self, engine: ProactiveEngine) -> None:
         self._e = engine
 
     # -- A. abandoned project --------------------------------------------

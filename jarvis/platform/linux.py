@@ -41,7 +41,7 @@ def set_brightness(level: int) -> str:
     raise NotSupportedError.for_feature("set_brightness", _PLATFORM)
 
 
-def get_brightness() -> Optional[int]:
+def get_brightness() -> int | None:
     raise NotSupportedError.for_feature("get_brightness", _PLATFORM)
 
 

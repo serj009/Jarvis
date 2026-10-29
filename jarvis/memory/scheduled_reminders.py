@@ -24,10 +24,10 @@ import asyncio
 import logging
 import sqlite3
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
-from typing import Callable
 
 log = logging.getLogger(__name__)
 
@@ -203,7 +203,7 @@ class ReminderStore:
             id=uuid.uuid4().hex[:12],
             text=text,
             trigger_at=trigger_at,
-            created_at=datetime.now(tz=timezone.utc),
+            created_at=datetime.now(tz=UTC),
             fired=False,
             recurrence=recurrence,
             recurrence_time=recurrence_time,
@@ -280,7 +280,7 @@ class ReminderStore:
     def get_pending(self) -> list[ScheduledReminder]:
         """Return every un-fired reminder whose trigger_at is now or in the past."""
         conn = self._ensure_open()
-        now_iso = datetime.now(tz=timezone.utc).isoformat()
+        now_iso = datetime.now(tz=UTC).isoformat()
         rows = conn.execute(
             "SELECT id, text, trigger_at, created_at, fired, recurrence, recurrence_time "
             "FROM scheduled_reminders "
@@ -406,7 +406,7 @@ class ReminderScheduler:
             if reminder.recurrence in _VALID_RECURRENCE:
                 next_at = compute_next_trigger(reminder.trigger_at, reminder.recurrence)
                 # If we fell behind (missed ticks), roll forward past now.
-                now = datetime.now(tz=timezone.utc)
+                now = datetime.now(tz=UTC)
                 while next_at <= now:
                     next_at = compute_next_trigger(next_at, reminder.recurrence)
                 self._store.update_reminder(

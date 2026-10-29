@@ -11,9 +11,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from jarvis.tools.local.browser_tabs import BrowserTabsTool, BrowserTabsArgs
+from jarvis.tools.local.browser_tabs import BrowserTabsArgs, BrowserTabsTool
 from jarvis.tools.registry import ToolResult, VoicePattern
-
 
 # -- protocol conformance -----------------------------------------------
 

@@ -143,7 +143,7 @@ class SpotifyIntegration(BaseIntegration):
         if not tracks:
             return f"No results for '{query}', sir."
         lines = [f"  \u2022 {t['name']} — {t['artists'][0]['name']}" for t in tracks]
-        return f"Search results, sir:\n" + "\n".join(lines)
+        return "Search results, sir:\n" + "\n".join(lines)
 
     def _playlist(self, args: dict) -> str:
         name = args.get("name", "Jarvis Playlist")

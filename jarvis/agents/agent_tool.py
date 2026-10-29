@@ -11,8 +11,8 @@ from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
-from jarvis.tools.registry import ToolResult, VoicePattern
 from jarvis.agents.autonomous import AutonomousAgent
+from jarvis.tools.registry import ToolResult, VoicePattern
 
 logger = logging.getLogger(__name__)
 

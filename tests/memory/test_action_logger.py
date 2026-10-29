@@ -4,9 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from jarvis.memory.action_logger import format_action, log_action, _SKIP_TOOLS
+from jarvis.memory.action_logger import _SKIP_TOOLS, format_action, log_action
 from jarvis.memory.store import MemoryStore
-
 
 # ---------------------------------------------------------------------------
 # format_action (synchronous, no store needed)

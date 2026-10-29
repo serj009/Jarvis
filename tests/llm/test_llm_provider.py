@@ -17,19 +17,20 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from jarvis.llm.llm_provider import APILLMClient, _VisionAPIProvider, _build_llm_provider
-from jarvis.llm.ollama_client import ChatChunk
+from jarvis.llm.llm_provider import APILLMClient, _build_llm_provider, _VisionAPIProvider
 from jarvis.llm.model_provider import (
-    ChatChunk as ProviderChunk,
-    ChatMessage,
-    OpenAIProvider,
     AnthropicProvider,
+    ChatMessage,
     GroqProvider,
+    OpenAIProvider,
     ProviderAuthError,
     ProviderConnectionError,
     ProviderError,
 )
-
+from jarvis.llm.model_provider import (
+    ChatChunk as ProviderChunk,
+)
+from jarvis.llm.ollama_client import ChatChunk
 
 # ---------------------------------------------------------------------------
 # Fixtures

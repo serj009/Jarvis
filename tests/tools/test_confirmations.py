@@ -31,7 +31,6 @@ from jarvis.tools.registry import (
 )
 from jarvis.tools.risk import RiskLevel
 
-
 # --- fakes -------------------------------------------------------------------
 
 class _SomeArgs(BaseModel):
