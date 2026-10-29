@@ -262,7 +262,7 @@ class SmartFormFillTool:
                 ),
             )
 
-        label_list = "\n".join(f"  • {l}" for l in labels)
+        label_list = "\n".join(f"  • {lbl}" for lbl in labels)
         return ToolResult(
             success=True,
             output=(

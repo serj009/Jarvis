@@ -156,9 +156,9 @@ class GamingTab(QWidget):
 
     def _on_save_custom(self) -> None:
         lines = [
-            l.strip()
-            for l in self.custom_games.toPlainText().splitlines()
-            if l.strip()
+            line.strip()
+            for line in self.custom_games.toPlainText().splitlines()
+            if line.strip()
         ]
         self._config.game_mode.custom_main_games = lines
         self._persist()

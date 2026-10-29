@@ -51,9 +51,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 from uuid import uuid4
 
-log = logging.getLogger(__name__)
 from jarvis.memory.auto_tagger import AutoTagger
 from jarvis.platform.encrypted_db import decrypt_value, encrypt_value
+
+log = logging.getLogger(__name__)
 
 FactSource = Literal["user", "conversation", "system", "import"]
 

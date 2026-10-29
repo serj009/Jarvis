@@ -100,7 +100,7 @@ class TestToolExampleStore:
             store.record_success(f"command_{i}", f"tool_{i}", {"i": i})
 
         result = store.get_examples_for_prompt(max_examples=5)
-        lines = [l for l in result.split("\n") if "→" in l]
+        lines = [ln for ln in result.split("\n") if "→" in ln]
         assert len(lines) <= 5
 
     def test_handles_corrupt_json(self, tmp_path) -> None:

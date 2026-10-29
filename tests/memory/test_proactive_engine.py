@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -14,6 +15,14 @@ from jarvis.memory.proactive_engine import (
     ProactiveScenarios,
     classify_leisure,
     jaccard,
+)
+from jarvis.tools.local.proactive_tools import (
+    DismissProactiveArgs,
+    DismissProactiveTool,
+    EmptyProactiveArgs,
+    ProactiveStatusTool,
+    SetInitiativeArgs,
+    SetInitiativeLevelTool,
 )
 
 # ── fixtures ───────────────────────────────────────────────────────
@@ -252,7 +261,6 @@ def test_migration_v37_to_v38():
 # Layer 2: scenarios, cooldowns, foreground tracking, loop
 # ═══════════════════════════════════════════════════════════════════
 
-from datetime import UTC, datetime, timedelta
 
 
 def _engine(store, **cfg_over):
@@ -509,14 +517,6 @@ async def test_run_loop_ticks_then_stops(store):
 # Layer 3: voice tools
 # ═══════════════════════════════════════════════════════════════════
 
-from jarvis.tools.local.proactive_tools import (
-    DismissProactiveArgs,
-    DismissProactiveTool,
-    EmptyProactiveArgs,
-    ProactiveStatusTool,
-    SetInitiativeArgs,
-    SetInitiativeLevelTool,
-)
 
 
 class TestProactiveTools:

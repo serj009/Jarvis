@@ -1005,15 +1005,18 @@ def _norm_ampm(clock: str | None) -> str:
     c = clock.strip().lower().replace(".", ":")
     ampm = None
     if c.endswith("am"):
-        ampm = "am"; c = c[:-2].strip()
+        ampm = "am"
+        c = c[:-2].strip()
     elif c.endswith("pm"):
-        ampm = "pm"; c = c[:-2].strip()
+        ampm = "pm"
+        c = c[:-2].strip()
     if ":" in c:
         h, m = c.split(":", 1)
     else:
         h, m = c, "00"
     try:
-        hh = int(h); mm = int(m)
+        hh = int(h)
+        mm = int(m)
     except ValueError:
         return "09:00"
     if ampm == "pm" and hh < 12:

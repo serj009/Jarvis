@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 from jarvis.memory.self_evaluation import (
     InteractionTrace,
@@ -322,7 +323,6 @@ class TestScheduler:
 # Layer 3: live trace recorder + send_fn factory
 # ---------------------------------------------------------------------------
 
-from types import SimpleNamespace
 
 
 def _ev(**kw):

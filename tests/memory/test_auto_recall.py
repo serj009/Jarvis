@@ -113,7 +113,7 @@ class TestGetRelevantMemories:
         )
         assert result is not None
         # Count bullet points (lines starting with "- ")
-        bullet_lines = [l for l in result.split("\n") if l.startswith("- ")]
+        bullet_lines = [ln for ln in result.split("\n") if ln.startswith("- ")]
         assert len(bullet_lines) <= 2
 
     @pytest.mark.asyncio()
@@ -125,7 +125,7 @@ class TestGetRelevantMemories:
         assert result is not None
         lines = result.split("\n")
         assert lines[0] == "[Relevant memories from past conversations:]"
-        assert all(l.startswith("- ") for l in lines[1:])
+        assert all(ln.startswith("- ") for ln in lines[1:])
 
     @pytest.mark.asyncio()
     async def test_high_min_score_filters_weak_matches(self, store) -> None:
@@ -336,9 +336,9 @@ class TestRelationAwareRecall:
             relation_store=rel,
         )
         assert result is not None
-        lines = [l for l in result.split("\n") if l.startswith("- ")]
+        lines = [ln for ln in result.split("\n") if ln.startswith("- ")]
         # Extract fact texts (strip prefix markers)
-        texts = [l.lstrip("- ").replace("[related] ", "") for l in lines]
+        texts = [ln.lstrip("- ").replace("[related] ", "") for ln in lines]
         # No exact duplicates
         assert len(texts) == len(set(texts)), f"Duplicates found: {texts}"
 
@@ -369,7 +369,7 @@ class TestRelationAwareRecall:
             max_total=5,
         )
         assert result is not None
-        bullet_lines = [l for l in result.split("\n") if l.startswith("- ")]
+        bullet_lines = [ln for ln in result.split("\n") if ln.startswith("- ")]
         assert len(bullet_lines) <= 5, f"Expected ≤5 total, got {len(bullet_lines)}"
         await s.close()
 
