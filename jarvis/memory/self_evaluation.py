@@ -28,9 +28,16 @@ Python + dataclasses, fully unit-testable.
 
 from __future__ import annotations
 
+import asyncio as _asyncio
+import json as _json
 import logging
+import logging as _logging
 import re
+from collections import deque as _deque
 from dataclasses import dataclass, field
+from datetime import UTC as _UTC
+from datetime import datetime as _dt
+from pathlib import Path as _Path
 
 log = logging.getLogger(__name__)
 
@@ -181,8 +188,6 @@ def build_trace(
 # Layer 2: critic prompt, evaluation runner, report
 # ---------------------------------------------------------------------------
 
-import json as _json
-import logging as _logging
 
 _log = _logging.getLogger(__name__)
 
@@ -339,10 +344,6 @@ def render_report_markdown(report: dict, *, generated_at: str = "") -> str:
 # Layer 2: background scheduler
 # ---------------------------------------------------------------------------
 
-import asyncio as _asyncio
-from datetime import UTC as _UTC
-from datetime import datetime as _dt
-from pathlib import Path as _Path
 
 
 class SelfEvaluationScheduler:
@@ -442,7 +443,6 @@ class SelfEvaluationScheduler:
 # Layer 3: live trace recorder (bus observer) + send_fn factory
 # ---------------------------------------------------------------------------
 
-from collections import deque as _deque
 
 
 class TraceRecorder:

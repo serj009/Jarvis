@@ -4,21 +4,34 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime, timedelta
+from datetime import datetime as _dt
 
 import pytest
 
-from jarvis.memory.scheduled_reminders import ReminderStore
+from jarvis.memory.scheduled_reminders import (
+    ReminderScheduler,
+    ReminderStore,
+    compute_next_trigger,
+)
 from jarvis.tools.local.remind_me import (
     DeleteReminderArgs,
     DeleteReminderTool,
+    EditReminderArgs,
+    EditReminderTool,
     ListRemindersTool,
+    RecurringReminderArgs,
+    RecurringReminderTool,
     RemindMeArgs,
     RemindMeAtArgs,
     RemindMeAtTool,
     RemindMeTool,
+    SnoozeReminderArgs,
+    SnoozeReminderTool,
     parse_clock_time,
+    parse_date,
     parse_relative_time,
     resolve_absolute_time,
+    resolve_date_time,
     resolve_tomorrow_time,
 )
 from jarvis.tools.registry import EmptyArgs
@@ -353,26 +366,6 @@ class TestRequiresConfirmation:
         assert DeleteReminderTool().requires_confirmation is False
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Gaps 1-4: recurring, date, snooze, edit
-# ═══════════════════════════════════════════════════════════════════
-
-from datetime import datetime as _dt
-
-from jarvis.memory.scheduled_reminders import (
-    ReminderScheduler,
-    compute_next_trigger,
-)
-from jarvis.tools.local.remind_me import (
-    EditReminderArgs,
-    EditReminderTool,
-    RecurringReminderArgs,
-    RecurringReminderTool,
-    SnoozeReminderArgs,
-    SnoozeReminderTool,
-    parse_date,
-    resolve_date_time,
-)
 
 # ── Gap 1: recurring — compute_next_trigger ────────────────────────
 

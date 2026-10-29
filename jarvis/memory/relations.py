@@ -33,9 +33,10 @@ import logging
 import sqlite3
 from pathlib import Path
 
+from jarvis.platform.encrypted_db import decrypt_value
+
 log = logging.getLogger(__name__)
 
-from jarvis.platform.encrypted_db import decrypt_value
 
 # ---------------------------------------------------------------------------
 # Schema (added to the same DB as facts/fact_tags)

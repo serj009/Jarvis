@@ -108,8 +108,10 @@ class TestSharedToken:
 
     async def test_both_plugins_share_one_token(self):
         shared = _FakeAuth(tokens={"access_token": "xyz"})
-        cal = GoogleCalendarIntegration(); cal.auth = shared
-        con = GoogleContactsIntegration(); con.auth = shared
+        cal = GoogleCalendarIntegration()
+        cal.auth = shared
+        con = GoogleContactsIntegration()
+        con.auth = shared
         assert await cal.connect() is True
         assert await con.connect() is True  # same token authorises both
 

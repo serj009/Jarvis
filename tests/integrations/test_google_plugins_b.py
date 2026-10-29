@@ -103,8 +103,10 @@ class TestSharedToken:
 
     async def test_gmail_and_drive_share_one_token(self):
         shared = _FakeAuth(tokens={"access_token": "xyz"})
-        g = GmailIntegration(); g.auth = shared
-        d = GoogleDriveIntegration(); d.auth = shared
+        g = GmailIntegration()
+        g.auth = shared
+        d = GoogleDriveIntegration()
+        d.auth = shared
         assert await g.connect() is True
         assert await d.connect() is True
 
