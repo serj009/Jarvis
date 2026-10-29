@@ -264,10 +264,20 @@ async def store_with_relations(tmp_path):
     await s.open()
 
     # Primary fact (will be found by keyword search)
-    f1 = await s.add("Mafia 2 — got Flame of Frenzy achievement", category="games", tags=["mafia_2", "achievement"])
+    f1 = await s.add(
+        "Mafia 2 — got Flame of Frenzy achievement",
+        category="games",
+        tags=["mafia_2", "achievement"],
+    )
     # Related facts (linked via relations, NOT directly findable by "Flame of Frenzy")
-    f2 = await s.add("Mafia 2 achievements: Flame of the Fell God still needed", category="games", tags=["mafia_2", "achievement"])
-    f3 = await s.add("Mafia 2 — completed chapter 5", category="games", tags=["mafia_2", "progress"])
+    f2 = await s.add(
+        "Mafia 2 achievements: Flame of the Fell God still needed",
+        category="games",
+        tags=["mafia_2", "achievement"],
+    )
+    f3 = await s.add(
+        "Mafia 2 — completed chapter 5", category="games", tags=["mafia_2", "progress"]
+    )
     # Unrelated fact
     f4 = await s.add("User prefers dark theme", category="personal", tags=["ui"])
 
@@ -350,10 +360,14 @@ class TestRelationAwareRecall:
         await s.open()
 
         # Create 1 primary fact with 8 related facts
-        primary = await s.add("Main game fact about Elden Ring", category="games", tags=["elden_ring"])
+        primary = await s.add(
+            "Main game fact about Elden Ring", category="games", tags=["elden_ring"]
+        )
         related_ids = []
         for i in range(8):
-            rid = await s.add(f"Elden Ring related fact number {i}", category="games", tags=["elden_ring"])
+            rid = await s.add(
+                f"Elden Ring related fact number {i}", category="games", tags=["elden_ring"]
+            )
             related_ids.append(rid)
 
         rel = RelationStore(db_path=db_path)

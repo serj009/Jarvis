@@ -558,7 +558,9 @@ class TestAstParse:
         import ast
         from pathlib import Path
 
-        src = Path(__file__).resolve().parent.parent.parent / "jarvis" / "coding" / "task_storage.py"
+        src = (
+            Path(__file__).resolve().parent.parent.parent / "jarvis" / "coding" / "task_storage.py"
+        )
         ast.parse(src.read_text(encoding="utf-8"), filename=str(src))
 
     def test_this_test_file_parses(self):

@@ -1157,7 +1157,10 @@ class TestPartialResults:
             tools={"test_tool": FakeTool()},
         )
         messages = await _collect(agent, "limited task")
-        assert any("\u043b\u0438\u043c\u0438\u0442 \u0438\u0442\u0435\u0440\u0430\u0446\u0438\u0439" in m for m in messages)
+        assert any(
+            "\u043b\u0438\u043c\u0438\u0442 \u0438\u0442\u0435\u0440\u0430\u0446\u0438\u0439" in m
+            for m in messages
+        )
         assert any("Completed" in m for m in messages)
 
     @pytest.mark.asyncio

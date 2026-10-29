@@ -80,7 +80,12 @@ async def test_disk_space_empty():
 
 async def test_find_large_folders_success():
     mock_folders = [
-        {"name": "node_modules", "path": r"C:\project\node_modules", "size_mb": 512.0, "file_count": 50000},
+        {
+            "name": "node_modules",
+            "path": r"C:\project\node_modules",
+            "size_mb": 512.0,
+            "file_count": 50000,
+        },
         {"name": ".git", "path": r"C:\project\.git", "size_mb": 128.0, "file_count": 5000},
     ]
     with patch(

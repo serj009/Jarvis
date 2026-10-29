@@ -372,7 +372,12 @@ class TestFixLoop:
         test_file.write_text("def test_always_fail():\n    assert False\n")
 
         # The model returns an "edit" block each time that doesn't fix anything.
-        fix_response = '```edit: test_always_fail.py\ndef test_always_fail():\n    assert False  # still broken\n```'
+        fix_response = (
+            "```edit: test_always_fail.py\n"
+            "def test_always_fail():\n"
+            "    assert False  # still broken\n"
+            "```"
+        )
         max_iter = 2
         responses = [fix_response] * max_iter
         agent, provider = _make_agent(
@@ -435,7 +440,9 @@ class TestGitOperations:
         # Commit.
         result = await agent._git_operation("commit", message="initial commit")
         # Should succeed or mention the commit.
-        assert "initial commit" in result.lower() or "ok" in result.lower() or "file" in result.lower()
+        assert (
+            "initial commit" in result.lower() or "ok" in result.lower() or "file" in result.lower()
+        )
 
     @pytest.mark.asyncio
     async def test_git_unknown_action(self, tmp_path):

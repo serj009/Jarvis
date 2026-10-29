@@ -114,7 +114,9 @@ class TestRestartLoop:
     @patch("jarvis.__main__.time.sleep", return_value=None)
     @patch("jarvis.__main__._write_crash_log")
     @patch("jarvis.__main__.log")
-    def test_crash_log_written_on_exception(self, _log, mock_crash_log, _sleep, _mock_jarvis_app) -> None:
+    def test_crash_log_written_on_exception(
+        self, _log, mock_crash_log, _sleep, _mock_jarvis_app
+    ) -> None:
         """Unhandled exception must write a crash log."""
         _mock_jarvis_app.run = MagicMock(side_effect=RuntimeError("oops"))
         with pytest.raises(RuntimeError):

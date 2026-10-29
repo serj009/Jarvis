@@ -83,7 +83,11 @@ class TestAutoLoginTool:
         # CRITICAL: password and username MUST NOT be in output
         assert "s3cr3tP@ss" not in (result.output or "")
         assert "gamer42" not in (result.output or "")
-        assert "password" not in (result.output or "").lower() or "password vault" in (result.output or "").lower() or True
+        assert (
+            "password" not in (result.output or "").lower()
+            or "password vault" in (result.output or "").lower()
+            or True
+        )
         # Output should be simple confirmation
         assert result.output == "Logged in to steam, sir."
 
