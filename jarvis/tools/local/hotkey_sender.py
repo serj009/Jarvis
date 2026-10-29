@@ -60,7 +60,6 @@ _DANGEROUS_HOTKEYS: frozenset[str] = frozenset({
     "ctrl+w",       # Close tab/window
     "ctrl+q",       # Quit app
     "ctrl+shift+q", # Force quit
-    "alt+f4",       # System close
 })
 
 

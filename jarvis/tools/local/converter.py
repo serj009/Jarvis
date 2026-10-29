@@ -44,7 +44,7 @@ _UNIT_ALIASES: dict[str, str] = {
     "кілометрів": "km", "kilometer": "km",
     "mi": "miles", "miles": "miles", "mile": "miles",
     "миль": "miles", "миля": "miles", "милях": "miles", "миле": "miles",
-    "мілі": "miles", "міль": "miles", "милях": "miles",
+    "мілі": "miles", "міль": "miles",
     "m": "m", "meters": "m", "metres": "m", "метров": "m", "м": "m",
     "метрів": "m", "meter": "m", "metre": "m",
     "ft": "feet", "feet": "feet", "foot": "feet", "футов": "feet",
@@ -208,8 +208,7 @@ _CURRENCY_ALIASES: dict[str, str] = {
     "биткоин": "BTC",
     # UK
     "доларів": "USD", "долар": "USD",
-    "гривень": "UAH", "гривні": "UAH",
-    "злотих": "PLN",
+    "гривні": "UAH",
     "фунтов": "GBP", "фунтів": "GBP",
 }
 
