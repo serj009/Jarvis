@@ -84,14 +84,38 @@ class TelegramIntegration(BaseIntegration):
     def get_voice_patterns(self) -> list[tuple]:
         return [
             (r"^send\s+telegram\s+(.+)$", "telegram_send", 320),
-            (r"^\u043e\u0442\u043f\u0440\u0430\u0432\u044c\s+\u0442\u0435\u043b\u0435\u0433\u0440\u0430\u043c\s+(.+)$", "telegram_send", 320),
-            (r"^\u0432\u0456\u0434\u043f\u0440\u0430\u0432\s+\u0442\u0435\u043b\u0435\u0433\u0440\u0430\u043c\s+(.+)$", "telegram_send", 320),
+            (
+                r"^\u043e\u0442\u043f\u0440\u0430\u0432\u044c\s+\u0442\u0435\u043b\u0435\u0433\u0440\u0430\u043c\s+(.+)$",
+                "telegram_send",
+                320,
+            ),
+            (
+                r"^\u0432\u0456\u0434\u043f\u0440\u0430\u0432\s+\u0442\u0435\u043b\u0435\u0433\u0440\u0430\u043c\s+(.+)$",
+                "telegram_send",
+                320,
+            ),
             (r"^read\s+telegram$", "telegram_read", 300),
-            (r"^\u043f\u0440\u043e\u0432\u0435\u0440\u044c\s+\u0442\u0435\u043b\u0435\u0433\u0440\u0430\u043c$", "telegram_read", 300),
-            (r"^\u043f\u0435\u0440\u0435\u0432\u0456\u0440\s+\u0442\u0435\u043b\u0435\u0433\u0440\u0430\u043c$", "telegram_read", 300),
+            (
+                r"^\u043f\u0440\u043e\u0432\u0435\u0440\u044c\s+\u0442\u0435\u043b\u0435\u0433\u0440\u0430\u043c$",
+                "telegram_read",
+                300,
+            ),
+            (
+                r"^\u043f\u0435\u0440\u0435\u0432\u0456\u0440\s+\u0442\u0435\u043b\u0435\u0433\u0440\u0430\u043c$",
+                "telegram_read",
+                300,
+            ),
             (r"^send\s+telegram\s+file\s+(.+)$", "telegram_send_file", 330),
-            (r"^\u043e\u0442\u043f\u0440\u0430\u0432\u044c\s+\u0444\u0430\u0439\u043b\s+\u0442\u0435\u043b\u0435\u0433\u0440\u0430\u043c\s+(.+)$", "telegram_send_file", 330),
-            (r"^\u0432\u0456\u0434\u043f\u0440\u0430\u0432\s+\u0444\u0430\u0439\u043b\s+\u0442\u0435\u043b\u0435\u0433\u0440\u0430\u043c\s+(.+)$", "telegram_send_file", 330),
+            (
+                r"^\u043e\u0442\u043f\u0440\u0430\u0432\u044c\s+\u0444\u0430\u0439\u043b\s+\u0442\u0435\u043b\u0435\u0433\u0440\u0430\u043c\s+(.+)$",
+                "telegram_send_file",
+                330,
+            ),
+            (
+                r"^\u0432\u0456\u0434\u043f\u0440\u0430\u0432\s+\u0444\u0430\u0439\u043b\s+\u0442\u0435\u043b\u0435\u0433\u0440\u0430\u043c\s+(.+)$",
+                "telegram_send_file",
+                330,
+            ),
         ]
 
     async def execute_tool(self, tool_name: str, args: dict) -> str:

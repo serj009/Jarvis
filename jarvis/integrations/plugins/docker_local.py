@@ -66,13 +66,25 @@ class DockerIntegration(BaseIntegration):
     def get_voice_patterns(self) -> list[tuple]:
         return [
             (r"^show\s+containers$", "docker_ps", 300),
-            (r"^\u043f\u043e\u043a\u0430\u0436\u0438\s+\u043a\u043e\u043d\u0442\u0435\u0439\u043d\u0435\u0440\u044b$", "docker_ps", 300),
+            (
+                r"^\u043f\u043e\u043a\u0430\u0436\u0438\s+\u043a\u043e\u043d\u0442\u0435\u0439\u043d\u0435\u0440\u044b$",
+                "docker_ps",
+                300,
+            ),
             (r"^stop\s+(.+)$", "docker_stop", 310),
             (r"^\u043e\u0441\u0442\u0430\u043d\u043e\u0432\u0438\s+(.+)$", "docker_stop", 310),
             (r"^start\s+container\s+(.+)$", "docker_start", 310),
-            (r"^\u0437\u0430\u043f\u0443\u0441\u0442\u0438\s+\u043a\u043e\u043d\u0442\u0435\u0439\u043d\u0435\u0440\s+(.+)$", "docker_start", 310),
+            (
+                r"^\u0437\u0430\u043f\u0443\u0441\u0442\u0438\s+\u043a\u043e\u043d\u0442\u0435\u0439\u043d\u0435\u0440\s+(.+)$",
+                "docker_start",
+                310,
+            ),
             (r"^docker\s+logs?\s+(.+)$", "docker_logs", 310),
-            (r"^\u043b\u043e\u0433\u0438\s+\u043a\u043e\u043d\u0442\u0435\u0439\u043d\u0435\u0440\u0430\s+(.+)$", "docker_logs", 310),
+            (
+                r"^\u043b\u043e\u0433\u0438\s+\u043a\u043e\u043d\u0442\u0435\u0439\u043d\u0435\u0440\u0430\s+(.+)$",
+                "docker_logs",
+                310,
+            ),
         ]
 
     async def execute_tool(self, tool_name: str, args: dict) -> str:

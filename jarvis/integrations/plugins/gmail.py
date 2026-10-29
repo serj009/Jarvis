@@ -60,17 +60,49 @@ class GmailIntegration(GoogleIntegrationMixin, BaseIntegration):
     def get_voice_patterns(self) -> list[tuple]:
         return [
             (r"^check\s+my\s+(?:e)?mail$", "gmail_inbox", 300),
-            (r"^\u043f\u0440\u043e\u0432\u0435\u0440\u044c\s+\u043f\u043e\u0447\u0442\u0443$", "gmail_inbox", 300),
-            (r"^\u043f\u0435\u0440\u0435\u0432\u0456\u0440\u0442\u0435?\s+\u043f\u043e\u0448\u0442\u0443$", "gmail_inbox", 300),
+            (
+                r"^\u043f\u0440\u043e\u0432\u0435\u0440\u044c\s+\u043f\u043e\u0447\u0442\u0443$",
+                "gmail_inbox",
+                300,
+            ),
+            (
+                r"^\u043f\u0435\u0440\u0435\u0432\u0456\u0440\u0442\u0435?\s+\u043f\u043e\u0448\u0442\u0443$",
+                "gmail_inbox",
+                300,
+            ),
             (r"^read\s+(?:e)?mail\s+(?:from\s+)?(.+)$", "gmail_read", 320),
-            (r"^\u043f\u0440\u043e\u0447\u0442\u0438\s+\u043f\u0438\u0441\u044c\u043c\u043e\s+(?:\u043e\u0442\s+)?(.+)$", "gmail_read", 320),
-            (r"^\u043f\u0440\u043e\u0447\u0438\u0442\u0430\u0439\s+\u043b\u0438\u0441\u0442\s+(?:\u0432\u0456\u0434\s+)?(.+)$", "gmail_read", 320),
+            (
+                r"^\u043f\u0440\u043e\u0447\u0442\u0438\s+\u043f\u0438\u0441\u044c\u043c\u043e\s+(?:\u043e\u0442\s+)?(.+)$",
+                "gmail_read",
+                320,
+            ),
+            (
+                r"^\u043f\u0440\u043e\u0447\u0438\u0442\u0430\u0439\s+\u043b\u0438\u0441\u0442\s+(?:\u0432\u0456\u0434\s+)?(.+)$",
+                "gmail_read",
+                320,
+            ),
             (r"^search\s+(?:e)?mail\s+(?:for\s+)?(.+)$", "gmail_search", 310),
-            (r"^\u043d\u0430\u0439\u0434\u0438\s+\u043f\u0438\u0441\u044c\u043c\u043e\s+(.+)$", "gmail_search", 310),
-            (r"^\u0437\u043d\u0430\u0439\u0434\u0438\s+\u043b\u0438\u0441\u0442\s+(.+)$", "gmail_search", 310),
+            (
+                r"^\u043d\u0430\u0439\u0434\u0438\s+\u043f\u0438\u0441\u044c\u043c\u043e\s+(.+)$",
+                "gmail_search",
+                310,
+            ),
+            (
+                r"^\u0437\u043d\u0430\u0439\u0434\u0438\s+\u043b\u0438\u0441\u0442\s+(.+)$",
+                "gmail_search",
+                310,
+            ),
             (r"^send\s+(?:e)?mail\s+(.+)$", "gmail_send", 320),
-            (r"^\u043e\u0442\u043f\u0440\u0430\u0432\u044c\s+\u043f\u0438\u0441\u044c\u043c\u043e\s+(.+)$", "gmail_send", 320),
-            (r"^\u0432\u0456\u0434\u043f\u0440\u0430\u0432\u0020?(?:\u043b\u0438\u0441\u0442)\s+(.+)$", "gmail_send", 320),
+            (
+                r"^\u043e\u0442\u043f\u0440\u0430\u0432\u044c\s+\u043f\u0438\u0441\u044c\u043c\u043e\s+(.+)$",
+                "gmail_send",
+                320,
+            ),
+            (
+                r"^\u0432\u0456\u0434\u043f\u0440\u0430\u0432\u0020?(?:\u043b\u0438\u0441\u0442)\s+(.+)$",
+                "gmail_send",
+                320,
+            ),
         ]
 
     async def execute_tool(self, tool_name: str, args: dict) -> str:
@@ -130,7 +162,8 @@ class GmailIntegration(GoogleIntegrationMixin, BaseIntegration):
             unread = "UNREAD" in full.get("labelIds", [])
             mark = "\u2022" if unread else " "
             lines.append(
-                f"  {mark} {hdrs.get('From', '?')[:30]} \u2014 {hdrs.get('Subject', '(no subject)')}"
+                f"  {mark} {hdrs.get('From', '?')[:30]} \u2014"
+                f" {hdrs.get('Subject', '(no subject)')}"
             )
         return "Your inbox, sir:\n" + "\n".join(lines)
 
@@ -180,7 +213,8 @@ class GmailIntegration(GoogleIntegrationMixin, BaseIntegration):
             ).execute()
             hdrs = _headers(full)
             lines.append(
-                f"  \u2022 {hdrs.get('From', '?')[:30]} \u2014 {hdrs.get('Subject', '(no subject)')}"
+                f"  \u2022 {hdrs.get('From', '?')[:30]} \u2014"
+                f" {hdrs.get('Subject', '(no subject)')}"
             )
         return f"Found {len(msgs)} message(s), sir:\n" + "\n".join(lines)
 

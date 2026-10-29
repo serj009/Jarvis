@@ -264,7 +264,11 @@ class ProjectMap:
                 except (OSError, UnicodeDecodeError):
                     content = ""
 
-                lines = content.count("\n") + (1 if content and not content.endswith("\n") else 0) if content else 0
+                lines = (
+                    content.count("\n") + (1 if content and not content.endswith("\n") else 0)
+                    if content
+                    else 0
+                )
                 symbols = _extract_symbols(content, language) if language else []
 
                 self._files.append(

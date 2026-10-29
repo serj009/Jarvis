@@ -60,11 +60,23 @@ class CiCdIntegration(BaseIntegration):
     def get_voice_patterns(self) -> list[tuple]:
         return [
             (r"^build\s+status$", "actions_status", 310),
-            (r"^\u0441\u0442\u0430\u0442\u0443\u0441\s+\u0431\u0438\u043b\u0434\u0430$", "actions_status", 310),
+            (
+                r"^\u0441\u0442\u0430\u0442\u0443\u0441\s+\u0431\u0438\u043b\u0434\u0430$",
+                "actions_status",
+                310,
+            ),
             (r"^run\s+tests?\s+on\s+github$", "actions_trigger", 320),
-            (r"^\u0437\u0430\u043f\u0443\u0441\u0442\u0438\s+\u0442\u0435\u0441\u0442\u044b\s+\u043d\u0430\s+\u0433\u0438\u0442\u0445\u0430\u0431\u0435$", "actions_trigger", 320),
+            (
+                r"^\u0437\u0430\u043f\u0443\u0441\u0442\u0438\s+\u0442\u0435\u0441\u0442\u044b\s+\u043d\u0430\s+\u0433\u0438\u0442\u0445\u0430\u0431\u0435$",
+                "actions_trigger",
+                320,
+            ),
             (r"^why\s+did\s+ci\s+fail$", "actions_logs", 310),
-            (r"^\u043f\u043e\u0447\u0435\u043c\u0443\s+ci\s+\u0443\u043f\u0430\u043b$", "actions_logs", 310),
+            (
+                r"^\u043f\u043e\u0447\u0435\u043c\u0443\s+ci\s+\u0443\u043f\u0430\u043b$",
+                "actions_logs",
+                310,
+            ),
         ]
 
     async def execute_tool(self, tool_name: str, args: dict) -> str:

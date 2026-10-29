@@ -34,7 +34,9 @@ class WhatsAppIntegration(BaseIntegration):
             self._browser = await pw.chromium.launch_persistent_context(
                 user_data_dir="whatsapp_session", headless=False,
             )
-            self._page = self._browser.pages[0] if self._browser.pages else await self._browser.new_page()
+            self._page = (
+                self._browser.pages[0] if self._browser.pages else await self._browser.new_page()
+            )
             await self._page.goto("https://web.whatsapp.com")
             self.connected = True
         except Exception:
@@ -71,11 +73,27 @@ class WhatsAppIntegration(BaseIntegration):
     def get_voice_patterns(self) -> list[tuple]:
         return [
             (r"^send\s+whatsapp\s+to\s+(.+)$", "whatsapp_send", 320),
-            (r"^\u043e\u0442\u043f\u0440\u0430\u0432\u044c\s+\u0432\s+\u0432\u043e\u0442\u0441\u0430\u043f\s+(.+)$", "whatsapp_send", 320),
-            (r"^\u0432\u0456\u0434\u043f\u0440\u0430\u0432\s+\u0432\s+\u0432\u043e\u0442\u0441\u0430\u043f\s+(.+)$", "whatsapp_send", 320),
+            (
+                r"^\u043e\u0442\u043f\u0440\u0430\u0432\u044c\s+\u0432\s+\u0432\u043e\u0442\u0441\u0430\u043f\s+(.+)$",
+                "whatsapp_send",
+                320,
+            ),
+            (
+                r"^\u0432\u0456\u0434\u043f\u0440\u0430\u0432\s+\u0432\s+\u0432\u043e\u0442\u0441\u0430\u043f\s+(.+)$",
+                "whatsapp_send",
+                320,
+            ),
             (r"^check\s+whatsapp$", "whatsapp_read", 300),
-            (r"^\u043f\u0440\u043e\u0432\u0435\u0440\u044c\s+\u0432\u043e\u0442\u0441\u0430\u043f$", "whatsapp_read", 300),
-            (r"^\u043f\u0435\u0440\u0435\u0432\u0456\u0440\s+\u0432\u043e\u0442\u0441\u0430\u043f$", "whatsapp_read", 300),
+            (
+                r"^\u043f\u0440\u043e\u0432\u0435\u0440\u044c\s+\u0432\u043e\u0442\u0441\u0430\u043f$",
+                "whatsapp_read",
+                300,
+            ),
+            (
+                r"^\u043f\u0435\u0440\u0435\u0432\u0456\u0440\s+\u0432\u043e\u0442\u0441\u0430\u043f$",
+                "whatsapp_read",
+                300,
+            ),
         ]
 
     async def execute_tool(self, tool_name: str, args: dict) -> str:

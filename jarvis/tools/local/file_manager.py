@@ -1218,5 +1218,8 @@ class ArchiveTool:
             size_str = "unknown size"
         return ToolResult(
             success=True,
-            output=f"Archived {resolved.name} to {os.path.basename(archive_path)} ({size_str}), sir.",
+            output=(
+                f"Archived {resolved.name} to "
+                f"{os.path.basename(archive_path)} ({size_str}), sir."
+            ),
         )

@@ -61,11 +61,27 @@ class DiscordIntegration(BaseIntegration):
     def get_voice_patterns(self) -> list[tuple]:
         return [
             (r"^send\s+discord\s+message\s+(.+)$", "discord_send", 320),
-            (r"^\u043e\u0442\u043f\u0440\u0430\u0432\u044c\s+\u0432\s+\u0434\u0438\u0441\u043a\u043e\u0440\u0434\s+(.+)$", "discord_send", 320),
-            (r"^\u0432\u0456\u0434\u043f\u0440\u0430\u0432\s+\u0432\s+\u0434\u0438\u0441\u043a\u043e\u0440\u0434\s+(.+)$", "discord_send", 320),
+            (
+                r"^\u043e\u0442\u043f\u0440\u0430\u0432\u044c\s+\u0432\s+\u0434\u0438\u0441\u043a\u043e\u0440\u0434\s+(.+)$",
+                "discord_send",
+                320,
+            ),
+            (
+                r"^\u0432\u0456\u0434\u043f\u0440\u0430\u0432\s+\u0432\s+\u0434\u0438\u0441\u043a\u043e\u0440\u0434\s+(.+)$",
+                "discord_send",
+                320,
+            ),
             (r"^check\s+discord$", "discord_read", 300),
-            (r"^\u043f\u0440\u043e\u0432\u0435\u0440\u044c\s+\u0434\u0438\u0441\u043a\u043e\u0440\u0434$", "discord_read", 300),
-            (r"^\u043f\u0435\u0440\u0435\u0432\u0456\u0440\s+\u0434\u0438\u0441\u043a\u043e\u0440\u0434$", "discord_read", 300),
+            (
+                r"^\u043f\u0440\u043e\u0432\u0435\u0440\u044c\s+\u0434\u0438\u0441\u043a\u043e\u0440\u0434$",
+                "discord_read",
+                300,
+            ),
+            (
+                r"^\u043f\u0435\u0440\u0435\u0432\u0456\u0440\s+\u0434\u0438\u0441\u043a\u043e\u0440\u0434$",
+                "discord_read",
+                300,
+            ),
         ]
 
     async def execute_tool(self, tool_name: str, args: dict) -> str:
@@ -112,8 +128,10 @@ class DiscordIntegration(BaseIntegration):
         messages = r.json()
         if not messages:
             return f"No messages in channel {channel_id}, sir."
-        lines = [f"  \u2022 {m.get('author', {}).get('username', '?')}: {m.get('content', '')[:100]}"
-                 for m in messages[:10]]
+        lines = [
+            f"  \u2022 {m.get('author', {}).get('username', '?')}: {m.get('content', '')[:100]}"
+            for m in messages[:10]
+        ]
         return "Recent messages, sir:\n" + "\n".join(lines)
 
     def _status_info(self, args: dict) -> str:

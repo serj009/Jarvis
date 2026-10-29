@@ -23,7 +23,11 @@ class HomeAssistantIntegration(BaseIntegration):
     auth_type = "api_key"
     auth_fields = [
         {"name": "api_key", "label": "HA Long-Lived Access Token", "type": "password"},
-        {"name": "ha_url", "label": "Home Assistant URL (e.g. http://homeassistant.local:8123)", "type": "text"},
+        {
+            "name": "ha_url",
+            "label": "Home Assistant URL (e.g. http://homeassistant.local:8123)",
+            "type": "text",
+        },
     ]
     required_packages: list[str] = []
 

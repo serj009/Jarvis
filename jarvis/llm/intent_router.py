@@ -1015,7 +1015,9 @@ class IntentRouter:
             success = not exchange.result.startswith("Error:")
             try:
                 asyncio.create_task(
-                    log_action(self._pctx.memory_store, intent.tool_name, intent.args, success=success)
+                    log_action(
+                        self._pctx.memory_store, intent.tool_name, intent.args, success=success
+                    )
                 )
             except Exception:
                 log.warning("[router] action-log failed", exc_info=True)
@@ -1055,7 +1057,10 @@ class IntentRouter:
                 except StopAsyncIteration:
                     break
                 except TimeoutError:
-                    log.error("[router] LLM stream stalled for %.0fs — aborting round", _STREAM_CHUNK_TIMEOUT_S)
+                    log.error(
+                        "[router] LLM stream stalled for %.0fs — aborting round",
+                        _STREAM_CHUNK_TIMEOUT_S,
+                    )
                     text_parts.append(say("generic_fail"))
                     break
                 if chunk.content:

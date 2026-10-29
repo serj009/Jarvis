@@ -59,11 +59,27 @@ class TranslationIntegration(BaseIntegration):
     def get_voice_patterns(self) -> list[tuple]:
         return [
             (r"^translate\s+(.+)\s+to\s+(\w+)$", "translate_text", 320),
-            (r"^\u043f\u0435\u0440\u0435\u0432\u0435\u0434\u0438\s+(.+)\s+\u043d\u0430\s+(\w+)$", "translate_text", 320),
-            (r"^\u043f\u0435\u0440\u0435\u043a\u043b\u0430\u0434\u0438\s+(.+)\s+\u043d\u0430\s+(\w+)$", "translate_text", 320),
+            (
+                r"^\u043f\u0435\u0440\u0435\u0432\u0435\u0434\u0438\s+(.+)\s+\u043d\u0430\s+(\w+)$",
+                "translate_text",
+                320,
+            ),
+            (
+                r"^\u043f\u0435\u0440\u0435\u043a\u043b\u0430\u0434\u0438\s+(.+)\s+\u043d\u0430\s+(\w+)$",
+                "translate_text",
+                320,
+            ),
             (r"^translate\s+clipboard$", "translate_clipboard", 310),
-            (r"^\u043f\u0435\u0440\u0435\u0432\u0435\u0434\u0438\s+\u0431\u0443\u0444\u0435\u0440\s+\u043e\u0431\u043c\u0435\u043d\u0430$", "translate_clipboard", 310),
-            (r"^\u043f\u0435\u0440\u0435\u043a\u043b\u0430\u0434\u0438\s+\u0431\u0443\u0444\u0435\u0440\s+\u043e\u0431\u043c\u0456\u043d\u0443$", "translate_clipboard", 310),
+            (
+                r"^\u043f\u0435\u0440\u0435\u0432\u0435\u0434\u0438\s+\u0431\u0443\u0444\u0435\u0440\s+\u043e\u0431\u043c\u0435\u043d\u0430$",
+                "translate_clipboard",
+                310,
+            ),
+            (
+                r"^\u043f\u0435\u0440\u0435\u043a\u043b\u0430\u0434\u0438\s+\u0431\u0443\u0444\u0435\u0440\s+\u043e\u0431\u043c\u0456\u043d\u0443$",
+                "translate_clipboard",
+                310,
+            ),
         ]
 
     async def execute_tool(self, tool_name: str, args: dict) -> str:

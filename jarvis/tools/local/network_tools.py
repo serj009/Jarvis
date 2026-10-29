@@ -353,7 +353,9 @@ class NetworkInfoTool:
 
             if interfaces:
                 active = [i for i in interfaces if i["is_up"]]
-                lines.append(f"Network interfaces ({len(active)} active of {len(interfaces)} total):")
+                lines.append(
+                    f"Network interfaces ({len(active)} active of {len(interfaces)} total):"
+                )
                 for iface in interfaces:
                     if not iface["is_up"]:
                         continue
@@ -372,7 +374,9 @@ class NetworkInfoTool:
             lines.append(f"\nPing {args.host}:")
             lines.append(ping_output)
 
-            return ToolResult(success=True, output="\n".join(lines) + "\n\nThat's your network status, sir.")
+            return ToolResult(
+                success=True, output="\n".join(lines) + "\n\nThat's your network status, sir."
+            )
 
         except NotImplementedError as e:
             return ToolResult(success=False, error=str(e))

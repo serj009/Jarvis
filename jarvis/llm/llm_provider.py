@@ -183,7 +183,10 @@ class APILLMClient:
             except ProviderAuthError as e:
                 log.error("API auth failed: %s", e)
                 yield ChatChunk(
-                    content="API authentication failed, sir. Please check your API key in Settings.",
+                    content=(
+                        "API authentication failed, sir. "
+                        "Please check your API key in Settings."
+                    ),
                     done=True,
                 )
                 return
