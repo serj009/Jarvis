@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-
 from jarvis.tools.local.hotkey_sender import (
     SendHotkeyArgs,
     SendHotkeyTool,

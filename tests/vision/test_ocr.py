@@ -10,8 +10,6 @@ import sys
 import types
 from unittest.mock import MagicMock, patch
 
-
-
 # ── helpers ──────────────────────────────────────────────────────────
 
 def _make_fake_pytesseract(

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 import pytest
 
 from jarvis.memory.user_profile import UserProfile

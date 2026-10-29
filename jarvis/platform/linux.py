@@ -12,7 +12,6 @@ This module must NOT import win32 / ctypes / winreg / PySide6.
 
 from __future__ import annotations
 
-
 from jarvis.platform.base import NotSupportedError
 
 _PLATFORM = "Linux"

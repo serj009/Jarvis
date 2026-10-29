@@ -9,8 +9,8 @@ from __future__ import annotations
 import re
 from unittest.mock import MagicMock, patch
 
-from pydantic import ValidationError
 import pytest
+from pydantic import ValidationError
 
 from jarvis.tools.local.git_tool import (
     GitArgs,

@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
-
 from jarvis.tools.local.smart_form_fill import (
     SmartFormFillTool,
     _fill_via_selenium,

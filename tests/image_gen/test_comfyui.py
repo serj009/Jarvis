@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-
 from jarvis.core.config import ImageGenConfig
 from jarvis.image_gen.comfyui import ComfyUIProvider, _build_txt2img_workflow
 

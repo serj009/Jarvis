@@ -18,7 +18,6 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-
 from jarvis.coding.code_search import (
     CodeSearch,
     _extract_brace_block,

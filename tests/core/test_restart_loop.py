@@ -14,7 +14,7 @@ from jarvis.__main__ import MAX_RESTARTS, main
 @pytest.fixture(autouse=True)
 def _mock_jarvis_app(monkeypatch):
     """Inject a fake jarvis.app module so main() never imports the real one.
-    
+
     The real jarvis.app pulls in PySide6, sounddevice, and dozens of heavy
     deps that aren't available in the lightweight test venv. We plant a
     fake module in sys.modules BEFORE main() runs 'from jarvis.app import run'.

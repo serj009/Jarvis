@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-
 import pytest
 
 from jarvis.memory.tool_examples import MAX_PER_TOOL, MAX_TOTAL, ToolExampleStore

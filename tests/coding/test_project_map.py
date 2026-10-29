@@ -18,7 +18,6 @@ from __future__ import annotations
 import textwrap
 from pathlib import Path
 
-
 from jarvis.coding.project_map import (
     ProjectMap,
     _extract_python_symbols,
