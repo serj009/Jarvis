@@ -103,3 +103,60 @@ def test_config_migration_error_is_value_error():
     assert issubclass(ConfigMigrationError, ValueError)
     with pytest.raises(ConfigMigrationError):
         raise ConfigMigrationError("test")
+
+
+# --- v40 -> v41: chat hotkey default disabled ----------------------------
+
+def test_migrate_v40_to_v41_clears_old_chat_default():
+    """A saved chat binding equal to the old "ctrl+enter" default -> None."""
+    from jarvis.core.migrations import _migrate_v40_to_v41
+    out = _migrate_v40_to_v41({"schema_version": 40, "hotkeys": {"chat": "ctrl+enter"}})
+    assert out["hotkeys"]["chat"] is None
+    assert out["schema_version"] == 41
+
+
+@pytest.mark.parametrize("raw", ["Ctrl+Enter", "CTRL + ENTER", "ctrl + enter"])
+def test_migrate_v40_to_v41_normalises_case_and_spacing(raw):
+    """The old default is matched regardless of case/whitespace."""
+    from jarvis.core.migrations import _migrate_v40_to_v41
+    out = _migrate_v40_to_v41({"schema_version": 40, "hotkeys": {"chat": raw}})
+    assert out["hotkeys"]["chat"] is None
+
+
+def test_migrate_v40_to_v41_keeps_user_chosen_binding():
+    """Any value other than the old default is preserved untouched."""
+    from jarvis.core.migrations import _migrate_v40_to_v41
+    out = _migrate_v40_to_v41({"schema_version": 40, "hotkeys": {"chat": "ctrl+shift+c"}})
+    assert out["hotkeys"]["chat"] == "ctrl+shift+c"
+
+
+def test_migrate_v40_to_v41_leaves_none_as_none():
+    """An already-disabled chat binding stays None."""
+    from jarvis.core.migrations import _migrate_v40_to_v41
+    out = _migrate_v40_to_v41({"schema_version": 40, "hotkeys": {"chat": None}})
+    assert out["hotkeys"]["chat"] is None
+
+
+def test_migrate_v40_to_v41_does_not_create_missing_chat_key():
+    """A hotkeys section without a chat key does not gain one."""
+    from jarvis.core.migrations import _migrate_v40_to_v41
+    out = _migrate_v40_to_v41({"schema_version": 40, "hotkeys": {"mute": "ctrl+shift+m"}})
+    assert "chat" not in out["hotkeys"]
+
+
+def test_migrate_v40_to_v41_handles_missing_hotkeys_section():
+    """No hotkeys section at all: migration still bumps version, adds nothing."""
+    from jarvis.core.migrations import _migrate_v40_to_v41
+    out = _migrate_v40_to_v41({"schema_version": 40})
+    assert "hotkeys" not in out
+    assert out["schema_version"] == 41
+
+
+def test_migrate_does_not_mutate_input_for_v40_to_v41():
+    """migrate() operates on a deep copy; the caller's dict is untouched."""
+    from jarvis.core.migrations import migrate
+    original = {"schema_version": 40, "hotkeys": {"chat": "ctrl+enter"}}
+    import copy
+    snapshot = copy.deepcopy(original)
+    migrate(original)
+    assert original == snapshot

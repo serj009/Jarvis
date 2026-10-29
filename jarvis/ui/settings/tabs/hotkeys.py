@@ -29,6 +29,9 @@ _FIELDS: tuple[tuple[str, str, bool], ...] = (
     ("push_to_talk", "Push to talk", True),
     ("open_settings", "Open settings", False),
     ("command_palette", "Command palette", True),
+    # Disabled by default (Ctrl+Enter leaked into other apps); exposed here so
+    # users who want it can rebind it. Empty = disabled (stored as None).
+    ("chat", "Chat panel", True),
 )
 
 

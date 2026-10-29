@@ -132,14 +132,30 @@ def test_register_all_starts_listener_with_configured_bindings(fake_pynput):
     assert len(fake_pynput.instances) == 1
     inst = fake_pynput.instances[0]
     assert inst.start_calls == 1
-    # Default config: mute + open_settings + command_palette + chat
-    # (push_to_talk is None, chat defaults to "ctrl+enter").
+    # Default config: mute + open_settings + command_palette.
+    # push_to_talk and chat are both None by default (chat was disabled in
+    # v41 because Ctrl+Enter leaked into other apps — see migrations).
     assert set(inst.actions.keys()) == {
         "<ctrl>+<shift>+m",
         "<ctrl>+<shift>+,",
         "<ctrl>+<shift>+p",
-        "<ctrl>+<enter>",
     }
+
+
+def test_register_all_default_chat_is_unbound(fake_pynput):
+    """chat defaults to None, so Ctrl+Enter must NOT be registered, while the
+    other default bindings still are. Setting chat re-enables it."""
+    mgr, *_ = _make_mgr()
+    mgr.register_all()
+    inst = fake_pynput.instances[0]
+    assert "<ctrl>+<enter>" not in inst.actions
+    assert "<ctrl>+<shift>+m" in inst.actions  # siblings still registered
+
+    # Opt back in: an explicit chat binding is honoured.
+    mgr2, *_ = _make_mgr(hotkeys=HotkeysConfig(chat="ctrl+shift+c"))
+    mgr2.register_all()
+    inst2 = fake_pynput.instances[-1]
+    assert "<ctrl>+<shift>+c" in inst2.actions
 
 
 def test_register_all_skips_empty_bindings(fake_pynput):

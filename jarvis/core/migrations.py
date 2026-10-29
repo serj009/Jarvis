@@ -838,6 +838,43 @@ def _migrate_v39_to_v40(data: dict) -> dict:
     return data
 
 
+# The old default chat hotkey, normalised the same way hotkeys.py parses a
+# binding (split on "+", strip + lowercase each part, drop empties). Only a
+# saved value equal to THIS is cleared; anything the user set stays.
+_OLD_CHAT_HOTKEY_DEFAULT = "ctrl+enter"
+
+
+def _normalise_hotkey(raw: str) -> str:
+    """Normalise a hotkey string for equality comparison.
+
+    Mirrors jarvis.ui.hotkeys._to_pynput_hotkey's parsing (minus the pynput
+    angle-bracket translation): lowercase, strip whitespace around each part,
+    drop empty parts. So "Ctrl+Enter", "CTRL + ENTER" and "ctrl+enter" all
+    compare equal.
+    """
+    parts = [p.strip().lower() for p in raw.split("+") if p.strip()]
+    return "+".join(parts)
+
+
+def _migrate_v40_to_v41(data: dict) -> dict:
+    """Schema v41: stop binding Ctrl+Enter to the chat panel by default.
+
+    Ctrl+Enter is a common in-app shortcut (send message, run cell), and the
+    global hook does NOT suppress the keypress, so it leaked into whatever app
+    had focus. The default is now disabled (``hotkeys.chat = None``). Only a
+    saved value still equal to the old default "ctrl+enter" (any case/spacing)
+    is cleared; any other user-chosen binding is left untouched. A missing key
+    is not created.
+    """
+    hotkeys = data.get("hotkeys")
+    if isinstance(hotkeys, dict) and "chat" in hotkeys:
+        chat = hotkeys["chat"]
+        if isinstance(chat, str) and _normalise_hotkey(chat) == _OLD_CHAT_HOTKEY_DEFAULT:
+            hotkeys["chat"] = None
+    data["schema_version"] = 41
+    return data
+
+
 def _migrate_v37_to_v38(data: dict) -> dict:
     """Schema v38: proactive ("initiative") engine settings.
 
@@ -915,6 +952,7 @@ MIGRATIONS: dict[int, Migration] = {
     37: _migrate_v37_to_v38,
     38: _migrate_v38_to_v39,
     39: _migrate_v39_to_v40,
+    40: _migrate_v40_to_v41,
 }
 
 
