@@ -21,6 +21,35 @@ _T = TypeVar("_T")
 # "discord" ~0.5) do not.
 _DIFFLIB_TYPO_FLOOR: float = 0.85
 
+# Task 8b: Cyrillic -> Latin transliteration applied inside normalize_query.
+# Without it, normalize_query's ``[^a-z0-9] -> space`` step erased Cyrillic
+# entirely, so a spoken app name like "баттл" / "дискорд" / "клаут код"
+# normalised to an EMPTY string and matched nothing in the installed-app
+# index. Transliterating first turns "баттл нет" into "battl net" (fuzzy-
+# matches "battle net") and "дискорд" into "diskord" (~0.86 vs "discord").
+# It is applied symmetrically to BOTH the query and the candidate keys, so a
+# Cyrillic app name in the index and a Latin one both normalise consistently.
+# This is a heuristic: phonetic mismatches (e.g. "хром" -> "khrom" vs
+# "chrome") are expected and are covered by the alias tables, not here.
+_CYRILLIC_TRANSLIT: dict[str, str] = {
+    # multi-character first (dict insertion order is honoured by the loop)
+    "щ": "shch", "ш": "sh", "ч": "ch", "ц": "ts", "ю": "yu", "я": "ya",
+    "ж": "zh", "х": "kh", "ї": "yi", "є": "ye",
+    "а": "a", "б": "b", "в": "v", "г": "g", "ґ": "g", "д": "d", "е": "e",
+    "ё": "e", "з": "z", "и": "i", "і": "i", "й": "y", "к": "k", "л": "l",
+    "м": "m", "н": "n", "о": "o", "п": "p", "р": "r", "с": "s", "т": "t",
+    "у": "u", "ф": "f", "ы": "y", "э": "e", "ь": "", "ъ": "",
+}
+
+
+def transliterate_cyrillic(text: str) -> str:
+    """Best-effort Cyrillic (RU/UK) -> Latin transliteration.
+
+    Per-character; unknown characters (including Latin) pass through
+    unchanged. Case-insensitive input is expected (callers lowercase first).
+    """
+    return "".join(_CYRILLIC_TRANSLIT.get(ch, ch) for ch in text)
+
 # Strip conversational filler before matching.
 _QUERY_FILLERS = re.compile(
     r"^(?:my|the|a|an)\s+",
@@ -72,6 +101,9 @@ def _peel_patterns(s: str, patterns: tuple[re.Pattern[str], ...]) -> str:
 def normalize_query(text: str) -> str:
     """Lowercase, collapse non-alphanumerics to spaces, strip fillers."""
     s = text.strip().lower()
+    # Task 8b: transliterate Cyrillic BEFORE the Latin-only cleanup below,
+    # which would otherwise erase it (turning "баттл" into "").
+    s = transliterate_cyrillic(s)
     while True:
         new = _QUERY_FILLERS.sub("", s, count=1)
         if new == s:
