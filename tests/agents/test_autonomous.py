@@ -964,7 +964,7 @@ class TestSlidingWindow:
         responses = [
             '["s1","s2","s3","s4"]',
         ] + [
-            '{"type": "tool_call", "tool": "test_tool", "args": {}, '
+            '{"type": "tool_call", "tool": "test_tool", "args": {}, '  # noqa: UP031 - JSON literal has {} braces, incompatible with .format/f-string
             '"reasoning": "step %d", "description": "Step %d"}' % (i, i)
             for i in range(1, 5)
         ] + [
@@ -1013,7 +1013,7 @@ class TestReplanning:
         responses = [
             '["s1","s2","s3","s4","s5","s6"]',
         ] + [
-            '{"type": "tool_call", "tool": "test_tool", "args": {}, '
+            '{"type": "tool_call", "tool": "test_tool", "args": {}, '  # noqa: UP031 - JSON literal has {} braces, incompatible with .format/f-string
             '"reasoning": "step %d", "description": "Step %d"}' % (i, i)
             for i in range(1, 7)
         ] + [
