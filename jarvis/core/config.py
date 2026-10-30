@@ -158,6 +158,16 @@ class STTConfig(_Base):
     confidence_clarify: float = Field(default=0.30, ge=0.0, le=1.0)
     # Max times JARVIS asks "could you repeat?" before giving up.
     max_clarify_retries: int = Field(default=3, ge=1, le=10)
+    # Task 7.1: guard the TTS voice switch against spurious language flips.
+    # Whisper reports a per-utterance language probability; on very short or
+    # noisy utterances it can mis-detect (e.g. a 4-char word at p=0.34),
+    # which would pointlessly reload a different voice (2-3 s) and reply in
+    # the wrong language. Only switch the reply voice when BOTH the detected
+    # language probability and the transcript length clear these floors.
+    language_switch_min_probability: float = Field(
+        default=0.70, ge=0.0, le=1.0
+    )
+    language_switch_min_chars: int = Field(default=8, ge=0, le=1000)
 
     @field_validator("language", mode="before")
     @classmethod

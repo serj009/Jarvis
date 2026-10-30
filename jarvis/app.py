@@ -3079,6 +3079,9 @@ class JarvisApp:
             tts_timeout_s=self.cfg.pipeline.tts_timeout_s,
 
 
+            language_switch_min_probability=self.cfg.stt.language_switch_min_probability,
+            language_switch_min_chars=self.cfg.stt.language_switch_min_chars,
+
             tts_manager=self.tts_manager,
             barge_in_manager=self.barge_in_manager,
             sound_effects=self.sound_effects,
