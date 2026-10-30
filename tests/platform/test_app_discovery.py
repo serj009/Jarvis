@@ -87,3 +87,54 @@ def test_fuzzy_resolve_short_query_does_not_overmatch():
     """A 2-char query must not substring-match into unrelated long keys."""
     choices = {"calculator": "calc.lnk"}
     assert fuzzy_resolve("go", choices) is None
+
+
+# --- Task 8b-1: Cyrillic transliteration --------------------------------
+
+def test_transliterate_basic_ru():
+    from jarvis.platform.app_discovery import transliterate_cyrillic
+    assert transliterate_cyrillic("дискорд") == "diskord"
+    assert transliterate_cyrillic("телеграм") == "telegram"
+    assert transliterate_cyrillic("стим") == "stim"
+
+
+def test_transliterate_leaves_latin_untouched():
+    from jarvis.platform.app_discovery import transliterate_cyrillic
+    assert transliterate_cyrillic("battle.net") == "battle.net"
+    assert transliterate_cyrillic("Steam123") == "Steam123"  # case preserved here
+
+
+def test_normalize_query_transliterates_cyrillic():
+    # Before 8b-1 this returned "" (Latin-only cleanup erased Cyrillic).
+    assert normalize_query("баттл нет") == "battl net"
+    assert normalize_query("Дискорд") == "diskord"
+
+
+def test_normalize_query_latin_unchanged_by_translit():
+    assert normalize_query("Google Chrome") == "google chrome"
+    assert normalize_query("Visual Studio Code") == "visual studio code"
+
+
+def test_cyrillic_app_name_now_resolves():
+    """A Cyrillic spoken name fuzzy-matches a Latin index key (the whole
+    point of 8b-1 — previously it normalised to '' and matched nothing)."""
+    choices = {"battle net": "battlenet.lnk"}
+    hit = fuzzy_resolve("баттл нет", choices)
+    assert hit is not None
+    assert hit[1] == "battlenet.lnk"
+
+
+def test_cyrillic_discord_resolves_via_typo_floor():
+    choices = {"discord": "discord.lnk"}
+    hit = fuzzy_resolve("дискорд", choices)
+    assert hit is not None
+    assert hit[1] == "discord.lnk"
+
+
+def test_cyrillic_index_key_also_transliterated():
+    """Transliteration is symmetric: a Cyrillic INDEX key and a Cyrillic
+    query both normalise the same way, so they still match."""
+    choices = {normalize_query("Телеграм"): "tg.lnk"}
+    assert "telegram" in choices  # key was transliterated at build time
+    hit = fuzzy_resolve("телеграм", choices)
+    assert hit is not None and hit[1] == "tg.lnk"
