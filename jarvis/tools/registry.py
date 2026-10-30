@@ -137,6 +137,11 @@ class ToolResult:
     success: bool
     output: str | dict | None = None
     error: str | None = None
+    # Task 8b-2: optional "did you mean <suggestion>?" hint on a failed
+    # resolve (e.g. open_app near-miss). Kept as a separate field so it does
+    # not disturb success, output, error or their consumers (repeat_last,
+    # audit log, LLM loop, failure metrics). None when there is no hint.
+    suggestion: str | None = None
 
 
 # Contravariant because `execute` only ever *consumes* its argument: a

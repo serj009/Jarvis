@@ -268,6 +268,15 @@ class ToolsConfig(_Base):
     enabled: dict[str, bool] = Field(
         default_factory=lambda: {"type_into_active_window": False}
     )
+    # Task 8b-2: fuzzy thresholds for open_app. A spoken app name resolves
+    # to an installed app when its match score >= open_app_match_cutoff. On a
+    # miss, if the best candidate still scores >= open_app_suggest_floor (but
+    # below the cutoff), Jarvis does NOT launch it — it only says "did you
+    # mean Y?" so the user can repeat with the exact name. A near-miss is
+    # never launched automatically (launching a wrong lookalike is worse than
+    # a re-ask).
+    open_app_match_cutoff: float = Field(default=0.55, ge=0.0, le=1.0)
+    open_app_suggest_floor: float = Field(default=0.35, ge=0.0, le=1.0)
 
 
 class HotkeysConfig(_Base):

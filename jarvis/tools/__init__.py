@@ -303,6 +303,12 @@ def setup_local_tools(
     if image_gen_cfg is None:
         image_gen_cfg = ImageGenConfig()
 
+    # Task 8b-2: open_app near-miss thresholds from the tools config.
+    from jarvis.core.config import ToolsConfig
+    tools_cfg = getattr(config, "tools", None) if config is not None else None
+    if tools_cfg is None:
+        tools_cfg = ToolsConfig()
+
     # Timer store: when on_timer_done is provided, all timer tools share a
     # single TimerStore that fires the callback on expiry.  Otherwise the
     # tools fall back to the module-level lazy singleton (no notification).
@@ -332,7 +338,11 @@ def setup_local_tools(
         ListDirectoryTool(path_validator=path_validator),
         GitTool(),
         LockScreenTool(),
-        OpenAppTool(personal_aliases=personal_aliases),
+        OpenAppTool(
+            personal_aliases=personal_aliases,
+            suggest_floor=tools_cfg.open_app_suggest_floor,
+            match_cutoff=tools_cfg.open_app_match_cutoff,
+        ),
         OpenUrlTool(),
         LaunchSteamGameTool(),
         LaunchWorkspaceTool(workspace_apps=workspace_apps),
