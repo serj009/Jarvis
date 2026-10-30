@@ -49,11 +49,11 @@ VRAM_WARN_FRACTION = 0.92
 PASS, WARN, FAIL = "PASS", "WARN", "FAIL"
 
 
-class CheckFailed(Exception):
+class CheckFailedError(Exception):
     """A check found a real problem."""
 
 
-class CheckWarning(Exception):
+class CheckWarningError(Exception):
     """A check found something worth a look, but not a failure."""
 
 
@@ -74,8 +74,8 @@ class Result:
 
 
 # --- checks -----------------------------------------------------------------
-# Each returns a short detail string on success, raises CheckWarning /
-# CheckFailed otherwise.
+# Each returns a short detail string on success, raises CheckWarningError /
+# CheckFailedError otherwise.
 
 
 def check_config(ctx: Context) -> str:
@@ -88,11 +88,11 @@ def check_config(ctx: Context) -> str:
 
     path = default_config_path()
     if not path.exists():
-        raise CheckFailed(f"not found: {path}")
+        raise CheckFailedError(f"not found: {path}")
     try:
         ctx.cfg = load_config(path)
     except CONFIG_LOAD_ERRORS as exc:
-        raise CheckFailed(format_config_error(exc, path)) from None
+        raise CheckFailedError(format_config_error(exc, path)) from None
     return str(path)
 
 
@@ -105,7 +105,7 @@ def check_ollama_api(ctx: Context) -> str:
     try:
         data = _get_json(f"{OLLAMA_API}/api/tags", timeout=5)
     except (urllib.error.URLError, OSError) as exc:
-        raise CheckFailed(f"{OLLAMA_API} not reachable: {exc}") from None
+        raise CheckFailedError(f"{OLLAMA_API} not reachable: {exc}") from None
     ctx.installed_models = [m.get("name", "") for m in data.get("models", [])]
     return f"{len(ctx.installed_models)} model(s) installed"
 
@@ -115,7 +115,7 @@ def check_model_installed(ctx: Context) -> str:
     names = set(ctx.installed_models)
     if want in names or f"{want}:latest" in names:
         return want
-    raise CheckFailed(
+    raise CheckFailedError(
         f"'{want}' (llm.model in config.json) is not installed; "
         f"installed: {', '.join(sorted(names)) or 'none'}"
     )
@@ -144,11 +144,11 @@ def check_model_answers(ctx: Context) -> str:
         with urllib.request.urlopen(req, timeout=120) as resp:
             json.loads(resp.read())
     except (urllib.error.URLError, OSError) as exc:
-        raise CheckFailed(f"request failed: {exc}") from None
+        raise CheckFailedError(f"request failed: {exc}") from None
     elapsed = time.monotonic() - start
     detail = f"answered in {elapsed:.1f} s (num_ctx={DEFAULT_NUM_CTX}, think={DEFAULT_THINK})"
     if elapsed > LLM_ANSWER_BUDGET_S:
-        raise CheckWarning(detail + f"; budget {LLM_ANSWER_BUDGET_S:.0f} s (cold load?)")
+        raise CheckWarningError(detail + f"; budget {LLM_ANSWER_BUDGET_S:.0f} s (cold load?)")
     return detail
 
 
@@ -175,7 +175,7 @@ def check_whisper(ctx: Context) -> str:
     text = asyncio.run(run())
     detail = f"model={stt_cfg.model_size}, language={stt_cfg.language}"
     if text:
-        raise CheckWarning(detail + f"; silence was transcribed as {len(text)} chars")
+        raise CheckWarningError(detail + f"; silence was transcribed as {len(text)} chars")
     return detail
 
 
@@ -188,7 +188,7 @@ def check_piper_voice(ctx: Context) -> str:
     meta = voices_dir / f"{voice}.onnx.json"
     missing = [p.name for p in (onnx, meta) if not p.is_file()]
     if missing:
-        raise CheckFailed(f"missing in {voices_dir}: {', '.join(missing)}")
+        raise CheckFailedError(f"missing in {voices_dir}: {', '.join(missing)}")
     from piper import PiperVoice
 
     PiperVoice.load(str(onnx))
@@ -203,11 +203,11 @@ def check_vram(ctx: Context) -> str:
             capture_output=True, text=True, timeout=5, check=True,
         ).stdout
     except (OSError, subprocess.SubprocessError) as exc:
-        raise CheckWarning(f"nvidia-smi unavailable: {exc}") from None
+        raise CheckWarningError(f"nvidia-smi unavailable: {exc}") from None
     used, total = (int(x) for x in out.strip().splitlines()[0].split(","))
     detail = f"{used} / {total} MiB used"
     if used > total * VRAM_WARN_FRACTION:
-        raise CheckWarning(detail + " (almost full)")
+        raise CheckWarningError(detail + " (almost full)")
     return detail
 
 
@@ -224,13 +224,13 @@ def check_logs_writable(ctx: Context) -> str:
 
 def check_autostart_task(ctx: Context) -> str:
     if sys.platform != "win32":
-        raise CheckWarning("not Windows; skipped")
+        raise CheckWarningError("not Windows; skipped")
     proc = subprocess.run(
         ["schtasks", "/Query", "/TN", TASK_NAME],
         capture_output=True, text=True, timeout=10,
     )
     if proc.returncode != 0:
-        raise CheckWarning(f"task '{TASK_NAME}' not registered (run register-task.ps1)")
+        raise CheckWarningError(f"task '{TASK_NAME}' not registered (run register-task.ps1)")
     return f"task '{TASK_NAME}' registered"
 
 
@@ -259,9 +259,9 @@ def run_once() -> list[Result]:
         start = time.monotonic()
         try:
             status, detail = PASS, fn(ctx)
-        except CheckWarning as exc:
+        except CheckWarningError as exc:
             status, detail = WARN, str(exc)
-        except CheckFailed as exc:
+        except CheckFailedError as exc:
             status, detail = FAIL, str(exc)
         except Exception as exc:  # unexpected: report, keep going
             status, detail = FAIL, f"{type(exc).__name__}: {exc}"

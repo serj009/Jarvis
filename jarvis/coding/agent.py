@@ -65,6 +65,12 @@ from jarvis.coding.languages import (
 
 log = logging.getLogger(__name__)
 
+# Commands that skip voice confirmation (test runs).
+_SAFE_COMMANDS = {
+    "python -m pytest -q",
+    "python -m pytest",
+}
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -225,14 +231,14 @@ class CodingAgent:
         config: CodingConfig,
         confirm: VoiceConfirm | None = None,
     ) -> None:
-        from jarvis.llm.model_provider import ChatMessage as _CM
+        from jarvis.llm.model_provider import ChatMessage as _ChatMessage
 
         self._provider = provider
         self._workspace = Path(workspace).resolve()
         self._config = config
-        self._history: list[_CM] = []
+        self._history: list[_ChatMessage] = []
         self._language: str = ""  # Auto-detected or from config
-        self._ChatMessage = _CM
+        self._ChatMessage = _ChatMessage
         self._confirm: VoiceConfirm | None = confirm
 
         # Large-project tools (lazily initialised).
@@ -757,10 +763,6 @@ class CodingAgent:
         workspace directory.  A 60-second timeout is enforced.
         """
         # Voice confirmation for arbitrary shell commands (except tests).
-        _SAFE_COMMANDS = {
-            "python -m pytest -q",
-            "python -m pytest",
-        }
         if self._confirm is not None and command not in _SAFE_COMMANDS:
             approved = await self._confirm.confirm(f"run command: {command}")
             if not approved:

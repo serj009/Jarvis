@@ -27,6 +27,13 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
+# -- WinAPI constants (SetThreadExecutionState / EnumDisplayDevices) ----
+ES_CONTINUOUS = 0x80000000
+ES_SYSTEM_REQUIRED = 0x00000001
+ES_DISPLAY_REQUIRED = 0x00000002
+DISPLAY_DEVICE_ACTIVE = 0x00000001
+ENUM_CURRENT_SETTINGS = -1
+
 # -- platform check -----------------------------------------------------
 
 
@@ -683,7 +690,7 @@ def set_brightness(level: int) -> str:
         user32 = _windll().user32
         hmon = user32.MonitorFromWindow(0, 1)  # MONITOR_DEFAULTTOPRIMARY
 
-        class PHYSICAL_MONITOR(Structure):
+        class PHYSICAL_MONITOR(Structure):  # noqa: N801  # mirrors the WinAPI struct name
             _fields_ = [
                 ("hPhysicalMonitor", c_ulong),
                 ("szPhysicalMonitorDescription", ctypes.c_wchar * 128),
@@ -813,7 +820,7 @@ def display_info() -> dict:
         i = 0
         while True:
             try:
-                class DISPLAY_DEVICE(ctypes.Structure):
+                class DISPLAY_DEVICE(ctypes.Structure):  # noqa: N801  # mirrors the WinAPI struct name
                     _fields_ = [
                         ("cb", ctypes.c_ulong),
                         ("DeviceName", ctypes.c_wchar * 32),
@@ -829,11 +836,9 @@ def display_info() -> dict:
                     break
 
                 # Only active monitors
-                DISPLAY_DEVICE_ACTIVE = 0x00000001
                 if dd.StateFlags & DISPLAY_DEVICE_ACTIVE:
                     dm2 = DEVMODE()
                     dm2.dmSize = ctypes.sizeof(DEVMODE)
-                    ENUM_CURRENT_SETTINGS = -1
                     if user32.EnumDisplaySettingsW(
                         dd.DeviceName, ENUM_CURRENT_SETTINGS, ctypes.byref(dm2)
                     ):
@@ -972,9 +977,6 @@ def hibernate_system() -> None:
 def prevent_sleep() -> None:
     """Keep the system + display awake via SetThreadExecutionState."""
     _require_windows("prevent_sleep")
-    ES_CONTINUOUS = 0x80000000
-    ES_SYSTEM_REQUIRED = 0x00000001
-    ES_DISPLAY_REQUIRED = 0x00000002
     _windll().kernel32.SetThreadExecutionState(
         ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED
     )

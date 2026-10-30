@@ -208,7 +208,7 @@ class PasswordVault:
         parallelism). Tests pass reduced costs here to stay fast WITHOUT
         changing the algorithm.
         """
-        hash_secret_raw, Type = _require_argon2()
+        hash_secret_raw, type_cls = _require_argon2()
         params = kdf_params or DEFAULT_KDF_PARAMS
         return hash_secret_raw(
             secret=password.encode("utf-8"),
@@ -217,7 +217,7 @@ class PasswordVault:
             memory_cost=params["memory_cost"],
             parallelism=params["parallelism"],
             hash_len=32,
-            type=Type.ID,
+            type=type_cls.ID,
         )
 
     # -- AES-256-GCM (Layer 2) ---------------------------------------------
@@ -230,9 +230,9 @@ class PasswordVault:
         is not installed — no pycryptodome / HMAC-XOR fallback on the write
         path.
         """
-        AESGCM = _require_cryptography()
+        aesgcm_cls = _require_cryptography()
         nonce = os.urandom(12)
-        aesgcm = AESGCM(key)
+        aesgcm = aesgcm_cls(key)
         ct = aesgcm.encrypt(nonce, plaintext, None)
         # cryptography appends the 16-byte tag to the ciphertext.
         return nonce, ct[:-16], ct[-16:]
@@ -247,8 +247,8 @@ class PasswordVault:
         VaultCorruptError if the authentication tag does not verify
         (tampering / wrong key).
         """
-        AESGCM = _require_cryptography()
-        aesgcm = AESGCM(key)
+        aesgcm_cls = _require_cryptography()
+        aesgcm = aesgcm_cls(key)
         try:
             return aesgcm.decrypt(nonce, ciphertext + tag, None)
         except Exception as exc:  # cryptography raises InvalidTag

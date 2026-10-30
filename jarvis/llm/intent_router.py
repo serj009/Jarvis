@@ -125,6 +125,14 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+# Generic words that likely map to a specific app (alias learning).
+_GENERIC_WORDS = {
+    "браузер", "browser", "редактор", "editor", "плеер", "player",
+    "плеєр", "мессенджер", "messenger", "месенджер", "почта", "mail",
+    "пошта", "музыка", "music", "музика", "архиватор", "archiver",
+    "терминал", "terminal", "термінал", "ide", "іде",
+}
+
 # Maximum LLM invocations per user turn. 3 buys the two-step
 # interactions that matter ("check the weather, then act on it") while
 # capping worst-case latency on a local 7B at three inferences. 1
@@ -966,12 +974,6 @@ class IntentRouter:
         if self._pctx.personal_aliases is None:
             return
         # Generic words that likely map to a specific app
-        _GENERIC_WORDS = {
-            "браузер", "browser", "редактор", "editor", "плеер", "player",
-            "плеєр", "мессенджер", "messenger", "месенджер", "почта", "mail",
-            "пошта", "музыка", "music", "музика", "архиватор", "archiver",
-            "терминал", "terminal", "термінал", "ide", "іде",
-        }
         for intent, exchange in zip(intents, exchanges, strict=True):
             if intent.tool_name != "open_app":
                 continue
@@ -1181,17 +1183,17 @@ class IntentRouter:
             _sec_blocked = False
             if self._tool_guard is not None:
                 from jarvis.security.origin_tracker import (
-                    RequestContext as _RC,
+                    RequestContext as _RequestContext,
                 )
                 from jarvis.security.origin_tracker import (
-                    RequestOrigin as _RO,
+                    RequestOrigin as _RequestOrigin,
                 )
                 from jarvis.security.origin_tracker import (
                     get_request_context as _get_ctx,
                 )
                 _user_ctx = _get_ctx()
-                _llm_ctx = _RC(
-                    origin=_RO.LLM_TOOL_CALL,
+                _llm_ctx = _RequestContext(
+                    origin=_RequestOrigin.LLM_TOOL_CALL,
                     token="",
                     timestamp=_user_ctx.timestamp,
                     original_text=_user_ctx.original_text,

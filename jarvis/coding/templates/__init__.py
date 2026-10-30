@@ -15,43 +15,43 @@ Optional:
                         Defaults to "python" when absent.
 """
 
-from jarvis.coding.templates.automation import TEMPLATE as _automation
-from jarvis.coding.templates.cli_tool import TEMPLATE as _cli_tool
-from jarvis.coding.templates.csharp_console import TEMPLATE as _csharp_console
-from jarvis.coding.templates.data_analysis import TEMPLATE as _data_analysis
-from jarvis.coding.templates.discord_bot import TEMPLATE as _discord_bot
-from jarvis.coding.templates.fastapi_tmpl import TEMPLATE as _fastapi
-from jarvis.coding.templates.flask_api import TEMPLATE as _flask_api
-from jarvis.coding.templates.go_basic import TEMPLATE as _go_basic
+from jarvis.coding.templates.automation import TEMPLATE as _AUTOMATION_TEMPLATE
+from jarvis.coding.templates.cli_tool import TEMPLATE as _CLI_TOOL_TEMPLATE
+from jarvis.coding.templates.csharp_console import TEMPLATE as _CSHARP_CONSOLE_TEMPLATE
+from jarvis.coding.templates.data_analysis import TEMPLATE as _DATA_ANALYSIS_TEMPLATE
+from jarvis.coding.templates.discord_bot import TEMPLATE as _DISCORD_BOT_TEMPLATE
+from jarvis.coding.templates.fastapi_tmpl import TEMPLATE as _FASTAPI_TEMPLATE
+from jarvis.coding.templates.flask_api import TEMPLATE as _FLASK_API_TEMPLATE
+from jarvis.coding.templates.go_basic import TEMPLATE as _GO_BASIC_TEMPLATE
 
 # Multi-language templates
-from jarvis.coding.templates.js_node_basic import TEMPLATE as _js_node_basic
-from jarvis.coding.templates.pygame_game import TEMPLATE as _pygame_game
-from jarvis.coding.templates.python_basic import TEMPLATE as _python_basic
-from jarvis.coding.templates.react_app import TEMPLATE as _react_app
-from jarvis.coding.templates.rust_basic import TEMPLATE as _rust_basic
-from jarvis.coding.templates.scraper import TEMPLATE as _scraper
-from jarvis.coding.templates.telegram_bot import TEMPLATE as _telegram_bot
-from jarvis.coding.templates.ts_node_basic import TEMPLATE as _ts_node_basic
+from jarvis.coding.templates.js_node_basic import TEMPLATE as _JS_NODE_BASIC_TEMPLATE
+from jarvis.coding.templates.pygame_game import TEMPLATE as _PYGAME_GAME_TEMPLATE
+from jarvis.coding.templates.python_basic import TEMPLATE as _PYTHON_BASIC_TEMPLATE
+from jarvis.coding.templates.react_app import TEMPLATE as _REACT_APP_TEMPLATE
+from jarvis.coding.templates.rust_basic import TEMPLATE as _RUST_BASIC_TEMPLATE
+from jarvis.coding.templates.scraper import TEMPLATE as _SCRAPER_TEMPLATE
+from jarvis.coding.templates.telegram_bot import TEMPLATE as _TELEGRAM_BOT_TEMPLATE
+from jarvis.coding.templates.ts_node_basic import TEMPLATE as _TS_NODE_BASIC_TEMPLATE
 
 TEMPLATES: list[dict] = [
-    _python_basic,
-    _flask_api,
-    _fastapi,
-    _telegram_bot,
-    _discord_bot,
-    _cli_tool,
-    _scraper,
-    _data_analysis,
-    _pygame_game,
-    _automation,
+    _PYTHON_BASIC_TEMPLATE,
+    _FLASK_API_TEMPLATE,
+    _FASTAPI_TEMPLATE,
+    _TELEGRAM_BOT_TEMPLATE,
+    _DISCORD_BOT_TEMPLATE,
+    _CLI_TOOL_TEMPLATE,
+    _SCRAPER_TEMPLATE,
+    _DATA_ANALYSIS_TEMPLATE,
+    _PYGAME_GAME_TEMPLATE,
+    _AUTOMATION_TEMPLATE,
     # Multi-language templates
-    _js_node_basic,
-    _ts_node_basic,
-    _react_app,
-    _csharp_console,
-    _go_basic,
-    _rust_basic,
+    _JS_NODE_BASIC_TEMPLATE,
+    _TS_NODE_BASIC_TEMPLATE,
+    _REACT_APP_TEMPLATE,
+    _CSHARP_CONSOLE_TEMPLATE,
+    _GO_BASIC_TEMPLATE,
+    _RUST_BASIC_TEMPLATE,
 ]
 
 __all__ = ["TEMPLATES"]
