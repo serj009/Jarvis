@@ -2568,6 +2568,9 @@ class JarvisApp:
             bus=self.bus,
 
 
+            voice_cache_capacity=self.cfg.tts.voice_cache_capacity,
+
+
         )
 
 

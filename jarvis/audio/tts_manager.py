@@ -28,7 +28,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from collections.abc import AsyncIterator, Callable
 from typing import TYPE_CHECKING
 
@@ -154,16 +153,12 @@ class TTSManager:
                             voice_name, exc_info=True)
 
     async def _warmup_one(self, voice_name: str) -> None:
-        """Load a single Piper voice in a worker thread and discard it,
-        warming the OS page cache for its model files. Isolated so tests
-        can patch it to simulate slow/failing loads."""
-        def _load() -> None:
-            from piper import PiperVoice
-
-            path = self._registry.voice_path(voice_name)
-            if path is not None:
-                PiperVoice.load(str(path))
-        await asyncio.to_thread(_load)
+        """Warm a single Piper voice INTO the PiperTTS LRU cache (Task 7.2),
+        so the first switch to it is a cache hit instead of a 2-3 s reload.
+        Runs the load in a worker thread inside preload_voice and never
+        activates the voice or opens a stream. Isolated so tests can patch
+        it to simulate slow/failing loads."""
+        await self._piper.preload_voice(voice_name)
 
     async def _switch_voice(self, language: str) -> None:
         """Switch to the voice assigned to the given language."""
@@ -188,17 +183,13 @@ class TTSManager:
             self._current_language, language,
         )
 
-        # Unload current voice and load new one
+        # Task 7.2: activate_voice reuses an already-loaded model from the
+        # LRU cache (no 2-3 s reload on a hit) and logs its own timing
+        # breakdown. Only the active voice owns the output stream.
         try:
-            _t0 = time.monotonic()
-            if self._piper.is_loaded:
-                await self._piper.unload()
-            self._piper.voice_name = target_name
-            await self._piper.load()
+            await self._piper.activate_voice(target_name)
             self._current_voice_name = target_name
             self._current_language = language
-            _elapsed_ms = (time.monotonic() - _t0) * 1000.0
-            log.info("voice switch took %.0f ms", _elapsed_ms)
             # Task 7.3: remember the language we actually switched to so the
             # next boot can pre-select this voice instead of defaulting to EN.
             save_last_language(language)

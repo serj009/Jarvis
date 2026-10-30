@@ -195,6 +195,12 @@ class TTSConfig(_Base):
     backend: str = "piper"
     speed: float = Field(default=1.0, gt=0.0, le=4.0)
     volume: float = Field(default=1.0, ge=0.0, le=1.0)
+    # Task 7.2: how many loaded Piper voices PiperTTS keeps resident in its
+    # LRU cache so a language switch reuses a model instead of a 2-3 s
+    # reload. Default 3 covers the EN/RU/UK set; each medium voice is
+    # ~60-100 MB resident, so 3 bounds the extra memory at a few hundred MB.
+    # The active voice is never evicted. Capped at 3 by design.
+    voice_cache_capacity: int = Field(default=3, ge=1, le=3)
 
 
 class LLMConfig(_Base):
