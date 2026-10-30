@@ -134,6 +134,35 @@ def _task_exception_handler(task: asyncio.Task) -> None:
         )
 
 
+def _language_switch_reason(
+    *,
+    detected_language: str | None,
+    language_probability: float,
+    text_len: int,
+    min_probability: float,
+    min_chars: int,
+) -> str | None:
+    """Decide whether the reply voice may switch to *detected_language*.
+
+    Task 7.1: Whisper can mis-detect the language on short/noisy utterances
+    (e.g. a 4-char word at p=0.34), which would pointlessly reload a
+    different voice (2-3 s) and reply in the wrong language. Pure function so
+    the policy is unit-testable without building a pipeline.
+
+    Returns None when the switch is allowed. Otherwise returns a short reason
+    string ("no-language" / "low-probability" / "short-text") for a DEBUG log.
+    The caller still skips the switch when the language equals the current
+    one — that is the TTS manager's job, not this floor check.
+    """
+    if not detected_language:
+        return "no-language"
+    if language_probability < min_probability:
+        return "low-probability"
+    if text_len < min_chars:
+        return "short-text"
+    return None
+
+
 class AudioPipeline:
     def __init__(
         self,
@@ -160,6 +189,8 @@ class AudioPipeline:
         stt_timeout_s: float = 10.0,
         llm_timeout_s: float = 20.0,
         tts_timeout_s: float = 15.0,
+        language_switch_min_probability: float = 0.70,
+        language_switch_min_chars: int = 8,
         barge_in_manager: BargeInManager | None = None,
         sound_effects: SoundEffects | None = None,
     ) -> None:
@@ -189,6 +220,10 @@ class AudioPipeline:
         # T3.3/T3.4 Phase 3 state
         self._thinking_phrases_enabled = thinking_phrases_enabled
         self._half_duplex = half_duplex
+        # Task 7.1: floors below which a detected language is NOT trusted
+        # enough to switch the reply voice (avoids spurious 2-3 s reloads).
+        self._language_switch_min_probability = language_switch_min_probability
+        self._language_switch_min_chars = language_switch_min_chars
         # T3.3: BargeInManager — when provided, replaces the boolean
         # half_duplex flag with mode-aware echo management. If AEC is
         # available via the manager, override barge_in and half_duplex
@@ -659,11 +694,34 @@ class AudioPipeline:
             # Phase 3: Switch TTS voice to match detected language.
             # This must happen BEFORE thinking phrase or response speak,
             # so JARVIS replies in the same language the user spoke.
-            if self._tts_manager is not None and result.detected_language:
-                try:
-                    await self._tts_manager.set_language(result.detected_language)
-                except Exception:
-                    log.warning("tts_manager.set_language failed", exc_info=True)
+            # Task 7.1: only trust the detected language when BOTH the
+            # language probability and the transcript length clear the
+            # configured floors (see _language_switch_reason). A 4-char
+            # utterance at p=0.34 would otherwise reload a different voice
+            # (2-3 s) and reply in the wrong language.
+            if self._tts_manager is not None:
+                _skip = _language_switch_reason(
+                    detected_language=result.detected_language,
+                    language_probability=result.language_probability,
+                    text_len=len(text),
+                    min_probability=self._language_switch_min_probability,
+                    min_chars=self._language_switch_min_chars,
+                )
+                if _skip is not None:
+                    log.debug(
+                        "[tts] keeping voice (%s): lang=%r p=%.2f chars=%d",
+                        _skip, result.detected_language,
+                        result.language_probability, len(text),
+                    )
+                else:
+                    try:
+                        await self._tts_manager.set_language(
+                            result.detected_language
+                        )
+                    except Exception:
+                        log.warning(
+                            "tts_manager.set_language failed", exc_info=True
+                        )
 
             # T3.4: Thinking phrase — speak a short filler via Piper (CPU)
             # so the user doesn't hear silence while the LLM thinks.
