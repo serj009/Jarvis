@@ -194,6 +194,20 @@ target-version = "py311"
 select = ["E", "F", "I", "B", "UP", "N", "W", "S110"]
 ignore = []
 
+# PySide6/Qt dictate these method and property names (camelCase overrides and
+# the QCheckBox-compatible API on the custom toggle widget). They cannot be
+# renamed without breaking the Qt contract, so the N8xx naming rules are
+# waived for these EXACT names only — not by rule and not by directory.
+[tool.ruff.lint.pep8-naming]
+ignore-names = [
+  "keyPressEvent",
+  "mousePressEvent",
+  "paintEvent",
+  "isChecked",
+  "setChecked",
+  "thumbPosition",
+]
+
 # S110 (`try-except-pass`) is enforced only where a silently-swallowed error
 # is most dangerous — security and audio. A repo-wide sweep of the remaining
 # except/pass sites is a separate effort, so S110 is ignored elsewhere.
