@@ -2580,10 +2580,16 @@ class JarvisApp:
             self.voice_registry.set_voice("ru", self.cfg.tts.voices_ru)
         if self.cfg.tts.voices_uk:
             self.voice_registry.set_voice("uk", self.cfg.tts.voices_uk)
+        # Task 7.3: pre-select the last language we actually spoke (if still
+        # enabled) so boot doesn't always start on EN and reload mid-reply.
+        from jarvis.audio.language_state import load_last_language
+        _boot_language = load_last_language(
+            set(self.voice_registry.assignments.keys()), default="en",
+        )
         self.tts_manager = TTSManager(
             piper_tts=self.tts,
             voice_registry=self.voice_registry,
-            default_language="en",
+            default_language=_boot_language,
         )
 
 
