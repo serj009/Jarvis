@@ -25,13 +25,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 log = logging.getLogger(__name__)
 
 
-class VoiceBackend(str, Enum):
+class VoiceBackend(StrEnum):
     """Which TTS engine serves this voice."""
     PIPER = "piper"          # CPU, ~60MB per voice, 0 VRAM
     QWEN3_TTS = "qwen3_tts"  # GPU, ~2.5GB VRAM, voice cloning
