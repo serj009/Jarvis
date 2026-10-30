@@ -110,6 +110,12 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Не нашёл такое приложение, сэр. Возможно, вы имели в виду {suggestion}?",
         "uk": "Не знайшов такий застосунок, сер. Можливо, ви мали на увазі {suggestion}?",
     },
+    # Task 8b-3: confirmation after learning a personal app alias by voice.
+    "alias_learned": {
+        "en": "Got it, sir — {alias} now opens {target}.",
+        "ru": "Запомнил, сэр — {alias} теперь открывает {target}.",
+        "uk": "Запам'ятав, сер — {alias} тепер відкриває {target}.",
+    },
     # T1.5 / T2.4: Error phrases for the ErrorHandler and confidence routing.
     "error_generic": {
         "en": "Something went wrong, sir. I'll try again.",
