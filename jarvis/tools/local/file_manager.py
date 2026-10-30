@@ -78,6 +78,17 @@ _FILE_EXTENSIONS: frozenset[str] = frozenset((
     ".md", ".log", ".ini", ".cfg", ".conf",
 ))
 
+# Task 8a: a real file extension, built from _FILE_EXTENSIONS, for the
+# "open <name>.<ext>" voice patterns. Using this closed set (instead of a
+# greedy ``\.\w{1,5}``) stops a DOMAIN like "uakino.best" / "example.com"
+# from being mistaken for a file and routed to file_manager — those TLDs
+# are not in the set, so the pattern simply does not match and the
+# utterance falls through to open_url. Longest-first so ".docx" wins over
+# ".doc"; case-insensitive at the use site.
+_EXT_ALTERNATION: str = "|".join(
+    sorted((e.lstrip(".") for e in _FILE_EXTENSIONS), key=len, reverse=True)
+)
+
 # Directories searched (in order) when a bare filename has no path.
 _COMMON_SEARCH_DIRS: tuple[str, ...] = ("Desktop", "Documents", "Downloads")
 
@@ -341,17 +352,17 @@ class FileManagerTool:
         # instead of open_app.  Priority 250: beats open_app (900)
         # AND the generic "open file X" (300) so extension wins.
         VoicePattern(
-            regex=r"^open\s+(.+\.\w{1,5})$",
+            regex=rf"^open\s+(.+\.(?i:{_EXT_ALTERNATION}))$",
             priority=250,
             args=lambda m: {"action": "open", "path": m.group(1)},
         ),
         VoicePattern(
-            regex=r"^(?:открой|открыть)\s+(.+\.\w{1,5})$",
+            regex=rf"^(?:открой|открыть)\s+(.+\.(?i:{_EXT_ALTERNATION}))$",
             priority=250,
             args=lambda m: {"action": "open", "path": m.group(1)},
         ),
         VoicePattern(
-            regex=r"^(?:відкрий|відкрити)\s+(.+\.\w{1,5})$",
+            regex=rf"^(?:відкрий|відкрити)\s+(.+\.(?i:{_EXT_ALTERNATION}))$",
             priority=250,
             args=lambda m: {"action": "open", "path": m.group(1)},
         ),
@@ -445,7 +456,7 @@ class FileManagerTool:
             args=lambda m: {"action": "find", "path": m.group(1)},
         ),
         VoicePattern(
-            regex=r"^(?:search\s+for\s+|look\s+for\s+)(.+\.\w{1,5})$",
+            regex=rf"^(?:search\s+for\s+|look\s+for\s+)(.+\.(?i:{_EXT_ALTERNATION}))$",
             priority=300,
             args=lambda m: {"action": "find", "path": m.group(1)},
         ),
@@ -470,7 +481,7 @@ class FileManagerTool:
             args=lambda m: {"action": "rename", "path": m.group(1), "destination": m.group(2)},
         ),
         VoicePattern(
-            regex=r"^(?:delete|remove)\s+(?:file\s+)?(.+\.\w{1,5})$",
+            regex=rf"^(?:delete|remove)\s+(?:file\s+)?(.+\.(?i:{_EXT_ALTERNATION}))$",
             priority=300,
             args=lambda m: {"action": "delete", "path": m.group(1)},
         ),
