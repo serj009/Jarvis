@@ -8,6 +8,8 @@ by per-module tests against recorded WAV fixtures (Phase 2 Tasks 2-6).
 from __future__ import annotations
 
 import asyncio
+import logging
+import time
 
 import pytest
 
@@ -172,6 +174,7 @@ def make_pipeline(
     # test below explicitly exercises False.
     barge_in_enabled: bool = True,
     on_wake=None,
+    post_tts_pause_ms: int = 0,
 ):
     bus = EventBus()
     sm = StateMachine(bus=bus)
@@ -189,6 +192,7 @@ def make_pipeline(
         post_wake_blackout_ms=post_wake_blackout_ms,
         min_utterance_ms=min_utterance_ms,
         barge_in_enabled=barge_in_enabled,
+        post_tts_pause_ms=post_tts_pause_ms,
         on_wake=on_wake,
         # Disable Phase 3 thinking phrases in unit tests: FakeTTS blocks
         # on each speak() call via a gate, and the thinking phrase speak()
@@ -483,8 +487,6 @@ async def test_frames_dropped_when_mode_not_active():
 async def test_wrong_size_frames_are_logged_and_dropped(
     caplog: pytest.LogCaptureFixture,
 ):
-    import logging
-
     pipeline, _, _, source, ww, *_ = make_pipeline()
     await pipeline.start()
     try:
@@ -500,8 +502,6 @@ async def test_wrong_size_frames_are_logged_and_dropped(
 async def test_full_frame_queue_drops_oldest(
     caplog: pytest.LogCaptureFixture,
 ):
-    import logging
-
     pipeline, _, sm, source, ww, *_ = make_pipeline(
         detect_at=None, frame_queue_maxsize=2
     )
@@ -895,6 +895,156 @@ async def test_wake_word_fed_during_speaking_state():
 
         assert ww.feed_count == count_before + 5, (
             "wake word must be fed every frame in SPEAKING state"
+        )
+    finally:
+        await pipeline.stop()
+
+
+# --- Task 12: wake-word diagnostics & post-TTS suppression ---------------
+
+
+async def test_wake_trigger_emits_diagnostic_log(
+    caplog: pytest.LogCaptureFixture,
+):
+    """Every wake trigger must emit one INFO '[wake] trigger' line with the
+    decision inputs (score/threshold/sensitivity/ms_since_tts/state)."""
+    pipeline, _, sm, source, *_ = make_pipeline(detect_at=1)
+    await pipeline.start()
+    try:
+        with caplog.at_level(logging.INFO, logger="jarvis.audio.pipeline"):
+            source.push()  # detection on frame 1
+            await wait_for_cs(sm, ConversationalState.LISTENING)
+        trig = [r for r in caplog.records if "[wake] trigger" in r.message]
+        assert len(trig) == 1
+        msg = trig[0].message
+        assert "score=" in msg
+        assert "threshold=" in msg
+        assert "sensitivity=" in msg
+        assert "ms_since_tts=" in msg
+        assert "state=IDLE" in msg
+    finally:
+        await pipeline.stop()
+
+
+async def test_post_tts_pause_suppresses_wake_in_idle(
+    caplog: pytest.LogCaptureFixture,
+):
+    """A wake that fires in IDLE within the post-TTS window is dropped: no
+    transition to LISTENING, a '[wake] suppressed' line is logged."""
+    pipeline, _, sm, source, ww, vad, *_ = make_pipeline(
+        detect_at=1, post_tts_pause_ms=500
+    )
+    await pipeline.start()
+    try:
+        # Simulate TTS having just finished.
+        pipeline._tts_ended_at = time.monotonic()
+        pipeline._tts_started_at = None
+        with caplog.at_level(logging.INFO, logger="jarvis.audio.pipeline"):
+            source.push()  # would detect, but within post-TTS window
+            await yield_loop()
+        assert sm.conversational_state is ConversationalState.IDLE
+        assert ww.reset_count == 0  # handler never ran
+        assert vad.reset_count == 0
+        assert any("[wake] suppressed" in r.message for r in caplog.records)
+    finally:
+        await pipeline.stop()
+
+
+async def test_post_tts_pause_allows_wake_after_window():
+    """Once the post-TTS window has elapsed, a wake in IDLE is honoured."""
+    pipeline, _, sm, source, *_ = make_pipeline(
+        detect_at=1, post_tts_pause_ms=50
+    )
+    await pipeline.start()
+    try:
+        # TTS ended well before the (50 ms) window.
+        pipeline._tts_ended_at = time.monotonic() - 1.0
+        pipeline._tts_started_at = None
+        source.push()
+        await wait_for_cs(sm, ConversationalState.LISTENING)
+    finally:
+        await pipeline.stop()
+
+
+async def test_post_tts_pause_never_suppresses_interrupt_in_speaking():
+    """An interrupt-by-voice during SPEAKING must never be suppressed, even
+    within the post-TTS window (ms_since_tts is None while TTS plays)."""
+    pipeline, _, sm, source, *_ = make_pipeline(
+        detect_at=1, post_tts_pause_ms=100_000
+    )
+    await pipeline.start()
+    try:
+        # Force SPEAKING with TTS actively playing: ms_since_last_tts()
+        # returns None (not in a post-TTS window), so the gate can't fire.
+        sm.set_conversational_state(ConversationalState.LISTENING)
+        sm.set_conversational_state(ConversationalState.THINKING)
+        sm.set_conversational_state(ConversationalState.SPEAKING)
+        pipeline._tts_started_at = time.monotonic()
+        pipeline._tts_ended_at = None
+        source.push()  # wake fires during SPEAKING
+        # Wake interrupt routes SPEAKING -> LISTENING.
+        await wait_for_cs(sm, ConversationalState.LISTENING)
+    finally:
+        await pipeline.stop()
+
+
+async def test_post_tts_pause_zero_disables_suppression():
+    """post_tts_pause_ms=0 means the feature is off: wake always honoured."""
+    pipeline, _, sm, source, *_ = make_pipeline(
+        detect_at=1, post_tts_pause_ms=0
+    )
+    await pipeline.start()
+    try:
+        pipeline._tts_ended_at = time.monotonic()  # just ended
+        pipeline._tts_started_at = None
+        source.push()
+        await wait_for_cs(sm, ConversationalState.LISTENING)
+    finally:
+        await pipeline.stop()
+
+
+async def test_ms_since_last_tts_none_before_any_tts():
+    """Before any TTS playback, the age helper returns None (and a wake in
+    IDLE is therefore never suppressed by the post-TTS gate)."""
+    pipeline, _, sm, source, *_ = make_pipeline(
+        detect_at=1, post_tts_pause_ms=500
+    )
+    await pipeline.start()
+    try:
+        assert pipeline._ms_since_last_tts() is None
+        source.push()
+        await wait_for_cs(sm, ConversationalState.LISTENING)
+    finally:
+        await pipeline.stop()
+
+
+async def test_post_tts_pause_allows_realistic_followup_wake(
+    caplog: pytest.LogCaptureFixture,
+):
+    """A genuine follow-up "hey jarvis" right after Jarvis stops speaking is
+    NOT suppressed.
+
+    openWakeWord fires at the END of the spoken phrase, and saying
+    "hey jarvis" takes ~600-800 ms. So even if the user starts speaking the
+    instant TTS ends, the trigger lands with ms_since_tts >= ~600, outside
+    the 500 ms window. We model that by setting _tts_ended_at 600 ms in the
+    past (phrase started at t=0, trigger arrives at t=600)."""
+    pipeline, _, sm, source, ww, *_ = make_pipeline(
+        detect_at=1, post_tts_pause_ms=500
+    )
+    await pipeline.start()
+    try:
+        # TTS ended 600 ms ago: a user who began "hey jarvis" at TTS-end
+        # only now completes the phrase (openWakeWord end-of-phrase fire).
+        pipeline._tts_ended_at = time.monotonic() - 0.600
+        pipeline._tts_started_at = None
+        with caplog.at_level(logging.INFO, logger="jarvis.audio.pipeline"):
+            source.push()
+            await wait_for_cs(sm, ConversationalState.LISTENING)
+        # Honoured, not suppressed.
+        assert ww.reset_count == 1
+        assert not any(
+            "[wake] suppressed" in r.message for r in caplog.records
         )
     finally:
         await pipeline.stop()

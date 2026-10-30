@@ -119,6 +119,19 @@ class WakeWordConfig(_Base):
     enabled: bool = True
     sensitivity: float = Field(default=0.5, ge=0.0, le=1.0)
     model: str = "hey_jarvis"
+    # Task 12: suppress wake-word triggers that fire in IDLE within this
+    # many ms after TTS playback ends. Mitigates self-triggering on the
+    # speaker-to-mic feedback tail of Jarvis's own speech (desktop-speaker
+    # setups without AEC). Does NOT affect the wake-word interrupt path
+    # during SPEAKING/THINKING (barge-in by voice stays live). 0 disables.
+    #
+    # 500 ms is deliberately shorter than the time it takes to *say*
+    # "hey jarvis" (~600-800 ms): openWakeWord fires at the END of the
+    # phrase, so a genuine follow-up wake lands with ms_since_tts >= ~600
+    # and is NOT suppressed, while an instant feedback self-trigger lands
+    # in the first 0-200 ms and IS. See tests/audio/test_pipeline.py
+    # (test_post_tts_pause_allows_realistic_followup_wake).
+    post_tts_pause_ms: int = Field(default=500, ge=0)
 
 
 class STTConfig(_Base):

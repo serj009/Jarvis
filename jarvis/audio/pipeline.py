@@ -186,6 +186,7 @@ class AudioPipeline:
         # T3.3/T3.4 Phase 3 settings
         thinking_phrases_enabled: bool = True,
         half_duplex: bool = True,
+        post_tts_pause_ms: int = 0,
         stt_timeout_s: float = 10.0,
         llm_timeout_s: float = 20.0,
         tts_timeout_s: float = 15.0,
@@ -220,6 +221,11 @@ class AudioPipeline:
         # T3.3/T3.4 Phase 3 state
         self._thinking_phrases_enabled = thinking_phrases_enabled
         self._half_duplex = half_duplex
+        # Task 12: post-TTS wake-word suppression window (ms). Wake triggers
+        # in IDLE within this window after TTS playback ends are treated as
+        # self-trigger feedback and dropped (logged). Interrupt-by-voice
+        # during SPEAKING/THINKING is never suppressed.
+        self._post_tts_pause_ms = post_tts_pause_ms
         # Task 7.1: floors below which a detected language is NOT trusted
         # enough to switch the reply voice (avoids spurious 2-3 s reloads).
         self._language_switch_min_probability = language_switch_min_probability
@@ -247,6 +253,10 @@ class AudioPipeline:
         )
         self._listen_buffer = bytearray()
         self._tts_started_at: float | None = None
+        # Task 12: monotonic timestamp of the last TTS-playback end. Used
+        # both for the post-TTS wake suppression window and for the
+        # "ms since last TTS" field in the wake-trigger diagnostic log.
+        self._tts_ended_at: float | None = None
         # Decremented per LISTENING-state frame; while > 0, frames are
         # discarded before VAD or buffer. Set on wake_word detection.
         self._blackout_frames_remaining: int = 0
@@ -399,7 +409,38 @@ class AudioPipeline:
                 # means TTS output won't self-trigger it.
                 wake_result = await self._wake_word.feed(frame)
                 if wake_result is not None:
-                    await self._handle_wake_detection(wake_result)
+                    cs_at_trigger = self._sm.conversational_state
+                    ms_since_tts = self._ms_since_last_tts()
+                    # Task 12 pt 1: one INFO line on EVERY wake trigger so
+                    # false fires are diagnosable from the log alone. No
+                    # audio, no transcript -- just the decision inputs.
+                    log.info(
+                        "[wake] trigger score=%.4f threshold=%.4f "
+                        "sensitivity=%.2f ms_since_tts=%s state=%s",
+                        getattr(self._wake_word, "last_score", 0.0),
+                        getattr(self._wake_word, "threshold", float("nan")),
+                        getattr(self._wake_word, "sensitivity", float("nan")),
+                        "n/a" if ms_since_tts is None else f"{ms_since_tts:.0f}",
+                        cs_at_trigger.name,
+                    )
+                    # Task 12 pt 2: post-TTS self-trigger suppression. Only
+                    # in IDLE -- an in-conversation interrupt (SPEAKING/
+                    # THINKING) must always be honoured. Drops triggers that
+                    # land on the speaker-to-mic feedback tail of our own
+                    # speech within the configured window.
+                    if (
+                        cs_at_trigger is ConversationalState.IDLE
+                        and self._post_tts_pause_ms > 0
+                        and ms_since_tts is not None
+                        and ms_since_tts < self._post_tts_pause_ms
+                    ):
+                        log.info(
+                            "[wake] suppressed: within %d ms post-TTS window "
+                            "(ms_since_tts=%.0f)",
+                            self._post_tts_pause_ms, ms_since_tts,
+                        )
+                    else:
+                        await self._handle_wake_detection(wake_result)
                     continue
                 cs = self._sm.conversational_state
                 if self._log_wake_during_speaking and cs is ConversationalState.SPEAKING:
@@ -473,6 +514,21 @@ class AudioPipeline:
             await self._handle_barge_in()
 
     # -- transition handlers --
+
+    def _ms_since_last_tts(self) -> float | None:
+        """Milliseconds since TTS playback last ended, or None if TTS has
+        not played yet (or is still playing right now).
+
+        Returns None while ``_tts_started_at`` is set (TTS in progress) so
+        the post-TTS window never applies during active speech. Used by the
+        wake diagnostic log and the post-TTS suppression gate (Task 12)."""
+        if self._tts_started_at is not None:
+            return None
+        if self._tts_ended_at is None:
+            return None
+        delta = (time.monotonic() - self._tts_ended_at) * 1000.0
+        # Clamp tiny negative drift from monotonic rounding to 0.
+        return max(0.0, delta)
 
     async def _handle_wake_detection(self, result: WakeWordResult) -> None:
         # NOTE: this branch is reached only when the wake-word model fires
@@ -805,6 +861,9 @@ class AudioPipeline:
             # chain was affected.  No restart needed.
         finally:
             self._tts_started_at = None
+            # Task 12: record when playback ended so the post-TTS wake
+            # suppression window and the wake diagnostic can measure age.
+            self._tts_ended_at = time.monotonic()
             # T3.3: notify barge-in manager that TTS is done.
             if self._barge_in_manager is not None:
                 self._barge_in_manager.on_tts_end()
