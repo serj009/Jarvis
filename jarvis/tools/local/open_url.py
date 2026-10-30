@@ -12,6 +12,7 @@ fallback for unknown sites)."""
 from __future__ import annotations
 
 import asyncio
+import re
 from typing import ClassVar
 from urllib.parse import parse_qs, quote_plus, urlparse
 
@@ -43,6 +44,48 @@ _FRIENDLY_NAMES: dict[str, str] = {
     "steamcommunity.com": "Steam",
     "steampowered.com": "Steam",
 }
+
+# Task 8a: distinguish a spoken DOMAIN ("uakino.best", "example.com") from a
+# free-text search query ("лучшие фильмы 2024"). A domain is a dotted,
+# space-free token whose last label is a known/plausible TLD. We open a
+# domain directly as https://<domain>; anything else becomes a web search.
+_COMMON_TLDS: frozenset[str] = frozenset((
+    # generic
+    "com", "org", "net", "info", "biz", "io", "co", "app", "dev", "ai",
+    "best", "xyz", "online", "site", "shop", "store", "tv", "me", "cc",
+    "gg", "fm", "to", "ly", "club", "tech", "news", "games", "stream",
+    # country
+    "ru", "ua", "pl", "by", "kz", "de", "fr", "uk", "us", "eu", "cn",
+    "jp", "ca", "au", "in", "it", "es", "nl", "se", "no", "cz", "tr",
+))
+
+# A bare domain token: one or more dot-separated labels, last one a TLD.
+# No scheme, no spaces, no path (the voice patterns capture a single token).
+_DOMAIN_RE = re.compile(
+    r"^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+([a-z]{2,})$", re.IGNORECASE
+)
+
+
+def _looks_like_domain(text: str) -> bool:
+    """True if *text* is a bare domain whose last label is a known TLD.
+
+    Heuristic, deliberately conservative: a dotted space-free token like
+    "uakino.best" or "example.co.uk" qualifies; "лучшие фильмы" or a token
+    with a non-latin / unknown final label does not (it becomes a search)."""
+    token = text.strip().rstrip(".")
+    m = _DOMAIN_RE.match(token)
+    if m is None:
+        return False
+    return m.group(1).lower() in _COMMON_TLDS
+
+
+def _site_arg(spoken: str) -> dict:
+    """Voice-pattern arg builder for 'open site <X>': open the domain
+    directly when X is a domain, otherwise fall back to a web search."""
+    token = spoken.strip()
+    if _looks_like_domain(token):
+        return {"url": "https://" + token.rstrip("/")}
+    return {"url": "https://www.google.com/search?q=" + quote_plus(token)}
 
 
 def _registered_domain(netloc: str) -> str:
@@ -127,22 +170,30 @@ class OpenUrlTool:
                 "url": "https://www.google.com/search?q=" + quote_plus(m.group(1))
             },
         ),
-        # RU: "открой сайт X" — fallback for unknown sites (known ones
-        # are handled by open_target_planner before voice patterns run).
+        # RU/UK: "открой сайт X" / "відкрий сайт X". Task 8a: when X is a
+        # bare domain (uakino.best) open it directly as https://X; otherwise
+        # fall back to a web search. (Known targets like youtube are handled
+        # by open_target_planner before voice patterns run.)
         VoicePattern(
             regex=r"^открой\s+сайт\s+(.+)$",
             priority=500,
-            args=lambda m: {
-                "url": "https://www.google.com/search?q=" + quote_plus(m.group(1))
-            },
+            args=lambda m: _site_arg(m.group(1)),
         ),
-        # UK: "відкрий сайт X"
         VoicePattern(
             regex=r"^відкрий\s+сайт\s+(.+)$",
             priority=500,
-            args=lambda m: {
-                "url": "https://www.google.com/search?q=" + quote_plus(m.group(1))
-            },
+            args=lambda m: _site_arg(m.group(1)),
+        ),
+        # Task 8a: "открой/відкрий/open <domain>" WITHOUT the word "сайт",
+        # e.g. "открой uakino.best". Only a bare domain token matches (the
+        # file_manager extension patterns no longer steal these because a
+        # TLD like .best is not a file extension). priority 450 < 500 so a
+        # more specific pattern still wins, but these beat nothing generic.
+        VoicePattern(
+            regex=r"^(?:открой|открыть|відкрий|відкрити|open)\s+"
+                  r"((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?:/\S*)?)$",
+            priority=450,
+            args=lambda m: _site_arg(m.group(1)),
         ),
     )
 
