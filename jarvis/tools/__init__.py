@@ -120,6 +120,7 @@ def setup_local_tools(
     from jarvis.tools.local.image_scraper import ScrapeImagesTool
     from jarvis.tools.local.launch_steam_game import LaunchSteamGameTool
     from jarvis.tools.local.launch_workspace import LaunchWorkspaceTool
+    from jarvis.tools.local.learn_alias import LearnAliasTool
     from jarvis.tools.local.lock_screen import LockScreenTool
     from jarvis.tools.local.media_control import MediaControlTool
     from jarvis.tools.local.mouse_control import (
@@ -343,6 +344,7 @@ def setup_local_tools(
             suggest_floor=tools_cfg.open_app_suggest_floor,
             match_cutoff=tools_cfg.open_app_match_cutoff,
         ),
+        LearnAliasTool(personal_aliases=personal_aliases),
         OpenUrlTool(),
         LaunchSteamGameTool(),
         LaunchWorkspaceTool(workspace_apps=workspace_apps),
