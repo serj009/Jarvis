@@ -32,6 +32,8 @@ import time
 from collections.abc import AsyncIterator, Callable
 from typing import TYPE_CHECKING
 
+from jarvis.audio.language_state import save_last_language
+
 if TYPE_CHECKING:
     from jarvis.audio.tts import PiperTTS
     from jarvis.audio.voice_registry import VoiceRegistry
@@ -197,6 +199,9 @@ class TTSManager:
             self._current_language = language
             _elapsed_ms = (time.monotonic() - _t0) * 1000.0
             log.info("voice switch took %.0f ms", _elapsed_ms)
+            # Task 7.3: remember the language we actually switched to so the
+            # next boot can pre-select this voice instead of defaulting to EN.
+            save_last_language(language)
         except Exception:
             log.error(
                 "failed to switch to voice %r, keeping %r",
