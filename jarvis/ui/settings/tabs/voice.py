@@ -160,7 +160,9 @@ class VoiceTab(QWidget):
         wake_card.add_setting(
             "\U0001f442 Wake Word Sensitivity",
             "How easily \"Hey Jarvis\" is detected. "
-            "Higher = more sensitive, may trigger on noise",
+            "Higher = more sensitive: triggers more often and may wake on "
+            "noise. Lower = triggers less often. "
+            "If Jarvis wakes by itself, lower this value.",
             sens_row,
         )
 

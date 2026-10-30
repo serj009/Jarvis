@@ -3078,6 +3078,8 @@ class JarvisApp:
 
             half_duplex=self.cfg.pipeline.half_duplex,
 
+            post_tts_pause_ms=self.cfg.wake_word.post_tts_pause_ms,
+
 
             stt_timeout_s=self.cfg.pipeline.stt_timeout_s,
 
