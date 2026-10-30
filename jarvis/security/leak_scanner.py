@@ -36,6 +36,9 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+# UserProfile fields scanned for sensitive values.
+_PROFILE_KEYS = ("name", "city", "country", "timezone", "occupation")
+
 # Strings shorter than this are too common to be useful indicators.
 _MIN_SENSITIVE_LENGTH = 3
 
@@ -107,7 +110,6 @@ class DataLeakScanner:
 
         # ---- UserProfile fields ----
         if profile is not None:
-            _PROFILE_KEYS = ("name", "city", "country", "timezone", "occupation")
             for key in _PROFILE_KEYS:
                 val = profile.get(key)
                 if isinstance(val, str) and len(val) >= _MIN_SENSITIVE_LENGTH:

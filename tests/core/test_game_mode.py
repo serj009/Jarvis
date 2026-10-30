@@ -22,7 +22,8 @@ from jarvis.core.game_mode import (
 def _make_steam_games() -> dict:
     """Fake Steam library for tests."""
     # Mimics the dict[str, SteamGame] structure from scan_steam_games()
-    FakeSteamGame = type("SteamGame", (), {})
+    class FakeSteamGame:
+        pass
     games = {}
     for name, app_id in [
         ("Elden Ring", 1245620),
@@ -202,7 +203,8 @@ class TestActivation:
         """Preload task is created (fire-and-forget)."""
         gm = _make_game_mode()
         # Return some fake facts
-        FakeFact = type("Fact", (), {"text": "Elden Ring tip: dodge roll"})
+        class FakeFact:
+            text = "Elden Ring tip: dodge roll"
         gm._memory.search = AsyncMock(return_value=[FakeFact()])
 
         game = DetectedGame(
@@ -320,7 +322,8 @@ class TestPreloadGameContext:
     @pytest.mark.asyncio
     async def test_preload_with_results(self):
         gm = _make_game_mode()
-        FakeFact = type("Fact", (), {"text": ""})
+        class FakeFact:
+            text = ""
 
         facts = []
         for t in ["Boss tip: use fire", "Played Elden Ring for 2h", "Secret area in Limgrave"]:

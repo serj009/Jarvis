@@ -94,6 +94,12 @@ from jarvis.security.origin_tracker import OriginTracker, RequestOrigin, set_req
 
 log = logging.getLogger(__name__)
 
+# T3.4: filler phrases spoken while the LLM thinks (module-level constant).
+_THINKING_KEYS = [
+    "thinking_general_1", "thinking_general_2", "thinking_general_3",
+    "thinking_check_1", "thinking_check_2",
+]
+
 # Default Q_frames depth: ~1 second of audio at 33 fps. Sized for jitter
 # absorption; sustained drops indicate the loop is stalling and the warn
 # log will surface that.
@@ -663,10 +669,6 @@ class AudioPipeline:
             # so the user doesn't hear silence while the LLM thinks.
             if self._thinking_phrases_enabled:
                 from jarvis.core.phrases import say
-                _THINKING_KEYS = [
-                    "thinking_general_1", "thinking_general_2", "thinking_general_3",
-                    "thinking_check_1", "thinking_check_2",
-                ]
                 phrase_key = random.choice(_THINKING_KEYS)
                 await self._tts.speak(say(phrase_key))
                 log.debug("[thinking] spoke phrase %r", phrase_key)
