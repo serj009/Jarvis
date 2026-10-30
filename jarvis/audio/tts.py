@@ -84,6 +84,7 @@ import queue
 import re
 import threading
 import time
+from collections import OrderedDict
 from collections.abc import AsyncIterator, Callable, Iterable
 from fractions import Fraction
 from pathlib import Path
@@ -303,6 +304,7 @@ class PiperTTS:
         on_amplitude: Callable[[float], None] | None = None,
         output_device: str | int | None = None,
         bus: EventBus | None = None,
+        voice_cache_capacity: int = 3,
     ) -> None:
         if not 0.0 <= volume <= 1.0:
             raise ValueError(f"volume must be in [0.0, 1.0], got {volume}")
@@ -350,60 +352,150 @@ class PiperTTS:
         self._first_synth_logged: bool = False
         self.is_loaded: bool = False
 
+        # Task 7.2: in-process LRU cache of loaded Piper voices so switching
+        # language reuses an already-loaded model instead of a 2-3 s reload.
+        # Maps voice_name -> (loaded PiperVoice, sample_rate). The active
+        # voice is always kept; capacity bounds resident memory (~60-100 MB
+        # per medium voice). Only the ACTIVE voice owns the output stream.
+        self._voice_cache: OrderedDict[str, tuple[Any, int]] = OrderedDict()
+        self._voice_cache_capacity: int = max(1, voice_cache_capacity)
+        # Serialises cache mutation + active-voice swaps against speak(), so a
+        # language switch mid-utterance can't change the model under a running
+        # synthesis (Task 7.2 §4).
+        self._voice_lock = asyncio.Lock()
     # -- Loadable --
 
-    async def load(self) -> None:
-        if self.is_loaded:
-            return
+    async def _load_voice_model(self, voice_name: str) -> tuple[Any, int]:
+        """Load (or fetch from cache) the PiperVoice for *voice_name*.
+
+        Returns ``(voice, sample_rate)``. Reuses a cached model on a hit
+        (marking it most-recently-used); on a miss loads from disk in a
+        worker thread, caches it, and evicts the LRU entry if over capacity.
+        Does NOT touch the active voice or the output stream.
+        """
+        cached = self._voice_cache.get(voice_name)
+        if cached is not None:
+            self._voice_cache.move_to_end(voice_name)
+            return cached
         try:
             from piper import PiperVoice
         except ImportError as e:  # pragma: no cover
             raise TTSLoadError("piper-tts is not installed") from e
-
-        voice_path = self._find_voice_path()
-        if voice_path is None:
+        onnx = None
+        if self._voices_dir is not None:
+            cand = self._voices_dir / f"{voice_name}.onnx"
+            cfg = self._voices_dir / f"{voice_name}.onnx.json"
+            if cand.exists() and cfg.exists():
+                onnx = cand
+        if onnx is None:
             raise TTSLoadError(
-                f"Piper voice {self.voice_name!r} not found. Looked in "
-                f"{self._voices_dir or '<default search path>'}. In a "
-                "development environment, download the voice (.onnx + "
-                ".onnx.json) and either place it in the voices_dir you pass "
-                "to the constructor or use the piper-tts CLI."
+                f"Piper voice {voice_name!r} not found. Looked in "
+                f"{self._voices_dir or '<default search path>'}."
             )
         try:
-            self._voice = await asyncio.to_thread(PiperVoice.load, str(voice_path))
+            voice = await asyncio.to_thread(PiperVoice.load, str(onnx))
         except Exception as e:
             raise TTSLoadError(
-                f"could not load Piper voice from {voice_path}: {e}"
+                f"could not load Piper voice from {onnx}: {e}"
             ) from e
-
-        # Pull the sample rate from the loaded voice (medium voices are
-        # typically 22050 Hz; high-quality voices vary).
         try:
-            self._sample_rate = int(self._voice.config.sample_rate)
+            rate = int(voice.config.sample_rate)
         except AttributeError:
             log.warning(
-                "could not read sample_rate from voice config; defaulting to %d",
-                self._sample_rate,
+                "could not read sample_rate from %r config; defaulting to %d",
+                voice_name, self._sample_rate,
             )
+            rate = self._sample_rate
+        self._voice_cache[voice_name] = (voice, rate)
+        self._voice_cache.move_to_end(voice_name)
+        self._evict_if_needed(keep=voice_name)
+        return voice, rate
 
-        try:
-            self._stream = self._open_stream()
-        except Exception as e:
-            self._voice = None
-            raise TTSLoadError(
-                f"could not open audio output stream at {self._sample_rate} Hz: {e}"
-            ) from e
-        # Boot diagnostic so the effective Piper pace is visible at runtime.
-        # This used to be a print() to stay on stdout without a log-level
-        # bump. It doesn't need one: this is a once-per-load boot fact an
-        # operator wants at default verbosity, so INFO shows it without any
-        # bump at all -- and unlike stdout it reaches the log file and the
-        # in-app log viewer, which is where a user actually looks. The
-        # windowed PyInstaller build has no stdout to print to anyway.
-        log.info(
-            "[boot] piper length_scale=%.3f", self._effective_length_scale()
-        )
-        self.is_loaded = True
+    def _evict_if_needed(self, *, keep: str) -> None:
+        """Drop least-recently-used voices beyond capacity.
+
+        The active voice (``keep``) is never evicted even if it is the LRU
+        entry. Evicted models are dropped from the dict so their memory can
+        be released; they hold no output stream (only the active voice does).
+        """
+        while len(self._voice_cache) > self._voice_cache_capacity:
+            for name in list(self._voice_cache.keys()):
+                if name == keep:
+                    continue
+                del self._voice_cache[name]
+                log.debug("voice cache: evicted %r (LRU)", name)
+                break
+            else:
+                # Only the active voice remains; nothing else to evict.
+                break
+
+    async def load(self) -> None:
+        if self.is_loaded:
+            return
+        async with self._voice_lock:
+            voice, rate = await self._load_voice_model(self.voice_name)
+            self._voice = voice
+            self._sample_rate = rate
+            try:
+                self._stream = self._open_stream()
+            except Exception as e:
+                self._voice = None
+                raise TTSLoadError(
+                    f"could not open audio output stream at "
+                    f"{self._sample_rate} Hz: {e}"
+                ) from e
+            # Boot diagnostic so the effective Piper pace is visible at runtime.
+            log.info(
+                "[boot] piper length_scale=%.3f", self._effective_length_scale()
+            )
+            self.is_loaded = True
+
+    async def preload_voice(self, voice_name: str) -> None:
+        """Warm a voice into the cache WITHOUT activating it (Task 7.2 §6).
+
+        Used by background warmup so the first switch to that language is a
+        cache hit. Never opens a stream, never changes the active voice.
+        Raises TTSLoadError on failure (caller logs + swallows)."""
+        async with self._voice_lock:
+            await self._load_voice_model(voice_name)
+
+    async def activate_voice(self, voice_name: str) -> None:
+        """Make *voice_name* the active voice, reusing a cached model if any.
+
+        Cancels any in-progress speech first (Task 7.2 §4), swaps the active
+        model (cache hit = no reload), resamples to the model's ACTUAL rate,
+        and reopens the output stream (only the active voice owns a stream).
+        Logs a timing breakdown. Safe to call when not yet loaded."""
+        async with self._voice_lock:
+            # Stop current playback so we never swap the model under a
+            # running synthesis.
+            await self.cancel()
+            _t0 = time.monotonic()
+            cache_hit = voice_name in self._voice_cache
+            voice, rate = await self._load_voice_model(voice_name)
+            _t_model = time.monotonic()
+            self.voice_name = voice_name
+            self._voice = voice
+            self._sample_rate = rate
+            try:
+                self._stream = self._open_stream()
+            except Exception as e:
+                self._voice = None
+                self.is_loaded = False
+                raise TTSLoadError(
+                    f"could not open audio output stream at "
+                    f"{self._sample_rate} Hz: {e}"
+                ) from e
+            self.is_loaded = True
+            _t_stream = time.monotonic()
+            log.info(
+                "voice switch: model_load=%.0f ms (cache %s), "
+                "stream_open=%.0f ms, total=%.0f ms",
+                (_t_model - _t0) * 1000.0,
+                "hit" if cache_hit else "miss",
+                (_t_stream - _t_model) * 1000.0,
+                (_t_stream - _t0) * 1000.0,
+            )
 
     async def unload(self) -> None:
         if not self.is_loaded:
@@ -417,6 +509,9 @@ class PiperTTS:
             log.exception("output stream close failed")
         self._stream = None
         self._voice = None
+        # Task 7.2: release every cached model, not just the active one, so
+        # unload() leaves no resident voices behind.
+        self._voice_cache.clear()
         self.is_loaded = False
 
     async def rewire_output(self, device: str | int | None) -> None:
