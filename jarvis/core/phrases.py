@@ -103,6 +103,13 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Боюсь, что-то пошло не так.",
         "uk": "На жаль, щось пішло не так.",
     },
+    # Task 8b-2: spoken when open_app found no exact match but a close one.
+    # {suggestion} is the installed app's display name (Latin, as indexed).
+    "did_you_mean_app": {
+        "en": "I couldn't find that app, sir. Did you mean {suggestion}?",
+        "ru": "Не нашёл такое приложение, сэр. Возможно, вы имели в виду {suggestion}?",
+        "uk": "Не знайшов такий застосунок, сер. Можливо, ви мали на увазі {suggestion}?",
+    },
     # T1.5 / T2.4: Error phrases for the ErrorHandler and confidence routing.
     "error_generic": {
         "en": "Something went wrong, sir. I'll try again.",

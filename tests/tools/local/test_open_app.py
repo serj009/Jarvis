@@ -253,3 +253,64 @@ async def test_installed_match_still_wins_over_unsafe_raw_token(shell_execute):
     )
     assert result.success
     shell_execute.assert_called_once_with(r"C:\Games\DDO.lnk")
+
+
+# --- Task 8b-2: "did you mean Y?" near-miss suggestion ------------------
+
+def _raise_oserror(*_a, **_k):
+    raise OSError("launch failed")
+
+
+async def test_near_miss_sets_suggestion_and_does_not_launch():
+    """A failed resolve with a close candidate fills ToolResult.suggestion,
+    stays success=False, and NEVER launches the near-miss."""
+    from jarvis.platform.windows_apps import InstalledApp
+
+    near = InstalledApp(display_name="Battle.net", launch_command=r"C:\B.lnk")
+    with (
+        patch("jarvis.tools.local.open_app.winplat.launch_app", side_effect=_raise_oserror),
+        patch("jarvis.tools.local.open_app.winplat.launch_path", side_effect=_raise_oserror),
+        patch("jarvis.platform.windows_apps.suggest_installed_app", return_value=near),
+    ):
+        tool = OpenAppTool(app_resolver=lambda q: None)
+        result = await tool.execute(OpenAppArgs(name="баттл"))
+    assert result.success is False
+    assert result.suggestion == "Battle.net"
+
+
+async def test_no_near_miss_leaves_suggestion_none():
+    """No candidate above the floor -> suggestion None, behaviour as before."""
+    with (
+        patch("jarvis.tools.local.open_app.winplat.launch_app", side_effect=_raise_oserror),
+        patch("jarvis.tools.local.open_app.winplat.launch_path", side_effect=_raise_oserror),
+        patch("jarvis.platform.windows_apps.suggest_installed_app", return_value=None),
+    ):
+        tool = OpenAppTool(app_resolver=lambda q: None)
+        result = await tool.execute(OpenAppArgs(name="zzzznotanapp"))
+    assert result.success is False
+    assert result.suggestion is None
+
+
+async def test_success_path_has_no_suggestion():
+    """A successful launch never carries a suggestion."""
+    with patch("jarvis.tools.local.open_app.winplat.launch_app"):
+        result = await OpenAppTool(app_resolver=lambda q: None).execute(
+            OpenAppArgs(name="some_app")
+        )
+    assert result.success is True
+    assert result.suggestion is None
+
+
+def test_spoken_error_localises_suggestion_all_languages():
+    """_spoken_error speaks the localised 'did you mean Y?' on ru/uk/en."""
+    from jarvis.llm.intent_router import _spoken_error
+    from jarvis.tools.registry import ToolResult
+
+    res = ToolResult(success=False, error="could not launch", suggestion="Battle.net")
+    for lang in ("ru", "uk", "en"):
+        with (
+            patch("jarvis.llm.intent_router.reply_language", return_value=lang),
+            patch("jarvis.core.phrases.reply_language", return_value=lang),
+        ):
+            spoken = _spoken_error(res)
+        assert "Battle.net" in spoken, (lang, spoken)

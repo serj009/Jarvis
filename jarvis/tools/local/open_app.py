@@ -119,11 +119,17 @@ class OpenAppTool:
         *,
         app_resolver: Callable[[str], InstalledApp | None] | None = None,
         personal_aliases: PersonalAliasStore | None = None,
+        suggest_floor: float = 0.35,
+        match_cutoff: float = 0.55,
     ) -> None:
         self._app_resolver = app_resolver
         # Personal aliases: user-learned name mappings ("браузер" → "chrome").
         # Checked BEFORE the static alias table so user preferences win.
         self._personal_aliases = personal_aliases
+        # Task 8b-2: thresholds for the "did you mean Y?" near-miss hint.
+        # A near-miss (floor <= score < cutoff) is suggested, never launched.
+        self._suggest_floor = suggest_floor
+        self._match_cutoff = match_cutoff
 
     def _resolve_installed(self, query: str) -> InstalledApp | None:
         if self._app_resolver is not None:
@@ -142,6 +148,23 @@ class OpenAppTool:
             return await asyncio.to_thread(self._resolve_installed, query)
         except Exception:
             log.debug("open_app: installed resolve failed for %r", query, exc_info=True)
+            return None
+
+    async def _safe_suggest(self, query: str) -> InstalledApp | None:
+        """Best NEAR-MISS installed app for *query*, or None (Task 8b-2).
+
+        Only for the "did you mean Y?" hint after every launch candidate
+        failed. Never launches. Swallows failures like _safe_resolve."""
+        def _suggest() -> InstalledApp | None:
+            from jarvis.platform.windows_apps import suggest_installed_app
+
+            return suggest_installed_app(
+                query, floor=self._suggest_floor, cutoff=self._match_cutoff
+            )
+        try:
+            return await asyncio.to_thread(_suggest)
+        except Exception:
+            log.debug("open_app: suggest failed for %r", query, exc_info=True)
             return None
 
     async def _try_launch(self, command: str) -> None:
@@ -213,13 +236,26 @@ class OpenAppTool:
                 last_error = str(e)
                 log.warning("open_app: launch failed for %r: %s", command, e)
 
+        # Task 8b-2: nothing launched. Offer a single best near-miss (if any
+        # clears the suggest floor but not the match cutoff) so the user can
+        # repeat with the exact name. The near-miss is NEVER launched here.
+        suggestion: str | None = None
+        near = await self._safe_suggest(token)
+        if near is not None and near.display_name:
+            suggestion = near.display_name
+            log.info(
+                "[open_app] near-miss for %r -> %r", token, suggestion
+            )
+
         return ToolResult(
             success=False,
             error=f"could not launch {token!r}"
             + (f": {last_error}" if last_error else "")
+            + (f'. Did you mean "{suggestion}"?' if suggestion else "")
             # The model sees this error in the tool-feedback loop; the hint
             # lets it recover when a name like "Telegram" or "GitHub" meant
             # the website rather than an installed program.
             + ". It is not an installed program. If the user meant a website "
             "or online service, call open_url with its https address instead.",
+            suggestion=suggestion,
         )

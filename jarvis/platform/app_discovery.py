@@ -188,3 +188,37 @@ def fuzzy_resolve(
     if best_key is not None and best_score >= cutoff:
         return best_key, choices[best_key]
     return None
+
+
+def fuzzy_suggest(
+    query: str,
+    choices: dict[str, _T],
+    *,
+    floor: float = 0.35,
+    cutoff: float = 0.55,
+) -> tuple[str, _T, float] | None:
+    """Return the best NEAR-MISS (matched_key, value, score), or None.
+
+    Task 8b-2: used only after fuzzy_resolve returned None, to offer a
+    "did you mean Y?" suggestion. Returns the highest-scoring candidate
+    whose score lies in [floor, cutoff) — close enough to be worth asking
+    about, but deliberately NOT close enough to launch. Returns None when
+    nothing clears `floor`, or when the best match is an exact normalised
+    equal of the query (that is a hit, not a near-miss, and the caller
+    would have resolved it already)."""
+    needle = normalize_query(query)
+    if not needle or not choices:
+        return None
+    if needle in choices:
+        return None
+    needle_tokens = set(needle.split())
+    best_key: str | None = None
+    best_score = 0.0
+    for key in choices:
+        score = _match_score(needle, needle_tokens, key)
+        if score > best_score:
+            best_score = score
+            best_key = key
+    if best_key is not None and floor <= best_score < cutoff:
+        return best_key, choices[best_key], best_score
+    return None

@@ -1407,6 +1407,11 @@ def _spoken_error(result: ToolResult) -> str:
     ru/uk requests the voice says a short phrase in that language instead
     of reading English it would mispronounce. The full error is still in
     the log ([tool] ... failed) and in the model's tool message."""
+    # Task 8b-2: a near-miss suggestion is spoken in the user's language on
+    # every language (unlike the raw error, which is English-only). The app
+    # name is Latin as indexed; the surrounding phrase is localised.
+    if result.suggestion:
+        return say("did_you_mean_app", suggestion=result.suggestion)
     if reply_language() == "en":
         return result.error or _generic_fail()
     return _generic_fail()

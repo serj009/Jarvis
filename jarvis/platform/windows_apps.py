@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from types import ModuleType
 
-from jarvis.platform.app_discovery import fuzzy_resolve, normalize_query
+from jarvis.platform.app_discovery import fuzzy_resolve, fuzzy_suggest, normalize_query
 
 log = logging.getLogger(__name__)
 
@@ -303,6 +303,24 @@ def resolve_installed_app(
     if index is None:
         index = build_installed_app_index()
     hit = fuzzy_resolve(query, index)
+    return hit[1] if hit else None
+
+
+def suggest_installed_app(
+    query: str,
+    index: dict[str, InstalledApp] | None = None,
+    *,
+    floor: float = 0.35,
+    cutoff: float = 0.55,
+) -> InstalledApp | None:
+    """Best NEAR-MISS installed app for *query*, or None (Task 8b-2).
+
+    Used only after resolve_installed_app returned None, to offer a
+    "did you mean Y?" suggestion. Never launches anything. Returns the
+    candidate whose fuzzy score is in [floor, cutoff)."""
+    if index is None:
+        index = build_installed_app_index()
+    hit = fuzzy_suggest(query, index, floor=floor, cutoff=cutoff)
     return hit[1] if hit else None
 
 
