@@ -45,6 +45,7 @@ from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from jarvis.platform.app_discovery import normalize_query
+from jarvis.platform.registry import HKLM, RegistryReader
 
 log = logging.getLogger(__name__)
 
@@ -274,6 +275,89 @@ class EpicGamesSource:
             return _scan_epic_manifest_dir(manifest_dir)
         except Exception as e:  # defensive: a source must never break others
             log.warning("Epic source scan failed: %s", e)
+            return []
+
+
+# --- GOG Galaxy (registry) ----------------------------------------------
+
+# Per-game install info lives under this 32-bit-view key, one subkey per
+# installed game id. Values of interest: gameName (title), exe (full path
+# to the game executable), path (install directory). No official Galaxy
+# launch URI could be confirmed, so games are launched by direct .exe
+# inside their install dir (Task 8c requirement 6).
+_GOG_GAMES_KEY = r"SOFTWARE\WOW6432Node\GOG.com\Games"
+
+
+def parse_gog_game_values(values: dict[str, object]) -> Game | None:
+    """Build a GOG Game from one game key's registry values, or None.
+
+    ``values`` is whatever RegistryReader.read_values returned for a single
+    ``...\\GOG.com\\Games\\<id>`` key. All fields are untrusted: the title
+    is cleaned; exe/path are passed as data to the launcher, which verifies
+    containment at launch time. Registry-provided arguments are ignored."""
+    raw_name = values.get("gameName")
+    name = _clean_title(raw_name)
+    if not name:
+        return None
+    exe = values.get("exe")
+    path = values.get("path")
+    if not (isinstance(exe, str) and isinstance(path, str)):
+        return None
+    exe = exe.strip()
+    path = path.strip()
+    if not exe or not path:
+        return None
+    if not exe.lower().endswith(".exe"):
+        return None
+    return Game(
+        name=name,
+        launcher=Launcher.GOG,
+        launch_spec=LaunchSpec(
+            kind=LaunchKind.EXECUTABLE,
+            exe=exe,
+            install_dir=path,
+        ),
+    )
+
+
+def scan_gog_games(reader: RegistryReader) -> list[Game]:
+    """Enumerate installed GOG games via the registry reader.
+
+    Per-game errors are isolated: a malformed/partial game key is skipped,
+    not fatal. The reader never raises (it returns empty on error), so a
+    missing GOG install simply yields []."""
+    games: list[Game] = []
+    game_ids = reader.read_subkeys(HKLM, _GOG_GAMES_KEY)
+    for game_id in game_ids:
+        # Only simple id subkeys; defend against odd names.
+        values = reader.read_values(HKLM, f"{_GOG_GAMES_KEY}\\{game_id}")
+        if not values:
+            continue
+        game = parse_gog_game_values(values)
+        if game is not None:
+            games.append(game)
+    return games
+
+
+class GogGamesSource:
+    """Discover installed GOG Galaxy games from the registry."""
+
+    launcher = Launcher.GOG
+
+    def __init__(self, reader: RegistryReader | None = None) -> None:
+        # Injectable for tests; None -> real WindowsRegistryReader at scan.
+        self._reader = reader
+
+    def scan(self) -> list[Game]:
+        reader = self._reader
+        if reader is None:
+            from jarvis.platform.registry import WindowsRegistryReader
+
+            reader = WindowsRegistryReader()
+        try:
+            return scan_gog_games(reader)
+        except Exception as e:  # defensive: a source must never break others
+            log.warning("GOG source scan failed: %s", e)
             return []
 
 
