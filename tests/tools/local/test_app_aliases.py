@@ -173,3 +173,55 @@ def test_open_app_still_exports_app_aliases():
     assert _APP_ALIASES is APP_ALIASES
     assert "хром" in _APP_ALIASES
     assert _APP_ALIASES["chrome"] == "chrome"
+
+
+# ── Task 8c: Battle.net launcher aliases ──────────────────────────────
+
+
+class TestBattleNetAliases:
+    """Battle.net (Blizzard launcher) resolves to the canonical target
+    "Battle.net", which the installed-app index launches. Only the
+    launcher — battlenet://<code> game deep links are out of scope."""
+
+    @pytest.mark.parametrize(
+        "alias",
+        [
+            "баттл",
+            "баттл нет",
+            "батл нет",
+            "батл",
+            "близзард",
+            "блізард",
+            "battle net",
+            "battlenet",
+            "battle.net",
+            "blizzard",
+        ],
+    )
+    def test_battlenet_aliases_resolve(self, alias: str):
+        assert resolve_app_alias(alias) == "Battle.net"
+
+    def test_battlenet_case_insensitive(self):
+        assert resolve_app_alias("Баттл") == "Battle.net"
+        assert resolve_app_alias("BATTLE.NET") == "Battle.net"
+        assert resolve_app_alias("Blizzard") == "Battle.net"
+
+    @pytest.mark.parametrize(
+        "not_battlenet",
+        [
+            "battlefield",
+            "battle royale",
+            "батлфилд",
+            "батлфілд",
+            "battlefield 2042",
+            "battle",  # bare "battle" is NOT an alias (would be too greedy)
+        ],
+    )
+    def test_non_battlenet_words_do_not_resolve(self, not_battlenet: str):
+        """Games like Battlefield must NOT alias to the Battle.net launcher.
+        resolve_app_alias is an exact dict lookup, so an unknown name is
+        returned unchanged (never coerced to "Battle.net")."""
+        assert resolve_app_alias(not_battlenet) == not_battlenet
+
+    def test_battlenet_is_a_unique_target(self):
+        assert "Battle.net" in set(APP_ALIASES.values())

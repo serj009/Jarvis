@@ -314,3 +314,52 @@ def test_spoken_error_localises_suggestion_all_languages():
         ):
             spoken = _spoken_error(res)
         assert "Battle.net" in spoken, (lang, spoken)
+
+
+# --- Task 8c: Battle.net launcher alias ---------------------------------
+
+
+async def test_battlenet_alias_resolves_to_canonical_target():
+    """The spoken "баттл" aliases to the canonical "Battle.net"; with the
+    app absent from the installed index the canonical token reaches the
+    platform seam (the index launches it on a real machine)."""
+    with patch("jarvis.tools.local.open_app.winplat.launch_app") as launch:
+        result = await OpenAppTool(app_resolver=lambda q: None).execute(
+            OpenAppArgs(name="баттл")
+        )
+    assert result.success
+    launch.assert_called_once_with("Battle.net")
+
+
+async def test_personal_alias_overrides_builtin_battlenet():
+    """A user's personal alias wins over the built-in table: if the user
+    taught "баттл" -> "steam", open_app must honour that, not Battle.net."""
+    class _FakeAliases:
+        def resolve(self, name: str) -> str | None:
+            return "steam" if name.strip().lower() == "баттл" else None
+
+    with patch("jarvis.tools.local.open_app.winplat.launch_app") as launch:
+        tool = OpenAppTool(
+            app_resolver=lambda q: None,
+            personal_aliases=_FakeAliases(),
+        )
+        result = await tool.execute(OpenAppArgs(name="баттл"))
+    assert result.success
+    # "steam" is itself an alias key -> stays "steam"; never "Battle.net".
+    launch.assert_called_once_with("steam")
+
+
+async def test_battlefield_is_not_launched_as_battlenet():
+    """A game name that merely looks similar ("battlefield") must never be
+    coerced into launching the Battle.net launcher. With no installed
+    match it passes through unchanged and the launch target is the raw
+    token, not "Battle.net"."""
+    with patch("jarvis.tools.local.open_app.winplat.launch_app") as launch:
+        result = await OpenAppTool(app_resolver=lambda q: None).execute(
+            OpenAppArgs(name="battlefield")
+        )
+    assert result.success
+    # resolved token is the bare word, never the Battle.net canonical.
+    called_with = launch.call_args.args[0]
+    assert called_with == "battlefield"
+    assert called_with != "Battle.net"

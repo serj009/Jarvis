@@ -269,6 +269,22 @@ APP_ALIASES: dict[str, str] = {
     "эпик": "EpicGamesLauncher",
     "epic": "EpicGamesLauncher",
     "epic games": "EpicGamesLauncher",
+    # -- Battle.net (Blizzard launcher) --
+    # Canonical target "Battle.net" is resolved through the installed-app
+    # index (Start-menu shortcut / Get-StartApps), NOT a hard-coded path:
+    # the Blizzard App install dir differs between versions. Task 8c keeps
+    # this to the LAUNCHER only — battlenet://<code> game deep-links are
+    # not shipped (no documented/stable product-code source; see BACKLOG).
+    "баттл": "Battle.net",
+    "баттл нет": "Battle.net",
+    "батл нет": "Battle.net",
+    "батл": "Battle.net",
+    "близзард": "Battle.net",
+    "блізард": "Battle.net",
+    "battle net": "Battle.net",
+    "battlenet": "Battle.net",
+    "battle.net": "Battle.net",
+    "blizzard": "Battle.net",
     # -- GeForce Experience / NVIDIA --
     "нвидиа": "GeForce Experience",
     "nvidia": "GeForce Experience",
