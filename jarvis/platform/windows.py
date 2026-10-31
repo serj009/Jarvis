@@ -16,6 +16,7 @@ import ctypes
 import logging
 import ntpath
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -375,6 +376,70 @@ def launch_steam_game(app_id: int) -> None:
     ShellExecuteW for consistency with the other launchers."""
     _require_windows("launch_steam_game")
     _shell_execute(f"steam://run/{int(app_id)}")
+
+
+# Task 8c: launcher-game launch primitives. Both go through the same
+# no-shell ShellExecuteW / direct-exec seams the other launchers use.
+# The *data* feeding them (manifest fields, registry values) is untrusted,
+# so validation happens at the game-source layer (jarvis/platform/
+# game_launchers.py) AND, defensively, here.
+
+# A launcher protocol URI: scheme is a dotted/simple token, then "://",
+# then an already-percent-encoded remainder. We reject control chars and
+# the path-illegal set; the remainder must already be safe (callers build
+# it from validated ids + %3A), so no shell metacharacters can appear.
+_LAUNCHER_URI_RE = re.compile(r"^[a-z][a-z0-9.+-]*://[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]+$")
+
+
+def launch_uri(uri: str) -> None:
+    """Open a launcher protocol URI (e.g. the Epic
+    ``com.epicgames.launcher://apps/...?action=launch`` deep link) via
+    ShellExecuteW, with no shell in the loop.
+
+    The URI must already be fully formed and percent-encoded by the caller
+    from validated identifiers. We re-validate the shape here as defence in
+    depth: a control character or a path-illegal char is rejected rather
+    than handed to the OS."""
+    _require_windows("launch_uri")
+    _reject_unsafe(uri, _PATH_ILLEGAL_CHARACTERS, kind="launch uri")
+    if not _LAUNCHER_URI_RE.match(uri):
+        raise ValueError(f"not a valid launcher URI: {uri!r}")
+    _shell_execute(uri)
+
+
+def launch_game_executable(exe: str, install_dir: str) -> None:
+    """Directly launch a game ``.exe`` that lives inside its install
+    directory, with no shell and no caller-supplied arguments.
+
+    Security (Task 8c requirement): the resolved executable must
+      * exist and be a regular file,
+      * have a ``.exe`` suffix,
+      * resolve to a path *inside* the resolved install directory
+        (symlink escapes are blocked by resolving both first).
+    Anything else raises ValueError and the caller skips the entry. No
+    arguments from the registry/manifest are ever forwarded."""
+    _require_windows("launch_game_executable")
+    _reject_unsafe(exe, _PATH_ILLEGAL_CHARACTERS, kind="game exe")
+    _reject_unsafe(install_dir, _PATH_ILLEGAL_CHARACTERS, kind="install dir")
+    root = Path(install_dir).resolve()
+    target = Path(exe).resolve()
+    if target.suffix.lower() != ".exe":
+        raise ValueError(f"game target is not an .exe: {target}")
+    if not target.is_file():
+        raise ValueError(f"game executable not found: {target}")
+    if not root.is_dir():
+        raise ValueError(f"install directory not found: {root}")
+    if not target.is_relative_to(root):
+        raise ValueError(
+            f"game executable {target} is outside its install dir {root}"
+        )
+    # Direct, no-shell spawn. DETACHED_PROCESS so the game outlives Jarvis.
+    subprocess.Popen(
+        [str(target)],
+        cwd=str(root),
+        close_fds=True,
+        creationflags=getattr(subprocess, "DETACHED_PROCESS", 0),
+    )
 
 
 # -- screenshot ---------------------------------------------------------
@@ -994,6 +1059,8 @@ __all__ = [
     "launch_path",
     "launch_shell",
     "launch_steam_game",
+    "launch_game_executable",
+    "launch_uri",
     "list_startup",
     "list_windows_win32",
     "lock_screen",

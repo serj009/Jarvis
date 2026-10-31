@@ -169,3 +169,85 @@ def test_launch_shell_rejects_control_characters():
         with pytest.raises(ValueError):
             winplat.launch_shell("shell:AppsFolder\\Foo\nbar")
     popen.assert_not_called()
+
+
+# --- Task 8c: launcher-game launch primitives ---------------------------
+
+
+def test_launch_uri_accepts_epic_deep_link(shell_execute):
+    uri = (
+        "com.epicgames.launcher://apps/"
+        "fn%3A4fe75bbc5a674f4f9b356b5c90567da5%3AFortnite"
+        "?action=launch&silent=true"
+    )
+    winplat.launch_uri(uri)
+    shell_execute.assert_called_once_with(uri)
+
+
+def test_launch_uri_rejects_control_characters(shell_execute):
+    with pytest.raises(ValueError):
+        winplat.launch_uri("com.epicgames.launcher://apps/x\naction=launch")
+    shell_execute.assert_not_called()
+
+
+def test_launch_uri_rejects_non_uri(shell_execute):
+    with pytest.raises(ValueError):
+        winplat.launch_uri("not a uri at all")
+    shell_execute.assert_not_called()
+
+
+def test_launch_game_executable_runs_exe_inside_install_dir(tmp_path):
+    install = tmp_path / "MyGame"
+    install.mkdir()
+    exe = install / "MyGame.exe"
+    exe.write_bytes(b"MZ")  # just needs to exist and be a file
+    with (
+        patch("jarvis.platform.windows._require_windows"),
+        patch("jarvis.platform.windows.subprocess.Popen") as popen,
+    ):
+        winplat.launch_game_executable(str(exe), str(install))
+    argv = popen.call_args.args[0]
+    assert argv == [str(exe.resolve())]
+    # launched with cwd inside the install dir, no shell
+    assert popen.call_args.kwargs["cwd"] == str(install.resolve())
+
+
+def test_launch_game_executable_rejects_exe_outside_install_dir(tmp_path):
+    install = tmp_path / "MyGame"
+    install.mkdir()
+    outside = tmp_path / "evil.exe"
+    outside.write_bytes(b"MZ")
+    with (
+        patch("jarvis.platform.windows._require_windows"),
+        patch("jarvis.platform.windows.subprocess.Popen") as popen,
+    ):
+        with pytest.raises(ValueError):
+            winplat.launch_game_executable(str(outside), str(install))
+    popen.assert_not_called()
+
+
+def test_launch_game_executable_rejects_non_exe(tmp_path):
+    install = tmp_path / "MyGame"
+    install.mkdir()
+    bat = install / "run.bat"
+    bat.write_bytes(b"echo hi")
+    with (
+        patch("jarvis.platform.windows._require_windows"),
+        patch("jarvis.platform.windows.subprocess.Popen") as popen,
+    ):
+        with pytest.raises(ValueError):
+            winplat.launch_game_executable(str(bat), str(install))
+    popen.assert_not_called()
+
+
+def test_launch_game_executable_rejects_missing_exe(tmp_path):
+    install = tmp_path / "MyGame"
+    install.mkdir()
+    missing = install / "ghost.exe"  # never created
+    with (
+        patch("jarvis.platform.windows._require_windows"),
+        patch("jarvis.platform.windows.subprocess.Popen") as popen,
+    ):
+        with pytest.raises(ValueError):
+            winplat.launch_game_executable(str(missing), str(install))
+    popen.assert_not_called()
