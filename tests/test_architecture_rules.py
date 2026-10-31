@@ -37,6 +37,20 @@ _JARVIS_ROOT = Path(__file__).resolve().parent.parent / "jarvis"
 # The single file allowed to touch win32 (relative to _JARVIS_ROOT).
 _WIN32_ALLOWED = {Path("platform") / "windows.py"}
 
+# Task 8c: Windows registry access (``winreg`` / ``_winreg``, and registry
+# access via ctypes advapi32) is confined to platform/. EXPLICIT file list
+# — NOT a whole-directory allowance — so a new file dropped into platform/
+# does not silently gain registry access; it must be added here on review.
+#   * platform/windows.py       — default-app / startup registry reads+writes.
+#   * platform/windows_apps.py  — Steam path + App Paths registry reads.
+#   * platform/registry.py      — the read-only RegistryReader seam that
+#     game-launcher discovery (GOG) depends on through an interface.
+_WINREG_ALLOWED = {
+    Path("platform") / "windows.py",
+    Path("platform") / "windows_apps.py",
+    Path("platform") / "registry.py",
+}
+
 # PySide6 is allowed anywhere under ui/ (relative to _JARVIS_ROOT).
 _PYSIDE_ALLOWED_DIR = Path("ui")
 
@@ -124,6 +138,36 @@ def _win32_violations(tree: ast.AST) -> list[str]:
     return hits
 
 
+def _winreg_violations(tree: ast.AST) -> list[str]:
+    """Return descriptions of Windows-registry access in *tree*.
+
+    Flags ``import winreg`` / ``import _winreg`` / ``from winreg import ...``
+    and registry access through ``ctypes`` advapi32 (``ctypes.windll.advapi32``
+    attribute access or ``ctypes.WinDLL("advapi32")``). Plain ``import ctypes``
+    is not flagged — only an advapi32 reference is."""
+    hits: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                top = _module_top(alias.name)
+                if top in {"winreg", "_winreg"}:
+                    hits.append(f"line {node.lineno}: import {alias.name}")
+        elif isinstance(node, ast.ImportFrom):
+            top = _module_top(node.module)
+            if top in {"winreg", "_winreg"}:
+                hits.append(f"line {node.lineno}: from {node.module} import ...")
+        # ctypes.windll.advapi32  (attribute access on a windll chain)
+        elif isinstance(node, ast.Attribute):
+            if node.attr == "advapi32":
+                hits.append(f"line {node.lineno}: ctypes advapi32 access")
+        # ctypes.WinDLL("advapi32") / windll.LoadLibrary("advapi32.dll")
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+            low = node.value.lower()
+            if low in {"advapi32", "advapi32.dll"}:
+                hits.append(f"line {node.lineno}: advapi32 library reference")
+    return hits
+
+
 def _pyside_violations(tree: ast.AST) -> list[str]:
     hits: list[str] = []
     for node in ast.walk(tree):
@@ -207,6 +251,64 @@ def test_no_win32_imports_outside_platform_windows() -> None:
             for f, hs in sorted(offenders.items())
         )
     )
+
+
+def test_no_winreg_imports_outside_allow_list() -> None:
+    """Task 8c: Windows registry access confined to the explicit file list.
+
+    ``winreg`` is stdlib and not win32 per se, but registry access is a
+    platform-specific capability we keep inside platform/ behind the
+    RegistryReader seam so the rest of the codebase stays testable and
+    OS-agnostic."""
+    offenders: dict[str, list[str]] = {}
+    for path in _iter_python_files():
+        rel = _rel(path)
+        if rel in _WINREG_ALLOWED:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        hits = _winreg_violations(tree)
+        if hits:
+            offenders[str(rel)] = hits
+
+    assert not offenders, (
+        "Windows registry access found outside the allow-list "
+        "(route through jarvis/platform/registry.py RegistryReader):\n"
+        + "\n".join(
+            f"  {f}:\n" + "\n".join(f"    {h}" for h in hs)
+            for f, hs in sorted(offenders.items())
+        )
+    )
+
+
+def test_winreg_rule_detects_violations() -> None:
+    """The winreg scanner flags each forbidden form (negative case)."""
+    import_winreg = ast.parse("import winreg\n")
+    import_underscore = ast.parse("import _winreg\n")
+    from_winreg = ast.parse("from winreg import OpenKey, HKEY_LOCAL_MACHINE\n")
+    advapi_attr = ast.parse(
+        "import ctypes\n"
+        "def f():\n"
+        "    return ctypes.windll.advapi32.RegOpenKeyExW\n"
+    )
+    advapi_lib = ast.parse('import ctypes\nd = ctypes.WinDLL("advapi32")\n')
+    clean = ast.parse(
+        "from jarvis.platform.registry import WindowsRegistryReader\n"
+        "def f():\n"
+        "    return WindowsRegistryReader().read_values('HKLM', 'X')\n"
+    )
+
+    assert _winreg_violations(import_winreg), "should flag 'import winreg'"
+    assert _winreg_violations(import_underscore), "should flag 'import _winreg'"
+    assert _winreg_violations(from_winreg), "should flag 'from winreg import ...'"
+    assert _winreg_violations(advapi_attr), "should flag ctypes advapi32 access"
+    assert _winreg_violations(advapi_lib), "should flag advapi32 library ref"
+    assert not _winreg_violations(clean), "RegistryReader usage must not be flagged"
+
+
+def test_winreg_allow_list_entries_exist() -> None:
+    """Every winreg allow-listed file must exist (stale entries mask drift)."""
+    missing = [str(rel) for rel in _WINREG_ALLOWED if not (_JARVIS_ROOT / rel).is_file()]
+    assert not missing, f"stale _WINREG_ALLOWED entries (file missing): {missing}"
 
 
 def test_no_pyside_imports_outside_ui() -> None:

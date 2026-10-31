@@ -12,12 +12,16 @@ import json
 from jarvis.platform.game_launchers import (
     EpicGamesSource,
     Game,
+    GogGamesSource,
     Launcher,
     LaunchKind,
     build_epic_uri,
     index_games,
     parse_epic_manifest,
+    parse_gog_game_values,
+    scan_gog_games,
 )
+from jarvis.platform.registry import HKLM
 
 # --- build_epic_uri ------------------------------------------------------
 
@@ -213,3 +217,107 @@ def test_index_games_transliterates_cyrillic_titles():
     src = _FakeSource(Launcher.EPIC, [_uri_game("Сталкер")])
     index = index_games([src])
     assert "stalker" in index
+
+
+# --- GOG (registry) ------------------------------------------------------
+
+_GOG_KEY = r"SOFTWARE\WOW6432Node\GOG.com\Games"
+
+
+class _FakeRegistry:
+    """Minimal read-only registry stand-in for GOG scan tests."""
+
+    def __init__(self, subkeys: dict[str, list[str]], values: dict[str, dict]):
+        self._subkeys = subkeys
+        self._values = values
+
+    def read_subkeys(self, hive: str, path: str) -> list[str]:
+        assert hive == HKLM
+        return self._subkeys.get(path, [])
+
+    def read_values(self, hive: str, path: str) -> dict:
+        assert hive == HKLM
+        return self._values.get(path, {})
+
+
+def test_parse_gog_game_values_builds_exe_launch():
+    game = parse_gog_game_values({
+        "gameName": "The Witcher 3",
+        "exe": "C:/GOG/Witcher3/bin/witcher3.exe",
+        "path": "C:/GOG/Witcher3",
+    })
+    assert game is not None
+    assert game.launcher is Launcher.GOG
+    assert game.launch_spec.kind is LaunchKind.EXECUTABLE
+    assert game.launch_spec.exe.endswith("witcher3.exe")
+    assert game.launch_spec.install_dir == "C:/GOG/Witcher3"
+
+
+def test_parse_gog_game_values_requires_name_exe_path():
+    assert parse_gog_game_values({"exe": "a.exe", "path": "C:/x"}) is None
+    assert parse_gog_game_values({"gameName": "X", "path": "C:/x"}) is None
+    assert parse_gog_game_values({"gameName": "X", "exe": "C:/x/g.exe"}) is None
+
+
+def test_parse_gog_game_values_rejects_non_exe():
+    assert parse_gog_game_values({
+        "gameName": "X", "exe": "run.bat", "path": "C:/x",
+    }) is None
+
+
+def test_parse_gog_game_values_cleans_untrusted_name():
+    game = parse_gog_game_values({
+        "gameName": "Witch\x00er\n3",
+        "exe": "C:/x/g.exe", "path": "C:/x",
+    })
+    assert game is not None
+    assert "\x00" not in game.name and "\n" not in game.name
+
+
+def test_scan_gog_games_reads_registry_and_skips_bad():
+    reg = _FakeRegistry(
+        subkeys={_GOG_KEY: ["1207664663", "9999"]},
+        values={
+            f"{_GOG_KEY}\\1207664663": {
+                "gameName": "The Witcher 3",
+                "exe": "C:/GOG/W3/w3.exe",
+                "path": "C:/GOG/W3",
+            },
+            # second game has no exe/path -> skipped, not fatal
+            f"{_GOG_KEY}\\9999": {"gameName": "Broken"},
+        },
+    )
+    games = scan_gog_games(reg)
+    assert [g.name for g in games] == ["The Witcher 3"]
+
+
+def test_scan_gog_games_empty_when_no_gog():
+    reg = _FakeRegistry(subkeys={}, values={})
+    assert scan_gog_games(reg) == []
+
+
+def test_gog_source_uses_injected_reader():
+    reg = _FakeRegistry(
+        subkeys={_GOG_KEY: ["1"]},
+        values={f"{_GOG_KEY}\\1": {
+            "gameName": "Cyberpunk 2077",
+            "exe": "C:/GOG/CP/cp.exe", "path": "C:/GOG/CP",
+        }},
+    )
+    source = GogGamesSource(reader=reg)
+    games = source.scan()
+    assert [g.name for g in games] == ["Cyberpunk 2077"]
+
+
+def test_gog_games_indexed_alongside_epic():
+    epic = _FakeSource(Launcher.EPIC, [_uri_game("Alan Wake 2")])
+    reg = _FakeRegistry(
+        subkeys={_GOG_KEY: ["1"]},
+        values={f"{_GOG_KEY}\\1": {
+            "gameName": "Gwent", "exe": "C:/GOG/G/g.exe", "path": "C:/GOG/G",
+        }},
+    )
+    index = index_games([epic, GogGamesSource(reader=reg)])
+    assert "alan wake 2" in index
+    assert "gwent" in index
+    assert index["gwent"].launcher is Launcher.GOG
