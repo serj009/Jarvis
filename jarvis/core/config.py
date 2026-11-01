@@ -432,6 +432,21 @@ class ResearchConfig(_Base):
     groq_api_key: str = ""
     ultra_planner_model: str = "groq/llama-3.3-70b-versatile"
     ultra_gap_fill_iterations: int = Field(default=3, ge=1, le=5)
+    # Task 9a: how the research panel shows source favicons.
+    #   "off"    — no network; a colored letter-avatar per domain (default,
+    #              privacy-safe).
+    #   "direct" — https://<domain>/favicon.ico from the source site itself.
+    #   "google" — google.com/s2/favicons (sends every source domain to
+    #              Google; opt-in, warned in Settings).
+    # Flat field with a safe default — no migration needed. A value outside
+    # the set (old/corrupt config) falls back to "off" rather than failing
+    # startup.
+    favicons: Literal["off", "direct", "google"] = "off"
+
+    @field_validator("favicons", mode="before")
+    @classmethod
+    def _favicons_fallback(cls, v: object) -> str:
+        return v if v in ("off", "direct", "google") else "off"
 
 
 def _default_cursor_path() -> str:

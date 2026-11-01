@@ -7,6 +7,7 @@ from collections.abc import Callable
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QComboBox,
     QLabel,
     QLineEdit,
     QSlider,
@@ -119,6 +120,29 @@ class AdvancedTab(QWidget):
             self.research_worker_model,
         )
 
+        # Task 9a: source favicon mode (privacy — default off, no network).
+        self.favicons = QComboBox()
+        self.favicons.addItem("Off — colored letter (no network)", "off")
+        self.favicons.addItem("Direct — from the source site", "direct")
+        self.favicons.addItem("Google — sends domains to Google", "google")
+        _fav_idx = {"off": 0, "direct": 1, "google": 2}.get(
+            config.research.favicons, 0
+        )
+        self.favicons.setCurrentIndex(_fav_idx)
+        self.favicons.setMinimumWidth(220)
+        research_card.add_row(
+            "Source favicons",
+            "How source icons load. Off is private (no network).",
+            self.favicons,
+        )
+        self.favicons_warning = QLabel(
+            "Google mode sends every source domain to google.com."
+        )
+        self.favicons_warning.setObjectName("settingHint")
+        self.favicons_warning.setWordWrap(True)
+        self.favicons_warning.setVisible(config.research.favicons == "google")
+        research_card.add_widget(self.favicons_warning)
+
         research_card.add_divider()
 
         self.ultra_enabled = ToggleSwitch(checked=config.research.ultra_enabled)
@@ -211,6 +235,7 @@ class AdvancedTab(QWidget):
         self.research_worker_model.editingFinished.connect(
             self._on_research_worker_model
         )
+        self.favicons.currentIndexChanged.connect(self._on_favicons)
         self.ultra_enabled.toggled.connect(self._on_ultra_enabled)
         self.ultra_planner_model.editingFinished.connect(
             self._on_ultra_planner_model
@@ -252,6 +277,12 @@ class AdvancedTab(QWidget):
         self._config.research.worker_model = (
             self.research_worker_model.text().strip()
         )
+        self._persist()
+
+    def _on_favicons(self) -> None:
+        mode = self.favicons.currentData() or "off"
+        self._config.research.favicons = mode
+        self.favicons_warning.setVisible(mode == "google")
         self._persist()
 
     def _on_ultra_enabled(self) -> None:

@@ -21,9 +21,11 @@ return a ToolResult for TTS without blocking the audio loop.
 History: last _MAX_HISTORY queries are stored in-memory. The ≡ button in the
 header toggles a history list view; clicking any entry re-runs that query.
 
-Source cards fetch favicons off-thread via _FaviconThread (one per card,
-uses urllib — no extra deps).  If the fetch fails the card simply shows
-without a favicon.
+Source cards show favicons per research.favicons config: "off" (default)
+draws a no-network letter avatar; "direct"/"google" fetch via the panel's
+shared QNetworkAccessManager (no per-card QThread — the reply is aborted in
+_SourceCard.cancel() before the card is destroyed). A failed/aborted fetch
+falls back to the letter avatar.
 """
 
 from __future__ import annotations
@@ -44,10 +46,16 @@ from PySide6.QtCore import (
     Qt,
     QThread,
     QTimer,
+    QUrl,
     Signal,
     Slot,
 )
-from PySide6.QtGui import QPixmap
+from PySide6.QtGui import QColor, QPainter, QPixmap
+from PySide6.QtNetwork import (
+    QNetworkAccessManager,
+    QNetworkReply,
+    QNetworkRequest,
+)
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -61,6 +69,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from jarvis.ui.favicon_util import (
+    avatar_color,
+    avatar_letter,
+    exceeds_size,
+    favicon_url,
+)
 from jarvis.ui.settings.theme import (
     ACCENT,
     ACCENT_DIM,
@@ -351,6 +365,7 @@ class ResearchWorker(QThread):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
+        self.setObjectName("ResearchWorker")  # Task 9a: diagnosable in logs
         self._query = query
         self._ollama_endpoint = ollama_endpoint
         self._ollama_model = ollama_model
@@ -432,6 +447,7 @@ class FollowUpWorker(QThread):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
+        self.setObjectName("FollowUpWorker")  # Task 9a: diagnosable in logs
         self._summary = summary
         self._ollama_endpoint = ollama_endpoint
         self._ollama_model = ollama_model
@@ -455,36 +471,21 @@ class FollowUpWorker(QThread):
             log.debug("FollowUpWorker failed", exc_info=True)
 
 
-class _FaviconThread(QThread):
-    """Fetches one favicon URL and emits raw bytes on success."""
-
-    loaded = Signal(bytes)
-
-    def __init__(self, url: str, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self._url = url
-
-    def run(self) -> None:
-        try:
-            import urllib.request
-
-            req = urllib.request.Request(
-                self._url,
-                headers={"User-Agent": "Mozilla/5.0"},
-            )
-            with urllib.request.urlopen(req, timeout=5) as resp:
-                self.loaded.emit(resp.read())
-        except Exception:
-            pass  # favicon is decorative; silence all failures
-
-
 # ---------------------------------------------------------------------------
 # Source card widget
 # ---------------------------------------------------------------------------
 
 
 class _SourceCard(QFrame):
-    """Card: favicon (16×16) + domain label + optional page title."""
+    """Card: favicon (16x16) + domain label + optional page title.
+
+    Favicon handling (Task 9a): NO QThread. In "off" mode a deterministic
+    letter-avatar is drawn with zero network. In "direct"/"google" mode the
+    panel's shared QNetworkAccessManager fetches the icon; the reply is
+    tracked so cancel() can abort it before the card is destroyed (a child
+    QThread would be torn down mid-run -> "QThread: Destroyed while thread
+    is still running"; QNetworkReply.abort() is the Qt-correct teardown).
+    """
 
     def __init__(
         self,
@@ -492,10 +493,17 @@ class _SourceCard(QFrame):
         url: str,
         *,
         elide_width: int = _DEFAULT_PANEL_WIDTH - 64,
+        favicons_mode: str = "off",
+        network: QNetworkAccessManager | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self._url = url
+        # A single-element box holding the in-flight reply (or empty). A box
+        # (not an attribute) so _make_reply_aborter can hold it without the
+        # card, for the destroyed-signal safety net.
+        self._reply_box: list[QNetworkReply] = []
+        self._closed = False
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setFrameShape(QFrame.Shape.NoFrame)
         self.setObjectName("rpSourceCard")
@@ -530,27 +538,130 @@ class _SourceCard(QFrame):
         row.addLayout(text_col)
         row.addStretch(1)
 
-        favicon_url = f"https://www.google.com/s2/favicons?domain={domain}&sz=32"
-        self._fav_thread = _FaviconThread(favicon_url, self)
-        self._fav_thread.loaded.connect(self._on_favicon_loaded)
-        self._fav_thread.start()
+        # Always draw the letter-avatar first — it is the final state for
+        # "off" and the fallback for a failed/aborted network fetch.
+        self._set_letter_avatar(domain)
 
-    @Slot(bytes)
-    def _on_favicon_loaded(self, data: bytes) -> None:
-        pixmap = QPixmap()
-        if pixmap.loadFromData(data):
-            self._favicon_lbl.setPixmap(
-                pixmap.scaled(
-                    16, 16,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
+        fav_url = favicon_url(domain, favicons_mode)
+        if fav_url is not None and network is not None:
+            self._start_fetch(network, fav_url)
+
+    # -- letter avatar (no network) ----------------------------------------
+
+    def _set_letter_avatar(self, domain: str) -> None:
+        letter = avatar_letter(domain)
+        color = avatar_color(domain)
+        pm = QPixmap(16, 16)
+        pm.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pm)
+        try:
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            painter.setBrush(QColor(color))
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.drawEllipse(0, 0, 16, 16)
+            painter.setPen(QColor("#FFFFFF"))
+            f = painter.font()
+            f.setBold(True)
+            f.setPointSize(8)
+            painter.setFont(f)
+            painter.drawText(
+                pm.rect(), Qt.AlignmentFlag.AlignCenter, letter
             )
+        finally:
+            painter.end()
+        self._favicon_lbl.setPixmap(pm)
+
+    # -- network fetch (direct / google) -----------------------------------
+
+    def _start_fetch(self, network: QNetworkAccessManager, url: str) -> None:
+        request = QNetworkRequest(QUrl(url))
+        request.setTransferTimeout(3000)
+        request.setAttribute(
+            QNetworkRequest.Attribute.RedirectPolicyAttribute,
+            QNetworkRequest.RedirectPolicy.NoLessSafeRedirectPolicy,
+        )
+        request.setMaximumRedirectsAllowed(3)
+        reply = network.get(request)
+        self._reply_box[:] = [reply]
+        reply.downloadProgress.connect(
+            lambda recv, _total, r=reply: self._on_progress(r, recv)
+        )
+        reply.finished.connect(lambda r=reply: self._on_reply_finished(r))
+
+    def _on_progress(self, reply: QNetworkReply, received: int) -> None:
+        # Abort an over-large download early (favicons are tiny).
+        if exceeds_size(received):
+            reply.abort()
+
+    def _on_reply_finished(self, reply: QNetworkReply) -> None:
+        # Always clean the reply up; abort() lands here with an error too.
+        try:
+            if reply not in self._reply_box:
+                return  # superseded (shouldn't happen — one fetch per card)
+            self._reply_box.clear()
+            if self._closed:
+                return
+            import shiboken6
+            if not shiboken6.isValid(self):
+                return
+            err = reply.error()
+            if err != QNetworkReply.NetworkError.NoError:
+                # OperationCanceledError (abort) and any transport error:
+                # keep the letter-avatar, log at DEBUG without the URL.
+                log.debug("favicon fetch failed (%s)", err)
+                return
+            data = bytes(reply.readAll())
+            if exceeds_size(len(data)):
+                return
+            pixmap = QPixmap()
+            if pixmap.loadFromData(data):
+                self._favicon_lbl.setPixmap(
+                    pixmap.scaled(
+                        16, 16,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
+                )
+        finally:
+            reply.deleteLater()
+
+    # -- teardown ----------------------------------------------------------
+
+    def cancel(self) -> None:
+        """Abort any in-flight favicon fetch. Called by the panel before
+        deleteLater()-ing this card and on panel close, so no reply (and no
+        thread) outlives the widget."""
+        self._closed = True
+        while self._reply_box:
+            reply = self._reply_box.pop()
+            try:
+                reply.abort()
+            except RuntimeError:
+                pass  # already deleted by Qt
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
         webbrowser.open(self._url)
         super().mousePressEvent(event)
 
+
+def _make_reply_aborter(card: _SourceCard):
+    """destroyed-signal handler that aborts a card's in-flight reply WITHOUT
+    holding a reference to the (dying) card.
+
+    The closure captures only the card's reply-box (a list), never the card
+    itself, so when Qt emits destroyed the box can be drained and the reply
+    aborted even though the widget is already being torn down."""
+    box = card._reply_box  # the list object; shared, not the card
+
+    def _abort(*_args) -> None:
+        while box:
+            reply = box.pop()
+            try:
+                reply.abort()
+            except RuntimeError:
+                pass  # reply already deleted by Qt
+
+    return _abort
 
 # ---------------------------------------------------------------------------
 # Panel widget
@@ -610,6 +721,11 @@ class ResearchPanel(QWidget):
         self._followup_was_visible: bool = False
         self._sources_was_visible: bool = False
         self._read_cursor: int = 0
+
+        # Task 9a: one QNetworkAccessManager for the whole panel (parent =
+        # panel), shared by all source cards for favicon fetches. Never a
+        # per-card QThread — see _SourceCard.
+        self._network = QNetworkAccessManager(self)
 
         self._build_ui()
         self._position_offscreen()
@@ -942,6 +1058,9 @@ class ResearchPanel(QWidget):
     @Slot()
     def _on_close(self) -> None:
         self._stop_worker()
+        # Task 9a: abort any in-flight favicon fetches so no QNetworkReply
+        # outlives the panel when it slides out / the app quits.
+        self._clear_source_cards()
         if self.isVisible():
             self._slide_out()
 
@@ -1074,19 +1193,39 @@ class ResearchPanel(QWidget):
             item = self._sources_inner.takeAt(i)
             w = item.widget() if item else None
             if w:
+                # Task 9a: abort any in-flight favicon fetch BEFORE deleting
+                # the card, so no QNetworkReply (and no thread) outlives it.
+                cancel = getattr(w, "cancel", None)
+                if callable(cancel):
+                    cancel()
                 w.deleteLater()
 
     def _populate_source_cards(self, sources: list) -> None:
         self._clear_source_cards()
+        mode = self._favicons_mode()
         for src in sources:
             card = _SourceCard(
                 src.get("title", ""),
                 src.get("url", ""),
                 elide_width=self._panel_width - 64,
+                favicons_mode=mode,
+                network=self._network,
                 parent=self._sources_container,
             )
+            # Safety net: if the card is destroyed by Qt for any reason
+            # without _clear_source_cards running cancel(), abort its reply
+            # via a closure that holds ONLY the card's reply, never the card.
+            card.destroyed.connect(_make_reply_aborter(card))
             self._sources_inner.insertWidget(self._sources_inner.count() - 1, card)
         self._sources_section.show()
+
+    def _favicons_mode(self) -> str:
+        """Current favicons mode from config; 'off' on any error (no net)."""
+        try:
+            from jarvis.core.config import load_config
+            return load_config().research.favicons
+        except Exception:
+            return "off"
 
     def _clear_chips(self) -> None:
         while self._chips_layout.count():

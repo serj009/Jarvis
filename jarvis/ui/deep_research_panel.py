@@ -179,6 +179,7 @@ class DeepResearchWorker(QThread):
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
+        self.setObjectName("DeepResearchWorker")  # Task 9a: diagnosable in logs
         self._session_id = session_id
         self._cfg = config
         self._pause_event = pause_event
