@@ -186,11 +186,21 @@ class TestAdvancedMode:
         assert "<html>" in result["html"]
 
     def test_execute_js(self, bc_with_driver):
+        # Task 13: execute_js now runs ONLY allowlisted scripts. A script
+        # from JS_SCRIPTS is executed; an arbitrary one is refused.
+        from jarvis.browser.js_scripts import JS_SCRIPTS
+
         bc, driver = bc_with_driver
         driver.execute_script.return_value = 42
-        result = bc.execute_js("return 42;")
+        result = bc.execute_js(JS_SCRIPTS["read_title"])
         assert result["success"] is True
         assert result["result"] == 42
+
+    def test_execute_js_refuses_arbitrary_script(self, bc_with_driver):
+        bc, driver = bc_with_driver
+        result = bc.execute_js("return 42;")  # not in the allowlist
+        assert result["success"] is False
+        assert result["error"] == "script not in allowlist"
 
     def test_quit(self, bc_with_driver):
         bc, driver = bc_with_driver

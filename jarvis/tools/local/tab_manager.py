@@ -18,6 +18,7 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.browser.browser_controller import UnsafeUrlError, _normalise_url
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -330,11 +331,18 @@ class DuplicateTabTool:
         url = driver.current_url
         if not url:
             return ToolResult(success=False, error="No URL in the current tab.")
-        # Open new tab with same URL via JavaScript
-        driver.execute_script(f"window.open('{url}', '_blank');")
-        # Switch to the new tab (last handle)
-        handles = driver.window_handles
-        driver.switch_to.window(handles[-1])
+        # Task 13: open the new tab through the Selenium API, never by
+        # interpolating the URL into a JS string (window.open('{url}') was a
+        # JS-injection vector: a URL with a quote / </script> breaks out).
+        # Validate with the SAME helper open_tab uses (http/https only).
+        try:
+            safe_url = _normalise_url(url)
+        except UnsafeUrlError as exc:
+            return ToolResult(
+                success=False, error=f"refusing to duplicate unsafe URL: {exc}"
+            )
+        driver.switch_to.new_window("tab")  # creates + focuses a new tab
+        driver.get(safe_url)
         return ToolResult(
             success=True,
             output=f"Duplicated tab: {url}",

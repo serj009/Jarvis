@@ -232,9 +232,12 @@ class ContentReaderTool:
             )
         try:
             import base64
+
+            from jarvis.browser.js_scripts import JS_SCRIPTS
+
             result = await asyncio.to_thread(
                 bc.execute_js,
-                "return document.title;",
+                JS_SCRIPTS["read_title"],
             )
             title = (result.get("result") or "page")[:50]
             safe_title = "".join(

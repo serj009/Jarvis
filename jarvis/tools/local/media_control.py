@@ -21,6 +21,7 @@ from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
+from jarvis.browser.js_scripts import JS_SCRIPTS
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -83,23 +84,17 @@ def _press_media_key(key_name: str) -> dict[str, Any]:
 # Selenium JS media control
 # ---------------------------------------------------------------------------
 
+# Task 13: media action -> allowlisted script. Values come from the single
+# JS_SCRIPTS registry (NOT duplicated literals) so execute_js's allowlist and
+# this table can never drift apart. Keys are the public `action` names.
 _JS_MEDIA_ACTIONS: dict[str, str] = {
-    "pause": "var m=document.querySelector('video,audio'); if(m) m.pause();",
-    "play": "var m=document.querySelector('video,audio'); if(m) m.play();",
-    "toggle": (
-        "var m=document.querySelector('video,audio');"
-        "if(m){m.paused?m.play():m.pause();return !m.paused;}"
-    ),
-    "fullscreen": "var v=document.querySelector('video'); if(v) v.requestFullscreen();",
-    "exit_fullscreen": "document.exitFullscreen();",
-    "skip_forward": (
-        "var m=document.querySelector('video,audio');"
-        "if(m) m.currentTime+=10;"
-    ),
-    "skip_backward": (
-        "var m=document.querySelector('video,audio');"
-        "if(m) m.currentTime-=10;"
-    ),
+    "pause": JS_SCRIPTS["media_pause"],
+    "play": JS_SCRIPTS["media_play"],
+    "toggle": JS_SCRIPTS["media_toggle"],
+    "fullscreen": JS_SCRIPTS["media_fullscreen"],
+    "exit_fullscreen": JS_SCRIPTS["media_exit_fullscreen"],
+    "skip_forward": JS_SCRIPTS["media_skip_forward"],
+    "skip_backward": JS_SCRIPTS["media_skip_backward"],
 }
 
 

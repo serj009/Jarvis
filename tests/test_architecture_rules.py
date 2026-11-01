@@ -51,6 +51,14 @@ _WINREG_ALLOWED = {
     Path("platform") / "registry.py",
 }
 
+# Task 13: the ONLY file allowed to pass a variable to execute_script — it is
+# browser_controller.execute_js, which calls driver.execute_script(script)
+# AFTER checking `script in ALLOWED_JS`. Everywhere else the first arg must be
+# a string literal or a JS_SCRIPTS[...] lookup.
+_JS_EXEC_ALLOWED = {
+    Path("browser") / "browser_controller.py",
+}
+
 # PySide6 is allowed anywhere under ui/ (relative to _JARVIS_ROOT).
 _PYSIDE_ALLOWED_DIR = Path("ui")
 
@@ -165,6 +173,47 @@ def _winreg_violations(tree: ast.AST) -> list[str]:
             low = node.value.lower()
             if low in {"advapi32", "advapi32.dll"}:
                 hits.append(f"line {node.lineno}: advapi32 library reference")
+    return hits
+
+
+# Task 13: JS execution must never receive a dynamically-built script.
+_JS_EXEC_METHODS = {"execute_js", "execute_script", "execute_async_script"}
+
+
+def _js_exec_violations(tree: ast.AST) -> list[str]:
+    """Flag execute_js / execute_script / execute_async_script calls whose
+    first argument is NOT a safe, static script source.
+
+    Allowed first arg: a string literal, or a subscript of the JS_SCRIPTS
+    registry (``JS_SCRIPTS["..."]``). Anything else — an f-string
+    (JoinedStr), concatenation (BinOp), ``.format(...)`` (Call), a bare
+    variable (Name), etc. — is a defense-in-depth violation: a dynamic
+    script must not reach the JS engine.
+    """
+    hits: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if not (isinstance(func, ast.Attribute) and func.attr in _JS_EXEC_METHODS):
+            continue
+        if not node.args:
+            continue
+        arg = node.args[0]
+        # OK: a plain string literal.
+        if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+            continue
+        # OK: JS_SCRIPTS[...] registry lookup.
+        if (
+            isinstance(arg, ast.Subscript)
+            and isinstance(arg.value, ast.Name)
+            and arg.value.id == "JS_SCRIPTS"
+        ):
+            continue
+        hits.append(
+            f"line {node.lineno}: {func.attr}(...) with a non-literal, "
+            f"non-JS_SCRIPTS first argument ({type(arg).__name__})"
+        )
     return hits
 
 
@@ -309,6 +358,55 @@ def test_winreg_allow_list_entries_exist() -> None:
     """Every winreg allow-listed file must exist (stale entries mask drift)."""
     missing = [str(rel) for rel in _WINREG_ALLOWED if not (_JARVIS_ROOT / rel).is_file()]
     assert not missing, f"stale _WINREG_ALLOWED entries (file missing): {missing}"
+
+
+def test_no_dynamic_js_execution() -> None:
+    """Task 13: execute_js / execute_script / execute_async_script must only
+    ever receive a string literal or a JS_SCRIPTS[...] lookup — never an
+    f-string, concatenation, .format(), or a bare variable. The sole
+    exception is browser_controller.execute_js, which forwards a variable to
+    driver.execute_script AFTER checking it against ALLOWED_JS."""
+    offenders: dict[str, list[str]] = {}
+    for path in _iter_python_files():
+        rel = _rel(path)
+        if rel in _JS_EXEC_ALLOWED:
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        hits = _js_exec_violations(tree)
+        if hits:
+            offenders[str(rel)] = hits
+
+    assert not offenders, (
+        "dynamic JavaScript execution found (route scripts through "
+        "jarvis/browser/js_scripts.py JS_SCRIPTS + execute_js allowlist):\n"
+        + "\n".join(
+            f"  {f}:\n" + "\n".join(f"    {h}" for h in hs)
+            for f, hs in sorted(offenders.items())
+        )
+    )
+
+
+def test_js_exec_rule_detects_violations() -> None:
+    """The JS-exec scanner flags dynamic scripts and passes safe ones."""
+    fstring = ast.parse('d.execute_script(f"window.open({url})")\n')
+    concat = ast.parse('d.execute_script("a" + payload)\n')
+    fmt = ast.parse('d.execute_script("x{}".format(y))\n')
+    variable = ast.parse("d.execute_script(script)\n")
+    literal = ast.parse('d.execute_script("return document.title;")\n')
+    registry = ast.parse('d.execute_js(JS_SCRIPTS["media_pause"])\n')
+
+    assert _js_exec_violations(fstring), "should flag an f-string script"
+    assert _js_exec_violations(concat), "should flag a concatenated script"
+    assert _js_exec_violations(fmt), "should flag a .format() script"
+    assert _js_exec_violations(variable), "should flag a bare variable script"
+    assert not _js_exec_violations(literal), "a string literal is allowed"
+    assert not _js_exec_violations(registry), "JS_SCRIPTS[...] is allowed"
+
+
+def test_js_exec_allow_list_entries_exist() -> None:
+    """Every JS-exec allow-listed file must exist (stale entry masks drift)."""
+    missing = [str(rel) for rel in _JS_EXEC_ALLOWED if not (_JARVIS_ROOT / rel).is_file()]
+    assert not missing, f"stale _JS_EXEC_ALLOWED entries (file missing): {missing}"
 
 
 def test_no_pyside_imports_outside_ui() -> None:

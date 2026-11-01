@@ -14,11 +14,28 @@ Simple mode ALWAYS works.  Advanced mode is opt-in and degrades gracefully.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import webbrowser
 from typing import Any
 
+from jarvis.browser.js_scripts import ALLOWED_JS
+
 log = logging.getLogger(__name__)
+
+
+def _caller_name() -> str:
+    """Best-effort caller identifier (module.function) for the execute_js
+    refusal log. Never raises; returns '?' if the stack can't be read. No
+    arguments or script text are ever captured — only names."""
+    import inspect
+
+    try:
+        # 0=this, 1=execute_js, 2=the external caller.
+        frame = inspect.stack()[2]
+        return f"{inspect.getmodulename(frame.filename) or '?'}.{frame.function}"
+    except Exception:
+        return "?"
 
 # ---------------------------------------------------------------------------
 # Lazy Selenium imports
@@ -271,9 +288,24 @@ class BrowserController:
     # -- Media (Selenium JS injection) --------------------------------
 
     def execute_js(self, script: str) -> dict[str, Any]:
-        """Run arbitrary JavaScript in the active tab."""
+        """Run ONE allowlisted JavaScript snippet in the active tab.
+
+        Defense-in-depth (Task 13): execute_js is internal-only, always
+        called with a fixed, code-authored script from js_scripts.JS_SCRIPTS.
+        Any script not in ALLOWED_JS (exact match) is refused — so even a
+        future bug that routed attacker-influenced JS here cannot run it.
+        """
         if not self._driver:
             return {"success": False, "error": "No browser control"}
+        if script not in ALLOWED_JS:
+            # Log the caller + a short hash, NEVER the script text itself.
+            digest = hashlib.sha256(script.encode("utf-8")).hexdigest()[:8]
+            log.warning(
+                "[browser] execute_js refused: script not in allowlist "
+                "(caller=%s, sha256=%s)",
+                _caller_name(), digest,
+            )
+            return {"success": False, "error": "script not in allowlist"}
         try:
             result = self._driver.execute_script(script)
             return {"success": True, "result": result}

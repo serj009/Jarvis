@@ -266,3 +266,59 @@ class TestDuplicateTab:
         tool = DuplicateTabTool()
         result = await tool.execute(DuplicateTabArgs())
         assert not result.success
+
+    @pytest.mark.asyncio
+    async def test_duplicate_uses_new_window_and_get_not_js(self):
+        """Task 13: _dup must open via switch_to.new_window + get(url), never
+        by interpolating the URL into execute_script."""
+        bc = MagicMock()
+        bc.driver_active = True
+        driver = MagicMock()
+        type(driver).current_url = PropertyMock(return_value="https://youtube.com")
+        bc.driver = driver
+        with patch("jarvis.tools.local.tab_manager._get_browser", return_value=bc):
+            result = await DuplicateTabTool().execute(DuplicateTabArgs())
+        assert result.success
+        driver.switch_to.new_window.assert_called_once_with("tab")
+        driver.get.assert_called_once_with("https://youtube.com")
+        driver.execute_script.assert_not_called()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "bad_url",
+        [
+            "javascript:alert(1)",
+            "data:text/html,<script>alert(1)</script>",
+            "file:///C:/Windows",
+            "vbscript:msgbox",
+        ],
+    )
+    async def test_duplicate_rejects_dangerous_url(self, bad_url):
+        """A dangerous current_url is refused — never navigated, never JS."""
+        bc = MagicMock()
+        bc.driver_active = True
+        driver = MagicMock()
+        type(driver).current_url = PropertyMock(return_value=bad_url)
+        bc.driver = driver
+        with patch("jarvis.tools.local.tab_manager._get_browser", return_value=bc):
+            result = await DuplicateTabTool().execute(DuplicateTabArgs())
+        assert not result.success
+        driver.get.assert_not_called()
+        driver.execute_script.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_duplicate_url_with_quote_not_interpreted_as_js(self):
+        """A URL with a quote / </script> cannot break out: it's passed to
+        get() as opaque data (and https-normalised), not built into JS."""
+        bc = MagicMock()
+        bc.driver_active = True
+        driver = MagicMock()
+        hostile = "https://evil.com/'); alert(1);//</script>"
+        type(driver).current_url = PropertyMock(return_value=hostile)
+        bc.driver = driver
+        with patch("jarvis.tools.local.tab_manager._get_browser", return_value=bc):
+            result = await DuplicateTabTool().execute(DuplicateTabArgs())
+        assert result.success  # https scheme is allowed
+        driver.execute_script.assert_not_called()
+        # passed verbatim to get() as data, never concatenated into a script
+        driver.get.assert_called_once_with(hostile)
