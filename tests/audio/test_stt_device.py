@@ -21,6 +21,7 @@ from jarvis.audio.stt import (
     _downloaded_model_sizes,
     _has_nvidia_gpu,
     _resolve_model_id,
+    recommend_whisper_model,
 )
 
 
@@ -242,6 +243,62 @@ def test_auto_on_cuda_nothing_better_keeps_current_with_hint(
         chosen = _auto_select_model("small", "cuda", tmp_path)
     assert chosen == "small"
     assert any("download" in r.message.lower() for r in caplog.records)
+
+
+# --- recommend_whisper_model (doctor STT hint, Task 14) ---------------
+# Reuses the SAME model list / VRAM budget as _auto_select_model, so these
+# assert the advisory behaviour, not re-invented thresholds.
+
+
+def test_recommend_suggests_medium_when_only_small_downloaded(tmp_path):
+    _make_whisper_cache(tmp_path, "small")
+    rec = recommend_whisper_model(tmp_path, free_mb=7000)
+    assert rec is not None
+    assert rec["recommended"] == "medium"
+    assert rec["recommended_vram_mb"] == 2600
+    assert rec["downloaded"] == ["small"]
+    assert rec["free_mb"] == 7000
+    assert "setup_jarvis.step_whisper('medium')" in rec["download_cmd"]
+
+
+def test_recommend_silent_when_best_already_downloaded(tmp_path):
+    # small + medium present and medium fits → optimal, nothing to suggest.
+    _make_whisper_cache(tmp_path, "small", "medium")
+    assert recommend_whisper_model(tmp_path, free_mb=7000) is None
+
+
+def test_recommend_silent_when_no_gpu_vram(tmp_path):
+    # nvidia-smi unavailable → free VRAM unknown → no recommendation.
+    _make_whisper_cache(tmp_path, "small")
+    assert recommend_whisper_model(tmp_path, free_mb=None) is None
+
+
+def test_recommend_silent_when_nothing_downloaded(tmp_path):
+    assert recommend_whisper_model(tmp_path, free_mb=7000) is None
+
+
+def test_recommend_respects_tight_vram_budget(tmp_path):
+    # Only ~1500 MB free: 'small' (1200) fits but 'medium' (2600) does not;
+    # only 'base' downloaded → recommend 'small'.
+    _make_whisper_cache(tmp_path, "base")
+    rec = recommend_whisper_model(tmp_path, free_mb=1500)
+    assert rec is not None
+    assert rec["recommended"] == "small"
+    assert rec["downloaded"] == ["base"]
+
+
+def test_recommend_silent_when_not_even_tiny_fits(tmp_path):
+    _make_whisper_cache(tmp_path, "tiny")
+    assert recommend_whisper_model(tmp_path, free_mb=300) is None
+
+
+def test_recommend_reads_vram_via_nvidia_smi_when_not_passed(
+        monkeypatch, tmp_path):
+    # free_mb omitted → helper must call _free_vram_mb() itself.
+    _make_whisper_cache(tmp_path, "small")
+    monkeypatch.setattr("jarvis.audio.stt._free_vram_mb", lambda: 7000)
+    rec = recommend_whisper_model(tmp_path)
+    assert rec is not None and rec["recommended"] == "medium"
 
 
 def test_explicit_size_is_never_auto(monkeypatch):

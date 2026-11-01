@@ -289,6 +289,27 @@ def check_stt(configured_device: str) -> CheckResult:
     have_model = model_root is not None and model_root.is_dir()
     model_state = "present" if have_model else "not downloaded"
 
+    # When CUDA is in use and only smaller models are downloaded, add an
+    # INFO-level hint (never WARN) recommending the best model that fits the
+    # measured free VRAM. Thresholds/model list come straight from stt.py
+    # (_AUTO_MODEL_PREFERENCE / _MODEL_VRAM_MB) — nothing is invented here.
+    model_hint = ""
+    if resolved == "cuda" and have_model:
+        try:
+            from jarvis.audio.stt import recommend_whisper_model
+
+            rec = recommend_whisper_model(model_root)
+        except Exception:  # pragma: no cover - defensive
+            rec = None
+        if rec:
+            downloaded = ", ".join(rec["downloaded"]) or "none"  # type: ignore[arg-type]
+            model_hint = (
+                f"; recommended by free VRAM ({rec['free_mb']} MB): "
+                f"'{rec['recommended']}' (~{rec['recommended_vram_mb']} MB), "
+                f"downloaded: {downloaded}; "
+                f"get it with: {rec['download_cmd']}"
+            )
+
     # If CUDA is the intended device, verify the libraries really load.
     cuda_detail = ""
     cuda_broken = False
@@ -309,7 +330,7 @@ def check_stt(configured_device: str) -> CheckResult:
 
     detail = (
         f"device={resolved} (configured {configured_device!r}), "
-        f"model={model_state}{cuda_detail}"
+        f"model={model_state}{cuda_detail}{model_hint}"
     )
     if cuda_broken:
         return CheckResult("STT", WARN, detail,

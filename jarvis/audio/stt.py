@@ -272,6 +272,72 @@ def _auto_select_model(current: str, device: str,
     return current
 
 
+def recommend_whisper_model(
+    download_root: Path | None,
+    *,
+    free_mb: int | None = None,
+) -> dict[str, object] | None:
+    """Advisory: suggest a better-fitting Whisper model for the current GPU.
+
+    Pure, read-only, and side-effect free — intended for the ``--doctor``
+    STT check. Reuses the SAME model list and VRAM budget as
+    :func:`_auto_select_model` (``_AUTO_MODEL_PREFERENCE`` /
+    ``_MODEL_VRAM_MB``) so the numbers are never duplicated or invented.
+
+    Returns ``None`` when there is nothing useful to suggest:
+      * free VRAM is unknown (``nvidia-smi`` unavailable) — we never guess a
+        recommendation without a real budget;
+      * no models are downloaded yet (first-use download covers that);
+      * the best model that fits free VRAM is ALREADY downloaded (the setup
+        is optimal — stay quiet).
+
+    Otherwise returns a dict describing the recommendation::
+
+        {
+          "recommended": "medium",         # best size that fits free VRAM
+          "recommended_vram_mb": 2600,     # its budget from _MODEL_VRAM_MB
+          "downloaded": ["base", "small"], # already present, best-first
+          "free_mb": 7000,                 # measured free VRAM
+          "download_cmd": 'python -c "import setup_jarvis; '
+                          "print(setup_jarvis.step_whisper('medium'))\"",
+        }
+    """
+    if free_mb is None:
+        free_mb = _free_vram_mb()
+    if free_mb is None:
+        return None
+
+    downloaded = _downloaded_model_sizes(download_root)
+    if not downloaded:
+        return None
+
+    # Best model (most capable first) that fits the measured free VRAM.
+    best_fit: str | None = None
+    for size in _AUTO_MODEL_PREFERENCE:
+        if free_mb >= _MODEL_VRAM_MB.get(size, 1500):
+            best_fit = size
+            break
+    if best_fit is None:
+        return None  # not even the smallest model fits — nothing to suggest
+
+    # If the best-fitting model is already downloaded, the setup is optimal.
+    if best_fit in downloaded:
+        return None
+
+    downloaded_ordered = [s for s in _AUTO_MODEL_PREFERENCE if s in downloaded]
+    download_cmd = (
+        'python -c "import setup_jarvis; '
+        f"print(setup_jarvis.step_whisper('{best_fit}'))\""
+    )
+    return {
+        "recommended": best_fit,
+        "recommended_vram_mb": _MODEL_VRAM_MB.get(best_fit, 1500),
+        "downloaded": downloaded_ordered,
+        "free_mb": free_mb,
+        "download_cmd": download_cmd,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Confidence scoring (T2.4)
 # ---------------------------------------------------------------------------

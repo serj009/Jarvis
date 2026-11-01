@@ -305,6 +305,76 @@ def test_stt_pass_when_cuda_loads(monkeypatch):
     assert "CUDA libraries load OK" in r.detail
 
 
+def _patch_stt_cuda_present(monkeypatch, tmp_path):
+    """Resolve device=cuda, model dir present, CUDA libs load OK."""
+    import jarvis.audio.stt as stt_mod
+    monkeypatch.setattr(stt_mod.FasterWhisperSTT, "_resolve_device",
+                        staticmethod(lambda d: "cuda"))
+    import jarvis.paths as paths_mod
+    monkeypatch.setattr(paths_mod, "default_whisper_download_root",
+                        lambda: tmp_path)
+    import jarvis.platform.cuda_dlls as cd
+    monkeypatch.setattr(cd, "probe_cuda_libraries",
+                        lambda: (True, "cublas64_12.dll loaded"))
+    return stt_mod
+
+
+def test_stt_hint_recommends_bigger_model_when_only_small_downloaded(
+        monkeypatch, tmp_path):
+    """CUDA + only 'small' downloaded + ample free VRAM → INFO hint for medium,
+    PASS status unchanged (never WARN)."""
+    stt_mod = _patch_stt_cuda_present(monkeypatch, tmp_path)
+    # Simulate a downloaded 'small' model in the huggingface layout.
+    (tmp_path / "models--Systran--faster-whisper-small").mkdir()
+    monkeypatch.setattr(stt_mod, "_free_vram_mb", lambda: 7000)
+
+    r = doctor.check_stt("cuda")
+    assert r.status == PASS  # hint is INFO-only, must not downgrade status
+    assert "recommended by free VRAM" in r.detail
+    assert "'medium'" in r.detail
+    assert "downloaded: small" in r.detail
+    assert "setup_jarvis.step_whisper('medium')" in r.detail
+
+
+def test_stt_hint_silent_when_best_model_already_downloaded(
+        monkeypatch, tmp_path):
+    """CUDA + 'small'+'medium' downloaded + VRAM fits medium → no hint."""
+    stt_mod = _patch_stt_cuda_present(monkeypatch, tmp_path)
+    (tmp_path / "models--Systran--faster-whisper-small").mkdir()
+    (tmp_path / "models--Systran--faster-whisper-medium").mkdir()
+    monkeypatch.setattr(stt_mod, "_free_vram_mb", lambda: 7000)
+
+    r = doctor.check_stt("cuda")
+    assert r.status == PASS
+    assert "recommended by free VRAM" not in r.detail
+
+
+def test_stt_hint_silent_when_vram_unknown(monkeypatch, tmp_path):
+    """CUDA + 'small' downloaded but nvidia-smi unavailable → no hint."""
+    stt_mod = _patch_stt_cuda_present(monkeypatch, tmp_path)
+    (tmp_path / "models--Systran--faster-whisper-small").mkdir()
+    monkeypatch.setattr(stt_mod, "_free_vram_mb", lambda: None)
+
+    r = doctor.check_stt("cuda")
+    assert r.status == PASS
+    assert "recommended by free VRAM" not in r.detail
+
+
+def test_stt_hint_absent_on_cpu(monkeypatch, tmp_path):
+    """device=cpu → the VRAM hint path is never taken."""
+    import jarvis.audio.stt as stt_mod
+    monkeypatch.setattr(stt_mod.FasterWhisperSTT, "_resolve_device",
+                        staticmethod(lambda d: "cpu"))
+    import jarvis.paths as paths_mod
+    monkeypatch.setattr(paths_mod, "default_whisper_download_root",
+                        lambda: tmp_path)
+    (tmp_path / "models--Systran--faster-whisper-small").mkdir()
+    monkeypatch.setattr(stt_mod, "_free_vram_mb", lambda: 7000)
+
+    r = doctor.check_stt("cpu")
+    assert "recommended by free VRAM" not in r.detail
+
+
 def test_wakeword_vad_uses_runtime_silero(monkeypatch, tmp_path):
     """Silero found via the runtime site-packages resolver (vad._find_silero_onnx)."""
     onnx = tmp_path / "silero_vad.onnx"
