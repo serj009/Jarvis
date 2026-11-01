@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-import pytest
-
 from jarvis.platform.game_launchers import Game, Launcher, LaunchKind, LaunchSpec
 from jarvis.tools.local.launch_game import LaunchGameArgs, LaunchGameTool
 

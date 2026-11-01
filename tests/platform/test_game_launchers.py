@@ -16,6 +16,7 @@ from jarvis.platform.game_launchers import (
     Launcher,
     LaunchKind,
     SteamGamesSource,
+    _sources_in_priority_order,
     build_epic_uri,
     index_games,
     parse_epic_manifest,
@@ -23,7 +24,6 @@ from jarvis.platform.game_launchers import (
     scan_gog_games,
     steam_game_to_game,
 )
-from jarvis.platform.game_launchers import _sources_in_priority_order
 from jarvis.platform.registry import HKLM
 
 # --- build_epic_uri ------------------------------------------------------
