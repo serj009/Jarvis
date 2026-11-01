@@ -195,7 +195,8 @@ class TestIntegrationAuth:
 
     def test_build_auth_url(self, tmp_path):
         auth = self._auth(tmp_path)
-        url = auth.build_auth_url(
+        # Task 11: build_auth_url now returns (url, state) for CSRF.
+        url, state = auth.build_auth_url(
             "https://accounts.google.com/o/oauth2/v2/auth",
             client_id="cid", redirect_uri="http://localhost:8765",
             scopes=["email", "profile"],
@@ -203,6 +204,9 @@ class TestIntegrationAuth:
         assert url.startswith("https://accounts.google.com")
         assert "client_id=cid" in url
         assert "scope=email+profile" in url
+        # a fresh, sufficiently long state is embedded in the URL
+        assert state and len(state) >= 32
+        assert f"state={state}" in url
 
     def test_credentials_encrypted_at_rest(self, tmp_path):
         """The raw file must not contain the plaintext secret (DPAPI).
