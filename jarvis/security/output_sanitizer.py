@@ -318,6 +318,51 @@ class OutputSanitizer:
 
         return cleaned
 
+    # ---- 3b. External content stripping, with removal stats -----------
+
+    def sanitize_external_content_verbose(
+        self, content: str, source: str,
+    ) -> tuple[str, int, tuple[str, ...]]:
+        """Like sanitize_external_content but also report what was removed.
+
+        Returns ``(cleaned, removed_count, categories)`` where
+        ``removed_count`` is the number of removed spans (zero-width runs +
+        HTML-comment injections + injection lines) and ``categories`` is the
+        sorted tuple of category labels that fired
+        (``zero_width`` / ``html_comment`` / ``injection_line``). No content
+        is logged here — the caller decides what to log."""
+        if not content:
+            return content, 0, ()
+
+        categories: set[str] = set()
+        removed = 0
+
+        cleaned, n_zw = _ZERO_WIDTH_CHARS.subn("", content)
+        if n_zw:
+            removed += n_zw
+            categories.add("zero_width")
+
+        cleaned, n_html = _HTML_COMMENT_INJECTION.subn("", cleaned)
+        if n_html:
+            removed += n_html
+            categories.add("html_comment")
+
+        lines: list[str] = []
+        for line in cleaned.split("\n"):
+            hit = False
+            for _label, pattern in INJECTION_PATTERNS:
+                if pattern.search(line):
+                    hit = True
+                    break
+            if hit:
+                removed += 1
+                categories.add("injection_line")
+            else:
+                lines.append(line)
+        cleaned = "\n".join(lines)
+
+        return cleaned, removed, tuple(sorted(categories))
+
     # ---- 4. Tool-chain analysis ---------------------------------------
 
     def check_tool_chain(
@@ -398,3 +443,25 @@ def clean_external_text(content: str, source: str) -> str:
             source, exc_info=True,
         )
         return content
+
+
+def clean_external_text_verbose(
+    content: str, source: str,
+) -> tuple[str, int, tuple[str, ...]]:
+    """Like clean_external_text but also report removal stats.
+
+    Returns ``(cleaned, removed_count, categories)``. Fail-open: on any
+    unexpected error returns ``(content, 0, ())`` — never drops content and
+    never raises. Used by the router (Task 10A) to sanitize untrusted tool
+    output for the LLM copy and log ``[sanitize] tool:NAME removed N spans``.
+    """
+    if not content:
+        return content, 0, ()
+    try:
+        return _SHARED_SANITIZER.sanitize_external_content_verbose(content, source)
+    except Exception:  # pragma: no cover - defensive
+        log.debug(
+            "[output-sanitizer] verbose external-content clean failed for %s",
+            source, exc_info=True,
+        )
+        return content, 0, ()

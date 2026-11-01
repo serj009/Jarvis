@@ -250,6 +250,11 @@ class MCPTool:
     decision is the user's, per server, and it defaults to off."""
 
     requires_confirmation: bool = False
+    # Task 10A: an MCP server is an external, user-configured, unreviewed
+    # source — its tool results are untrusted. Flagged so the router
+    # sanitizes + wraps them in <untrusted_content> for the LLM copy
+    # (replaces the inline clean on the result path below).
+    returns_untrusted_content: bool = True
 
     def __init__(
         self,
@@ -410,13 +415,10 @@ def _translate_call_result(result: Any) -> ToolResult:
     joined = "\n".join(texts).strip()
     if getattr(result, "isError", False):
         return ToolResult(success=False, error=joined or "tool reported an error")
-    # Security Layer 3: an MCP server is an external, untrusted source.
-    # Strip prompt-injection payloads from its response before the text
-    # enters the LLM context.
-    if joined:
-        from jarvis.security.output_sanitizer import clean_external_text
-
-        joined = clean_external_text(joined, source="mcp")
+    # Task 10A: the MCP result is untrusted, but it reaches the model only
+    # through the router, which sanitizes + wraps it centrally because
+    # MCPTool.returns_untrusted_content is True. (The tool *description* is a
+    # separate path and is still sanitised inline above.) Output stays raw.
     return ToolResult(success=True, output=joined or "")
 
 

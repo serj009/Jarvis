@@ -189,11 +189,11 @@ class ContentReaderTool:
         text, err = await asyncio.to_thread(self._fetch_text, url)
         if err:
             return ToolResult(success=False, error=err)
-        # Security Layer 3: strip prompt-injection payloads from the fetched
-        # page BEFORE its text enters the LLM context via this tool's output.
-        from jarvis.security.output_sanitizer import clean_external_text
-
-        text = clean_external_text(text, source=f"content_reader:{url}")
+        # Task 10A: untrusted web content, consumed only through the router
+        # (result.output -> LLM copy), so the central sanitize+wrap in
+        # intent_router handles it. content_reader is flagged
+        # returns_untrusted_content=True. No inline sanitising here — avoids
+        # double work and keeps output raw for the user path (condition 1).
         preview = text[:500] + ("…" if len(text) > 500 else "")
         return ToolResult(
             success=True,
