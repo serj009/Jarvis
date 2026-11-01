@@ -116,6 +116,61 @@ INJECTION_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
      re.compile(r"act\s+as\s+(?:if|though)\s+", re.IGNORECASE)),
     ("disregard",
      re.compile(r"disregard\s+(?:all|previous|your)\s+", re.IGNORECASE)),
+    # ------------------------------------------------------------------
+    # Task 10B: Russian / Ukrainian injection patterns. External content
+    # Jarvis ingests is frequently RU/UK (the user's languages), so the
+    # English-only bank above missed the most likely payloads. Each mirrors
+    # an English rule. re.IGNORECASE covers Cyrillic case too.
+    # ------------------------------------------------------------------
+    # "игнорируй (все) предыдущие инструкции" / UK "ігноруй (всі) попередні
+    # інструкції/вказівки"
+    ("ignore_previous_ru",
+     re.compile(r"игнорир(?:уй|овать)\s+(?:все\s+)?предыдущ\w+\s+инструкц\w+",
+                re.IGNORECASE)),
+    ("ignore_previous_uk",
+     re.compile(r"ігнор(?:уй|увати)\s+(?:всі\s+)?попередн\w+\s+"
+                r"(?:інструкц\w+|вказівк\w+)", re.IGNORECASE)),
+    # "забудь (все) предыдущие инструкции/правила" / UK "забудь ... попередні"
+    ("forget_previous_ru",
+     re.compile(r"забудь\s+(?:все\s+|всё\s+)?(?:предыдущ\w+\s+)?"
+                r"(?:инструкц\w+|правил\w+|контекст)", re.IGNORECASE)),
+    ("forget_previous_uk",
+     re.compile(r"забудь\s+(?:всі\s+)?(?:попередн\w+\s+)?"
+                r"(?:інструкц\w+|правил\w+|контекст)", re.IGNORECASE)),
+    # "ты теперь ..." / UK "ти тепер ..."
+    ("role_switch_ru",
+     re.compile(r"ты\s+теперь\s+", re.IGNORECASE)),
+    ("role_switch_uk",
+     re.compile(r"ти\s+тепер\s+", re.IGNORECASE)),
+    # "новая роль:" / UK "нова роль:"
+    ("new_role_ru",
+     re.compile(r"нов(?:ая|а)\s+роль\s*:", re.IGNORECASE)),
+    # "системный промпт:" / UK "системний промпт:"
+    ("system_prompt_ru",
+     re.compile(r"систем(?:ный|ний)\s+промпт\s*:", re.IGNORECASE)),
+    # "притворись / притворить / прикинься" / UK "удай (із себе) / прикинься"
+    ("pretend_ru",
+     re.compile(r"(?:притвор(?:ись|и́сь|яйся)|прикинься)\s+", re.IGNORECASE)),
+    ("pretend_uk",
+     re.compile(r"(?:удай|прикинься)\s+", re.IGNORECASE)),
+    # "веди себя как / действуй как" / UK "поводься як / дій як"
+    ("act_as_ru",
+     re.compile(r"(?:веди\s+себя|действуй)\s+как\s+", re.IGNORECASE)),
+    ("act_as_uk",
+     re.compile(r"(?:поводься|дій)\s+як\s+", re.IGNORECASE)),
+    # "не следуй (своим/этим) правилам/инструкциям" / UK "не дотримуйся ..."
+    ("do_not_follow_ru",
+     re.compile(r"не\s+следуй\s+(?:сво\w+\s+|эт\w+\s+)?(?:правил\w*|инструкц\w*)",
+                re.IGNORECASE)),
+    ("do_not_follow_uk",
+     re.compile(r"не\s+(?:дотримуйся|виконуй)\s+(?:сво\w+\s+|ц\w+\s+)?"
+                r"(?:правил\w*|інструкц\w*)", re.IGNORECASE)),
+    # "обход(и) (защиту/безопасность/правила)" / UK "обійди (захист/правила)"
+    ("override_ru",
+     re.compile(r"обойд\w+\s+(?:защит\w*|безопасност\w*|правил\w*)",
+                re.IGNORECASE)),
+    ("override_uk",
+     re.compile(r"обійд\w+\s+(?:захист\w*|безпек\w*|правил\w*)", re.IGNORECASE)),
 ]
 
 # Suspicious tool-call chain definitions.

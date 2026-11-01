@@ -185,7 +185,11 @@ def test_clean_external_text_empty_is_noop():
 
 @pytest.mark.asyncio
 async def test_content_reader_sanitizes_page(monkeypatch):
-    """content_reader.read_page strips injection from fetched text."""
+    """Task 10A: content_reader no longer sanitises inline — its raw output
+    keeps the fetched text verbatim (user-facing path), and the injection is
+    stripped centrally on the LLM-bound copy (_result_for_model_wrapped),
+    because content_reader is flagged returns_untrusted_content=True."""
+    from jarvis.llm.intent_router import _result_for_model_wrapped
     from jarvis.tools.local import content_reader as cr
 
     tool = cr.ContentReaderTool()
@@ -201,5 +205,12 @@ async def test_content_reader_sanitizes_page(monkeypatch):
         cr.ContentReaderArgs(action="read_page", url="http://example.com")
     )
     assert result.success
-    assert "ignore previous instructions" not in (result.output or "")
+    # Raw output (user path) keeps the text as fetched — no inline strip.
     assert "Real article text" in (result.output or "")
+
+    # LLM-bound copy is sanitised AND wrapped: the injection line is gone,
+    # the real text survives, inside an <untrusted_content> block.
+    model_text = _result_for_model_wrapped(result, tool)
+    assert "<untrusted_content" in model_text
+    assert "ignore previous instructions" not in model_text
+    assert "Real article text" in model_text

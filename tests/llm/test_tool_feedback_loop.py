@@ -305,9 +305,15 @@ async def test_dict_tool_output_reaches_model_as_json():
     await _collect(router.route("list my downloads and find the invoice"))
 
     tool_msg = next(m for m in llm.seen_messages[1] if m.get("role") == "tool")
-    assert json.loads(tool_msg["content"]) == {
-        "files": ["invoice.pdf", "cat.png"]
-    }
+    # Task 10A: list_directory is untrusted, so its output reaches the model
+    # wrapped in <untrusted_content>. The dict is still serialised as JSON
+    # (not collapsed) — just inside the wrapper. Extract and parse it.
+    content = tool_msg["content"]
+    assert "<untrusted_content" in content
+    start = content.index(">", content.index("<untrusted_content")) + 1
+    end = content.index("</untrusted_content>")
+    inner = content[start:end].strip()
+    assert json.loads(inner) == {"files": ["invoice.pdf", "cat.png"]}
 
 
 async def test_tool_failure_is_reported_to_the_model():
