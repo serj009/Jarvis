@@ -118,6 +118,7 @@ def setup_local_tools(
     # Image generation
     from jarvis.tools.local.image_gen_tool import ImageGenTool
     from jarvis.tools.local.image_scraper import ScrapeImagesTool
+    from jarvis.tools.local.launch_game import LaunchGameTool
     from jarvis.tools.local.launch_steam_game import LaunchSteamGameTool
     from jarvis.tools.local.launch_workspace import LaunchWorkspaceTool
     from jarvis.tools.local.learn_alias import LearnAliasTool
@@ -346,6 +347,7 @@ def setup_local_tools(
         ),
         LearnAliasTool(personal_aliases=personal_aliases),
         OpenUrlTool(),
+        LaunchGameTool(launcher_priority=tools_cfg.launcher_priority),
         LaunchSteamGameTool(),
         LaunchWorkspaceTool(workspace_apps=workspace_apps),
         PlayYoutubeMusicTool(),

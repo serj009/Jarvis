@@ -15,12 +15,15 @@ from jarvis.platform.game_launchers import (
     GogGamesSource,
     Launcher,
     LaunchKind,
+    SteamGamesSource,
     build_epic_uri,
     index_games,
     parse_epic_manifest,
     parse_gog_game_values,
     scan_gog_games,
+    steam_game_to_game,
 )
+from jarvis.platform.game_launchers import _sources_in_priority_order
 from jarvis.platform.registry import HKLM
 
 # --- build_epic_uri ------------------------------------------------------
@@ -321,3 +324,61 @@ def test_gog_games_indexed_alongside_epic():
     assert "alan wake 2" in index
     assert "gwent" in index
     assert index["gwent"].launcher is Launcher.GOG
+
+
+# --- Steam source adapter + launcher priority (Task 8c commit 4) --------
+
+
+class _FakeSteamGame:
+    def __init__(self, name: str, app_id: int):
+        self.name = name
+        self.app_id = app_id
+
+
+def test_steam_game_to_game_builds_run_uri():
+    game = steam_game_to_game("Portal 2", 620)
+    assert game is not None
+    assert game.launcher is Launcher.STEAM
+    assert game.launch_spec.kind is LaunchKind.URI
+    assert game.launch_spec.uri == "steam://run/620"
+
+
+def test_steam_game_to_game_rejects_empty_name():
+    assert steam_game_to_game("", 620) is None
+    assert steam_game_to_game("  \x00 ", 620) is None
+
+
+def test_steam_source_adapts_injected_map():
+    games_map = {
+        "elden ring": _FakeSteamGame("Elden Ring", 1245620),
+        "portal 2": _FakeSteamGame("Portal 2", 620),
+    }
+    source = SteamGamesSource(games=games_map)
+    games = source.scan()
+    names = sorted(g.name for g in games)
+    assert names == ["Elden Ring", "Portal 2"]
+    assert all(g.launcher is Launcher.STEAM for g in games)
+
+
+def test_launcher_priority_order_default_and_custom():
+    default = [type(s).__name__ for s in _sources_in_priority_order(None)]
+    assert default == ["SteamGamesSource", "EpicGamesSource", "GogGamesSource"]
+    custom = [type(s).__name__ for s in _sources_in_priority_order(["epic", "gog", "steam"])]
+    assert custom == ["EpicGamesSource", "GogGamesSource", "SteamGamesSource"]
+
+
+def test_launcher_priority_appends_missing_launchers():
+    """A priority list that omits a launcher still includes it (appended in
+    default order) so a typo can't silently drop a source."""
+    order = [type(s).__name__ for s in _sources_in_priority_order(["epic"])]
+    assert set(order) == {"SteamGamesSource", "EpicGamesSource", "GogGamesSource"}
+    assert order[0] == "EpicGamesSource"
+
+
+def test_multi_launcher_title_resolves_by_priority():
+    """Same title in Steam and Epic: Steam wins by default priority
+    (first-writer-wins in index_games with sources in priority order)."""
+    steam = _FakeSource(Launcher.STEAM, [_uri_game("Portal", Launcher.STEAM)])
+    epic = _FakeSource(Launcher.EPIC, [_uri_game("Portal", Launcher.EPIC)])
+    index = index_games([steam, epic])
+    assert index["portal"].launcher is Launcher.STEAM

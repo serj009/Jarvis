@@ -139,7 +139,7 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
     },
     "media": {
         "tools": [
-            "play_youtube_music", "launch_steam_game", "volume",
+            "play_youtube_music", "launch_steam_game", "launch_game", "volume",
         ],
         "keywords_en": [
             "play", "music", "song", "game", "steam", "youtube",

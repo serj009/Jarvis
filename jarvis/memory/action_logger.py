@@ -32,6 +32,7 @@ _ACTION_TEMPLATES: dict[str, str] = {
     "close_app": "Closed {app_name}",
     "play_youtube_music": "Played music: {query}",
     "launch_steam_game": "Launched game: {game_name} on Steam",
+    "launch_game": "Launched game: {game_name}",
     "open_url": "Searched for: {query}",
     "get_weather": "Checked weather",
     "screenshot": "Took a screenshot",

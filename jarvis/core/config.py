@@ -65,7 +65,8 @@ DEFAULT_SYSTEM_PROMPT = (
     "\n"
     "PLAY disambiguation:\n"
     "- Music (song, artist, genre, 'поставь музыку'): play_youtube_music\n"
-    "- Video game (Steam, 'запусти игру'): launch_steam_game\n"
+    "- Video game ('запусти игру', any launcher): launch_game; use "
+    "launch_steam_game only when the user explicitly says Steam\n"
     "- Desktop app ('открой программу', browser, editor): open_app\n"
     "- Workspace ('open my workspace'): launch_workspace\n"
     "\n"
@@ -290,6 +291,13 @@ class ToolsConfig(_Base):
     # a re-ask).
     open_app_match_cutoff: float = Field(default=0.55, ge=0.0, le=1.0)
     open_app_suggest_floor: float = Field(default=0.35, ge=0.0, le=1.0)
+
+    # Task 8c: when the same game title is installed in more than one
+    # launcher, launch_game picks the first launcher in this order that has
+    # it installed, and Jarvis announces which one ("Launching X via Epic").
+    launcher_priority: list[str] = Field(
+        default_factory=lambda: ["steam", "epic", "gog"]
+    )
 
 
 class HotkeysConfig(_Base):

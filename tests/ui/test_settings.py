@@ -400,6 +400,7 @@ def test_tools_tab_populates_checkboxes_for_phase_4_set(qapp):
         "get_weather",
         "git_tool",
         "heavy_processes",
+        "launch_game",
         "launch_steam_game",
         "launch_workspace",
         "list_directory",

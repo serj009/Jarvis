@@ -361,6 +361,56 @@ class GogGamesSource:
             return []
 
 
+# --- Steam (adapter over the existing appmanifest parser) ----------------
+
+
+def steam_game_to_game(name: str, app_id: int) -> Game | None:
+    """Adapt a parsed Steam library title into a unified Game.
+
+    Launch is the steam://run/<id> protocol URI (same handler
+    launch_steam_game uses). app_id is an int so the URI carries no
+    injectable text; _clean_title guards the display name."""
+    clean = _clean_title(name)
+    if not clean:
+        return None
+    try:
+        aid = int(app_id)
+    except (TypeError, ValueError):
+        return None
+    return Game(
+        name=clean,
+        launcher=Launcher.STEAM,
+        launch_spec=LaunchSpec(kind=LaunchKind.URI, uri=f"steam://run/{aid}"),
+    )
+
+
+class SteamGamesSource:
+    """Discover installed Steam games, reusing the existing appmanifest
+    parser in windows_apps (no duplication). Steam becomes one source in
+    the unified index so launch_game finds Steam titles too."""
+
+    launcher = Launcher.STEAM
+
+    def __init__(
+        self, games: dict[str, object] | None = None
+    ) -> None:
+        # Injectable for tests: a pre-built {norm_name: SteamGame} map.
+        self._games = games
+
+    def scan(self) -> list[Game]:
+        games_map = self._games
+        if games_map is None:
+            from jarvis.platform.windows_apps import scan_steam_games
+
+            games_map = scan_steam_games()
+        out: list[Game] = []
+        for sg in games_map.values():
+            game = steam_game_to_game(sg.name, sg.app_id)
+            if game is not None:
+                out.append(game)
+        return out
+
+
 def index_games(sources: Iterable[GameSource]) -> dict[str, Game]:
     """Build a normalized-title -> Game index across sources.
 
@@ -379,3 +429,67 @@ def index_games(sources: Iterable[GameSource]) -> dict[str, Game]:
             if key and key not in index:
                 index[key] = game
     return index
+
+
+# --- priority-ordered assembly + launch ---------------------------------
+
+_DEFAULT_LAUNCHER_PRIORITY = ("steam", "epic", "gog")
+
+
+def _sources_in_priority_order(
+    priority: list[str] | tuple[str, ...] | None,
+) -> list[GameSource]:
+    """Build the source list ordered by launcher priority.
+
+    first-writer-wins in index_games then resolves a multi-launcher title
+    to the highest-priority launcher that has it. Unknown names in the
+    priority list are ignored; missing ones are appended in default order
+    so a typo can't silently drop a launcher."""
+    order = list(priority) if priority else list(_DEFAULT_LAUNCHER_PRIORITY)
+    for name in _DEFAULT_LAUNCHER_PRIORITY:
+        if name not in order:
+            order.append(name)
+    factories: dict[str, type] = {
+        "steam": SteamGamesSource,
+        "epic": EpicGamesSource,
+        "gog": GogGamesSource,
+    }
+    sources: list[GameSource] = []
+    for name in order:
+        factory = factories.get(name)
+        if factory is not None:
+            sources.append(factory())
+    return sources
+
+
+def build_game_index(
+    priority: list[str] | tuple[str, ...] | None = None,
+) -> dict[str, Game]:
+    """Scan every launcher (in priority order) into one normalized index.
+
+    Safe to call off the hot path / in a background thread: each source is
+    isolated, so a failing or unavailable launcher never breaks the rest."""
+    return index_games(_sources_in_priority_order(priority))
+
+
+def launch_game_spec(spec: LaunchSpec) -> None:
+    """Execute a LaunchSpec via the no-shell platform launchers.
+
+    URI -> windows.launch_uri (ShellExecuteW). EXECUTABLE ->
+    windows.launch_game_executable (direct .exe, resolve + containment).
+    Raises on an invalid/placeholder spec so callers can report failure."""
+    if spec.kind is LaunchKind.URI:
+        if not spec.uri:
+            raise ValueError("URI launch spec has no uri")
+        from jarvis.platform import windows as winplat
+
+        winplat.launch_uri(spec.uri)
+        return
+    if spec.kind is LaunchKind.EXECUTABLE:
+        if not (spec.exe and spec.install_dir):
+            raise ValueError("EXECUTABLE launch spec missing exe/install_dir")
+        from jarvis.platform import windows as winplat
+
+        winplat.launch_game_executable(spec.exe, spec.install_dir)
+        return
+    raise ValueError(f"unknown launch spec kind: {spec.kind!r}")

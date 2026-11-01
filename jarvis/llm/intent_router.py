@@ -816,7 +816,7 @@ class IntentRouter:
         for intent, exchange in zip(intents, exchanges, strict=True):
             if exchange.result.startswith("Error:"):
                 continue
-            if intent.tool_name == "launch_steam_game":
+            if intent.tool_name in ("launch_steam_game", "launch_game"):
                 name = intent.args.get("game_name") or intent.args.get("name", "")
                 if name:
                     targets.append(name)

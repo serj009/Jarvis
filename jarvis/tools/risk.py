@@ -153,6 +153,7 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     "open_url": RiskLevel.WRITE,
     "play_youtube_music": RiskLevel.WRITE,
     "launch_steam_game": RiskLevel.WRITE,
+    "launch_game": RiskLevel.WRITE,
     "launch_workspace": RiskLevel.WRITE,
     "take_note": RiskLevel.WRITE,
     "append_to_note": RiskLevel.WRITE,

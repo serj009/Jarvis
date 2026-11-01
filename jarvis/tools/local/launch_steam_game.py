@@ -27,13 +27,13 @@ class LaunchSteamGameArgs(BaseModel):
 class LaunchSteamGameTool:
     name: str = "launch_steam_game"
     description: str = (
-        "Launch a video game from the user's installed Steam library. "
-        "Use ONLY when the user clearly wants to play, start, run, or "
-        "boot a game on Steam — e.g. 'play Elden Ring', 'launch Cyberpunk', "
-        "'start Portal on Steam'. Do NOT use for music, songs, artists, "
-        "YouTube, or opening the Steam client itself (use open_app for "
-        "the Steam application). "
-        "(RU: запусти игру в стиме / UK: запусти гру в стімі)"
+        "Legacy: launch a game from the user's STEAM library only. Use "
+        "ONLY when the user explicitly says Steam — e.g. 'launch Cyberpunk "
+        "on Steam', 'start Portal in Steam'. For any other game request "
+        "(no store named, or Epic/GOG) prefer launch_game, which searches "
+        "every installed launcher. Do NOT use for music, songs, YouTube, "
+        "or opening the Steam client itself (use open_app). "
+        "(RU: запусти ... в стиме / UK: запусти ... в стімі)"
     )
     args_schema = LaunchSteamGameArgs
     requires_confirmation: bool = False
@@ -43,8 +43,9 @@ class LaunchSteamGameTool:
     # Priority 105: below play_youtube_music (100) so "play pink floyd" is
     # music, but above open_app (PRIORITY_CATCH_ALL) so "launch X on steam"
     # is a game, not an app launch.
-    # Priority 108: "запусти игру X" / "запусти гру X" — slightly lower
-    # since it uses a game keyword instead of a steam keyword.
+    # The generic "игру / гру / the game" phrases moved to LaunchGameTool
+    # (Task 8c commit 4); only the explicit "... on steam / ... в стиме"
+    # phrases remain here.
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
         # EN: "launch elden ring on steam", "start portal in steam"
         VoicePattern(
@@ -64,22 +65,10 @@ class LaunchSteamGameTool:
             priority=105,
             args=lambda m: {"game_name": m.group(1)},
         ),
-        # RU: "запусти игру сталкер", "включи игру портал"
-        VoicePattern(
-            regex=r"^(?:запусти|включи)\s+игру\s+(.+)$",
-            priority=108,
-            args=lambda m: {"game_name": m.group(1)},
-        ),
         # UK: "запусти сталкер в стімі", "увімкни кіберпанк із стіму"
         VoicePattern(
             regex=r"^(?:запусти|увімкни|завантаж)\s+(.+?)\s+(?:в|із)\s+стім[іу]?$",
             priority=105,
-            args=lambda m: {"game_name": m.group(1)},
-        ),
-        # UK: "запусти гру сталкер", "увімкни гру портал"
-        VoicePattern(
-            regex=r"^(?:запусти|увімкни)\s+гру\s+(.+)$",
-            priority=108,
             args=lambda m: {"game_name": m.group(1)},
         ),
     )

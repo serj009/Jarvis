@@ -293,6 +293,9 @@ CORPUS: tuple[str, ...] = (
     "listen to metallica",
     "launch elden ring on steam",
     "play cyberpunk on steam",
+    # Task 8c commit 4: unified launch_game capability examples
+    "запусти игру Ведьмак",
+    "play Control on Steam",
     "quit notepad",
     "exit discord",
     "kill firefox",
@@ -448,6 +451,9 @@ def test_generic_open_catch_all_stays_last(utterance: str, tool: str):
     ("utterance", "tool"),
     [
         ("play cyberpunk on steam", "launch_steam_game"),
+        # Task 8c commit 4: the generic "игру X" phrase now routes to the
+        # unified launch_game; the explicit "on steam" above stays legacy.
+        ("запусти игру ведьмак", "launch_game"),
         ("close chrome", "close_app"),
         ("quit spotify", "close_app"),
         ("weather", "get_weather"),

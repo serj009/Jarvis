@@ -130,10 +130,13 @@ CAPABILITY_CATEGORIES: tuple[CapabilityCategory, ...] = (
                 tools=("launch_workspace",),
             ),
             Capability(
-                name="Launch a Steam game",
-                description="Opens a game in your Steam library by title.",
-                examples=("launch Cyberpunk", "boot up Stardew Valley"),
-                tools=("launch_steam_game",),
+                name="Launch a game",
+                description=(
+                    "Opens an installed game by title from any launcher "
+                    "(Steam, Epic, GOG)."
+                ),
+                examples=("launch Cyberpunk", "запусти игру Ведьмак", "play Control on Steam"),
+                tools=("launch_game", "launch_steam_game"),
             ),
         ),
     ),

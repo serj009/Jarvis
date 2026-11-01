@@ -612,20 +612,10 @@ class TestLaunchSteamGamePatterns:
         m = _assert_pattern_matches(patterns[2], phrase, expected_group=expected_game)
         assert patterns[2].args(m) == {"game_name": expected_game}
 
-    # -- RU patterns with "игру" keyword -----------------------------------
-
-    @pytest.mark.parametrize(
-        "phrase, expected_game",
-        [
-            ("запусти игру сталкер", "сталкер"),
-            ("включи игру портал 2", "портал 2"),
-        ],
-    )
-    def test_ru_launch_game_with_keyword(self, patterns, phrase, expected_game):
-        m = _assert_pattern_matches(patterns[3], phrase, expected_group=expected_game)
-        assert patterns[3].args(m) == {"game_name": expected_game}
-
     # -- UK patterns with "стім" keyword -----------------------------------
+    # NOTE (Task 8c commit 4): the generic "игру / гру" patterns moved to
+    # LaunchGameTool (see TestLaunchGamePatterns below), so UK-steam is now
+    # patterns[3], not patterns[4].
 
     @pytest.mark.parametrize(
         "phrase, expected_game",
@@ -636,21 +626,8 @@ class TestLaunchSteamGamePatterns:
         ],
     )
     def test_uk_launch_game_in_steam(self, patterns, phrase, expected_game):
-        m = _assert_pattern_matches(patterns[4], phrase, expected_group=expected_game)
-        assert patterns[4].args(m) == {"game_name": expected_game}
-
-    # -- UK patterns with "гру" keyword ------------------------------------
-
-    @pytest.mark.parametrize(
-        "phrase, expected_game",
-        [
-            ("запусти гру сталкер", "сталкер"),
-            ("увімкни гру портал 2", "портал 2"),
-        ],
-    )
-    def test_uk_launch_game_with_keyword(self, patterns, phrase, expected_game):
-        m = _assert_pattern_matches(patterns[5], phrase, expected_group=expected_game)
-        assert patterns[5].args(m) == {"game_name": expected_game}
+        m = _assert_pattern_matches(patterns[3], phrase, expected_group=expected_game)
+        assert patterns[3].args(m) == {"game_name": expected_game}
 
     # -- disambiguation: must NOT match bare app names ---------------------
 
@@ -662,6 +639,63 @@ class TestLaunchSteamGamePatterns:
     def test_ru_no_match_without_steam(self, patterns):
         """'запусти хром' has no стим keyword — must NOT match."""
         _assert_no_match(patterns[2], "запусти хром")
+
+
+# -- launch_game.py (Task 8c commit 4: unified launcher) -------------------
+
+
+class TestLaunchGamePatterns:
+    """Voice patterns for launch_game — the generic "игру / гру / the game"
+    phrases moved here from LaunchSteamGameTool so they search ALL launchers
+    (Steam, Epic, GOG), not just Steam."""
+
+    @pytest.fixture()
+    def patterns(self):
+        from jarvis.tools.local.launch_game import LaunchGameTool
+        return LaunchGameTool.voice_patterns
+
+    # -- RU "игру" keyword (patterns[0]) -----------------------------------
+    @pytest.mark.parametrize(
+        "phrase, expected_game",
+        [
+            ("запусти игру сталкер", "сталкер"),
+            ("включи игру портал 2", "портал 2"),
+        ],
+    )
+    def test_ru_launch_game_with_keyword(self, patterns, phrase, expected_game):
+        m = _assert_pattern_matches(patterns[0], phrase, expected_group=expected_game)
+        assert patterns[0].args(m) == {"game_name": expected_game}
+
+    # -- UK "гру" keyword (patterns[1]) ------------------------------------
+    @pytest.mark.parametrize(
+        "phrase, expected_game",
+        [
+            ("запусти гру сталкер", "сталкер"),
+            ("увімкни гру портал 2", "портал 2"),
+        ],
+    )
+    def test_uk_launch_game_with_keyword(self, patterns, phrase, expected_game):
+        m = _assert_pattern_matches(patterns[1], phrase, expected_group=expected_game)
+        assert patterns[1].args(m) == {"game_name": expected_game}
+
+    # -- EN "the game" keyword (patterns[2], NEW) --------------------------
+    @pytest.mark.parametrize(
+        "phrase, expected_game",
+        [
+            ("launch the game control", "control"),
+            ("play the game hades", "hades"),
+            ("start the game portal 2", "portal 2"),
+        ],
+    )
+    def test_en_launch_the_game(self, patterns, phrase, expected_game):
+        m = _assert_pattern_matches(patterns[2], phrase, expected_group=expected_game)
+        assert patterns[2].args(m) == {"game_name": expected_game}
+
+    def test_no_match_without_game_keyword(self, patterns):
+        """"запусти хром" (no game keyword) must NOT match any launch_game
+        pattern — it is an app launch handled by open_app."""
+        for p in patterns:
+            _assert_no_match(p, "запусти хром")
 
 
 # -- close_app.py ----------------------------------------------------------

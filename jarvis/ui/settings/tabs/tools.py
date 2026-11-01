@@ -99,6 +99,7 @@ TOOL_DISPLAY_NAMES: dict[str, str] = {
     "get_weather": "\u2600\ufe0f Get Weather",
     "git_tool": "\U0001f500 Git Version Control",
     "heavy_processes": "\U0001f4ca Heavy Processes",
+    "launch_game": "\U0001f3ae Launch Game",
     "launch_steam_game": "\U0001f3ae Launch Steam Game",
     "launch_workspace": "\U0001f4bc Launch Workspace",
     "list_directory": "\U0001f4c2 List Directory",

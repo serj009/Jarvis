@@ -41,9 +41,10 @@ _CASES = [
     ("запусти хром", "open_app"),
     ("открой блокнот", "open_app"),
     ("запусти калькулятор", "open_app"),
-    # Steam games -> launch_steam_game.
+    # Explicit "в стиме" -> launch_steam_game (legacy, Steam-only).
     ("запусти сталкер в стиме", "launch_steam_game"),
-    ("запусти игру ведьмак", "launch_steam_game"),
+    # Task 8c commit 4: generic "игру X" now -> launch_game (all launchers).
+    ("запусти игру ведьмак", "launch_game"),
     # Whitelisted shell commands -> run_command (cli_runner).
     ("запусти ping 127.0.0.1", "run_command"),
     ("run dir", "run_command"),
