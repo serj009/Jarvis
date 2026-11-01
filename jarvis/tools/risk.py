@@ -389,3 +389,65 @@ def should_confirm(tool: Any) -> bool:
         return True
     # Risk-level gate.
     return risk_level_for_tool(tool).requires_confirmation
+
+
+# ---------------------------------------------------------------------------
+# Task 10A: untrusted-content classification
+# ---------------------------------------------------------------------------
+#
+# A tool's output is UNTRUSTED when it can carry third-party text that a
+# prompt-injection could hide in (web pages, OCR, emails, tickets, feeds,
+# file/window names, clipboard). The router sanitizes + wraps such output
+# in <untrusted_content> in the LLM-bound copy ONLY (see intent_router);
+# the user-facing result.output is never wrapped.
+#
+# This set is the single source of truth for BUILT-IN tools, mirroring
+# TOOL_RISK_MAP. Every catalogue tool name is classified EXPLICITLY — the
+# guard test (tests/tools/test_untrusted_content.py) fails if a registered
+# tool is neither here nor provably FALSE by omission. Integrations default
+# to True via BaseIntegration.returns_untrusted_content and are not listed
+# here (they are not local catalogue tools).
+UNTRUSTED_CONTENT_TOOLS: frozenset[str] = frozenset({
+    # -- web / external API text -------------------------------------------
+    "content_reader", "save_page_knowledge", "price_lookup", "youtube_summary",
+    "compare_pages", "translate_page", "scrape_images", "get_latest_news",
+    "research", "read_more", "copy_research", "get_weather", "download_file",
+    "check_page_changes", "deep_research",
+    # -- OCR / screen capture ----------------------------------------------
+    "read_screen_text", "see_screen", "watch_screen", "screenshot",
+    "full_page_screenshot",
+    # -- browser page content / tab titles ---------------------------------
+    "browser_tabs", "find_tab", "count_tabs",
+    # -- clipboard (often web-copied), filesystem + window names -----------
+    "clipboard", "show_clipboard_history", "paste_clipboard_item",
+    "list_directory", "file_manager", "list_windows",
+    # -- git / dev external content ----------------------------------------
+    "git_tool", "coding_agent",
+    # -- bookmarks (web titles/urls), RSS, page monitors -------------------
+    "bookmarks", "list_rss_feeds", "list_page_monitors",
+    "start_page_monitor", "stop_page_monitor",
+    # -- game-save discovery (paths/titles from disk) ----------------------
+    "find_game_saves", "list_known_games",
+    # -- notes (may hold pasted web text) ----------------------------------
+    "read_note",
+})
+
+
+def returns_untrusted_content_for_tool(tool: Any) -> bool:
+    """Whether a tool's output may contain untrusted external content.
+
+    Lookup order (mirrors risk_level_for_tool):
+    1. ``tool.returns_untrusted_content`` attribute (explicit per-instance/
+       class override — this is how integration tool adapters inherit the
+       BaseIntegration default of True, and how a plugin opts out).
+    2. ``tool.name`` in ``UNTRUSTED_CONTENT_TOOLS`` (the static set above).
+    3. ``False`` — a built-in tool not in the set returns trusted/local
+       data (device state, computation, own UI).
+    """
+    explicit = getattr(tool, "returns_untrusted_content", None)
+    if isinstance(explicit, bool):
+        return explicit
+    name = getattr(tool, "name", None)
+    if name and name in UNTRUSTED_CONTENT_TOOLS:
+        return True
+    return False

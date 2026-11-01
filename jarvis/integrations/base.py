@@ -29,6 +29,14 @@ class BaseIntegration(ABC):
     description: str = ""          # one-liner for the Settings card
     icon: str = "\U0001f50c"       # emoji
 
+    # Task 10A: integration tool output is UNTRUSTED by default — it carries
+    # third-party content (emails, messages, tickets, calendar events, docs)
+    # that can contain prompt-injection. The router wraps it in
+    # <untrusted_content> for the LLM copy only. A plugin may set this to
+    # False DELIBERATELY when its tools return purely numeric / device-state
+    # data (and must note the reason). Opt-out, never silent.
+    returns_untrusted_content: bool = True
+
     # -- auth -----------------------------------------------------------
     # auth_type: "oauth2" | "api_key" | "token" | "none"
     auth_type: str = "none"
