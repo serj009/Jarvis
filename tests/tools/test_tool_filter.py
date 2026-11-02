@@ -3,9 +3,11 @@
 What is pinned here:
   - Each tool category is activated by its declared keywords (EN/RU/UK).
   - ALWAYS_INCLUDED tools appear in every filtered result.
-  - An unknown/unmatched utterance returns ALL tools (safe fallback).
+  - An unknown/unmatched utterance returns the small FALLBACK_TOOLS set,
+    not every tool (all ~170 schemas overflowed the model's context).
   - Mixed-language queries activate the union of matched categories.
-  - A too-aggressive filter (< 3 results) falls back to all tools.
+  - A too-aggressive filter (< 3 results) uses the fallback set; a tiny
+    registry (< 3 fallback tools present) is returned whole.
   - Empty schemas in → empty schemas out (no crash).
   - MAX_FILTERED_TOOLS cap is respected.
 """
@@ -14,6 +16,7 @@ from __future__ import annotations
 
 from jarvis.tools.tool_filter import (
     ALWAYS_INCLUDED,
+    FALLBACK_TOOLS,
     MAX_FILTERED_TOOLS,
     TOOL_CATEGORIES,
     filter_tools_for_utterance,
@@ -240,23 +243,38 @@ class TestMixedLanguage:
 # ---------------------------------------------------------------------------
 
 class TestFallback:
-    """Unknown queries return the full tool set (safe fallback)."""
+    """Unmatched queries get the small fallback set, never every tool."""
 
-    def test_unknown_query_returns_all(self):
-        result = filter_tools_for_utterance(
-            "tell me a joke about penguins", _ALL_SCHEMAS,
-        )
-        assert result is _ALL_SCHEMAS  # same list object (identity check)
+    def _assert_fallback(self, utterance: str) -> None:
+        result = filter_tools_for_utterance(utterance, _ALL_SCHEMAS)
+        names = _names(result)
+        assert names <= FALLBACK_TOOLS
+        assert ALWAYS_INCLUDED <= names
+        assert len(result) < len(_ALL_SCHEMAS)
 
-    def test_gibberish_returns_all(self):
-        result = filter_tools_for_utterance(
-            "xkcd 927 zxcvbn", _ALL_SCHEMAS,
-        )
-        assert result is _ALL_SCHEMAS
+    def test_unknown_query_returns_fallback_set(self):
+        self._assert_fallback("tell me a joke about penguins")
 
-    def test_empty_utterance_returns_all(self):
-        result = filter_tools_for_utterance("", _ALL_SCHEMAS)
-        assert result is _ALL_SCHEMAS
+    def test_gibberish_returns_fallback_set(self):
+        self._assert_fallback("xkcd 927 zxcvbn")
+
+    def test_empty_utterance_returns_fallback_set(self):
+        self._assert_fallback("")
+
+    def test_personal_question_returns_fallback_set(self):
+        # Live regression 2026-11-02: this sent all 173 tools (~97 KB),
+        # the prompt overflowed and the model ignored the recalled memory.
+        self._assert_fallback("Какой у меня браузер?")
+
+    def test_fallback_has_no_memory_search(self):
+        # Questions about the user are answered from auto-recall; a
+        # search_memory call with the whole question finds nothing.
+        assert "search_memory" not in FALLBACK_TOOLS
+
+    def test_fallback_stays_small_with_a_big_registry(self):
+        giant = _ALL_SCHEMAS + [_make_schema(f"tool_{i}") for i in range(150)]
+        result = filter_tools_for_utterance("расскажи шутку", giant)
+        assert len(result) <= len(FALLBACK_TOOLS)
 
 
 # ---------------------------------------------------------------------------
@@ -323,7 +341,7 @@ class TestEdgeCases:
 
     def test_mcp_tools_excluded_when_category_matches(self):
         """MCP tools not in any category are excluded when a category
-        matches (they would only appear in the fallback-all path)."""
+        matches."""
         result = filter_tools_for_utterance(
             "play some music", _ALL_SCHEMAS_WITH_MCP,
         )
@@ -331,14 +349,14 @@ class TestEdgeCases:
         assert "mcp_trayce_search" not in names
         assert "mcp_notion_read" not in names
 
-    def test_mcp_tools_included_in_fallback(self):
-        """MCP tools are included in the fallback-all path."""
+    def test_mcp_tools_not_in_fallback(self):
+        """MCP tools are not part of the small fallback set either."""
         result = filter_tools_for_utterance(
             "tell me a joke", _ALL_SCHEMAS_WITH_MCP,
         )
         names = _names(result)
-        assert "mcp_trayce_search" in names
-        assert "mcp_notion_read" in names
+        assert "mcp_trayce_search" not in names
+        assert "mcp_notion_read" not in names
 
 
 # ---------------------------------------------------------------------------

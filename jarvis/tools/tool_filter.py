@@ -726,6 +726,21 @@ ALWAYS_INCLUDED: frozenset[str] = frozenset({
     "get_time", "get_weather", "open_app", "volume",
 })
 
+# Tools sent when NO category keyword matched ("какой у меня браузер?",
+# "расскажи шутку", small talk). Sending every registered tool here was the
+# old "safe" fallback, but with ~170 tools that is ~100 KB of English JSON
+# (~25-30K tokens) -- more than the whole context window. Ollama then cut
+# the prompt, the question and the recalled memories were lost, and the model
+# answered in English that it did not know. A small set of everyday actions
+# keeps the prompt small; anything more specific is reached through its own
+# keywords. Memory tools are deliberately absent: questions about the user
+# are answered from auto-recall (memories injected into the context), and
+# explicit "запомни / вспомни / remember" requests match notes_memory.
+FALLBACK_TOOLS: frozenset[str] = ALWAYS_INCLUDED | frozenset({
+    "open_url", "close_app", "play_youtube_music", "launch_steam_game",
+    "screenshot", "take_note", "research", "set_timer", "remind_me",
+})
+
 # Maximum tools to send (safety cap — even a fully matched superset
 # should not exceed this; the model degrades past ~20 tool schemas).
 MAX_FILTERED_TOOLS = 20
@@ -742,8 +757,9 @@ def filter_tools_for_utterance(
     """Filter tool schemas to those relevant for the utterance.
 
     Returns a subset of *all_tool_schemas*.  If no category keywords match
-    the utterance, returns ALL tools (safe fallback — never drops tools
-    silently when we are unsure).
+    the utterance, returns the small FALLBACK_TOOLS set (see its comment for
+    why not ALL tools). Only when the registry is tiny (fewer than 3 of the
+    wanted tools exist) is the full list returned unchanged.
 
     Parameters
     ----------
@@ -780,11 +796,10 @@ def filter_tools_for_utterance(
                     any_category_matched = True
                     break
 
-    # If NO category keywords matched (only ALWAYS_INCLUDED is present),
-    # return ALL tools — don't risk filtering out the right tool for an
-    # utterance we don't understand.
+    # If NO category keywords matched, send the small everyday set instead of
+    # every tool (which would overflow the context window).
     if not any_category_matched:
-        return all_tool_schemas
+        return _fallback_tools(utterance, all_tool_schemas)
 
     # Filter schemas by matched names.
     filtered = [
@@ -798,10 +813,10 @@ def filter_tools_for_utterance(
     if len(filtered) < 3:
         log.debug(
             "[tool_filter] only %d tools after filtering for %r; "
-            "returning all %d",
-            len(filtered), utterance[:80], len(all_tool_schemas),
+            "using the fallback set",
+            len(filtered), utterance[:80],
         )
-        return all_tool_schemas
+        return _fallback_tools(utterance, all_tool_schemas)
 
     if len(filtered) < len(all_tool_schemas):
         log.debug(
@@ -810,3 +825,22 @@ def filter_tools_for_utterance(
         )
 
     return filtered[:MAX_FILTERED_TOOLS]
+
+
+def _fallback_tools(utterance: str, all_tool_schemas: list[dict]) -> list[dict]:
+    """FALLBACK_TOOLS that exist in *all_tool_schemas*, in registry order.
+
+    A tiny registry (fewer than 3 of them present -- tests, a stripped-down
+    setup) is returned unchanged: it is small enough to send whole.
+    """
+    picked = [
+        s for s in all_tool_schemas
+        if s.get("function", {}).get("name") in FALLBACK_TOOLS
+    ]
+    if len(picked) < 3:
+        return all_tool_schemas
+    log.debug(
+        "[tool_filter] no category matched %r: fallback %d/%d tools",
+        utterance[:80], len(picked), len(all_tool_schemas),
+    )
+    return picked

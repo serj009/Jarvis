@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Any
@@ -67,6 +68,28 @@ DEFAULT_NUM_CTX: int = 16384
 # to. Jarvis never shows that text, so it is pure latency for a voice
 # assistant. False = answer directly.
 DEFAULT_THINK: bool = False
+
+
+# Debug aid: with JARVIS_DUMP_LLM_REQUEST=1 every chat request is written to
+# <data dir>/debug/last_llm_request.json (overwritten each time) so it can be
+# replayed with `python -m jarvis.dev.llm_replay`. Off by default: the file
+# holds the whole prompt in plaintext, recalled personal memories included.
+DUMP_ENV_VAR: str = "JARVIS_DUMP_LLM_REQUEST"
+DUMP_FILENAME: str = "last_llm_request.json"
+
+
+def dump_request_if_enabled(body: dict[str, Any]) -> None:
+    """Write *body* to the debug dump file when DUMP_ENV_VAR is set. Never raises."""
+    if not os.environ.get(DUMP_ENV_VAR):
+        return
+    try:
+        from jarvis.paths import data_path
+
+        path = data_path("debug", DUMP_FILENAME, create=True)
+        path.write_text(json.dumps(body, ensure_ascii=False, indent=2), encoding="utf-8")
+        log.info("[llm] request dumped to %s", path)
+    except Exception:
+        log.warning("[llm] could not dump the request (non-fatal)", exc_info=True)
 
 
 class OllamaError(RuntimeError):
@@ -234,6 +257,7 @@ class OllamaClient:
         }
         if tools:
             body["tools"] = tools
+        dump_request_if_enabled(body)
 
         try:
             async with client.stream("POST", "/api/chat", json=body) as response:

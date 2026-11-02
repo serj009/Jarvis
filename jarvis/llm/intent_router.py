@@ -908,6 +908,15 @@ class IntentRouter:
             except Exception:
                 log.warning("[router] usage-stats failed (non-fatal)", exc_info=True)
 
+        # Sizes only, never content: lets an INFO log show whether memory
+        # actually reached the model without writing personal facts to disk.
+        log.info(
+            "[router] auto-context: memories=%d lines, total=%d chars in %d part(s)",
+            sum(p.count("\n- ") + p.startswith("- ") for p in parts if "[Relevant memories" in p
+                or "[User preferences" in p),
+            sum(len(p) for p in parts),
+            len(parts),
+        )
         if parts:
             self._conv.inject_context("\n\n".join(parts))
         else:
