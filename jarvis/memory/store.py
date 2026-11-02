@@ -43,6 +43,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import shutil
 import sqlite3
 from dataclasses import dataclass, field
@@ -209,6 +210,83 @@ END;
 
 
 # ---------------------------------------------------------------------------
+# Search over encrypted text
+# ---------------------------------------------------------------------------
+#
+# With DPAPI on (always, on Windows) facts.text and fact_tags.tag hold
+# ciphertext, and DPAPI gives different ciphertext for the same input. So the
+# FTS index, the LIKE fallback and "tag = ?" compare a plaintext query with
+# ciphertext and never match. When encryption is active, search decrypts the
+# candidate rows and matches in Python instead, with FTS5-like semantics.
+
+# Decrypted values kept in RAM (key = ciphertext, which is unique per write).
+_PLAIN_CACHE_MAX = 20_000
+
+_TOKEN_RE = re.compile(r"\w+")
+
+
+def _encryption_active() -> bool:
+    # Looked up at call time so tests can patch jarvis.platform.secrets.
+    from jarvis.platform import secrets as _secrets
+
+    return _secrets.dpapi_available()
+
+
+def _tokens(text: str) -> list[str]:
+    """Lowercased word tokens; ё is folded to е so "еще" finds "ещё"."""
+    return _TOKEN_RE.findall(text.lower().replace("ё", "е"))
+
+
+_Term = tuple[str, bool, bool]  # (token, is_prefix, is_negated)
+
+
+def _parse_match_query(query: str) -> list[list[_Term]]:
+    """FTS5-style query -> OR-groups of AND-ed terms.
+
+    Supports what callers send: implicit AND ("a b"), OR ("a OR b"),
+    explicit AND, NOT and a trailing * for prefix match. AND binds tighter
+    than OR, as in FTS5: "a b OR c" == (a AND b) OR c.
+    """
+    groups: list[list[_Term]] = [[]]
+    negate = False
+    for raw in query.split():
+        if raw == "OR":
+            if groups[-1]:
+                groups.append([])
+            negate = False
+            continue
+        if raw == "AND":
+            continue
+        if raw == "NOT":
+            negate = True
+            continue
+        prefix = raw.endswith("*")
+        toks = _tokens(raw)
+        for i, tok in enumerate(toks):
+            groups[-1].append((tok, prefix and i == len(toks) - 1, negate))
+        negate = False
+    return [g for g in groups if any(not neg for _, _, neg in g)]
+
+
+def _match_score(groups: list[list[_Term]], doc: set[str]) -> int:
+    """Number of positive terms matched over all satisfied OR-groups (0 = no match)."""
+    score = 0
+    for group in groups:
+        hits = 0
+        for tok, prefix, neg in group:
+            present = (
+                any(word.startswith(tok) for word in doc) if prefix else tok in doc
+            )
+            if present == neg:
+                break
+            if not neg:
+                hits += 1
+        else:
+            score += hits
+    return score
+
+
+# ---------------------------------------------------------------------------
 # MemoryStore
 # ---------------------------------------------------------------------------
 
@@ -220,6 +298,7 @@ class MemoryStore:
         self._opened = False
         self._tagger = AutoTagger()
         self._embedding_index: EmbeddingIndex | None = None
+        self._plain_cache: dict[str, str] = {}
 
     @property
     def db_path(self) -> Path:
@@ -727,6 +806,12 @@ class MemoryStore:
     ) -> list[Fact]:
         conn = sqlite3.connect(str(self._db_path))
         try:
+            if _encryption_active():
+                # Text and tags are DPAPI ciphertext on disk: FTS/LIKE and
+                # "tag = ?" would compare a plaintext query with ciphertext.
+                return self._decrypted_search(
+                    conn, query, category, tag, limit, include_superseded
+                )
             # Try FTS5 first
             try:
                 return self._fts_search(
@@ -800,6 +885,65 @@ class MemoryStore:
             ).fetchall()]
             result.append(self._row_to_fact(row, [decrypt_value(t) or t for t in enc_tags]))
         return result
+
+    def _decrypted_search(
+        self, conn: sqlite3.Connection, query: str,
+        category: str | None, tag: str | None, limit: int,
+        include_superseded: bool = False,
+    ) -> list[Fact]:
+        """Search by decrypting rows and matching in Python (encryption on).
+
+        Same contract as _fts_search: query semantics follow FTS5 (see
+        _parse_match_query), text and category are searched, superseded
+        facts are hidden unless asked for. Ranked by matched terms, then
+        most recently updated.
+        """
+        groups = _parse_match_query(query)
+        if not groups:
+            return []
+        sql = "SELECT * FROM facts"
+        where: list[str] = []
+        params: list = []
+        if not include_superseded:
+            where.append("status != 'superseded'")
+        if category:
+            where.append("category = ?")
+            params.append(category)
+        if where:
+            sql += " WHERE " + " AND ".join(where)
+        rows = conn.execute(sql, params).fetchall()
+
+        tags_by_fact = self._decrypted_tags(conn)
+        want_tag = tag.lower().strip() if tag else None
+
+        scored: list[tuple[int, str, tuple, list[str]]] = []
+        for row in rows:
+            tags = tags_by_fact.get(row[0], [])
+            if want_tag is not None and want_tag not in tags:
+                continue
+            doc = set(_tokens(self._decrypt_cached(row[1]))) | set(_tokens(row[2] or ""))
+            score = _match_score(groups, doc)
+            if score:
+                scored.append((score, row[6] or "", row, tags))
+        scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+        return [self._row_to_fact(row, tags) for _, _, row, tags in scored[:limit]]
+
+    def _decrypted_tags(self, conn: sqlite3.Connection) -> dict[str, list[str]]:
+        tags: dict[str, list[str]] = {}
+        for fact_id, enc_tag in conn.execute("SELECT fact_id, tag FROM fact_tags"):
+            tags.setdefault(fact_id, []).append(self._decrypt_cached(enc_tag))
+        return tags
+
+    def _decrypt_cached(self, value: str | None) -> str:
+        if not value:
+            return ""
+        plain = self._plain_cache.get(value)
+        if plain is None:
+            plain = decrypt_value(value) or ""
+            if len(self._plain_cache) >= _PLAIN_CACHE_MAX:
+                self._plain_cache.clear()
+            self._plain_cache[value] = plain
+        return plain
 
     # -- stats --------------------------------------------------------------
 

@@ -38,6 +38,13 @@ from jarvis.platform.encrypted_db import decrypt_value
 log = logging.getLogger(__name__)
 
 
+def _encryption_active() -> bool:
+    # Looked up at call time so tests can patch jarvis.platform.secrets.
+    from jarvis.platform import secrets as _secrets
+
+    return _secrets.dpapi_available()
+
+
 # ---------------------------------------------------------------------------
 # Schema (added to the same DB as facts/fact_tags)
 # ---------------------------------------------------------------------------
@@ -241,12 +248,20 @@ class RelationStore:
         conn = self._connect()
         try:
             # Find facts with this tag
-            rows = conn.execute(
-                "SELECT fact_id FROM fact_tags WHERE tag = ?",
-                (tag.lower().strip(),),
-            ).fetchall()
-
-            all_ids: set[str] = {row["fact_id"] for row in rows}
+            want = tag.lower().strip()
+            if _encryption_active():
+                # Tags are DPAPI ciphertext (different for every write), so
+                # "tag = ?" never matches: decrypt and compare in Python.
+                all_ids: set[str] = {
+                    row["fact_id"]
+                    for row in conn.execute("SELECT fact_id, tag FROM fact_tags")
+                    if (decrypt_value(row["tag"]) or row["tag"]) == want
+                }
+            else:
+                rows = conn.execute(
+                    "SELECT fact_id FROM fact_tags WHERE tag = ?", (want,),
+                ).fetchall()
+                all_ids = {row["fact_id"] for row in rows}
 
             # Expand through relation graph (depth=2)
             for fact_id in list(all_ids):
