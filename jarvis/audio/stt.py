@@ -170,6 +170,30 @@ HOTWORDS_BY_LANG: dict[str, str] = {
 }
 
 
+# Languages Jarvis answers in (one Piper voice each). With stt.language="auto"
+# Whisper otherwise picks from ~100 languages, and the small model hears
+# Ukrainian as Polish (live 2026-11-02: 'pl' p=0.54, then 'ru' p=0.30).
+DEFAULT_AUTO_LANGUAGES: tuple[str, ...] = ("ru", "uk", "en")
+
+
+def _pick_allowed_language(
+    all_probs: list[tuple[str, float]], allowed: tuple[str, ...],
+) -> tuple[str, float] | None:
+    """Most likely language among *allowed* in Whisper's ranking.
+
+    The probability is renormalised over the allowed languages only, so a
+    clear ru-vs-uk-vs-en winner reads as confident even when Whisper also
+    spread probability over unrelated languages. None if no allowed language
+    appears in *all_probs*.
+    """
+    probs = {lang: p for lang, p in all_probs if lang in allowed}
+    if not probs:
+        return None
+    best = max(probs, key=lambda lang: probs[lang])
+    total = sum(probs.values())
+    return best, (probs[best] / total if total > 0 else 0.0)
+
+
 def _normalize_for_echo_check(text: str) -> str:
     return " ".join(text.lower().replace(",", " ").replace(".", " ").split())
 
@@ -434,9 +458,13 @@ class FasterWhisperSTT:
         # T2.4 max retries for "clarify" action
         max_clarify_retries: int = 3,
         bus: object | None = None,
+        # language="auto" only: restrict detection to these languages.
+        # Empty/None = let Whisper pick any language (old behaviour).
+        auto_languages: tuple[str, ...] | None = DEFAULT_AUTO_LANGUAGES,
     ) -> None:
         self.model_size = model_size
         self.language = language
+        self.auto_languages: tuple[str, ...] = tuple(auto_languages or ())
         self.compute_type = compute_type
         self._download_root = download_root
         self._configured_device = device
@@ -841,6 +869,36 @@ class FasterWhisperSTT:
                 self._notify_gpu_fallback(reason)
             return reloaded
 
+    def _detect_allowed_language(self, audio: np.ndarray) -> tuple[str, float] | None:
+        """In auto mode: the most likely of ``self.auto_languages``.
+
+        Returns None when no restriction applies (disabled, a model without
+        ``detect_language``, or detection failed); transcribe() then detects
+        freely, as before. A CUDA runtime error is not lost here: transcribe()
+        hits the same error right after and the CPU fallback handles it.
+        """
+        detect = getattr(self._model, "detect_language", None)
+        if not self.auto_languages or detect is None:
+            return None
+        try:
+            try:
+                top, top_p, all_probs = detect(audio, vad_filter=True)
+            except ValueError:
+                # No speech left after VAD (np.concatenate of nothing).
+                top, top_p, all_probs = detect(audio)
+        except Exception:
+            log.debug("[stt] language pre-detection failed; Whisper decides", exc_info=True)
+            return None
+        picked = _pick_allowed_language(list(all_probs or []), self.auto_languages)
+        if picked is None:
+            return None
+        if picked[0] != top:
+            log.info(
+                "[stt] language %r (p=%.2f) is not one of %s; using %r (p=%.2f)",
+                top, top_p, "/".join(self.auto_languages), picked[0], picked[1],
+            )
+        return picked
+
     def _sync_transcribe(self, audio: np.ndarray) -> TranscriptionResult:
         """Run faster-whisper inference synchronously. Always called inside
         asyncio.to_thread; never on the loop thread."""
@@ -858,10 +916,13 @@ class FasterWhisperSTT:
             "vad_filter": True,
         }
 
-        # T2.1: language="auto" means let Whisper detect.
+        # T2.1: language="auto" means let Whisper detect -- but only among
+        # the languages Jarvis speaks (see _detect_allowed_language).
+        forced: tuple[str, float] | None = None
         if self.language == "auto":
-            # Don't pass language= so faster-whisper auto-detects.
-            pass
+            forced = self._detect_allowed_language(audio)
+            if forced is not None:
+                kwargs["language"] = forced[0]
         else:
             kwargs["language"] = self.language
 
@@ -901,6 +962,10 @@ class FasterWhisperSTT:
             detected_language = info.language
         if hasattr(info, "language_probability"):
             language_probability = info.language_probability
+        if forced is not None:
+            # Whisper reports p=1.0 for a language we passed in; keep the
+            # real detection confidence for the pipeline's voice-switch floor.
+            detected_language, language_probability = forced
 
         return TranscriptionResult(
             text=text,
