@@ -889,9 +889,18 @@ class FasterWhisperSTT:
         except Exception:
             log.debug("[stt] language pre-detection failed; Whisper decides", exc_info=True)
             return None
-        picked = _pick_allowed_language(list(all_probs or []), self.auto_languages)
+        all_probs = list(all_probs or [])
+        picked = _pick_allowed_language(all_probs, self.auto_languages)
         if picked is None:
             return None
+        # Numbers only (no transcript): shows how close ru/uk/en were, which
+        # is what decides the reply language and voice.
+        raw_probs = dict(all_probs)
+        log.info(
+            "[stt] language probs: %s (whisper top %r p=%.2f) -> %r",
+            " ".join(f"{lang}={raw_probs.get(lang, 0.0):.2f}" for lang in self.auto_languages),
+            top, top_p, picked[0],
+        )
         if picked[0] != top:
             log.info(
                 "[stt] language %r (p=%.2f) is not one of %s; using %r (p=%.2f)",

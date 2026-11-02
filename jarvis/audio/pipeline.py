@@ -51,6 +51,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+import re
 import time
 from collections.abc import Callable
 
@@ -134,6 +135,11 @@ def _task_exception_handler(task: asyncio.Task) -> None:
         )
 
 
+# Letters that exist in Ukrainian but not in Russian. A transcript written
+# with them is Ukrainian whatever Whisper's (renormalised) probability says.
+_UK_ONLY_LETTERS = re.compile(r"[іїєґ]", re.IGNORECASE)
+
+
 def _language_switch_reason(
     *,
     detected_language: str | None,
@@ -141,6 +147,7 @@ def _language_switch_reason(
     text_len: int,
     min_probability: float,
     min_chars: int,
+    text: str = "",
 ) -> str | None:
     """Decide whether the reply voice may switch to *detected_language*.
 
@@ -156,7 +163,12 @@ def _language_switch_reason(
     """
     if not detected_language:
         return "no-language"
-    if language_probability < min_probability:
+    if language_probability < min_probability and not (
+        detected_language == "uk" and _UK_ONLY_LETTERS.search(text)
+    ):
+        # Exception: a Ukrainian transcript that uses Ukrainian-only letters
+        # (live 2026-11-02: uk=0.33 vs ru=0.21 -> p=0.60 < 0.70, the voice
+        # stayed English for a Ukrainian reply).
         return "low-probability"
     if text_len < min_chars:
         return "short-text"
@@ -762,6 +774,7 @@ class AudioPipeline:
                     text_len=len(text),
                     min_probability=self._language_switch_min_probability,
                     min_chars=self._language_switch_min_chars,
+                    text=text,
                 )
                 if _skip is not None:
                     log.debug(

@@ -60,6 +60,66 @@ _CONFIRMATIONS: dict[str, dict[Lang, str]] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Free-form "speak <language>" commands
+# ---------------------------------------------------------------------------
+# The short anchored patterns below only caught the exact phrasings. Live
+# 2026-11-02 a 43-char "говори українською ..." variant missed them, went to
+# the LLM, got a Ukrainian reply -- and the language was NOT locked, so the
+# next question was auto-detected as Russian again. These patterns accept a
+# speak/switch verb, a few filler words, then the language; they are anchored
+# at both ends so "говори українською, яке в мене місто" (a question tacked
+# on) still goes to the LLM rather than being swallowed.
+
+_VERB = (
+    r"(?:давай(?:те)?\s+)?"
+    r"(?:говори(?:ти|те)?|говорить|розмовляй(?:те)?|розмовляти"
+    r"|спілкуйся|спілкуватися|відповідай(?:те)?|відповідати"
+    r"|разговаривай(?:те)?|разговаривать|отвечай(?:те)?|отвечать"
+    r"|общайся|общаться|перейди|перейдіть|перейдем|перейдемо"
+    r"|переключи(?:сь|ся)?|переключіться|переключитесь)"
+)
+_FILLER = (
+    r"(?:[\s,]+(?:будь[\s-]+ласка|пожалуйста|зі\s+мною|со\s+мной|мені|мне"
+    r"|тепер|теперь|далі|дальше|відтепер|отныне|тільки|лише|только))*"
+)
+_TAIL = r"(?:[\s,]+(?:будь[\s-]+ласка|пожалуйста|мовою|мову|языком|язык|please))*$"
+_LANG_WORDS: dict[str, str] = {
+    "uk": (
+        r"(?:українською|по[- ]?українськи|на\s+українськ\w*"
+        r"|по[- ]?украински|на\s+украинск\w*|українська|украинский)"
+    ),
+    "ru": (
+        r"(?:російською|по[- ]?російськи|на\s+російськ\w*"
+        r"|по[- ]?русски|на\s+русск\w*|російська|русский)"
+    ),
+    "en": (
+        r"(?:англійською|по[- ]?англійськи|на\s+англійськ\w*"
+        r"|по[- ]?английски|на\s+английск\w*|англійська|английский)"
+    ),
+}
+_EN_NAMES: dict[str, str] = {"uk": "ukrainian", "ru": "russian", "en": "english"}
+
+
+def _free_form_patterns() -> tuple[VoicePattern, ...]:
+    out: list[VoicePattern] = []
+    for lang, words in _LANG_WORDS.items():
+        out.append(VoicePattern(
+            regex=rf"^{_VERB}{_FILLER}[\s,]+{words}{_TAIL}",
+            priority=10,
+            args=lambda m, _lang=lang: {"language": _lang},
+        ))
+        out.append(VoicePattern(
+            regex=(
+                rf"^(?:please\s+)?(?:speak|talk|reply|answer|switch\s+to)"
+                rf"(?:\s+to\s+me)?(?:\s+in)?\s+{_EN_NAMES[lang]}{_TAIL}"
+            ),
+            priority=10,
+            args=lambda m, _lang=lang: {"language": _lang},
+        ))
+    return tuple(out)
+
+
 class SwitchLanguageTool:
     """Switch Jarvis listening/speaking language via voice command."""
 
@@ -132,7 +192,7 @@ class SwitchLanguageTool:
             priority=10,
             args=lambda m: {"language": "auto"},
         ),
-    )
+    ) + _free_form_patterns()
 
     def __init__(
         self,
