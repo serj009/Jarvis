@@ -267,8 +267,11 @@ def test_recommend_silent_when_best_already_downloaded(tmp_path):
     assert recommend_whisper_model(tmp_path, free_mb=7000) is None
 
 
-def test_recommend_silent_when_no_gpu_vram(tmp_path):
+def test_recommend_silent_when_no_gpu_vram(monkeypatch, tmp_path):
     # nvidia-smi unavailable → free VRAM unknown → no recommendation.
+    # free_mb=None means "not passed", so the helper probes nvidia-smi itself;
+    # stub the probe, otherwise a real GPU on the test machine answers it.
+    monkeypatch.setattr("jarvis.audio.stt._free_vram_mb", lambda: None)
     _make_whisper_cache(tmp_path, "small")
     assert recommend_whisper_model(tmp_path, free_mb=None) is None
 
