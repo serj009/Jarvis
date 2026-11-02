@@ -63,6 +63,8 @@ class TTSManager:
         self._registry = voice_registry
         self._current_language = default_language
         self._current_voice_name = piper_tts.voice_name
+        # Voices reported missing once; avoids a warning on every turn.
+        self._warned_missing: set[str] = set()
 
     @property
     def current_language(self) -> str:
@@ -77,12 +79,12 @@ class TTSManager:
 
         Call this from the pipeline after STT detects language,
         before any TTS speak() calls in that turn."""
-        if language and language != self._current_language:
+        if language and self._needs_switch(language):
             await self._switch_voice(language)
 
     async def speak(self, text: str, *, language: str | None = None) -> None:
         """Speak text, switching voice if language changed."""
-        if language and language != self._current_language:
+        if language and self._needs_switch(language):
             await self._switch_voice(language)
         await self._piper.speak(text)
 
@@ -90,7 +92,7 @@ class TTSManager:
         self, text_chunks: AsyncIterator[str], *, language: str | None = None
     ) -> None:
         """Speak streaming text, switching voice if language changed."""
-        if language and language != self._current_language:
+        if language and self._needs_switch(language):
             await self._switch_voice(language)
         await self._piper.speak_stream(text_chunks)
 
@@ -160,6 +162,20 @@ class TTSManager:
         it to simulate slow/failing loads."""
         await self._piper.preload_voice(voice_name)
 
+    def _needs_switch(self, language: str) -> bool:
+        """True when *language* is not what is currently being spoken.
+
+        Compares the loaded VOICE too, not only the remembered language: at
+        boot ``default_language`` comes from last_language.json (Task 7.3)
+        while Piper is created with the English voice. After a session that
+        ended in Russian, the language already read "ru", no switch ever
+        happened, and the English voice read Russian replies as gibberish
+        (live regression 2026-11-02).
+        """
+        if language != self._current_language:
+            return True
+        return self._registry.get_voice_name(language) != self._current_voice_name
+
     async def _switch_voice(self, language: str) -> None:
         """Switch to the voice assigned to the given language."""
         target_name = self._registry.get_voice_name(language)
@@ -170,10 +186,12 @@ class TTSManager:
 
         # Check if voice model is downloaded
         if not self._registry.is_downloaded(target_name):
-            log.warning(
-                "voice %r for language %r not downloaded, keeping %r",
-                target_name, language, self._current_voice_name,
-            )
+            if target_name not in self._warned_missing:
+                self._warned_missing.add(target_name)
+                log.warning(
+                    "voice %r for language %r not downloaded, keeping %r",
+                    target_name, language, self._current_voice_name,
+                )
             self._current_language = language
             return
 
