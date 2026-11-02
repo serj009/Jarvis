@@ -42,6 +42,14 @@ preferences: {}
 #  time_format_en: "12h"
 #  announce_actions: true
 
+# profile:                   # -> user_profile.json (всегда в контексте модели)
+#   name: "..."
+#   city: "..."
+#   country: "..."
+#   timezone: "Europe/Warsaw"
+#   occupation: "..."
+#   interests: ["..."]
+
 facts: []
 #  - content: "Меня зовут ..."
 #    category: "personal/identity"

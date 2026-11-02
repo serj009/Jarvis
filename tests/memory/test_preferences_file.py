@@ -46,5 +46,5 @@ def test_importer_creates_template_instead_of_failing(monkeypatch, tmp_path):
     from jarvis.personal_starter.import_starter import import_starter
 
     target = tmp_path / PREFERENCES_FILENAME
-    assert import_starter(yaml_path=str(target), stores_dir=str(tmp_path / "stores")) is False
+    assert import_starter(yaml_path=target, memory_dir=tmp_path / "memory") is False
     assert target.read_text(encoding="utf-8") == PREFERENCES_TEMPLATE
