@@ -198,6 +198,7 @@ from jarvis.llm.ollama_client import OllamaClient
 from jarvis.memory.conversation import ConversationMemory
 from jarvis.memory.embeddings import EmbeddingIndex
 from jarvis.memory.personal_aliases import PersonalAliasStore
+from jarvis.memory.preferences_file import PREFERENCES_FILENAME, ensure_preferences_file
 from jarvis.memory.relations import RelationStore
 from jarvis.memory.scheduled_reminders import ReminderScheduler, ReminderStore
 from jarvis.memory.store import MemoryStore
@@ -2678,6 +2679,11 @@ class JarvisApp:
         # T4.4/T4.5: Tool example store for self-learning.
         # Lives next to memory.db in the Jarvis data dir.
         _data_root = self.memory_store.db_path.parent
+
+        # Personal starter-memory file: an empty template is created in the
+        # data dir (never in the repo) the first time memory is set up. An
+        # existing file is the user's data and is never overwritten.
+        ensure_preferences_file(_data_root / PREFERENCES_FILENAME)
 
         # T4.7: RelationStore for graph-based fact expansion in auto-recall.
         self.relation_store = RelationStore(db_path=self.memory_store.db_path)

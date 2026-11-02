@@ -1,6 +1,12 @@
 # Personal test plan (not committed)
 HOME_TEST_PLAN.md
 
+# Personal data — never commit. my_preferences.yaml is created empty in
+# %APPDATA%/Jarvis/memory/ by jarvis.memory.preferences_file; system_facts.yaml
+# stays only on the developer's PC.
+my_preferences.yaml
+jarvis/knowledge/base/system_facts.yaml
+
 # Python
 __pycache__/
 *.py[cod]
