@@ -38,10 +38,12 @@ little gain -- one schema with a ``kind`` field covers both use cases).
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 import json
 import logging
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -54,6 +56,17 @@ CHUNK_CHARS = 5_000
 OVERLAP_LINES = 3
 NUM_PREDICT = 4096
 TEMPERATURE = 0.1
+# Background reads yield to the user: how long Jarvis must stay free before
+# the next part starts, and how often "busy?" is checked.
+IDLE_GRACE_S = 2.0
+BUSY_POLL_S = 0.25
+
+
+class _Preempted:
+    """_ask() result when the user started talking mid-part."""
+
+
+_PREEMPTED = _Preempted()
 
 _KINDS: tuple[str, ...] = ("checklist", "recipe", "list", "article")
 _ROLES: tuple[str, ...] = ("task", "ingredient", "step", "item")
@@ -425,9 +438,26 @@ def _accepts(fn: Any, name: str) -> bool:
 class PageExtractor:
     """Turns page text into an ExtractedPage with the local LLM."""
 
-    def __init__(self, llm: Any, *, chunk_chars: int = CHUNK_CHARS) -> None:
+    def __init__(
+        self,
+        llm: Any,
+        *,
+        chunk_chars: int = CHUNK_CHARS,
+        is_busy: Callable[[], bool] | None = None,
+        idle_grace_s: float = IDLE_GRACE_S,
+        poll_s: float = BUSY_POLL_S,
+    ) -> None:
         self._llm = llm
         self._chunk_chars = chunk_chars
+        # The user's turn comes first. A part takes up to a minute of
+        # Ollama time; with is_busy (live: "is Jarvis mid-turn?") every
+        # part waits until Jarvis is free, and a part being generated when
+        # the user starts talking is abandoned and redone later. Without it
+        # a question asked during a background read stalled for 60 s and
+        # failed (live session).
+        self._is_busy = is_busy
+        self._idle_grace_s = idle_grace_s
+        self._poll_s = poll_s
 
     async def extract(self, text: str, url: str, title: str) -> ExtractedPage | None:
         chunks = split_into_chunks(text, chunk_chars=self._chunk_chars)
@@ -436,7 +466,16 @@ class PageExtractor:
         log.info("[page_extractor] %d chars -> %d part(s)", len(text), len(chunks))
         parts: list[dict] = []
         for index, chunk in enumerate(chunks, start=1):
-            reply = await self._ask(chunk, index, len(chunks), url, title)
+            while True:
+                await self._wait_until_free()
+                reply = await self._ask(chunk, index, len(chunks), url, title)
+                if reply is not _PREEMPTED:
+                    break
+                log.info(
+                    "[page_extractor] part %d/%d paused: the user is talking; will redo it",
+                    index, len(chunks),
+                )
+            assert not isinstance(reply, _Preempted)
             if reply is None:
                 log.warning("[page_extractor] part %d/%d gave no usable JSON", index, len(chunks))
                 continue
@@ -451,7 +490,7 @@ class PageExtractor:
 
     async def _ask(
         self, chunk: str, index: int, total: int, url: str, title: str
-    ) -> dict | None:
+    ) -> dict | None | _Preempted:
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {
@@ -469,12 +508,48 @@ class PageExtractor:
         if _accepts(self._llm.stream_chat, "options"):
             kwargs["options"] = {"temperature": TEMPERATURE, "num_predict": NUM_PREDICT}
         reply = ""
+        stream = self._llm.stream_chat(messages, **kwargs)
         try:
-            async for piece in self._llm.stream_chat(messages, **kwargs):
+            async for piece in stream:
+                if self._busy():
+                    # Closing the stream drops the HTTP request, and Ollama
+                    # stops generating, so the user's turn gets the GPU.
+                    return _PREEMPTED
                 reply += piece.content
                 if piece.done:
                     break
         except Exception:
             log.exception("[page_extractor] LLM call failed on part %d/%d", index, total)
             return None
+        finally:
+            aclose = getattr(stream, "aclose", None)
+            if aclose is not None:
+                try:
+                    await aclose()
+                except Exception:
+                    log.debug("[page_extractor] closing the stream failed", exc_info=True)
         return parse_reply(reply)
+
+    def _busy(self) -> bool:
+        if self._is_busy is None:
+            return False
+        try:
+            return bool(self._is_busy())
+        except Exception:
+            log.debug("[page_extractor] is_busy check failed", exc_info=True)
+            return False
+
+    async def _wait_until_free(self) -> None:
+        """Return once Jarvis has been free for idle_grace_s, so a follow-up
+        question right after an answer still goes before the next part."""
+        if self._is_busy is None:
+            return
+        while True:
+            while self._busy():
+                await asyncio.sleep(self._poll_s)
+            free_for = 0.0
+            while free_for < self._idle_grace_s and not self._busy():
+                await asyncio.sleep(self._poll_s)
+                free_for += self._poll_s
+            if not self._busy():
+                return

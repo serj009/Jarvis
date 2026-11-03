@@ -239,6 +239,7 @@ class SavePageKnowledgeTool:
         collection_store: Any = None,
         on_speak: Callable[[str], Awaitable[None]] | None = None,
         announce: Callable[[str], None] | None = None,
+        is_busy: Callable[[], bool] | None = None,
     ) -> None:
         self._ollama = ollama_client
         self._memory_store = memory_store
@@ -258,6 +259,9 @@ class SavePageKnowledgeTool:
         # not sit through it with Jarvis stuck in THINKING.
         self._announce = announce
         self._background: set[asyncio.Task] = set()
+        # "Is the user mid-turn?" — lets a background read yield the model
+        # to the user's questions (PageExtractor waits / redoes a part).
+        self._is_busy = is_busy
         # Lazy alternative to browser_controller: building a BrowserController
         # probes Selenium, which is not worth doing at startup for a tool the
         # user may never call.
@@ -435,7 +439,7 @@ class SavePageKnowledgeTool:
 
         if announce_reading:
             await self._say_reading()
-        page = await PageExtractor(self._ollama).extract(text, url, title)
+        page = await PageExtractor(self._ollama, is_busy=self._is_busy).extract(text, url, title)
         if page is None or not page.is_collection:
             return None
         kind = _collection_kind(page.kind)

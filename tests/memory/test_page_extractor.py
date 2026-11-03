@@ -8,6 +8,7 @@ salvage of cut-off replies and merging of parts.
 
 from __future__ import annotations
 
+import asyncio
 import json
 
 import pytest
@@ -310,3 +311,69 @@ def test_prompt_explains_layout_and_exclusions():
     assert "description" in SYSTEM_PROMPT
     for excluded in ("table of contents", "Наградить", "Поделиться", "counters"):
         assert excluded in SYSTEM_PROMPT
+
+
+# -- yielding the model to the user (background reads) -------------------------
+
+
+class _StreamingLLM:
+    """Streams each reply in many small chunks; records closed streams."""
+
+    def __init__(self, replies: list[str], on_chunk=None) -> None:
+        self.replies = list(replies)
+        self.calls = 0
+        self.closed = 0
+        self.on_chunk = on_chunk
+
+    def stream_chat(self, messages, *, tools=None, format=None, options=None):  # noqa: A002
+        self.calls += 1
+        reply = self.replies.pop(0)
+        return self._gen(reply, self.calls)
+
+    async def _gen(self, reply: str, call: int):
+        try:
+            for i in range(0, len(reply), 5):
+                if self.on_chunk is not None:
+                    self.on_chunk(call, i)
+                yield FakeChunk(reply[i:i + 5], done=i + 5 >= len(reply))
+        finally:
+            self.closed += 1
+
+
+@pytest.mark.asyncio
+async def test_part_is_abandoned_and_redone_when_the_user_starts_talking():
+    # Live: a question asked during a background read stalled 60 s and
+    # failed. The part being generated must stop and be redone later.
+    busy = {"now": False}
+    reply = _reply("checklist", "Bleach", [{"r": "task", "n": "Крылья феникса"}])
+
+    def on_chunk(call: int, offset: int) -> None:
+        if call == 1 and offset == 10:
+            busy["now"] = True  # wake word mid-part
+            asyncio.get_running_loop().call_later(0.02, busy.update, {"now": False})
+
+    llm = _StreamingLLM([reply, reply], on_chunk=on_chunk)
+    extractor = PageExtractor(
+        llm, is_busy=lambda: busy["now"], idle_grace_s=0.0, poll_s=0.005,
+    )
+    page = await extractor.extract("Крылья феникса", "https://x", "Guide")
+
+    assert llm.calls == 2  # abandoned once, redone once
+    assert llm.closed == 2  # the abandoned stream was closed, not left running
+    assert page is not None and [i.name for i in page.items] == ["Крылья феникса"]
+
+
+@pytest.mark.asyncio
+async def test_part_waits_while_jarvis_is_busy():
+    busy = {"now": True}
+    reply = _reply("checklist", "Bleach", [{"r": "task", "n": "A"}])
+    llm = _StreamingLLM([reply])
+    extractor = PageExtractor(
+        llm, is_busy=lambda: busy["now"], idle_grace_s=0.0, poll_s=0.005,
+    )
+    task = asyncio.create_task(extractor.extract("A", "https://x", "Guide"))
+    await asyncio.sleep(0.05)
+    assert llm.calls == 0  # nothing sent while the user is mid-turn
+    busy["now"] = False
+    page = await asyncio.wait_for(task, timeout=2)
+    assert llm.calls == 1 and page is not None

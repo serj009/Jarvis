@@ -190,7 +190,7 @@ from jarvis.core.request_context import (
     current_user_transcription,
 )
 from jarvis.core.resource_monitor import ResourceMonitor
-from jarvis.core.state_machine import Mode, StateMachine
+from jarvis.core.state_machine import ConversationalState, Mode, StateMachine
 from jarvis.core.vram_manager import VRAMManager
 from jarvis.llm.conversation import Conversation
 from jarvis.llm.intent_router import IntentRouter, StopIntent, ToolIntent, execute_intent
@@ -2914,6 +2914,8 @@ class JarvisApp:
             reminder_store=self.reminder_store,
             proactive_engine=self.proactive_engine,
             announce=_speak_proactive,
+            # Mid-turn = anything but IDLE: wake word heard, thinking, speaking.
+            is_busy=lambda: self.sm.conversational_state is not ConversationalState.IDLE,
 
 
         )
