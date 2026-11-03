@@ -133,10 +133,11 @@ from pathlib import Path
 # annotations`` keeps them as strings at runtime). Importing under
 # TYPE_CHECKING avoids pulling sounddevice/numpy into the module just to name a
 # type — the real value import stays lazy at the call sites.
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from jarvis.audio.devices import AudioInputSource
+    from jarvis.core.phrases import Lang
 
 
 
@@ -1238,6 +1239,20 @@ async def _handle_config_changed(
 # ---------------------------------------------------------------------------
 
 
+def goodbye_language(tts_manager: Any, stt: Any) -> Lang:
+    """Language for the shutdown goodbye: the one Jarvis was last speaking.
+
+    With STT in "auto" mode ``stt.language`` is "auto", so it alone made a
+    Russian conversation end with an English goodbye. The TTS manager knows
+    the language of the last reply; a fixed STT language is the fallback.
+    """
+    for candidate in (
+        getattr(tts_manager, "current_language", None),
+        getattr(stt, "language", None),
+    ):
+        if candidate in ("ru", "uk", "en"):
+            return candidate  # type: ignore[return-value]
+    return "en"
 
 
 
@@ -1663,13 +1678,12 @@ async def _audio_main(
 
     # Goodbye phrase: speak before any cleanup so TTS is still alive.
     try:
-        from jarvis.core.phrases import Lang, say
-        stt_lang = getattr(stt, "language", None)
-        if stt_lang in ("ru", "uk", "en"):
-            lang: Lang = stt_lang  # type: ignore[assignment]
+        from jarvis.core.phrases import say
+        lang = goodbye_language(_tm, stt)
+        if _tm is not None:
+            await _tm.speak(say("goodbye", lang), language=lang)
         else:
-            lang = "en"
-        await tts.speak(say("goodbye", lang))
+            await tts.speak(say("goodbye", lang))
         log.info("shutdown: spoke goodbye (%s)", lang)
     except Exception:
         log.warning("shutdown: goodbye TTS failed", exc_info=True)
@@ -5044,7 +5058,7 @@ class JarvisApp:
         otherwise ``"ru"`` (default audience).
         """
         from jarvis.core.config import default_config_path
-        from jarvis.core.phrases import Lang, say
+        from jarvis.core.phrases import say
 
         data_dir = default_config_path().parent / "data"
         sentinel = data_dir / ".first_run_done"
