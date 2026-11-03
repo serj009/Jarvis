@@ -78,6 +78,10 @@ _BACKGROUND_STARTED = (
     "Tell the user you are reading it and will say when it is saved. "
     "It is NOT saved yet."
 )
+_BACKGROUND_ALREADY = (
+    "This page is already being read in the background; nothing new was "
+    "started. Tell the user you will say when it is saved."
+)
 
 
 def _same_page(a: str, b: str) -> bool:
@@ -285,9 +289,14 @@ class SavePageKnowledgeTool:
         page_text = clean_external_text(page_text, source=f"web_knowledge:{page_url}")
 
         if self._collections is not None and self._announce is not None:
+            # Live: "remember this page" said twice started a second
+            # extraction of the same page; both shared the one GPU and the
+            # save took ~12 min instead of ~6.
+            if any(t.get_name() == f"save-page:{page_url}" for t in self._background):
+                return ToolResult(success=True, output=_BACKGROUND_ALREADY)
             task = asyncio.create_task(
                 self._save_in_background(page_text, page_url, page_title),
-                name="save-page-knowledge",
+                name=f"save-page:{page_url}",
             )
             self._background.add(task)
             task.add_done_callback(self._background.discard)

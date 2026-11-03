@@ -1009,6 +1009,22 @@ class TestCollectionPath:
         assert announced == ["I could not read that page, sir."]
 
     @pytest.mark.asyncio
+    async def test_second_request_for_the_same_page_starts_nothing(self, store):
+        # Live: said twice, two extractions of one page shared the GPU.
+        announced: list[str] = []
+        llm = _llm_replying(
+            {"kind": "checklist", "title": "Bleach", "items": [{"r": "task", "n": "A"}]},
+        )
+        tool = _collection_tool(store, llm, announce=announced.append)
+        first = await tool.execute(SavePageKnowledgeArgs())
+        second = await tool.execute(SavePageKnowledgeArgs())
+        assert "NOT saved yet" in output_text(first)
+        assert "already being read" in output_text(second)
+        assert len(tool._background) == 1
+        await asyncio.gather(*tool._background)
+        assert len(announced) == 1
+
+    @pytest.mark.asyncio
     async def test_without_an_announcer_the_save_waits(self, store):
         llm = _llm_replying({"kind": "checklist", "title": "Bleach", "items": [
             {"r": "task", "n": "Крылья феникса"},
