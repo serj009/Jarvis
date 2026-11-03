@@ -48,6 +48,37 @@ _READING_PHRASES = {
     "en": "Reading the page, sir. This will take a minute or so.",
 }
 
+# Spoken when a background save finishes (see SavePageKnowledgeTool.execute).
+_DONE_PHRASES: dict[str, dict[str, str]] = {
+    "list": {
+        "ru": "Сохранил «{title}», пунктов: {count}, сэр.",
+        "uk": "Зберіг «{title}», пунктів: {count}, сер.",
+        "en": "Saved \"{title}\": {count} items, sir.",
+    },
+    "recipe": {
+        "ru": "Сохранил рецепт «{title}», сэр.",
+        "uk": "Зберіг рецепт «{title}», сер.",
+        "en": "Saved the recipe \"{title}\", sir.",
+    },
+    "facts": {
+        "ru": "Сохранил страницу в память, сэр.",
+        "uk": "Зберіг сторінку в пам'ять, сер.",
+        "en": "Saved the page to memory, sir.",
+    },
+    "failed": {
+        "ru": "Не получилось разобрать страницу, сэр.",
+        "uk": "Не вдалося розібрати сторінку, сер.",
+        "en": "I could not read that page, sir.",
+    },
+}
+
+# What the model is told when the save runs in the background.
+_BACKGROUND_STARTED = (
+    "Started reading the page in the background; it takes about a minute. "
+    "Tell the user you are reading it and will say when it is saved. "
+    "It is NOT saved yet."
+)
+
 
 def _same_page(a: str, b: str) -> bool:
     """True when two URLs name the same page (ignoring #fragment and a
@@ -184,6 +215,7 @@ class SavePageKnowledgeTool:
         browser_provider: Callable[[], Any] | None = None,
         collection_store: Any = None,
         on_speak: Callable[[str], Awaitable[None]] | None = None,
+        announce: Callable[[str], None] | None = None,
     ) -> None:
         self._ollama = ollama_client
         self._memory_store = memory_store
@@ -197,6 +229,12 @@ class SavePageKnowledgeTool:
         # so before starting, the way deep research does, so a silent
         # Jarvis is not taken for a hang.
         self._on_speak = on_speak
+        # With announce (speaks when Jarvis is idle, like timers) a list page
+        # is read in the background: the extraction is output-bound (~40 s
+        # for a 36-item guide on qwen3:8b, measured), and the user should
+        # not sit through it with Jarvis stuck in THINKING.
+        self._announce = announce
+        self._background: set[asyncio.Task] = set()
         # Lazy alternative to browser_controller: building a BrowserController
         # probes Selenium, which is not worth doing at startup for a tool the
         # user may never call.
@@ -246,15 +284,69 @@ class SavePageKnowledgeTool:
 
         page_text = clean_external_text(page_text, source=f"web_knowledge:{page_url}")
 
+        if self._collections is not None and self._announce is not None:
+            task = asyncio.create_task(
+                self._save_in_background(page_text, page_url, page_title),
+                name="save-page-knowledge",
+            )
+            self._background.add(task)
+            task.add_done_callback(self._background.discard)
+            return ToolResult(success=True, output=_BACKGROUND_STARTED)
+
+        return await self._save_page(page_text, page_url, page_title)
+
+    async def _save_in_background(self, page_text: str, page_url: str, page_title: str) -> None:
+        """Run the save and say how it went. Runs in a copy of the request's
+        context, so reply_language() still sees the user's words."""
+        from jarvis.core.phrases import reply_language
+
+        lang = reply_language()
+        try:
+            result, collection = await self._save_page_with_collection(
+                page_text, page_url, page_title, announce_reading=False
+            )
+        except Exception:
+            log.exception("[web_knowledge] background save failed")
+            result, collection = ToolResult(success=False, error="crashed"), None
+        if not result.success:
+            key, values = "failed", {}
+        elif collection is None:
+            key, values = "facts", {}
+        elif collection.kind == "recipe":
+            key, values = "recipe", {"title": collection.label}
+        else:
+            key, values = "list", {"title": collection.label, "count": collection.total}
+        phrases = _DONE_PHRASES[key]
+        text = phrases.get(lang, phrases["en"]).format(**values)
+        log.info("[web_knowledge] background save done: %s", key)
+        try:
+            if self._announce is not None:
+                self._announce(text)
+        except Exception:
+            log.warning("[web_knowledge] could not announce the result", exc_info=True)
+
+    async def _save_page(self, page_text: str, page_url: str, page_title: str) -> ToolResult:
+        result, _collection = await self._save_page_with_collection(
+            page_text, page_url, page_title, announce_reading=True
+        )
+        return result
+
+    async def _save_page_with_collection(
+        self, page_text: str, page_url: str, page_title: str, *, announce_reading: bool
+    ) -> tuple[ToolResult, Any]:
+        """Save the page as a collection or, failing that, as facts.
+        Returns the tool result and the collection (None for facts)."""
         # 2a. Structured collection (checklist / recipe / list).
         if self._collections is not None:
-            collection_result = await self._save_as_collection(
-                page_text, page_url, page_title
+            saved = await self._save_as_collection(
+                page_text, page_url, page_title, announce_reading=announce_reading
             )
-            if collection_result is not None:
-                return collection_result
+            if saved is not None:
+                return saved
             log.info("[web_knowledge] no list found on the page; saving it as facts")
+        return await self._save_as_facts(page_text, page_url, page_title), None
 
+    async def _save_as_facts(self, page_text: str, page_url: str, page_title: str) -> ToolResult:
         # 2b. Extract and save via KnowledgeExtractor
         from jarvis.memory.knowledge_extractor import KnowledgeExtractor
 
@@ -305,15 +397,16 @@ class SavePageKnowledgeTool:
             log.debug("reading notice could not be spoken", exc_info=True)
 
     async def _save_as_collection(
-        self, text: str, url: str, title: str
-    ) -> ToolResult | None:
+        self, text: str, url: str, title: str, *, announce_reading: bool = True
+    ) -> tuple[ToolResult, Any] | None:
         """Extract a checklist / recipe / list and store it.
 
-        Returns None when the page holds no list (an article), so the caller
-        falls back to saving facts."""
+        Returns (result, collection), or None when the page holds no list
+        (an article), so the caller falls back to saving facts."""
         from jarvis.memory.page_extractor import PageExtractor
 
-        await self._say_reading()
+        if announce_reading:
+            await self._say_reading()
         page = await PageExtractor(self._ollama).extract(text, url, title)
         if page is None or not page.is_collection:
             return None
@@ -331,7 +424,10 @@ class SavePageKnowledgeTool:
         note_title = None
         if collection.kind == "recipe" and collection.ingredients():
             note_title = await asyncio.to_thread(_write_shopping_note, collection)
-        return ToolResult(success=True, output=_describe_saved(collection, note_title))
+        return (
+            ToolResult(success=True, output=_describe_saved(collection, note_title)),
+            collection,
+        )
 
     async def _remember_collection(self, collection: Any) -> None:
         """One short fact so auto-recall knows the list exists ("what did I

@@ -53,6 +53,7 @@ def setup_local_tools(
     on_timer_done: Callable[[str], None] | None = None,
     reminder_store: object = None,
     proactive_engine: object = None,
+    announce: Callable[[str], None] | None = None,
 ) -> None:
     """Register every built-in local tool into `registry`.
 
@@ -547,6 +548,7 @@ def setup_local_tools(
             browser_provider=_get_browser,
             collection_store=collection_store,
             on_speak=getattr(tts_manager, "speak", None),
+            announce=announce,
         ))
 
     # Page comparison & translation — need ollama_client.

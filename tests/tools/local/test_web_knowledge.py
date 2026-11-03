@@ -5,6 +5,7 @@ Fully mocked: no real browser, no real LLM, no real database.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from unittest.mock import MagicMock, patch
@@ -825,7 +826,7 @@ def _llm_replying(*replies: dict):
     return mock
 
 
-def _collection_tool(store, llm, memory=None, speak=None):
+def _collection_tool(store, llm, memory=None, speak=None, announce=None):
     browser = _build_mock_browser(
         "Крылья феникса\nкупить 10 видов\nКороль душ", "https://steam.example/g", "Steam guide",
     )
@@ -836,6 +837,7 @@ def _collection_tool(store, llm, memory=None, speak=None):
         browser_controller=browser,
         collection_store=store,
         on_speak=speak,
+        announce=announce,
     )
 
 
@@ -969,6 +971,50 @@ class TestCollectionPath:
             'Saved checklist "Bleach" from https://steam.example/g (2 items). '
             'Ask "what is left" / "shopping list" to use it.'
         ]
+
+    @pytest.mark.asyncio
+    async def test_background_save_answers_at_once_and_announces(self, store):
+        # Measured live: ~40 s of extraction for a 36-item guide. With an
+        # announcer the tool returns at once and says the result later.
+        from jarvis.core.request_context import current_user_transcription
+
+        announced: list[str] = []
+        llm = _llm_replying({"kind": "checklist", "title": "Bleach", "items": [
+            {"r": "task", "n": "Крылья феникса"}, {"r": "task", "n": "Король душ"},
+        ]})
+        tool = _collection_tool(store, llm, announce=announced.append)
+        token = current_user_transcription.set("запомни эту страницу")
+        try:
+            result = await tool.execute(SavePageKnowledgeArgs())
+        finally:
+            current_user_transcription.reset(token)
+        assert result.success
+        assert "NOT saved yet" in output_text(result)
+        await asyncio.gather(*tool._background)
+        assert announced == ["Сохранил «Bleach», пунктов: 2, сэр."]
+        col = store.find("")
+        assert col is not None and len(col.items) == 2
+
+    @pytest.mark.asyncio
+    async def test_background_save_announces_failure(self, store):
+        announced: list[str] = []
+        llm = _llm_replying({"kind": "checklist", "title": "Bleach", "items": [
+            {"r": "task", "n": "Крылья феникса"},
+        ]})
+        tool = _collection_tool(store, llm, announce=announced.append)
+        with patch.object(store, "save", side_effect=RuntimeError("disk full")):
+            result = await tool.execute(SavePageKnowledgeArgs())
+            await asyncio.gather(*tool._background)
+        assert result.success
+        assert announced == ["I could not read that page, sir."]
+
+    @pytest.mark.asyncio
+    async def test_without_an_announcer_the_save_waits(self, store):
+        llm = _llm_replying({"kind": "checklist", "title": "Bleach", "items": [
+            {"r": "task", "n": "Крылья феникса"},
+        ]})
+        result = await _collection_tool(store, llm).execute(SavePageKnowledgeArgs())
+        assert "1 items" in output_text(result)
 
     @pytest.mark.asyncio
     async def test_speak_failure_is_not_fatal(self, store):

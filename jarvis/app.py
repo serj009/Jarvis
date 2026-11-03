@@ -2913,6 +2913,7 @@ class JarvisApp:
             on_timer_done=self._on_timer_done,
             reminder_store=self.reminder_store,
             proactive_engine=self.proactive_engine,
+            announce=_speak_proactive,
 
 
         )
