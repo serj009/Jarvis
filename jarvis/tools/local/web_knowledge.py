@@ -48,6 +48,20 @@ _READING_PHRASES = {
     "en": "Reading the page, sir. This will take a minute or so.",
 }
 
+# Optional tails after "remember this page": where the page is and where it
+# goes. Live: "Запомни открытую страницу в браузере в память" missed every
+# save-page pattern and take_note's "запомни (.+)" saved it as a note.
+# "… в закладки" is left to the bookmarks tool on purpose.
+_TAIL_RU = (
+    r"(?:\s+(?:в\s+браузере|из\s+браузера|с\s+браузера"
+    r"|в\s+(?:свою\s+)?памят[ьи]|себе))*"
+)
+_TAIL_UK = (
+    r"(?:\s+(?:[ву]\s+браузері|з\s+браузера"
+    r"|[ву]\s+(?:свою\s+)?пам['ʼ’]?ять|собі))*"
+)
+_TAIL_EN = r"(?:\s+(?:in\s+(?:the\s+)?browser|(?:to|in)\s+(?:your\s+)?memory))*"
+
 # Spoken when a background save finishes (see SavePageKnowledgeTool.execute).
 _DONE_PHRASES: dict[str, dict[str, str]] = {
     "list": {
@@ -146,7 +160,8 @@ class SavePageKnowledgeTool:
         ),
         VoicePattern(
             regex=r"^(?:remember|save)\s+(?:this\s+|the\s+current\s+|current\s+|the\s+open\s+)?"
-            r"(?:page|recipe|guide|walkthrough|article)(?:\s+from\s+(?:this\s+)?page)?$",
+            r"(?:page|recipe|guide|walkthrough|article)(?:\s+from\s+(?:this\s+)?page)?"
+            rf"{_TAIL_EN}$",
             priority=432,
             args=lambda m: {},
         ),
@@ -173,7 +188,8 @@ class SavePageKnowledgeTool:
             regex=r"^(?:запомни|сохрани)(?:те)?\s+"
             r"(?:эт(?:от|у|о|и)\s+|текущ(?:ую|ий|ее)\s+|открыт(?:ую|ый|ое)\s+)?"
             r"(?:страниц[уа]|рецепт|гайд|руководство|прохождение|статью)"
-            r"(?:\s+(?:с[ое]?|из)\s+(?:этой\s+)?страниц[ыи])?$",
+            r"(?:\s+(?:с[ое]?|из)\s+(?:этой\s+)?страниц[ыи])?"
+            rf"{_TAIL_RU}$",
             priority=432,
             args=lambda m: {},
         ),
@@ -198,7 +214,8 @@ class SavePageKnowledgeTool:
             regex=r"^(?:запам['ʼ’]?ятай(?:те)?|збереж(?:и|іть))\s+"
             r"(?:ц(?:ю|ей|е)\s+|поточн(?:у|ий|е)\s+|відкрит(?:у|ий|е)\s+)?"
             r"(?:сторінк[уа]|рецепт|гайд|посібник|проходження|статтю)"
-            r"(?:\s+(?:з|зі|із)\s+(?:цієї\s+)?сторінки)?$",
+            r"(?:\s+(?:з|зі|із)\s+(?:цієї\s+)?сторінки)?"
+            rf"{_TAIL_UK}$",
             priority=432,
             args=lambda m: {},
         ),

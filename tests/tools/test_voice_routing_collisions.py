@@ -76,6 +76,14 @@ _CASES = [
     ("найди отчет.docx", "file_manager"),
     ("найди pdf в загрузках", "file_manager"),
     ("знайди файл звіт", "file_manager"),
+    # "Remember the page" with a tail (live: "…в браузере в память" became a
+    # note via take_note's "запомни (.+)").
+    ("запомни открытую страницу в браузере в память", "save_page_knowledge"),
+    ("сохрани страницу из браузера", "save_page_knowledge"),
+    ("запам'ятай цю сторінку в пам'ять", "save_page_knowledge"),
+    ("save the current page to memory", "save_page_knowledge"),
+    ("запомни эту страницу в закладки", "bookmarks"),
+    ("запомни купить молоко", "take_note"),
     # Neighbours that must keep their own tools.
     ("открой новую вкладку", "browser_tabs"),
     ("открой заметки", "open_notes"),
