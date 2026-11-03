@@ -32,6 +32,7 @@ from jarvis.audio.protocols import (
 from jarvis.core.events import (
     EventBus,
     LLMResponseComplete,
+    ProactiveSpeech,
     TranscriptionReady,
     WakeWordDetected,
 )
@@ -1046,5 +1047,37 @@ async def test_post_tts_pause_allows_realistic_followup_wake(
         assert not any(
             "[wake] suppressed" in r.message for r in caplog.records
         )
+    finally:
+        await pipeline.stop()
+
+
+# --- proactive speech (timers, reminders, background announcements) -------
+
+
+async def test_proactive_speech_is_spoken_from_idle():
+    """Live: every ProactiveSpeech raised IllegalTransition IDLE -> SPEAKING
+    (SPEC has no such edge) and was dropped unspoken. It must be spoken and
+    leave the pipeline IDLE again."""
+    pipeline, bus, sm, source, ww, vad, stt, tts = make_pipeline()
+    await pipeline.start()
+    try:
+        bus.publish(ProactiveSpeech(text="Timer 'tea' is done, sir!"))
+        await wait_for_cs(sm, ConversationalState.SPEAKING)
+        assert tts.spoken == ["Timer 'tea' is done, sir!"]
+        tts.finish_speaking()
+        await wait_for_cs(sm, ConversationalState.IDLE)
+    finally:
+        await pipeline.stop()
+
+
+async def test_proactive_speech_is_dropped_while_busy():
+    pipeline, bus, sm, source, ww, vad, stt, tts = make_pipeline()
+    await pipeline.start()
+    try:
+        sm.set_conversational_state(ConversationalState.LISTENING)
+        bus.publish(ProactiveSpeech(text="Reminder"))
+        await yield_loop()
+        assert tts.spoken == []
+        assert sm.conversational_state is ConversationalState.LISTENING
     finally:
         await pipeline.stop()

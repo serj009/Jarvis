@@ -677,12 +677,23 @@ class AudioPipeline:
             return
         log.info("[proactive] speaking: %s", event.text[:80])
         try:
-            self._sm.set_conversational_state(ConversationalState.SPEAKING)
+            # SPEC's transition table only leaves IDLE for LISTENING, so going
+            # to SPEAKING directly raised IllegalTransition and every timer,
+            # reminder and background announcement was dropped unspoken.
+            # Walk the legal path. The three steps run with no await in
+            # between, so the frame loop never sees LISTENING and records
+            # nothing; the pipeline does not subscribe to CS changes.
+            for state in (
+                ConversationalState.LISTENING,
+                ConversationalState.THINKING,
+                ConversationalState.SPEAKING,
+            ):
+                self._sm.set_conversational_state(state)
             await self._tts.speak(event.text)
         except Exception:
             log.exception("[proactive] TTS failed")
         finally:
-            if self._sm.conversational_state is ConversationalState.SPEAKING:
+            if self._sm.conversational_state is not ConversationalState.IDLE:
                 self._sm.set_conversational_state(ConversationalState.IDLE)
 
     # -- response chain --
