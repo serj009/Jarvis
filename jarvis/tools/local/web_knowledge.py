@@ -51,16 +51,17 @@ _READING_PHRASES = {
 # Optional tails after "remember this page": where the page is and where it
 # goes. Live: "Запомни открытую страницу в браузере в память" missed every
 # save-page pattern and take_note's "запомни (.+)" saved it as a note.
-# "… в закладки" is left to the bookmarks tool on purpose.
+# "… в закладки" is left to the bookmarks tool on purpose. STT often puts a
+# comma before a tail ("в браузере, в память"), so one is allowed.
 _TAIL_RU = (
-    r"(?:\s+(?:в\s+браузере|из\s+браузера|с\s+браузера"
+    r"(?:,?\s+(?:в\s+браузере|из\s+браузера|с\s+браузера"
     r"|в\s+(?:свою\s+)?памят[ьи]|себе))*"
 )
 _TAIL_UK = (
-    r"(?:\s+(?:[ву]\s+браузері|з\s+браузера"
+    r"(?:,?\s+(?:[ву]\s+браузері|з\s+браузера"
     r"|[ву]\s+(?:свою\s+)?пам['ʼ’]?ять|собі))*"
 )
-_TAIL_EN = r"(?:\s+(?:in\s+(?:the\s+)?browser|(?:to|in)\s+(?:your\s+)?memory))*"
+_TAIL_EN = r"(?:,?\s+(?:in\s+(?:the\s+)?browser|(?:to|in)\s+(?:your\s+)?memory))*"
 
 # Spoken when a background save finishes (see SavePageKnowledgeTool.execute).
 _DONE_PHRASES: dict[str, dict[str, str]] = {
@@ -186,7 +187,8 @@ class SavePageKnowledgeTool:
             # "запомни эту страницу", "сохрани этот рецепт", "запомни гайд
             # с этой страницы", "сохрани это прохождение"
             regex=r"^(?:запомни|сохрани)(?:те)?\s+"
-            r"(?:эт(?:от|у|о|и)\s+|текущ(?:ую|ий|ее)\s+|открыт(?:ую|ый|ое)\s+)?"
+            # Any number of them: live "запомни текущую открытую страницу".
+            r"(?:(?:эт(?:от|у|о|и)|текущ(?:ую|ий|ее)|открыт(?:ую|ый|ое))\s+)*"
             r"(?:страниц[уа]|рецепт|гайд|руководство|прохождение|статью)"
             r"(?:\s+(?:с[ое]?|из)\s+(?:этой\s+)?страниц[ыи])?"
             rf"{_TAIL_RU}$",
@@ -212,7 +214,7 @@ class SavePageKnowledgeTool:
         ),
         VoicePattern(
             regex=r"^(?:запам['ʼ’]?ятай(?:те)?|збереж(?:и|іть))\s+"
-            r"(?:ц(?:ю|ей|е)\s+|поточн(?:у|ий|е)\s+|відкрит(?:у|ий|е)\s+)?"
+            r"(?:(?:ц(?:ю|ей|е)|поточн(?:у|ий|е)|відкрит(?:у|ий|е))\s+)*"
             r"(?:сторінк[уа]|рецепт|гайд|посібник|проходження|статтю)"
             r"(?:\s+(?:з|зі|із)\s+(?:цієї\s+)?сторінки)?"
             rf"{_TAIL_UK}$",

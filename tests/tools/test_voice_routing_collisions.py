@@ -80,6 +80,9 @@ _CASES = [
     # note via take_note's "запомни (.+)").
     ("запомни открытую страницу в браузере в память", "save_page_knowledge"),
     ("сохрани страницу из браузера", "save_page_knowledge"),
+    # Two adjectives and an STT comma (both seen live, both became notes).
+    ("запомни текущую открытую страницу в браузере в память", "save_page_knowledge"),
+    ("запомни открытую страницу в браузере, в память", "save_page_knowledge"),
     ("запам'ятай цю сторінку в пам'ять", "save_page_knowledge"),
     ("save the current page to memory", "save_page_knowledge"),
     ("запомни эту страницу в закладки", "bookmarks"),
