@@ -4,7 +4,14 @@ from __future__ import annotations
 
 import pytest
 
-from jarvis.memory.collections import CollectionStore, NewItem, match_score, normalize_name
+from jarvis.memory.collections import (
+    CollectionStore,
+    Item,
+    NewItem,
+    item_match_score,
+    match_score,
+    normalize_name,
+)
 
 
 @pytest.fixture
@@ -164,6 +171,32 @@ class TestFind:
         ranked = store.match_items(col, "крылья феникса")
         assert ranked[0][1].name == "Крылья феникса"
         assert ranked[0][0] == 1.0
+
+    def test_match_items_finds_a_row_by_its_details(self, store):
+        cid = _guide(store)
+        col = store.get(cid)
+        assert col is not None
+        ranked = store.match_items(col, "реальные моменты")
+        assert ranked[0][1].name == "Король душ"
+
+
+@pytest.mark.parametrize(
+    ("query", "name", "details", "low", "high"),
+    [
+        ("Пройти обучение", "Пройти обучение", "", 1.0, 1.0),
+        ("феникс", "Крылья феникса", "", 0.7, 0.9),
+        # One shared verb out of four words is not a match.
+        ("пройти первую главу в сюжете", "Пройти обучение", "", 0.0, 0.54),
+        ("пройти первую главу в сюжете", "Июльский Дождь", "Пройти первую главу в сюжете",
+         0.85, 0.85),
+        # Same word, different ending.
+        ("первой главы", "Июльский Дождь", "Пройти первую главу", 0.85, 0.85),
+    ],
+)
+def test_item_match_score(query, name, details, low, high):
+    item = Item(id=1, position=0, role="task", section="", name=name, details=details,
+                quantity=None, unit="", done=False)
+    assert low <= item_match_score(query, item) <= high
 
 
 @pytest.mark.parametrize(

@@ -193,6 +193,27 @@ class TestMark:
         assert "Крылья феникса" in (result.error or "") and "Крылья тигра" in (result.error or "")
 
     @pytest.mark.asyncio
+    async def test_shared_verb_does_not_pick_the_wrong_row(self, store):
+        # From a live session: "пройти" alone made "Пройти обучение" the
+        # winner; the row the user meant says so only in its details.
+        store.save(
+            kind="checklist",
+            title="Bleach: Rebirth of Souls",
+            source_url="https://steam.example/bleach-story",
+            items=[
+                NewItem(name="Пройти обучение", role="task",
+                        details="В главном меню заходим в обучение"),
+                NewItem(name="Июльский Дождь", role="task",
+                        details="Пройти первую главу в сюжете"),
+                NewItem(name="И Дождь прошёл", role="task",
+                        details="Пройти вторую главу в сюжете"),
+            ],
+        )
+        result = await _mark(store, item="пройти первую главу в сюжете", name="блич")
+        assert result.success, result.error
+        assert "Отметил «Июльский Дождь»" in output_text(result)
+
+    @pytest.mark.asyncio
     async def test_nothing_similar(self, store):
         _guide(store)
         result = await _mark(store, item="драконий меч")

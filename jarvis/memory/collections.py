@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import difflib
 import logging
+import os
 import re
 import sqlite3
 import threading
@@ -224,6 +225,54 @@ def _match_score(query: str, candidate: str) -> float:
             word_best = max(word_best, difflib.SequenceMatcher(None, qw, cw).ratio())
     # A single strong word match counts, but less than matching the phrase.
     return max(ratio, word_best * 0.85)
+
+
+# A query word "is in" a text when some word of the text is this close to it
+# (Russian endings differ: "главу" / "главе" = 0.8).
+_WORD_HIT = 0.75
+
+
+def _same_word(a: str, b: str) -> bool:
+    """Same word up to its ending: close spelling, or a shared stem that
+    leaves at most two letters of the shorter word ("первой" / "первую")."""
+    if difflib.SequenceMatcher(None, a, b).ratio() >= _WORD_HIT:
+        return True
+    stem = len(os.path.commonprefix([a, b]))
+    return stem >= max(4, min(len(a), len(b)) - 2)
+
+
+def _word_coverage(query: str, text: str) -> float:
+    """Share of the query's words (3+ letters) that appear in *text*."""
+    q_words = [w for w in normalize_name(query).split() if len(w) >= 3]
+    t_words = normalize_name(text).split()
+    if not q_words or not t_words:
+        return 0.0
+    hits = sum(1 for qw in q_words if any(_same_word(qw, tw) for tw in t_words))
+    return hits / len(q_words)
+
+
+def _coverage(query: str, text: str) -> float:
+    return max(_word_coverage(query, text),
+               _word_coverage(_translit(normalize_name(query)),
+                              _translit(normalize_name(text))))
+
+
+def item_match_score(query: str, item: Item) -> float:
+    """0..1 similarity of a spoken *query* to a list row.
+
+    Unlike list titles, rows share common words ("пройти", "получить"), so a
+    single matching word must not pick a row: a fuzzy name match is capped by
+    how many of the query's words the name holds. The row's details are
+    searched too, since users often name a row by what it asks for
+    ("пройти первую главу" -> the achievement whose condition says so).
+    """
+    by_name = match_score(query, item.name)
+    if by_name < 0.9:
+        by_name = min(by_name, 0.4 + 0.5 * _coverage(query, item.name))
+    if not item.details:
+        return by_name
+    by_details = 0.85 * _coverage(query, f"{item.name} {item.details}")
+    return max(by_name, by_details)
 
 
 class CollectionStore:
@@ -502,7 +551,7 @@ class CollectionStore:
     ) -> list[tuple[float, Item]]:
         """Rows of *collection* ranked by how well they match *query*."""
         scored = [
-            (match_score(query, item.name), item)
+            (item_match_score(query, item), item)
             for item in collection.items
             if item.role in ("task", "item", "ingredient")
         ]
