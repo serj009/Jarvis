@@ -798,3 +798,63 @@ async def test_failed_one_shot_action_lets_the_model_recover():
 
     assert llm.stream_calls == 2
     assert _spoken(intents) == "Opening the website instead, sir."
+
+
+# --- a reply that claims an action no tool performed ------------------
+
+
+async def test_claimed_action_without_a_tool_call_is_asked_again():
+    """Live: "…Барочку назови" got "Назову этот список…" and no
+    name_saved_list call, so the list was never named. The claim is not
+    spoken; the model is asked once more and calls the tool."""
+    name_list = _ScriptedTool("name_saved_list", ToolResult(success=True, output="Named."))
+    llm = ScriptedOllama([
+        [_text("Сир, назову этот список «Барочка».", done=True)],
+        [_calls(("name_saved_list", {}))],
+        [_text("Готово, сир.", done=True)],
+    ])
+    router, _ = _router(llm, _registry(name_list))
+
+    # No voice pattern takes this word order, so it reaches the model.
+    intents = await _collect(router.route("Барочку назови"))
+
+    assert name_list.calls == 1
+    assert "назову" not in _spoken(intents).lower()
+    note = llm.seen_messages[1][-1]
+    assert note["role"] == "system" and "did not call any tool" in note["content"]
+
+
+async def test_plain_answer_is_not_asked_again():
+    llm = ScriptedOllama([[_text("Столица Франции — Париж, сир.", done=True)]])
+    router, _ = _router(llm, _registry(_ScriptedTool("x", ToolResult(success=True))))
+
+    intents = await _collect(router.route("столица франции"))
+
+    assert llm.stream_calls == 1
+    assert _spoken(intents) == "Столица Франции — Париж, сир."
+
+
+async def test_report_after_a_real_tool_call_is_not_asked_again():
+    tool = _ScriptedTool("mark_list_item", ToolResult(success=True, output="Marked."))
+    llm = ScriptedOllama([
+        [_calls(("mark_list_item", {}))],
+        [_text("Отметил, сир.", done=True)],
+    ])
+    router, _ = _router(llm, _registry(tool))
+
+    intents = await _collect(router.route("отметь пункт"))
+
+    assert llm.stream_calls == 2
+    assert _spoken(intents) == "Отметил, сир."
+
+
+async def test_claimed_action_is_asked_again_only_once():
+    """A model that keeps claiming without acting is spoken after one
+    retry instead of looping to the bound."""
+    llm = ScriptedOllama([[_text("I've saved it, sir.", done=True)]])
+    router, _ = _router(llm, _registry(_ScriptedTool("x", ToolResult(success=True))))
+
+    intents = await _collect(router.route("save it"))
+
+    assert llm.stream_calls == 2
+    assert _spoken(intents) == "I've saved it, sir."

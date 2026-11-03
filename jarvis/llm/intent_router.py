@@ -153,6 +153,37 @@ _TRUNCATION_NOTE = "\n... (result truncated)"
 # from PipelineConfig.llm_timeout_s which caps the entire LLM stage.
 _STREAM_CHUNK_TIMEOUT_S: float = 60.0
 
+# First-person "I did / I'll do / doing it" in ru / uk / en. A prose
+# reply in this shape with no tool call this turn means the model only
+# SAID it acted (live: "Назову этот список…" with no name_saved_list).
+_CLAIMED_ACTION = re.compile(
+    r"(?<!\w)(?:"
+    # RU
+    r"назову|назвал|переименую|переименовал|отметил|отмечу|открываю|открыл|открою"
+    r"|запускаю|запустил|запущу|сохранил|сохраню|запомнил|запомню|удалил|удалю"
+    r"|добавил|добавлю|создал|создам|включаю|включил|выключил|поставил|установил"
+    # UK
+    r"|назву|назвав|перейменую|перейменував|позначив|позначу|відкриваю|відкрив|відкрию"
+    r"|запускаю|запустив|зберіг|збережу|запам'ятав|запам'ятаю|видалив|видалю"
+    r"|додав|додам|створив|створю|увімкнув|вимкнув"
+    # EN
+    r"|i(?:'ve| have)? (?:named|renamed|marked|opened|launched|saved|remembered"
+    r"|deleted|added|created|set|turned)"
+    r"|i'll (?:name|rename|mark|open|launch|save|remember|delete|add|create|set|turn)"
+    r")(?!\w)",
+    re.IGNORECASE,
+)
+
+_CLAIMED_ACTION_NOTE = (
+    "Your last reply said you performed an action, but you did not call any "
+    "tool, so nothing happened. If the user asked for an action, call the "
+    "matching tool now. Otherwise answer without claiming you did anything."
+)
+
+
+def _claims_action(text: str) -> bool:
+    return bool(_CLAIMED_ACTION.search(text))
+
 
 # --- Intent types ----------------------------------------------------
 
@@ -674,6 +705,8 @@ class IntentRouter:
         # feedback rounds) sees the same subset — the user's intent
         # hasn't changed between iterations.
         tools_for_turn = self._filtered_tools(transcription)
+        tool_called = False
+        asked_again = False
 
         for iteration in range(1, self._max_tool_iterations + 1):
             text_parts, raw_tool_calls = await self._stream_round(
@@ -706,6 +739,24 @@ class IntentRouter:
                     return
 
             if not raw_tool_calls:
+                # A reply that reports an action ("Назову этот список…")
+                # while no tool ran this turn is a false claim: nothing
+                # happened. Nothing has been spoken yet, so ask once more
+                # with a note instead of telling the user a lie.
+                if (
+                    not tool_called
+                    and not asked_again
+                    and tools_for_turn
+                    and iteration < self._max_tool_iterations
+                    and _claims_action("".join(text_parts))
+                ):
+                    asked_again = True
+                    log.info("[router] reply claims an action but no tool ran; asking again")
+                    messages = [
+                        *messages,
+                        {"role": "system", "content": _CLAIMED_ACTION_NOTE},
+                    ]
+                    continue
                 # The model answered in prose. This is the only path
                 # that speaks model text, and the only one that records
                 # a plain assistant turn.
@@ -740,6 +791,7 @@ class IntentRouter:
             # Execute first, record second. Every await lives in
             # _run_tools, so a cancel lands before the round trip is
             # written rather than halfway through it.
+            tool_called = True
             exchanges, spoken, ends_turn = await self._run_tools(intents)
             messages = self._conv.add_tool_round_trip(
                 content="".join(text_parts), exchanges=exchanges
