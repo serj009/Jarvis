@@ -945,6 +945,32 @@ class TestCollectionPath:
         assert len(store.list_all()) == 1
 
     @pytest.mark.asyncio
+    async def test_resaving_replaces_the_summary_fact(self, store, tmp_path):
+        # Live memory held both "(78 items)" and "(36 items)" for one page.
+        from jarvis.memory.store import MemoryStore
+
+        memory = MemoryStore(tmp_path / "memory.db")
+        await memory.open()
+        long_list = {"kind": "checklist", "title": "Bleach", "items": [
+            {"r": "task", "n": "Крылья феникса"}, {"r": "task", "n": "Король душ"},
+            {"r": "task", "n": "Панцирь черепахи"},
+        ]}
+        short_list = {"kind": "checklist", "title": "Bleach", "items": [
+            {"r": "task", "n": "Крылья феникса"}, {"r": "task", "n": "Король душ"},
+        ]}
+        for reply in (long_list, short_list):
+            await _collection_tool(store, _llm_replying(reply), memory=memory).execute(
+                SavePageKnowledgeArgs()
+            )
+        col = store.find("")
+        assert col is not None
+        facts = await memory.search("Saved", tag=f"collection:{col.id}", limit=10)
+        assert [f.text for f in facts] == [
+            'Saved checklist "Bleach" from https://steam.example/g (2 items). '
+            'Ask "what is left" / "shopping list" to use it.'
+        ]
+
+    @pytest.mark.asyncio
     async def test_speak_failure_is_not_fatal(self, store):
         async def broken(text):
             raise RuntimeError("tts down")

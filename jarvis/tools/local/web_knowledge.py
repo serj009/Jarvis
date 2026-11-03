@@ -335,12 +335,24 @@ class SavePageKnowledgeTool:
 
     async def _remember_collection(self, collection: Any) -> None:
         """One short fact so auto-recall knows the list exists ("what did I
-        save about Bleach?"); the rows themselves live in the CollectionStore."""
+        save about Bleach?"); the rows themselves live in the CollectionStore.
+
+        Re-saving a page keeps the collection id, so the previous fact for it
+        is replaced: otherwise "(78 items)" and "(36 items)" for the same page
+        were both recalled."""
         count = len(collection.items)
         text = (
             f"Saved {collection.kind} \"{collection.title}\" from {collection.source_url} "
             f"({count} items). Ask \"what is left\" / \"shopping list\" to use it."
         )
+        try:
+            previous = await self._memory_store.search(
+                "Saved", category="web_import", tag=f"collection:{collection.id}", limit=20,
+            )
+            for fact in previous:
+                await self._memory_store.delete(fact.id)
+        except Exception:
+            log.warning("could not drop the previous collection fact", exc_info=True)
         try:
             await self._memory_store.add(
                 text,
