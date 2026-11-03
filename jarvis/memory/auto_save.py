@@ -103,19 +103,23 @@ _FACT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
     ), "setting_pref"),
 
     # -- Identity / names ---------------------------------------------------
-    # EN: "my name is X", "I'm X", "call me X"
+    # Only phrases that state a name. A bare "я X" / "I'm X" is not one
+    # ("я хочу", "I'm tired"), and with no word boundary "я\s+(\w+)" fired on
+    # any word ending in "я": "залезная людина" saved "людина" as a name.
+    # "я — X" still counts: the dash makes it a statement.
+    # EN: "my name is X", "call me X"
     (re.compile(
-        r"(?:my\s+name\s+is|i'?m|call\s+me)\s+(\w+)",
+        r"(?:my\s+name\s+is|call\s+me)\s+(\w+)",
         re.IGNORECASE,
     ), "identity"),
-    # RU: "меня зовут X", "я — X"
+    # RU: "меня зовут X", "зови меня X", "я — X"
     (re.compile(
-        r"(?:меня\s+зовут|я\s+—?\s*)(\w+)",
+        r"(?:(?:меня\s+зовут|зови\s+меня)\s+|я\s*—\s*)(\w+)",
         re.IGNORECASE,
     ), "identity"),
-    # UK: "мене звати X"
+    # UK: "мене звати X", "клич мене X"
     (re.compile(
-        r"(?:мене\s+звати|я\s+—?\s*)(\w+)",
+        r"(?:мене\s+звати|клич\s+мене)\s+(\w+)",
         re.IGNORECASE,
     ), "identity"),
 
@@ -160,12 +164,21 @@ def extract_facts(user_utterance: str) -> list[tuple[str, str]]:
     """
     facts: list[tuple[str, str]] = []
     for pattern, category in _FACT_PATTERNS:
-        m = pattern.search(user_utterance)
+        m = _first_whole_word_match(pattern, user_utterance)
         if m:
             fact = m.group(1).strip().rstrip(".,!?")
             if len(fact) >= _MIN_FACT_LENGTH:
                 facts.append((fact, category))
     return facts
+
+
+def _first_whole_word_match(pattern: re.Pattern[str], text: str) -> re.Match[str] | None:
+    """First match of *pattern* that starts a word: "я з" must not fire
+    inside "мая з…", nor "i like" inside "mi like"."""
+    for m in pattern.finditer(text):
+        if m.start() == 0 or not text[m.start() - 1].isalnum():
+            return m
+    return None
 
 
 async def auto_save_facts(

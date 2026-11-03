@@ -45,9 +45,36 @@ class TestExtractFacts:
         assert any("serhii" in f[0].lower() for f in facts)
 
     def test_russian_identity(self) -> None:
+        # The name itself, not "зовут" (the old "я\s+(\w+)" read "меня
+        # зовут" as "я зовут").
         facts = extract_facts("меня зовут Сергей")
-        assert len(facts) >= 1
-        assert any(f[1] == "identity" for f in facts)
+        assert ("Сергей", "identity") in facts
+
+    def test_russian_identity_with_dash(self) -> None:
+        facts = extract_facts("я — Сергей")
+        assert ("Сергей", "identity") in facts
+
+    def test_ukrainian_identity(self) -> None:
+        facts = extract_facts("мене звати Сергій")
+        assert ("Сергій", "identity") in facts
+
+    @pytest.mark.parametrize(
+        "utterance",
+        [
+            # Live sessions: a word ending in "я" before a space read as "я X".
+            "Открый в браузере yourkino.best залезная людина",
+            "Отметь в игре Блич, достижение запрохождения первой главы, как получено.",
+            # A bare "я X" / "I'm X" is not a name.
+            "я хочу пиццу",
+            "I'm tired today",
+        ],
+    )
+    def test_no_identity_without_a_name_phrase(self, utterance: str) -> None:
+        assert not [f for f in extract_facts(utterance) if f[1] == "identity"]
+
+    def test_pattern_does_not_fire_inside_a_word(self) -> None:
+        # "я з" inside "мая заходит" is not "я з …" (location).
+        assert extract_facts("в мая заходит солнце") == []
 
     def test_english_location(self) -> None:
         facts = extract_facts("I live in London")
