@@ -61,6 +61,47 @@ def test_instance_lock_release_none():
     release_instance_lock(None)  # should not raise
 
 
+def test_instance_lock_release_twice():
+    """A second release of the same handle is a no-op."""
+    from jarvis.core.instance_lock import acquire_instance_lock, release_instance_lock
+
+    lock = acquire_instance_lock()
+    assert lock is not None
+    release_instance_lock(lock)
+    release_instance_lock(lock)  # should not raise
+
+
+def test_run_releases_lock_when_start_returns_early():
+    """run() frees the lock even when start() bails out before Qt runs.
+
+    Live session: the audio boot failed, start() returned 1 still holding
+    the lock, and __main__'s in-process restarts all failed with
+    "instance lock already held" by the same process.
+    """
+    import jarvis.app as app_mod
+    from jarvis.core.instance_lock import acquire_instance_lock, release_instance_lock
+
+    # The real app stays referenced (Qt objects, threads) after start()
+    # returns; without this the handle would be closed by garbage
+    # collection and the test would pass even without the fix.
+    alive = []
+
+    def early_exit(self):
+        alive.append(self)
+        self._instance_lock = acquire_instance_lock()
+        assert self._instance_lock is not None
+        return 1  # e.g. audio stack boot aborted
+
+    with patch.object(app_mod.JarvisApp, "start", early_exit):
+        assert app_mod.run() == 1
+
+    again = acquire_instance_lock()
+    try:
+        assert again is not None, "lock must be free for the restart"
+    finally:
+        release_instance_lock(again)
+
+
 # ---------------------------------------------------------------------------
 # 2. ollama_check tests
 # ---------------------------------------------------------------------------

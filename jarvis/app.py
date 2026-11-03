@@ -5281,6 +5281,15 @@ def run() -> int:
     """
 
 
-    return JarvisApp().start()
+    app = JarvisApp()
+    try:
+        return app.start()
+    finally:
+        # start() releases the lock only around qt_app.exec(); its early
+        # returns (no tray, audio boot failed) kept the lock file locked,
+        # and __main__'s in-process restart then found "instance lock
+        # already held" by itself. Releasing twice is a no-op.
+        release_instance_lock(app._instance_lock)
+        app._instance_lock = None
 
 

@@ -103,9 +103,9 @@ def acquire_instance_lock() -> IO[str] | None:
 def release_instance_lock(fh: IO[str] | None) -> None:
     """Release and clean up the lock file.
 
-    Safe to call with ``None`` (no-op).
+    Safe to call with ``None`` or an already released handle (no-op).
     """
-    if fh is None:
+    if fh is None or fh.closed:
         return
     path = _lock_path()
     try:
