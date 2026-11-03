@@ -459,7 +459,7 @@ def test_en_rename_patterns(phrase: str):
 
 _RU_PHRASES = [
     ("найди файл отчёт", "find"),
-    ("найди отчёт", "find"),
+    ("найди отчёт.docx", "find"),  # bare "найди отчёт" is a web search now
     ("найти файл бюджет", "find"),
     ("открой файл readme", "open"),
     ("перемести фото в картинки", "move"),
@@ -482,7 +482,7 @@ def test_ru_patterns(phrase: str, expected_action: str):
 
 _UK_PHRASES = [
     ("знайди файл звіт", "find"),
-    ("знайди звіт", "find"),
+    ("знайди звіт.pdf", "find"),  # bare "знайди звіт" is a web search now
     ("пошукай файл бюджет", "find"),
     ("відкрий файл readme", "open"),
     ("перемісти фото в картинки", "move"),
@@ -810,6 +810,7 @@ def test_filtered_find_voice_patterns_route():
 
     a3 = match("найди файлы за последнюю неделю")
     assert a3 and a3.get("newer_than") == "1w"
+
 
 
 # ═══════════════════════════════════════════════════════════════════

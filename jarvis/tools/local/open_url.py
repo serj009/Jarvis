@@ -167,7 +167,7 @@ class OpenUrlTool:
         ),
         # RU: "найди ...", "загугли ...", "поищи ...", "погугли ..."
         VoicePattern(
-            regex=r"^(?:найди|загугли|поищи|погугли)\s+(.+)$",
+            regex=r"^(?:найди|загугли|поищи|погугли)\s+(?:в\s+(?:интернете|гугле|google|сети)\s+)?(.+)$",
             priority=500,
             args=lambda m: {
                 "url": "https://www.google.com/search?q=" + quote_plus(m.group(1))
@@ -175,7 +175,7 @@ class OpenUrlTool:
         ),
         # UK: "знайди ...", "загугли ...", "пошукай ...", "погугли ..."
         VoicePattern(
-            regex=r"^(?:знайди|загугли|пошукай|погугли)\s+(.+)$",
+            regex=r"^(?:знайди|загугли|пошукай|погугли)\s+(?:в\s+(?:інтернеті|гуглі|google|мережі)\s+)?(.+)$",
             priority=500,
             args=lambda m: {
                 "url": "https://www.google.com/search?q=" + quote_plus(m.group(1))

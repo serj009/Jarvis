@@ -65,6 +65,17 @@ _CASES = [
     ("открой в браузере «железный человек-фильм»", "open_url"),
     ("открой железный человек в браузере", "open_url"),
     ("открою в браузере uakino.best", "open_url"),
+    # "найди / поищи X" is a web search unless X is said to be a file (live:
+    # "найди гайд по Spyro" ran a 4 s disk search).
+    ("найди гайд по достижениям spyro", "open_url"),
+    ("найди в интернете гайд по spyro", "open_url"),
+    ("поищи рецепт борща", "open_url"),
+    ("знайди рецепт борщу", "open_url"),
+    ("найди файл отчет", "file_manager"),
+    ("найди документ договор", "file_manager"),
+    ("найди отчет.docx", "file_manager"),
+    ("найди pdf в загрузках", "file_manager"),
+    ("знайди файл звіт", "file_manager"),
     # Neighbours that must keep their own tools.
     ("открой новую вкладку", "browser_tabs"),
     ("открой заметки", "open_notes"),

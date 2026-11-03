@@ -496,13 +496,18 @@ class FileManagerTool:
             args=lambda m: {"action": "mkdir", "path": m.group(1)},
         ),
         # ── generic: RU ──────────────────────────────────────────
+        # Find only what is said to be a file: "файл / документ / папку" or a
+        # name with an extension. A bare "найди X" is a web search (open_url);
+        # a greedy "найди (.+)" here sent "найди гайд по Spyro" and even
+        # "найди в интернете …" to a disk search (live session).
         VoicePattern(
-            regex=r"^найди\s+(?:файл\s+)?(.+)$",
+            regex=r"^(?:найди|найти|поищи|поиск)\s+"
+                  r"(?:файл[ыа]?|документ[ыа]?|папку)\s+(.+)$",
             priority=300,
             args=lambda m: {"action": "find", "path": m.group(1)},
         ),
         VoicePattern(
-            regex=r"^(?:найти|поиск|поищи)\s+(?:файл\s+)?(.+)$",
+            regex=rf"^(?:найди|найти|поищи|поиск)\s+(.+\.(?i:{_EXT_ALTERNATION}))$",
             priority=300,
             args=lambda m: {"action": "find", "path": m.group(1)},
         ),
@@ -541,12 +546,14 @@ class FileManagerTool:
         ),
         # ── generic: UK ──────────────────────────────────────────
         VoicePattern(
-            regex=r"^знайди\s+(?:файл\s+)?(.+)$",
+            # Files only — see the RU find note above.
+            regex=r"^(?:знайди|знайти|пошукай|пошук)\s+"
+                  r"(?:файл[иу]?|документ[иу]?|папку)\s+(.+)$",
             priority=300,
             args=lambda m: {"action": "find", "path": m.group(1)},
         ),
         VoicePattern(
-            regex=r"^(?:знайти|пошук|пошукай)\s+(?:файл\s+)?(.+)$",
+            regex=rf"^(?:знайди|знайти|пошукай|пошук)\s+(.+\.(?i:{_EXT_ALTERNATION}))$",
             priority=300,
             args=lambda m: {"action": "find", "path": m.group(1)},
         ),
