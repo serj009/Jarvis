@@ -1070,14 +1070,79 @@ async def test_proactive_speech_is_spoken_from_idle():
         await pipeline.stop()
 
 
-async def test_proactive_speech_is_dropped_while_busy():
+async def test_proactive_speech_waits_while_busy_then_is_spoken():
+    """Live: a timer fired while Jarvis was still speaking its late
+    confirmation and was dropped. It must wait and be spoken once IDLE."""
     pipeline, bus, sm, source, ww, vad, stt, tts = make_pipeline()
     await pipeline.start()
     try:
         sm.set_conversational_state(ConversationalState.LISTENING)
-        bus.publish(ProactiveSpeech(text="Reminder"))
+        bus.publish(ProactiveSpeech(text="Timer 'tea' is done, sir!"))
         await yield_loop()
         assert tts.spoken == []
         assert sm.conversational_state is ConversationalState.LISTENING
+        sm.set_conversational_state(ConversationalState.IDLE)
+        await wait_for_cs(sm, ConversationalState.SPEAKING)
+        assert tts.spoken == ["Timer 'tea' is done, sir!"]
+        tts.finish_speaking()
+        await wait_for_cs(sm, ConversationalState.IDLE)
+    finally:
+        await pipeline.stop()
+
+
+async def test_queued_proactive_speech_is_spoken_in_order_without_duplicates():
+    pipeline, bus, sm, source, ww, vad, stt, tts = make_pipeline()
+    await pipeline.start()
+    try:
+        sm.set_conversational_state(ConversationalState.LISTENING)
+        for text in ("first", "second", "first"):
+            bus.publish(ProactiveSpeech(text=text))
+        await yield_loop()
+        sm.set_conversational_state(ConversationalState.IDLE)
+        await wait_for_cs(sm, ConversationalState.SPEAKING)
+        tts.finish_speaking()
+        await yield_loop()
+        await wait_for_cs(sm, ConversationalState.SPEAKING)
+        tts.finish_speaking()
+        await wait_for_cs(sm, ConversationalState.IDLE)
+        await yield_loop()
+        assert tts.spoken == ["first", "second"]
+    finally:
+        await pipeline.stop()
+
+
+async def test_stale_proactive_speech_is_not_spoken(monkeypatch):
+    import jarvis.audio.pipeline as pipeline_mod
+
+    monkeypatch.setattr(pipeline_mod, "PROACTIVE_MAX_AGE_S", 0.0)
+    pipeline, bus, sm, source, ww, vad, stt, tts = make_pipeline()
+    await pipeline.start()
+    try:
+        sm.set_conversational_state(ConversationalState.LISTENING)
+        bus.publish(ProactiveSpeech(text="too late"))
+        await yield_loop()
+        await asyncio.sleep(0.01)
+        sm.set_conversational_state(ConversationalState.IDLE)
+        await yield_loop()
+        assert tts.spoken == []
+        assert sm.conversational_state is ConversationalState.IDLE
+    finally:
+        await pipeline.stop()
+
+
+async def test_proactive_speech_waits_for_active_mode():
+    """Muted: leaving IDLE is illegal, so speaking used to raise. It waits."""
+    pipeline, bus, sm, source, ww, vad, stt, tts = make_pipeline()
+    await pipeline.start()
+    try:
+        sm.set_mode(Mode.MUTED)
+        bus.publish(ProactiveSpeech(text="Reminder"))
+        await yield_loop()
+        assert tts.spoken == []
+        sm.set_mode(Mode.ACTIVE)
+        await wait_for_cs(sm, ConversationalState.SPEAKING)
+        assert tts.spoken == ["Reminder"]
+        tts.finish_speaking()
+        await wait_for_cs(sm, ConversationalState.IDLE)
     finally:
         await pipeline.stop()

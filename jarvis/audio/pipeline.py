@@ -76,9 +76,11 @@ from jarvis.audio.protocols import (
 )
 from jarvis.audio.sound_effects import SoundEffects
 from jarvis.core.events import (
+    ConversationalStateChanged,
     EventBus,
     LLMResponseChunk,
     LLMResponseComplete,
+    ModeChanged,
     ProactiveSpeech,
     TranscriptionReady,
     WakeWordDetected,
@@ -115,6 +117,12 @@ BARGE_IN_ENABLED: bool = False
 
 # Time-of-day greeting: re-greet after this many seconds of silence.
 _GREETING_COOLDOWN_S: float = 3600.0  # 1 hour
+
+# Proactive speech (timers, reminders, announcements) that arrives while the
+# user is mid-turn waits for IDLE instead of being dropped; "your timer is
+# done" an hour late is noise, so old entries expire.
+PROACTIVE_MAX_AGE_S: float = 600.0
+PROACTIVE_QUEUE_MAX: int = 10
 
 
 # ---------------------------------------------------------------------------
@@ -285,8 +293,13 @@ class AudioPipeline:
         # Time-of-day greeting: timestamp of the last greeting spoken.
         self._last_greeting_time: float = time.monotonic()
 
-        # Unsubscribe handle for ProactiveSpeech bus subscription.
+        # Unsubscribe handles for ProactiveSpeech and the state events that
+        # release queued proactive speech.
         self._unsub_proactive: Callable[[], None] | None = None
+        self._unsub_proactive_release: list[Callable[[], None]] = []
+        # (text, monotonic time queued), oldest first.
+        self._proactive_queue: list[tuple[str, float]] = []
+        self._proactive_speaking = False
 
     # -- lifecycle --
 
@@ -296,6 +309,13 @@ class AudioPipeline:
         self._loop = asyncio.get_running_loop()
         self._unsub_proactive = self._bus.subscribe(
             ProactiveSpeech, self._handle_proactive_speech)
+        # Queued proactive speech is released when Jarvis is free again. The
+        # handler re-reads the live state before speaking, so the async
+        # dispatch of these events cannot make it talk over a new turn.
+        self._unsub_proactive_release = [
+            self._bus.subscribe(ConversationalStateChanged, self._on_cs_for_proactive),
+            self._bus.subscribe(ModeChanged, self._on_mode_for_proactive),
+        ]
         # Note: we deliberately do not subscribe to ConversationalStateChanged
         # for timer management. The pipeline is the single CS-mutator (per
         # design note) so timer start/cancel is wired directly into the
@@ -334,6 +354,10 @@ class AudioPipeline:
         if self._unsub_proactive is not None:
             self._unsub_proactive()
             self._unsub_proactive = None
+        for unsub in self._unsub_proactive_release:
+            unsub()
+        self._unsub_proactive_release = []
+        self._proactive_queue.clear()
         self._started = False
         try:
             await self._source.stop()
@@ -661,35 +685,72 @@ class AudioPipeline:
         """Speak *event.text* outside the normal voice-turn flow.
 
         Called by the EventBus when a ``ProactiveSpeech`` event is published
-        (e.g. timer expiry, scheduled reminder).  Only speaks when the
-        pipeline is IDLE — if the user is mid-conversation the speech is
-        logged-and-dropped to avoid interrupting the flow.
+        (e.g. timer expiry, scheduled reminder). It never interrupts: while
+        the user is mid-turn (or Jarvis is muted / asleep) the text waits in
+        a queue and is spoken once Jarvis is IDLE and ACTIVE again. Dropping
+        it, as before, lost a timer that fired while Jarvis was answering.
         """
         if not self._started:
             return
-        cs = self._sm.conversational_state
-        if cs is not ConversationalState.IDLE:
-            log.info(
-                "[proactive] dropping speech while %s: %s",
-                cs.name,
-                event.text[:80],
-            )
+        if any(text == event.text for text, _ in self._proactive_queue):
             return
-        log.info("[proactive] speaking: %s", event.text[:80])
+        if len(self._proactive_queue) >= PROACTIVE_QUEUE_MAX:
+            dropped, _ = self._proactive_queue.pop(0)
+            log.info("[proactive] queue full; dropping oldest: %s", dropped[:80])
+        self._proactive_queue.append((event.text, time.monotonic()))
+        await self._speak_queued_proactive()
+
+    async def _on_cs_for_proactive(self, event: ConversationalStateChanged) -> None:
+        if event.new is ConversationalState.IDLE:
+            await self._speak_queued_proactive()
+
+    async def _on_mode_for_proactive(self, event: ModeChanged) -> None:
+        if event.new is Mode.ACTIVE:
+            await self._speak_queued_proactive()
+
+    async def _speak_queued_proactive(self) -> None:
+        """Speak queued proactive texts while Jarvis is free, oldest first."""
+        if self._proactive_speaking:
+            return  # the running call picks up whatever is queued
+        self._proactive_speaking = True
+        try:
+            while self._started and self._proactive_queue:
+                now = time.monotonic()
+                while self._proactive_queue and (
+                    now - self._proactive_queue[0][1] > PROACTIVE_MAX_AGE_S
+                ):
+                    stale, _ = self._proactive_queue.pop(0)
+                    log.info("[proactive] expired before Jarvis was free: %s", stale[:80])
+                if not self._proactive_queue:
+                    return
+                cs = self._sm.conversational_state
+                if self._sm.mode is not Mode.ACTIVE or cs is not ConversationalState.IDLE:
+                    log.info(
+                        "[proactive] queued while %s/%s: %s",
+                        self._sm.mode.name, cs.name, self._proactive_queue[-1][0][:80],
+                    )
+                    return
+                text, _ = self._proactive_queue.pop(0)
+                await self._speak_proactive_now(text)
+        finally:
+            self._proactive_speaking = False
+
+    async def _speak_proactive_now(self, text: str) -> None:
+        log.info("[proactive] speaking: %s", text[:80])
         try:
             # SPEC's transition table only leaves IDLE for LISTENING, so going
             # to SPEAKING directly raised IllegalTransition and every timer,
             # reminder and background announcement was dropped unspoken.
             # Walk the legal path. The three steps run with no await in
             # between, so the frame loop never sees LISTENING and records
-            # nothing; the pipeline does not subscribe to CS changes.
+            # nothing; only the proactive queue listens to CS changes.
             for state in (
                 ConversationalState.LISTENING,
                 ConversationalState.THINKING,
                 ConversationalState.SPEAKING,
             ):
                 self._sm.set_conversational_state(state)
-            await self._tts.speak(event.text)
+            await self._tts.speak(text)
         except Exception:
             log.exception("[proactive] TTS failed")
         finally:
