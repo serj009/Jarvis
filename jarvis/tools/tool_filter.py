@@ -98,6 +98,7 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
             "pause", "resume", "next track", "fullscreen",
             "close other tabs", "how many tabs", "count tabs",
             "find tab", "duplicate tab",
+            "save link", "save this link", "remember this link",
         ],
         "keywords_ru": [
             "вкладк", "новая вкладк", "закрой вкладк",
@@ -107,6 +108,7 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
             "пауза", "продолж", "следующ", "полный экран",
             "трек", "стоп",
             "закрой остальные", "сколько вкладок", "найди вкладку", "дублируй вкладку",
+            "сохрани ссылк", "сохрани эту ссылк", "запомни ссылк", "запомни эту ссылк",
         ],
         "keywords_uk": [
             "вкладк", "нова вкладк", "закрий вкладк",
@@ -116,25 +118,64 @@ TOOL_CATEGORIES: dict[str, dict[str, Any]] = {
             "пауза", "продовж", "наступн", "повний екран",
             "трек", "стоп",
             "закрий інші", "скільки вкладок", "знайди вкладку", "дублюй вкладку",
+            "збережи посиланн", "збережи це посиланн", "запамʼятай посиланн",
         ],
     },
     "knowledge": {
         "tools": [
             "save_page_knowledge",
         ],
+        # Broad on purpose: a long free-form request ("Джарвис, сохрани мне
+        # рецепт с этой страницы, чтобы потом был список продуктов") must
+        # still offer the model save_page_knowledge, or Qwen just answers in
+        # text and nothing is saved. The category adds a single schema, so a
+        # false hit costs little.
         "keywords_en": [
             "save page", "remember page", "extract knowledge",
             "save information from page", "page knowledge",
+            "this page", "current page", "open page", "recipe", "guide",
+            "walkthrough",
         ],
         "keywords_ru": [
             "сохрани информацию со страниц", "запомни страниц",
             "сохрани знания", "запомни что на странице",
             "извлеки знания",
+            "сохрани страниц", "сохрани эту страниц", "запомни эту страниц",
+            "с этой страниц", "со страниц", "на этой странице", "открытую страниц",
+            "текущую страниц", "текущей страниц", "открытой страниц",
+            "рецепт", "гайд", "прохождени", "руководств",
         ],
         "keywords_uk": [
             "збережи інформацію зі сторінк", "запамʼятай сторінк",
             "збережи знання", "запамʼятай що на сторінц",
             "витягни знання",
+            "збережи сторінк", "збережи цю сторінк", "запамʼятай цю сторінк",
+            "з цієї сторінк", "зі сторінк", "на цій сторінці", "відкриту сторінк",
+            "поточну сторінк", "поточної сторінк", "відкритої сторінк",
+            "рецепт", "гайд", "проходжен", "посібник",
+        ],
+    },
+    "saved_lists": {
+        "tools": [
+            "saved_list_status", "mark_list_item", "name_saved_list",
+        ],
+        "keywords_en": [
+            "what's left", "what is left", "left to do", "progress", "completed",
+            "mark ", "tick ", "achievement", "checklist", "shopping list",
+            "servings", "saved list", "rename the list", "call this list",
+            "name this list",
+        ],
+        "keywords_ru": [
+            "осталось", "прогресс", "пройден", "процент", "отметь", "пометь",
+            "отметку", "галочк", "достижени", "ачивк", "список продуктов",
+            "список покупок", "порци", "сохранённ", "сохраненн",
+            "назови этот список", "назови список", "переименуй список",
+        ],
+        "keywords_uk": [
+            "залишилось", "залишилося", "лишилось", "прогрес", "пройдено",
+            "відсотк", "познач", "відміть", "позначк", "досягнен",
+            "список продуктів", "список покупок", "порці", "збережен",
+            "назви цей список", "назви список", "перейменуй список",
         ],
     },
     "media": {
@@ -779,7 +820,7 @@ def filter_tools_for_utterance(
     if not all_tool_schemas:
         return all_tool_schemas
 
-    utterance_lower = utterance.lower()
+    utterance_lower = _unify_apostrophes(utterance.lower())
 
     matched_tool_names: set[str] = set(ALWAYS_INCLUDED)
     any_category_matched = False
@@ -790,7 +831,7 @@ def filter_tools_for_utterance(
             if category_hit:
                 break
             for keyword in category.get(kw_list_key, []):
-                if keyword in utterance_lower:
+                if _unify_apostrophes(keyword) in utterance_lower:
                     matched_tool_names.update(category["tools"])
                     category_hit = True
                     any_category_matched = True
@@ -825,6 +866,15 @@ def filter_tools_for_utterance(
         )
 
     return filtered[:MAX_FILTERED_TOOLS]
+
+
+_APOSTROPHES = str.maketrans({"ʼ": "'", "’": "'", "`": "'"})
+
+
+def _unify_apostrophes(text: str) -> str:
+    """Ukrainian "запам'ятай" arrives with ', ʼ or ’ depending on the STT
+    model and keyboard; the keyword lists mix them too. Compare with one."""
+    return text.translate(_APOSTROPHES)
 
 
 def _fallback_tools(utterance: str, all_tool_schemas: list[dict]) -> list[dict]:

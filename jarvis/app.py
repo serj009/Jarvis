@@ -648,7 +648,15 @@ def _make_router_adapter(
         finally:
 
 
-            current_user_transcription.reset(ctx_token)
+            try:
+                current_user_transcription.reset(ctx_token)
+            except ValueError:
+                # Barge-in: the pipeline abandoned this generator and it is
+                # being closed from another task, whose context never held
+                # the token. That context ends with the task, so there is
+                # nothing to restore; raising here only produced an
+                # "unhandled asyncio exception" after every interrupted answer.
+                pass
 
 
 
@@ -2934,6 +2942,18 @@ class JarvisApp:
         _see_screen_tool = self.registry.get("see_screen")
         if _see_screen_tool is not None:
             _see_screen_tool._game_mode = self.game_mode
+        # Saved lists: "что осталось" with no name means the running game's
+        # list. Wired here because GameMode exists only from this point on.
+        from jarvis.tools.local.saved_lists import SavedListToolBase
+
+        def _running_game_title(gm: GameMode = self.game_mode) -> str | None:
+            game = gm.current_game if gm.is_active else None
+            return game.title if game is not None else None
+
+        for _list_tool_name in ("saved_list_status", "mark_list_item", "name_saved_list"):
+            _list_tool = self.registry.get(_list_tool_name)
+            if isinstance(_list_tool, SavedListToolBase):
+                _list_tool.set_game_title_source(_running_game_title)
 
 
 

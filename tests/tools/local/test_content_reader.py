@@ -18,6 +18,7 @@ from jarvis.tools.local.content_reader import (
     _httpx_fetch,
 )
 from jarvis.tools.registry import VoicePattern
+from tests._typing import output_text
 
 # -- protocol conformance -----------------------------------------------
 
@@ -189,3 +190,39 @@ class TestExecute:
         result = await tool.execute(ContentReaderArgs(action="read_page"))
         assert result.success
         assert "Selenium extracted" in result.output
+
+
+class TestCurrentPageWithoutSelenium:
+    """No URL and no Selenium: read the page the user has open."""
+
+    @pytest.mark.asyncio
+    async def test_reads_page_from_users_browser(self, _mock_browser, monkeypatch):
+        from jarvis.browser import current_page as cp
+
+        _mock_browser.driver_active = False
+        monkeypatch.setattr(cp, "foreground_browser_url", lambda: "https://open.example/")
+        fetched: list[str] = []
+
+        def fake_fetch(url, **kw):
+            fetched.append(url)
+            return {"success": True, "html": "<p>Opened page text</p>"}
+
+        monkeypatch.setattr("jarvis.tools.local.content_reader._httpx_fetch", fake_fetch)
+        result = await ContentReaderTool().execute(ContentReaderArgs(action="read_page"))
+        assert result.success
+        assert "Opened page text" in output_text(result)
+        assert fetched == ["https://open.example/"]
+
+    @pytest.mark.asyncio
+    async def test_title_from_page_jarvis_opened(self, _mock_browser, monkeypatch):
+        from jarvis.browser import current_page as cp
+
+        _mock_browser.driver_active = False
+        cp.note_opened_url("https://opened.example/")
+        monkeypatch.setattr(
+            "jarvis.tools.local.content_reader._httpx_fetch",
+            lambda url, **kw: {"success": True, "html": "<title>Opened</title>"},
+        )
+        result = await ContentReaderTool().execute(ContentReaderArgs(action="get_title"))
+        assert result.success
+        assert "Opened" in output_text(result)

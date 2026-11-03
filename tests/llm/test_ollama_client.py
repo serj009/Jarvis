@@ -452,6 +452,38 @@ async def test_tools_omitted_when_none_or_empty(mock_httpx):
     assert "tools" not in body
 
 
+async def test_format_and_option_overrides_for_structured_calls(mock_httpx):
+    """Page extraction asks for schema-constrained JSON with its own
+    temperature / length; those land in the body without touching the
+    client's defaults for the next (voice) call."""
+    mock_httpx.stream = MagicMock(return_value=_MockStreamCM([
+        _ndjson_line({"message": {"content": "{}"}, "done": True}),
+    ]))
+    c = OllamaClient()
+    schema = {"type": "object", "properties": {"kind": {"type": "string"}}}
+    async for _ in c.stream_chat(
+        [{"role": "user", "content": "hi"}],
+        format=schema,
+        options={"temperature": 0.1, "num_predict": 4096},
+    ):
+        pass
+    body = mock_httpx.stream.call_args.kwargs["json"]
+    assert body["format"] == schema
+    assert body["options"]["temperature"] == 0.1
+    assert body["options"]["num_predict"] == 4096
+    assert body["options"]["num_ctx"] == c.num_ctx  # defaults kept for the rest
+
+    mock_httpx.stream = MagicMock(return_value=_MockStreamCM([
+        _ndjson_line({"message": {"content": ""}, "done": True}),
+    ]))
+    async for _ in c.stream_chat([{"role": "user", "content": "hi"}]):
+        pass
+    body = mock_httpx.stream.call_args.kwargs["json"]
+    assert "format" not in body
+    assert body["options"]["temperature"] == c.temperature
+    assert body["options"]["num_predict"] == c.max_tokens
+
+
 # --- error mapping ---------------------------------------------------
 
 

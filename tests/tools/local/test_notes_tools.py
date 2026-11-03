@@ -5,6 +5,8 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import MagicMock
 
+import pytest
+
 from jarvis.tools.local.notes_tools import (
     AppendToNoteArgs,
     AppendToNoteTool,
@@ -119,3 +121,27 @@ def test_delete_no_match():
     result = _run(tool.execute(DeleteNoteArgs(query="" if False else "missing")
                   if False else DeleteNoteArgs(title="missing")))
     assert result.success is False
+
+
+@pytest.mark.parametrize(
+    ("utterance", "content"),
+    [
+        ("запомни купить молоко", "купить молоко"),
+        # Polite forms used to keep their ending: "те купить хлеб".
+        ("запомните купить хлеб", "купить хлеб"),
+        ("запишите позвонить маме", "позвонить маме"),
+        ("запам'ятай купити хліб", "купити хліб"),
+        ("запам’ятайте купити хліб", "купити хліб"),
+        ("запишіть купити хліб", "купити хліб"),
+    ],
+)
+def test_take_note_voice_patterns_strip_the_verb(utterance, content):
+    import re
+
+    for vp in TakeNoteTool.voice_patterns:
+        m = re.match(vp.regex, utterance)
+        if m:
+            assert vp.args(m) == {"content": content}
+            return
+    raise AssertionError(f"no take_note pattern matched {utterance!r}")
+

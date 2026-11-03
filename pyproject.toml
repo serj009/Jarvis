@@ -44,6 +44,13 @@ dependencies = [
   # imports pynput lazily and logs "pynput not installed; hotkeys disabled"
   # rather than raising, so a headless host loads the module fine.
   "pynput>=1.7,<2; sys_platform == 'win32'",
+  # Windows UI Automation client: reads the address bar of the user's own
+  # browser so "remember this page" knows which page is open (see the
+  # decision block in jarvis/platform/windows.py). Pure Python, MIT.
+  # pywin32's win32com cannot do this: IUIAutomation is not an IDispatch
+  # interface. Imported lazily; when missing, the lookup returns None and the
+  # tool falls back to the page Jarvis opened last.
+  "comtypes>=1.4,<2; sys_platform == 'win32'",
   # Model Context Protocol client (Anthropic's official SDK). Used by
   # jarvis/tools/mcp_client.py to connect to external MCP servers
   # (Trayce, etc.) over Streamable HTTP and adapt their tools into the

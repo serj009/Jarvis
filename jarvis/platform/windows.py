@@ -252,6 +252,162 @@ def _start_browser_focus() -> None:
     ).start()
 
 
+# --- read the address of the page open in the user's own browser -----------
+#
+# "Remember this page" / "save this link" must work for the browser the user
+# actually looks at -- the one open_url launched via the shell, or one the
+# user opened by hand. Selenium only sees the Chrome instance it started
+# itself, so before this every "current page" tool failed with "no active
+# browser tab" for the user's real browser.
+#
+# Decision: read the address bar through Windows UI Automation (comtypes).
+# Alternatives considered and rejected:
+#   * Ctrl+L / Ctrl+C into the browser and read the clipboard: no new
+#     dependency, but it injects keystrokes (SYSTEM risk class) into another
+#     program from a WRITE-class tool, clobbers the clipboard and lands the
+#     URL in the clipboard history panel.
+#   * pywin32's win32com: IUIAutomation is a plain IUnknown (vtable) interface,
+#     and win32com only calls IDispatch interfaces, so it cannot drive UIA.
+#   * Parsing the browser's session files: undocumented binary format, locked
+#     while the browser runs, and differs per browser.
+# UIA is read-only: nothing is typed, focused or changed in the browser.
+# Chrome/Edge expose their UI to UIA natively (Chrome 126+); Firefox does too.
+# The address bar is the first Edit control in the window's tree, because the
+# toolbar precedes the web content in tree order.
+#
+# Every step is best-effort: any failure (no browser, comtypes missing, UIA
+# error, address bar holding typed search text) returns None, never raises.
+
+BROWSER_EXES: frozenset[str] = frozenset({
+    "chrome.exe", "msedge.exe", "brave.exe", "vivaldi.exe", "opera.exe",
+    "firefox.exe",
+})
+
+# UIA ids, from UIAutomationClient.h. Literal values (not comtypes.gen
+# constants) so this module needs no generated typelib to be importable.
+_UIA_CONTROL_TYPE_PROPERTY_ID = 30003
+_UIA_VALUE_VALUE_PROPERTY_ID = 30045
+_UIA_EDIT_CONTROL_TYPE_ID = 50004
+_UIA_TREE_SCOPE_DESCENDANTS = 4
+
+# An address-bar text that is a URL whose scheme the browser hid
+# ("github.com/x"): a host with a dot, optional port, optional path.
+_SCHEMELESS_URL = re.compile(
+    r"^(?:localhost|[\w-]+(?:\.[\w-]+)+)(?::\d+)?(?:[/?#]\S*)?$",
+    re.IGNORECASE,
+)
+
+
+def normalise_address_bar_text(text: str) -> str | None:
+    """Address-bar text -> absolute http(s) URL, or None.
+
+    Browsers hide "https://" in the address bar ("github.com/user"), so a
+    bare host + path gets the scheme back. Anything that is not a URL --
+    search words the user typed, chrome://settings, an empty bar -- is None.
+    """
+    text = (text or "").strip()
+    if not text or any(ch.isspace() for ch in text):
+        return None
+    lowered = text.lower()
+    if lowered.startswith(("http://", "https://")):
+        return text
+    if "://" in text or lowered.startswith(("about:", "chrome:", "edge:", "file:")):
+        return None
+    if _SCHEMELESS_URL.match(text):
+        return "https://" + text
+    return None
+
+
+def _process_name_of(hwnd: int, user32: Any) -> str:
+    """Lower-case executable name of the process owning `hwnd`, '' if unknown."""
+    import psutil
+
+    pid = wintypes.DWORD()
+    user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
+    try:
+        return psutil.Process(pid.value).name().lower()
+    except psutil.Error:
+        return ""
+
+
+def _browser_window(user32: Any) -> int | None:
+    """The browser window the user is most likely looking at.
+
+    The foreground window if it belongs to a browser (the usual case: the
+    user is on the page and talks to Jarvis); otherwise the top-most window
+    of the default browser, e.g. when Jarvis' own overlay has the focus."""
+    foreground = user32.GetForegroundWindow()
+    if foreground and _process_name_of(foreground, user32) in BROWSER_EXES:
+        return foreground
+    exe = default_browser_exe()
+    if exe:
+        return _top_window_of(exe, user32)
+    return None
+
+
+def _uia_address_bar_text(hwnd: int) -> str | None:
+    """Text of the first Edit control under `hwnd`, read via UI Automation."""
+    import comtypes  # type: ignore[import-not-found]  # Windows-only dependency
+    import comtypes.client  # type: ignore[import-not-found]
+
+    # UIA calls may run on an asyncio worker thread: COM must be initialised
+    # per thread. An already-initialised thread (any apartment) is fine.
+    initialised = False
+    try:
+        comtypes.CoInitialize()
+        initialised = True
+    except OSError:
+        pass
+    try:
+        comtypes.client.GetModule("UIAutomationCore.dll")
+        from comtypes.gen import (  # type: ignore[import-not-found]
+            UIAutomationClient,
+        )
+
+        automation = comtypes.client.CreateObject(
+            UIAutomationClient.CUIAutomation, interface=UIAutomationClient.IUIAutomation
+        )
+        window = automation.ElementFromHandle(hwnd)
+        is_edit = automation.CreatePropertyCondition(
+            _UIA_CONTROL_TYPE_PROPERTY_ID, _UIA_EDIT_CONTROL_TYPE_ID
+        )
+        edit = window.FindFirst(_UIA_TREE_SCOPE_DESCENDANTS, is_edit)
+        if not edit:
+            return None
+        value = edit.GetCurrentPropertyValue(_UIA_VALUE_VALUE_PROPERTY_ID)
+        return str(value) if value else None
+    finally:
+        if initialised:
+            comtypes.CoUninitialize()
+
+
+def active_browser_url() -> str | None:
+    """URL of the page open in the user's own browser, or None.
+
+    Read-only (see the decision block above). None off Windows, when no
+    browser window exists, when comtypes is not installed, or when the
+    address bar holds something that is not a URL."""
+    if sys.platform != "win32":
+        return None
+    try:
+        user32 = _user32()
+        hwnd = _browser_window(user32)
+        if not hwnd:
+            log.info("[browser] no browser window found for the current page")
+            return None
+        text = _uia_address_bar_text(hwnd)
+    except ImportError:
+        log.info("[browser] comtypes / UI Automation unavailable; cannot read the address bar")
+        return None
+    except Exception:
+        log.warning("[browser] reading the address bar failed", exc_info=True)
+        return None
+    url = normalise_address_bar_text(text or "")
+    if url is None:
+        log.info("[browser] address bar does not hold a URL")
+    return url
+
+
 # Windows has no argv: subprocess joins the list back into one command
 # line (subprocess.list2cmdline) and the launched program re-parses it.
 # list2cmdline quotes only arguments containing spaces or tabs, so when the

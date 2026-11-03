@@ -121,6 +121,9 @@ TOOL_RISK_MAP: dict[str, RiskLevel] = {
     "mouse_drag": RiskLevel.WRITE,
     "mouse_position": RiskLevel.READ,
     "save_page_knowledge": RiskLevel.WRITE,
+    "saved_list_status": RiskLevel.READ,
+    "mark_list_item": RiskLevel.WRITE,
+    "name_saved_list": RiskLevel.WRITE,
     # Weather / system
     "get_weather": RiskLevel.READ,
     "report_cpu_and_memory_percentages": RiskLevel.READ,

@@ -16,6 +16,7 @@ from jarvis.tools.local.web_knowledge import (
     SavePageKnowledgeTool,
 )
 from jarvis.tools.registry import VoicePattern
+from tests._typing import output_text
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -286,6 +287,10 @@ class TestVoicePatterns:
         "remember page",
         "extract knowledge from this page",
         "extract knowledge from page",
+        "save this page",
+        "remember this recipe",
+        "save this guide",
+        "save walkthrough from this page",
     ])
     def test_en_patterns_match(self, utterance):
         matched = any(
@@ -301,6 +306,15 @@ class TestVoicePatterns:
         "запомни страницу",
         "сохрани знания со страницы",
         "запомни что на странице",
+        "сохрани эту страницу",
+        "сохрани страницу",
+        "запомни этот рецепт",
+        "сохрани рецепт со страницы",
+        "сохрани этот гайд",
+        "запомни гайд с этой страницы",
+        "сохрани это прохождение",
+        "сохрани информацию с этой страницы",
+        "сохрани данные со страницы",
     ])
     def test_ru_patterns_match(self, utterance):
         matched = any(
@@ -316,6 +330,12 @@ class TestVoicePatterns:
         "запам'ятай сторінку",
         "збережи знання зі сторінки",
         "запамʼятай що на сторінці",
+        "запам’ятай цю сторінку",
+        "збережи цю сторінку",
+        "збережи рецепт",
+        "запам'ятай цей рецепт",
+        "збережи гайд з цієї сторінки",
+        "збережи проходження",
     ])
     def test_uk_patterns_match(self, utterance):
         matched = any(
@@ -629,3 +649,366 @@ class TestHttpxFallback:
                 SavePageKnowledgeArgs(url="https://example.com")
             )
             assert result.success
+
+
+# ---------------------------------------------------------------------------
+# Which page: jarvis.browser.current_page (user's own browser, last opened)
+# ---------------------------------------------------------------------------
+
+_SIMPLE_EXTRACTION = {
+    "topic": "Borsch",
+    "type": "recipe",
+    "source_url": "",
+    "items": [
+        {"name": "Beetroot", "description": "2 pcs", "category": "ingredient",
+         "sub_items": [], "location": "", "requirements": [], "tips": "",
+         "related_to": []},
+    ],
+}
+
+
+def _patch_httpx(fetched_urls: list[str], text: str = "Recipe text"):
+    """Patch content_reader's fetch helpers; record which URL was fetched."""
+
+    def fake_fetch(url, **kwargs):
+        fetched_urls.append(url)
+        return {"success": True, "html": "<html></html>", "url": url}
+
+    return (
+        patch("jarvis.tools.local.content_reader._httpx_fetch", side_effect=fake_fetch),
+        patch("jarvis.tools.local.content_reader._extract_readable", return_value=text),
+        patch("jarvis.tools.local.content_reader._extract_title", return_value="Borsch"),
+    )
+
+
+class TestCurrentPage:
+    @pytest.mark.asyncio
+    async def test_reads_page_open_in_users_browser(self, monkeypatch):
+        """No Selenium, no URL: the address bar of the user's browser."""
+        from jarvis.browser import current_page as cp
+
+        monkeypatch.setattr(cp, "foreground_browser_url", lambda: "https://recipes.example/borsch")
+        fetched: list[str] = []
+        p1, p2, p3 = _patch_httpx(fetched)
+        with p1, p2, p3:
+            tool = SavePageKnowledgeTool(
+                ollama_client=_build_mock_ollama(_SIMPLE_EXTRACTION),
+                memory_store=_build_mock_memory_store(),
+                relation_store=_build_mock_relation_store(),
+            )
+            result = await tool.execute(SavePageKnowledgeArgs())
+        assert result.success, result.error
+        assert fetched == ["https://recipes.example/borsch"]
+
+    @pytest.mark.asyncio
+    async def test_reads_page_jarvis_opened_last(self):
+        """"open <site>" then "remember this page", browser bar unreadable."""
+        from jarvis.browser import current_page as cp
+
+        cp.note_opened_url("https://guides.example/bleach-100")
+        fetched: list[str] = []
+        p1, p2, p3 = _patch_httpx(fetched)
+        with p1, p2, p3:
+            tool = SavePageKnowledgeTool(
+                ollama_client=_build_mock_ollama(_SIMPLE_EXTRACTION),
+                memory_store=_build_mock_memory_store(),
+                relation_store=_build_mock_relation_store(),
+            )
+            result = await tool.execute(SavePageKnowledgeArgs())
+        assert result.success, result.error
+        assert fetched == ["https://guides.example/bleach-100"]
+
+    @pytest.mark.asyncio
+    async def test_no_page_anywhere_gives_actionable_error(self):
+        tool = SavePageKnowledgeTool(
+            ollama_client=MagicMock(),
+            memory_store=_build_mock_memory_store(),
+        )
+        result = await tool.execute(SavePageKnowledgeArgs())
+        assert not result.success
+        assert "browser" in (result.error or "").lower()
+
+    @pytest.mark.asyncio
+    async def test_browser_provider_is_lazy_and_used(self):
+        """Registration passes a provider; it is called on first use only."""
+        calls: list[int] = []
+        browser = _build_mock_browser(
+            "Live DOM recipe text", "https://recipes.example/borsch", "Borsch"
+        )
+
+        def provider():
+            calls.append(1)
+            return browser
+
+        tool = SavePageKnowledgeTool(
+            ollama_client=_build_mock_ollama(_SIMPLE_EXTRACTION),
+            memory_store=_build_mock_memory_store(),
+            relation_store=_build_mock_relation_store(),
+            browser_provider=provider,
+        )
+        assert calls == []
+        result = await tool.execute(SavePageKnowledgeArgs())
+        assert result.success, result.error
+        assert calls == [1]
+        browser.get_page_text.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_explicit_url_never_starts_selenium(self):
+        """An inactive Selenium controller must not open a tab for a URL."""
+        browser = _build_mock_browser("", "", "", active=False)
+        fetched: list[str] = []
+        p1, p2, p3 = _patch_httpx(fetched)
+        with p1, p2, p3:
+            tool = SavePageKnowledgeTool(
+                ollama_client=_build_mock_ollama(_SIMPLE_EXTRACTION),
+                memory_store=_build_mock_memory_store(),
+                relation_store=_build_mock_relation_store(),
+                browser_controller=browser,
+            )
+            result = await tool.execute(SavePageKnowledgeArgs(url="https://a.example/"))
+        assert result.success, result.error
+        browser.open_tab.assert_not_called()
+        assert fetched == ["https://a.example/"]
+
+    @pytest.mark.asyncio
+    async def test_selenium_on_other_page_fetches_the_asked_url(self):
+        browser = _build_mock_browser("Other page text", "https://other.example/", "Other")
+        fetched: list[str] = []
+        p1, p2, p3 = _patch_httpx(fetched)
+        with p1, p2, p3:
+            tool = SavePageKnowledgeTool(
+                ollama_client=_build_mock_ollama(_SIMPLE_EXTRACTION),
+                memory_store=_build_mock_memory_store(),
+                relation_store=_build_mock_relation_store(),
+                browser_controller=browser,
+            )
+            result = await tool.execute(SavePageKnowledgeArgs(url="https://a.example/"))
+        assert result.success, result.error
+        browser.open_tab.assert_not_called()
+        browser.get_page_text.assert_not_called()
+        assert fetched == ["https://a.example/"]
+
+    @pytest.mark.asyncio
+    async def test_selenium_on_same_page_uses_live_dom(self):
+        browser = _build_mock_browser("Live text", "https://a.example/#top", "A")
+        fetched: list[str] = []
+        p1, p2, p3 = _patch_httpx(fetched)
+        with p1, p2, p3:
+            tool = SavePageKnowledgeTool(
+                ollama_client=_build_mock_ollama(_SIMPLE_EXTRACTION),
+                memory_store=_build_mock_memory_store(),
+                relation_store=_build_mock_relation_store(),
+                browser_controller=browser,
+            )
+            result = await tool.execute(SavePageKnowledgeArgs(url="https://a.example"))
+        assert result.success, result.error
+        browser.get_page_text.assert_called_once()
+        assert fetched == []
+
+
+# ---------------------------------------------------------------------------
+# Collection path: checklist / recipe stored in a CollectionStore
+# ---------------------------------------------------------------------------
+
+
+def _llm_replying(*replies: dict):
+    """Fake LLM answering extraction calls in order; records requests."""
+    mock = MagicMock()
+    queue = [json.dumps(r, ensure_ascii=False) for r in replies]
+    mock.calls = []
+
+    async def fake_stream_chat(messages, **kwargs):
+        mock.calls.append(kwargs)
+        yield FakeChunk(content=queue.pop(0) if queue else "{}", done=True)
+
+    mock.stream_chat = fake_stream_chat
+    return mock
+
+
+def _collection_tool(store, llm, memory=None, speak=None):
+    browser = _build_mock_browser(
+        "Крылья феникса\nкупить 10 видов\nКороль душ", "https://steam.example/g", "Steam guide",
+    )
+    return SavePageKnowledgeTool(
+        ollama_client=llm,
+        memory_store=memory or _build_mock_memory_store(),
+        relation_store=_build_mock_relation_store(),
+        browser_controller=browser,
+        collection_store=store,
+        on_speak=speak,
+    )
+
+
+class TestCollectionPath:
+    @pytest.fixture
+    def store(self, tmp_path):
+        from jarvis.memory.collections import CollectionStore
+
+        return CollectionStore(tmp_path / "collections.db")
+
+    @pytest.mark.asyncio
+    async def test_checklist_saved_with_items(self, store):
+        llm = _llm_replying({
+            "kind": "checklist", "title": "Bleach: Rebirth of Souls", "servings": None,
+            "items": [
+                {"r": "task", "n": "Крылья феникса", "d": "купить 10 видов"},
+                {"r": "task", "n": "Король душ"},
+            ],
+        })
+        spoken: list[str] = []
+
+        async def speak(text):
+            spoken.append(text)
+
+        result = await _collection_tool(store, llm, speak=speak).execute(SavePageKnowledgeArgs())
+        assert result.success, result.error
+        assert "checklist" in output_text(result)
+        assert "2 items" in output_text(result)
+        col = store.find("")
+        assert col is not None
+        assert [i.name for i in col.items] == ["Крылья феникса", "Король душ"]
+        assert col.source_url == "https://steam.example/g"
+        assert spoken, "the user is told that reading takes a while"
+        assert "format" in llm.calls[0]  # structured output was requested
+
+    @pytest.mark.asyncio
+    async def test_summary_fact_written_to_memory(self, store):
+        added: list[tuple[str, list]] = []
+        memory = MagicMock()
+
+        async def fake_add(text, *, category="general", source="user",
+                           language="en", tags=None, is_permanent=False):
+            added.append((text, tags or []))
+            return "f1"
+
+        memory.add = fake_add
+        llm = _llm_replying({
+            "kind": "checklist", "title": "Bleach", "items": [{"r": "task", "n": "A"}],
+        })
+        await _collection_tool(store, llm, memory=memory).execute(SavePageKnowledgeArgs())
+        assert len(added) == 1
+        text, tags = added[0]
+        assert "Bleach" in text
+        assert any(t.startswith("collection:") for t in tags)
+
+    @pytest.mark.asyncio
+    async def test_recipe_writes_shopping_note(self, store):
+        from jarvis.core.request_context import current_user_transcription
+        from jarvis.tools.local.notes_store import list_notes
+
+        llm = _llm_replying({
+            "kind": "recipe", "title": "Борщ", "servings": 4,
+            "items": [
+                {"r": "ingredient", "n": "Свёкла", "q": 2, "u": "шт"},
+                {"r": "ingredient", "n": "Соль", "q": None, "u": ""},
+                {"r": "step", "n": "Сварить бульон"},
+            ],
+        })
+        token = current_user_transcription.set("сохрани этот рецепт")
+        try:
+            result = await _collection_tool(store, llm).execute(SavePageKnowledgeArgs())
+        finally:
+            current_user_transcription.reset(token)
+        assert result.success, result.error
+        assert "2 ingredients, 1 steps" in output_text(result)
+        notes = [n for n in list_notes() if n.title == "Список продуктов: Борщ"]
+        assert len(notes) == 1
+        assert "- [ ] Свёкла — 2 шт" in notes[0].content
+        assert "- [ ] Соль" in notes[0].content
+
+    @pytest.mark.asyncio
+    async def test_article_falls_back_to_facts(self, store):
+        llm = _llm_replying(
+            {"kind": "article", "title": "News", "items": []},
+            {"topic": "News", "type": "article", "items": [
+                {"name": "Point", "description": "d", "category": "c"},
+            ]},
+        )
+        result = await _collection_tool(store, llm).execute(SavePageKnowledgeArgs())
+        assert result.success, result.error
+        assert "facts" in output_text(result)
+        assert store.list_all() == []
+
+    @pytest.mark.asyncio
+    async def test_resaving_keeps_ticks(self, store):
+        reply = {"kind": "checklist", "title": "Bleach", "items": [
+            {"r": "task", "n": "Крылья феникса"}, {"r": "task", "n": "Король душ"},
+        ]}
+        await _collection_tool(store, _llm_replying(reply)).execute(SavePageKnowledgeArgs())
+        col = store.find("")
+        assert col is not None
+        store.set_done(col.id, [col.items[1].id])
+        result = await _collection_tool(store, _llm_replying(reply)).execute(
+            SavePageKnowledgeArgs()
+        )
+        assert "1 already marked done" in output_text(result)
+        assert len(store.list_all()) == 1
+
+    @pytest.mark.asyncio
+    async def test_speak_failure_is_not_fatal(self, store):
+        async def broken(text):
+            raise RuntimeError("tts down")
+
+        llm = _llm_replying({"kind": "list", "title": "L", "items": [{"r": "item", "n": "A"}]})
+        result = await _collection_tool(store, llm, speak=broken).execute(SavePageKnowledgeArgs())
+        assert result.success, result.error
+
+
+# ---------------------------------------------------------------------------
+# What text is read: main content, not the site around it
+# ---------------------------------------------------------------------------
+
+_GUIDE_HTML = (
+    "<html><head><title>Steam :: Guide</title></head><body>"
+    "<div id='global_header'><a>Магазин</a><a>Сообщество</a></div>"
+    "<div class='workshopItemControls'><span>Наградить</span><span>Поделиться</span></div>"
+    "<div class='guide'>"
+    + "".join(
+        f"<div class='subSectionTitle'>Достижение {i}</div>"
+        f"<div class='subSectionDesc'>Как получить достижение номер {i} в игре</div>"
+        for i in range(20)
+    )
+    + "</div><div id='footer'>© Valve</div></body></html>"
+)
+
+
+class TestMainContent:
+    def test_httpx_path_sends_main_content(self):
+        with patch(
+            "jarvis.tools.local.content_reader._httpx_fetch",
+            return_value={"success": True, "html": _GUIDE_HTML, "url": "https://x"},
+        ):
+            text, url, title, err = SavePageKnowledgeTool._fetch_with_httpx("https://x")
+        assert err is None
+        assert "## Достижение 3" in text
+        assert "Как получить достижение номер 3" in text
+        assert "Наградить" not in text and "Магазин" not in text and "Valve" not in text
+        assert title == "Steam :: Guide"
+
+    def test_cleaning_that_removes_everything_falls_back_to_full_text(self):
+        html = (
+            "<html><body><div class='comments'>"
+            + "<p>Единственный текст страницы, но в блоке комментариев. </p>" * 30
+            + "</div></body></html>"
+        )
+        with patch(
+            "jarvis.tools.local.content_reader._httpx_fetch",
+            return_value={"success": True, "html": html, "url": "https://x"},
+        ):
+            text, _url, _title, err = SavePageKnowledgeTool._fetch_with_httpx("https://x")
+        assert err is None
+        assert "Единственный текст страницы" in text
+
+    @pytest.mark.asyncio
+    async def test_selenium_path_uses_page_source(self):
+        browser = _build_mock_browser("Наградить Магазин body text", "https://x", "Guide")
+        browser.get_page_source = MagicMock(return_value={"success": True, "html": _GUIDE_HTML})
+        tool = SavePageKnowledgeTool(
+            ollama_client=MagicMock(), memory_store=_build_mock_memory_store(),
+            browser_controller=browser,
+        )
+        text, _url, _title, err = await tool._try_selenium("")
+        assert err is None
+        assert "## Достижение 0" in text
+        assert "Наградить" not in text
+        browser.get_page_text.assert_not_called()

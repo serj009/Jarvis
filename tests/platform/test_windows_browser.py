@@ -47,3 +47,74 @@ def test_open_url_uses_shell_default_and_raises_browser():
 def test_focus_never_raises_when_registry_lookup_fails():
     with patch.object(winplat, "default_browser_exe", side_effect=OSError("boom")):
         winplat._focus_default_browser()  # must not raise
+
+
+# -- active_browser_url: address-bar text -> URL --------------------------
+#
+# The UI Automation call itself needs a real desktop and a running browser,
+# so it is verified live (see the PR notes); these tests cover the parts that
+# can be checked offline: text normalisation and the never-raise contract.
+
+
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("https://github.com/user/repo", "https://github.com/user/repo"),
+        ("http://localhost:8080/x", "http://localhost:8080/x"),
+        # Chrome/Edge hide the scheme in the address bar.
+        ("github.com/user/repo", "https://github.com/user/repo"),
+        ("www.allrecipes.com/recipe/1/borsch?x=1", "https://www.allrecipes.com/recipe/1/borsch?x=1"),
+        ("ru.wikipedia.org", "https://ru.wikipedia.org"),
+        ("localhost:3000", "https://localhost:3000"),
+        ("  https://example.com  ", "https://example.com"),
+        # Not a page we can fetch: typed search words, browser pages, empty.
+        ("bleach reborn of souls гайд", None),
+        ("рецепт борща", None),
+        ("chrome://settings", None),
+        ("edge://newtab", None),
+        ("about:blank", None),
+        ("file:///C:/x.html", None),
+        ("ftp://example.com/x", None),
+        ("", None),
+        ("   ", None),
+        ("justoneword", None),
+    ],
+)
+def test_normalise_address_bar_text(text, expected):
+    assert winplat.normalise_address_bar_text(text) == expected
+
+
+def test_active_browser_url_is_none_off_windows(monkeypatch):
+    monkeypatch.setattr(winplat.sys, "platform", "linux")
+    assert winplat.active_browser_url() is None
+
+
+@pytest.mark.parametrize("error", [ImportError("no comtypes"), OSError("uia"), RuntimeError("x")])
+def test_active_browser_url_never_raises(monkeypatch, error):
+    monkeypatch.setattr(winplat.sys, "platform", "win32")
+    monkeypatch.setattr(winplat, "_user32", lambda: object())
+    monkeypatch.setattr(winplat, "_browser_window", lambda user32: 1234)
+
+    def fail(hwnd):
+        raise error
+
+    monkeypatch.setattr(winplat, "_uia_address_bar_text", fail)
+    assert winplat.active_browser_url() is None
+
+
+def test_active_browser_url_normalises_the_bar(monkeypatch):
+    monkeypatch.setattr(winplat.sys, "platform", "win32")
+    monkeypatch.setattr(winplat, "_user32", lambda: object())
+    monkeypatch.setattr(winplat, "_browser_window", lambda user32: 1234)
+    monkeypatch.setattr(winplat, "_uia_address_bar_text", lambda hwnd: "fextralife.com/bleach")
+    assert winplat.active_browser_url() == "https://fextralife.com/bleach"
+
+
+def test_active_browser_url_none_without_browser_window(monkeypatch):
+    monkeypatch.setattr(winplat.sys, "platform", "win32")
+    monkeypatch.setattr(winplat, "_user32", lambda: object())
+    monkeypatch.setattr(winplat, "_browser_window", lambda user32: None)
+    called = []
+    monkeypatch.setattr(winplat, "_uia_address_bar_text", lambda hwnd: called.append(hwnd))
+    assert winplat.active_browser_url() is None
+    assert called == []

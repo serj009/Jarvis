@@ -226,6 +226,11 @@ def _local_tool_classes() -> tuple[type, ...]:
         SubscribeRssTool,
         UnsubscribeRssTool,
     )
+    from jarvis.tools.local.saved_lists import (
+        MarkListItemTool,
+        NameSavedListTool,
+        SavedListStatusTool,
+    )
     from jarvis.tools.local.screenshot import ScreenshotTool
     from jarvis.tools.local.see_screen import SeeScreenTool
     from jarvis.tools.local.skill_tools import (
@@ -342,6 +347,9 @@ def _local_tool_classes() -> tuple[type, ...]:
         CopyResearchTool,
         ReadMoreTool,
         ResearchTool,
+        SavedListStatusTool,
+        MarkListItemTool,
+        NameSavedListTool,
         ScreenshotTool,
         SeeScreenTool,
         ReadScreenTextTool,

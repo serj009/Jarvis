@@ -218,4 +218,9 @@ class OpenUrlTool:
             else:
                 spoken = say("playing_unnamed")
         await asyncio.to_thread(winplat.open_url, open_target)
+        # So "remember this page" right after "open <site>" knows the page
+        # even when the browser's address bar cannot be read.
+        from jarvis.browser.current_page import note_opened_url
+
+        note_opened_url(open_target)
         return ToolResult(success=True, output=spoken)

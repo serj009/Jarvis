@@ -233,6 +233,8 @@ class OllamaClient:
         messages: list[dict],
         *,
         tools: list[dict] | None = None,
+        format: str | dict | None = None,  # noqa: A002 - Ollama's field name
+        options: dict[str, Any] | None = None,
     ) -> AsyncIterator[ChatChunk]:
         """Stream a chat completion. Yields ChatChunk values.
 
@@ -241,6 +243,11 @@ class OllamaClient:
           tools: optional list of tool schemas (Phase 4 will populate
             from the tool registry's as_openai_functions() output;
             Phase 3 callers pass [] or None).
+          format: Ollama structured output -- "json", or a JSON schema dict
+            the reply is constrained to. For machine-read replies
+            (page extraction); the voice loop never sets it.
+          options: per-request overrides merged over the client defaults
+            (temperature, num_predict, ...). The voice loop never sets it.
         """
         client = self._get_client()
         body: dict[str, Any] = {
@@ -257,6 +264,10 @@ class OllamaClient:
         }
         if tools:
             body["tools"] = tools
+        if format is not None:
+            body["format"] = format
+        if options:
+            body["options"].update(options)
         dump_request_if_enabled(body)
 
         try:

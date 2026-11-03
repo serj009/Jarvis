@@ -109,3 +109,25 @@ def _reset_cuda_dll_cache(monkeypatch: pytest.MonkeyPatch):
     cuda_dlls._reset_cache_for_tests()
     yield
     cuda_dlls._reset_cache_for_tests()
+
+
+@pytest.fixture(autouse=True)
+def _no_real_browser_page(monkeypatch: pytest.MonkeyPatch):
+    """Never read the developer's real browser from a test.
+
+    ``jarvis.browser.current_page`` asks the user's own browser for the open
+    page through Windows UI Automation. On a Windows dev machine with Chrome
+    open that would make "no current page" tests depend on whatever tab the
+    developer has open. Stub that one seam to "no browser page", and forget
+    the last URL open_url recorded, before and after every test. Tests of the
+    lookup itself patch ``foreground_browser_url`` again inside the test.
+    """
+    try:
+        from jarvis.browser import current_page
+    except ImportError:
+        yield
+        return
+    monkeypatch.setattr(current_page, "foreground_browser_url", lambda: None)
+    current_page.reset()
+    yield
+    current_page.reset()

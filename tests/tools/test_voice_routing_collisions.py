@@ -53,6 +53,74 @@ _CASES = [
     ("запусти тесты", "code_runner"),
     # Protocols -> protocol tool (most specific, lowest priority number).
     ("запусти протокол вечеринка", "run_protocol"),
+    # "Remember the PAGE" reads the page into memory (save_page_knowledge);
+    # take_note's "запомни (.+)" used to steal these and save a note reading
+    # "эту страницу" without ever opening the page.
+    ("запомни эту страницу", "save_page_knowledge"),
+    ("сохрани эту страницу", "save_page_knowledge"),
+    ("сохрани этот рецепт", "save_page_knowledge"),
+    ("запомни гайд с этой страницы", "save_page_knowledge"),
+    ("сохрани это прохождение", "save_page_knowledge"),
+    ("запомни что на странице", "save_page_knowledge"),
+    ("запам'ятай цю сторінку", "save_page_knowledge"),
+    ("запамʼятай цю сторінку", "save_page_knowledge"),
+    ("запам’ятай цю сторінку", "save_page_knowledge"),
+    ("збережи рецепт", "save_page_knowledge"),
+    ("remember this page", "save_page_knowledge"),
+    ("save this recipe", "save_page_knowledge"),
+    # "Save the LINK" -> bookmarks.
+    ("сохрани ссылку", "bookmarks"),
+    ("запомни эту ссылку", "bookmarks"),
+    ("сохрани страницу в закладки", "bookmarks"),
+    ("сохрани в закладки", "bookmarks"),
+    ("збережи посилання", "bookmarks"),
+    ("save this link", "bookmarks"),
+    # Ordinary notes stay notes.
+    ("запомни купить молоко", "take_note"),
+    ("запомни что завтра встреча в три", "take_note"),
+    ("remember this the bins go out tuesday", "take_note"),
+    ("запам'ятай купити хліб", "take_note"),
+    # Neighbours on the same nouns keep their tools.
+    ("прочитай эту страницу", "content_reader"),
+    ("сохрани страницу как pdf", "content_reader"),
+    ("сохрани картинки со страницы", "scrape_images"),
+    # Polite forms and "current / open page".
+    ("сохраните текущую страницу", "save_page_knowledge"),
+    ("запомните эту страницу", "save_page_knowledge"),
+    ("сохрани открытую страницу", "save_page_knowledge"),
+    ("збережіть поточну сторінку", "save_page_knowledge"),
+    ("save the current page", "save_page_knowledge"),
+    ("запомните купить хлеб", "take_note"),
+    # Using a saved list.
+    ("что осталось", "saved_list_status"),
+    ("что ещё осталось в блич", "saved_list_status"),
+    ("сколько процентов пройдено", "saved_list_status"),
+    ("список продуктов для борща", "saved_list_status"),
+    ("пересчитай борщ на 6 порций", "saved_list_status"),
+    ("що залишилось", "saved_list_status"),
+    ("what's left", "saved_list_status"),
+    ("отметь крылья феникса выполненным", "mark_list_item"),
+    ("сними отметку с король душ", "mark_list_item"),
+    ("познач крила фенікса виконаним", "mark_list_item"),
+    ("mark phoenix wings as done", "mark_list_item"),
+    ("покажи весь список", "saved_list_status"),
+    ("покажи рецепт борща", "saved_list_status"),
+    ("show the whole list", "saved_list_status"),
+    ("покажи мои закладки", "bookmarks"),
+    ("show my bookmarks", "bookmarks"),
+    # Naming a saved list must beat file_manager's generic rename...
+    ("назови этот список блич", "name_saved_list"),
+    ("переименуй список блич в бличик", "name_saved_list"),
+    ("переименуй этот список в блич", "name_saved_list"),
+    ("rename the list bleach to bl", "name_saved_list"),
+    # ... while files are still renamed by file_manager.
+    ("переименуй файл а в б", "file_manager"),
+    ("переименуй папку фото в отпуск", "file_manager"),
+    ("rename report.txt to old.txt", "file_manager"),
+    # ... and their neighbours keep their tools.
+    ("сколько будет 5 процентов от 200", "calculator"),
+    ("список таймеров", "list_timers"),
+    ("список протоколов", "list_protocols"),
 ]
 
 

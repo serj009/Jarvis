@@ -86,6 +86,9 @@ Thumbs.db
 /*-err.txt
 _overlay_*.py
 _overlay_*.txt
+# python -m jarvis.dev.page_probe output
+/page_probe.html
+/page_probe_*.txt
 
 # User data (memory DB)
 data/

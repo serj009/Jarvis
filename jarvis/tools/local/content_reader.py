@@ -107,7 +107,7 @@ class ContentReaderTool:
     description: str = (
         "Reads content from a web page. Can extract main text, page title, "
         "copy text to clipboard, or save page as PDF. If no URL is given, "
-        "reads the current browser tab (Selenium required). "
+        "reads the page currently open in the browser. "
         "(RU: прочитай страницу, о чём страница, скопируй текст, сохрани pdf / "
         "UK: прочитай сторінку, про що сторінка, скопіюй текст, збережи pdf)"
     )
@@ -276,13 +276,15 @@ class ContentReaderTool:
             if result.get("success"):
                 return result["text"], None
 
-        # httpx fallback
+        # httpx fallback: the page the user is looking at (their own browser,
+        # or the page Jarvis opened last), fetched over HTTP.
         if not url:
-            if bc.driver_active:
-                info = bc.get_current_url()
-                url = info.get("url", "")
+            from jarvis.browser.current_page import current_page
+
+            page = current_page(bc)
+            url = page.url if page is not None else ""
             if not url:
-                return "", "No URL provided and no active browser tab."
+                return "", "No URL provided and no open web page found in the browser."
 
         fetched = _httpx_fetch(url)
         if not fetched.get("success"):
@@ -300,7 +302,14 @@ class ContentReaderTool:
                 return result["title"], None
 
         if not url:
-            return "", "No URL and no active browser tab."
+            from jarvis.browser.current_page import current_page
+
+            page = current_page(bc)
+            if page is not None and page.title:
+                return page.title, None
+            url = page.url if page is not None else ""
+        if not url:
+            return "", "No URL and no open web page found in the browser."
         fetched = _httpx_fetch(url)
         if not fetched.get("success"):
             return "", fetched.get("error", "Fetch failed")

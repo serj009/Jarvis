@@ -13,6 +13,7 @@ catalogue of local tool classes — which drives the router's voice-pattern
 table and the Settings -> Tools list — is jarvis/tools/catalogue.py.
 """
 
+import logging
 from collections.abc import Callable
 from typing import Any, cast
 
@@ -33,6 +34,8 @@ from jarvis.tools.registry import (
 )
 from jarvis.tools.risk import RiskLevel, risk_level_for_tool, should_confirm
 from jarvis.tools.sandbox import PathValidator, SandboxViolationError
+
+log = logging.getLogger(__name__)
 
 
 def setup_local_tools(
@@ -195,6 +198,11 @@ def setup_local_tools(
         ListRssFeedsTool,
         SubscribeRssTool,
         UnsubscribeRssTool,
+    )
+    from jarvis.tools.local.saved_lists import (
+        MarkListItemTool,
+        NameSavedListTool,
+        SavedListStatusTool,
     )
     from jarvis.tools.local.screenshot import ScreenshotTool
     from jarvis.tools.local.see_screen import SeeScreenTool
@@ -495,6 +503,28 @@ def setup_local_tools(
     for tool in protocol_tools_list:
         registry.register(tool)
 
+    # Saved lists from web pages (checklists / recipes): one store shared by
+    # save_page_knowledge (writes) and the two query tools (read / tick).
+    collection_store = None
+    try:
+        from jarvis.memory.collections import CollectionStore
+
+        collection_store = CollectionStore()
+    except Exception:
+        log.warning("saved lists unavailable: could not open collections.db", exc_info=True)
+    if collection_store is not None:
+        # "что осталось" with no name: the list of the page open in the
+        # browser counts (after the running game, which app.py wires in).
+        def _open_page_url() -> str | None:
+            from jarvis.browser.current_page import current_page
+            from jarvis.tools.local.browser_tabs import _get_browser
+
+            page = current_page(_get_browser())
+            return page.url if page is not None else None
+
+        for list_tool_cls in (SavedListStatusTool, MarkListItemTool, NameSavedListTool):
+            registry.register(list_tool_cls(store=collection_store, page_url=_open_page_url))
+
     # Web knowledge extraction — needs ollama_client + memory_store + relation_store.
     # relation_store lives on memory_store._db_path via MemoryManager; we get it
     # from the memory_store's db_path so the tool can create one if needed.
@@ -505,10 +535,18 @@ def setup_local_tools(
             relation_store = RelationStore(db_path=memory_store.db_path)
         except Exception:
             pass
+        # browser_provider: the shared BrowserController, resolved lazily on
+        # first use. Without it "remember this page" had no way to know the
+        # current page and always failed with "no active browser tab".
+        from jarvis.tools.local.browser_tabs import _get_browser
+
         registry.register(SavePageKnowledgeTool(
             ollama_client=ollama_client,
             memory_store=memory_store,
             relation_store=relation_store,
+            browser_provider=_get_browser,
+            collection_store=collection_store,
+            on_speak=getattr(tts_manager, "speak", None),
         ))
 
     # Page comparison & translation — need ollama_client.

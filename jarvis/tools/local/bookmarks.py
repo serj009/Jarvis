@@ -77,19 +77,31 @@ class BookmarksTool:
     name: str = "bookmarks"
     description: str = (
         "Manages browser bookmarks — save, list, open, or delete bookmarks. "
+        "Saves only the LINK (url + title) of the current page; to remember "
+        "what is ON a page (a recipe, a guide, a checklist) use "
+        "save_page_knowledge instead. "
         "Bookmarks are stored locally in JSON and persist across sessions. "
-        "(RU: закладка, сохрани в закладки, покажи закладки, открой закладку, "
-        "запомни страницу / UK: закладка, збережи в закладки, покажи закладки, "
-        "відкрий закладку, запам'ятай сторінку)"
+        "(RU: закладка, сохрани ссылку, сохрани в закладки, покажи закладки, "
+        "открой закладку / UK: закладка, збережи посилання, збережи в закладки, "
+        "покажи закладки, відкрий закладку)"
     )
     args_schema = BookmarksArgs
     requires_confirmation: bool = False
 
+    # "Save the LINK" goes here; "remember the PAGE" (its content) goes to
+    # save_page_knowledge. The save-link patterns sit at 434 so they beat
+    # take_note's catch-all "^запомни (.+)$" (440) -- otherwise "запомни эту
+    # ссылку" became a note reading "эту ссылку".
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
         # EN
         VoicePattern(
             regex=r"^(?:save|add)\s+(?:this\s+)?(?:page\s+)?(?:to\s+|as\s+)?bookmark[s]?$",
             priority=462,
+            args=lambda m: {"action": "save"},
+        ),
+        VoicePattern(
+            regex=r"^(?:save|remember|bookmark)\s+(?:this\s+)?link$",
+            priority=434,
             args=lambda m: {"action": "save"},
         ),
         VoicePattern(
@@ -109,14 +121,15 @@ class BookmarksTool:
             args=lambda m: {"action": "save"},
         ),
         VoicePattern(
+            regex=r"^(?:сохрани|запомни|добавь)\s+(?:эту\s+)?(?:ссылк[уа]|страниц[уа]\s+в\s+закладки)"
+            r"(?:\s+в\s+закладки)?$",
+            priority=434,
+            args=lambda m: {"action": "save"},
+        ),
+        VoicePattern(
             regex=r"^(?:покажи|открой)\s+(?:мои\s+)?закладк[иу]$",
             priority=462,
             args=lambda m: {"action": "list"},
-        ),
-        VoicePattern(
-            regex=r"^(?:запомни|сохрани)\s+(?:эту\s+)?страниц[уа]$",
-            priority=462,
-            args=lambda m: {"action": "save"},
         ),
         VoicePattern(
             regex=r"^открой\s+закладк[уа]\s+(.+)$",
@@ -130,14 +143,15 @@ class BookmarksTool:
             args=lambda m: {"action": "save"},
         ),
         VoicePattern(
+            regex=r"^(?:збережи|запам['ʼ’]?ятай|додай)\s+(?:це\s+|цю\s+)?"
+            r"(?:посилання|сторінку\s+в\s+закладки)(?:\s+в\s+закладки)?$",
+            priority=434,
+            args=lambda m: {"action": "save"},
+        ),
+        VoicePattern(
             regex=r"^(?:покажи|відкрий)\s+(?:мої\s+)?закладк[иу]$",
             priority=462,
             args=lambda m: {"action": "list"},
-        ),
-        VoicePattern(
-            regex=r"^(?:запам'?ятай|збережи)\s+(?:цю\s+)?сторінк[уа]$",
-            priority=462,
-            args=lambda m: {"action": "save"},
         ),
     )
 
@@ -161,22 +175,22 @@ class BookmarksTool:
 
     async def _save(self, url: str, name: str) -> ToolResult:
         title = ""
-        # Try to get URL/title from browser if not provided
+        # No URL given: the page the user is looking at (Selenium session,
+        # the user's own browser, or the page Jarvis opened last).
         if not url:
-            try:
-                from jarvis.tools.local.browser_tabs import _get_browser
-                bc = _get_browser()
-                if bc.driver_active:
-                    info = bc.get_current_url()
-                    url = info.get("url", "")
-                    title_info = bc.get_page_title()
-                    title = title_info.get("title", "")
-            except Exception:
-                pass
+            from jarvis.browser.current_page import current_page
+            from jarvis.tools.local.browser_tabs import _get_browser
+
+            page = await asyncio.to_thread(current_page, _get_browser())
+            if page is not None:
+                url, title = page.url, page.title
         if not url:
             return ToolResult(
                 success=False,
-                error="No URL provided and no active browser tab.",
+                error=(
+                    "Could not tell which page is open: no browser window with "
+                    "a web page was found. Open the page in the browser and try again."
+                ),
             )
         if not name:
             name = title or url[:60]

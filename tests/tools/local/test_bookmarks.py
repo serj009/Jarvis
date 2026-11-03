@@ -46,6 +46,8 @@ class TestVoicePatterns:
         "show bookmarks",
         "list bookmarks",
         "open bookmark github",
+        "save this link",
+        "remember link",
     ])
     def test_en_patterns_match(self, utterance):
         matched = any(
@@ -57,8 +59,10 @@ class TestVoicePatterns:
     @pytest.mark.parametrize("utterance", [
         "сохрани в закладки",
         "покажи закладки",
-        "запомни страницу",
-        "запомни эту страницу",
+        "сохрани ссылку",
+        "запомни эту ссылку",
+        "добавь ссылку в закладки",
+        "сохрани страницу в закладки",
         "открой закладку github",
     ])
     def test_ru_patterns_match(self, utterance):
@@ -71,7 +75,10 @@ class TestVoicePatterns:
     @pytest.mark.parametrize("utterance", [
         "збережи в закладки",
         "покажи закладки",
-        "запам'ятай сторінку",
+        "збережи посилання",
+        "запам'ятай це посилання",
+        "запамʼятай посилання",
+        "збережи сторінку в закладки",
     ])
     def test_uk_patterns_match(self, utterance):
         matched = any(
@@ -202,3 +209,58 @@ class TestExecute:
         bm = _load_bookmarks()
         assert len(bm) == 1
         assert bm[0]["name"] == "X v2"
+
+
+class TestPageVsLink:
+    """'Remember the page' is save_page_knowledge's job (its content), not a
+    bookmark; bookmarks keep only the link."""
+
+    @pytest.mark.parametrize("utterance", [
+        "запомни эту страницу",
+        "сохрани эту страницу",
+        "запам'ятай цю сторінку",
+        "remember this page",
+    ])
+    def test_page_phrases_are_not_bookmarks(self, utterance):
+        assert not any(
+            re.match(vp.regex, utterance) for vp in BookmarksTool.voice_patterns
+        )
+
+
+class TestSaveCurrentPage:
+    """save without a URL uses jarvis.browser.current_page."""
+
+    @pytest.mark.asyncio
+    async def test_uses_page_from_users_browser(self, _temp_bookmarks, monkeypatch):
+        from jarvis.browser import current_page as cp
+
+        monkeypatch.setattr(cp, "foreground_browser_url", lambda: "https://fextralife.com/bleach")
+        result = await BookmarksTool().execute(BookmarksArgs(action="save"))
+        assert result.success
+        assert _load_bookmarks()[0]["url"] == "https://fextralife.com/bleach"
+
+    @pytest.mark.asyncio
+    async def test_uses_page_jarvis_opened_last(self, _temp_bookmarks):
+        from jarvis.browser import current_page as cp
+
+        cp.note_opened_url("https://www.allrecipes.com/borsch")
+        result = await BookmarksTool().execute(BookmarksArgs(action="save"))
+        assert result.success
+        assert _load_bookmarks()[0]["url"] == "https://www.allrecipes.com/borsch"
+
+    @pytest.mark.asyncio
+    async def test_selenium_title_becomes_the_name(self, _temp_bookmarks, monkeypatch):
+        bc = MagicMock()
+        bc.driver_active = True
+        bc.get_current_url.return_value = {"success": True, "url": "https://x.example/"}
+        bc.get_page_title.return_value = {"success": True, "title": "X page"}
+        monkeypatch.setattr("jarvis.tools.local.browser_tabs._get_browser", lambda: bc)
+        result = await BookmarksTool().execute(BookmarksArgs(action="save"))
+        assert result.success
+        assert _load_bookmarks()[0]["name"] == "X page"
+
+    @pytest.mark.asyncio
+    async def test_no_page_explains_what_to_do(self, _temp_bookmarks):
+        result = await BookmarksTool().execute(BookmarksArgs(action="save"))
+        assert not result.success
+        assert "browser" in (result.error or "").lower()

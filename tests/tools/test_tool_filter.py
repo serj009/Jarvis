@@ -405,3 +405,93 @@ class TestStructuralInvariants:
             assert len(cat["keywords_en"]) > 0, f"{name} has no EN keywords"
             assert len(cat["keywords_ru"]) > 0, f"{name} has no RU keywords"
             assert len(cat["keywords_uk"]) > 0, f"{name} has no UK keywords"
+
+
+# ---------------------------------------------------------------------------
+# Saving a page / a link from a long, free-form request
+# ---------------------------------------------------------------------------
+#
+# These go to the LLM (no voice pattern matches a long sentence), so the
+# filtered tool set is the only way Qwen can pick the right tool. Before,
+# such a request matched no category, got the small fallback set without
+# save_page_knowledge, and Qwen answered in text while nothing was saved.
+
+class TestPageAndLinkRequests:
+    def test_long_ru_recipe_request_offers_page_knowledge(self):
+        result = filter_tools_for_utterance(
+            "джарвис сохрани мне рецепт который сейчас открыт чтобы потом был "
+            "список продуктов",
+            _ALL_SCHEMAS,
+        )
+        assert "save_page_knowledge" in _names(result)
+
+    def test_long_ru_guide_request_offers_page_knowledge(self):
+        result = filter_tools_for_utterance(
+            "запомни всё с этой страницы про прохождение блич на сто процентов",
+            _ALL_SCHEMAS,
+        )
+        assert "save_page_knowledge" in _names(result)
+
+    def test_uk_page_request_with_typographic_apostrophe(self):
+        result = filter_tools_for_utterance(
+            "запам’ятай цю сторінку будь ласка", _ALL_SCHEMAS,
+        )
+        assert "save_page_knowledge" in _names(result)
+
+    def test_uk_page_request_with_ascii_apostrophe(self):
+        result = filter_tools_for_utterance(
+            "запам'ятай сторінку з гайдом", _ALL_SCHEMAS,
+        )
+        assert "save_page_knowledge" in _names(result)
+
+    def test_en_page_request(self):
+        result = filter_tools_for_utterance(
+            "can you remember everything on this page for later", _ALL_SCHEMAS,
+        )
+        assert "save_page_knowledge" in _names(result)
+
+    def test_ru_link_request_offers_bookmarks(self):
+        result = filter_tools_for_utterance(
+            "сохрани эту ссылку чтобы я потом вернулся", _ALL_SCHEMAS,
+        )
+        assert "bookmarks" in _names(result)
+
+    def test_uk_link_request_offers_bookmarks(self):
+        result = filter_tools_for_utterance(
+            "збережи це посилання на потім", _ALL_SCHEMAS,
+        )
+        assert "bookmarks" in _names(result)
+
+
+class TestSavedListRequests:
+    """Free-form questions about a saved checklist / recipe reach its tools."""
+
+    def test_ru_whats_left_long(self):
+        result = filter_tools_for_utterance(
+            "джарвис подскажи что мне ещё осталось получить в блич для ста процентов",
+            _ALL_SCHEMAS,
+        )
+        assert "saved_list_status" in _names(result)
+
+    def test_ru_mark_long(self):
+        result = filter_tools_for_utterance(
+            "я только что получил достижение крылья феникса отметь его", _ALL_SCHEMAS,
+        )
+        assert "mark_list_item" in _names(result)
+
+    def test_ru_shopping_list(self):
+        result = filter_tools_for_utterance(
+            "что мне купить для борща дай список продуктов", _ALL_SCHEMAS,
+        )
+        assert "saved_list_status" in _names(result)
+
+    def test_uk_left(self):
+        result = filter_tools_for_utterance("що мені ще залишилось зробити", _ALL_SCHEMAS)
+        assert "saved_list_status" in _names(result)
+
+    def test_en_progress(self):
+        result = filter_tools_for_utterance(
+            "how is my progress on that achievement checklist", _ALL_SCHEMAS,
+        )
+        assert "saved_list_status" in _names(result)
+

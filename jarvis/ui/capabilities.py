@@ -185,6 +185,43 @@ CAPABILITY_CATEGORIES: tuple[CapabilityCategory, ...] = (
                 examples=("open youtube dot com", "open github"),
                 tools=("open_url",),
             ),
+            Capability(
+                name="Remember a web page",
+                description=(
+                    "Reads the page open in your browser and keeps what is on "
+                    "it: a game guide becomes a checklist, a recipe becomes "
+                    "ingredients and steps (with a shopping-list note). "
+                    "\"Save this link\" keeps only the bookmark."
+                ),
+                examples=(
+                    "remember this page",
+                    "save this recipe",
+                    "save this link",
+                ),
+                tools=("save_page_knowledge", "bookmarks"),
+            ),
+            Capability(
+                name="Use a saved list",
+                description=(
+                    "Ask what is still left in a saved checklist, tick items "
+                    "off, check your progress, or get a recipe's shopping list "
+                    "for any number of servings. Without a name Jarvis uses the "
+                    "list of the game you are playing, then of the page open in "
+                    "the browser, then the last one you used; give a list your "
+                    "own short name to ask for it by that name."
+                ),
+                examples=(
+                    "what's left",
+                    "mark phoenix wings as done",
+                    "what's my progress",
+                    "shopping list for borscht",
+                    "scale the recipe to 6 servings",
+                    "show the whole list",
+                    "show me the recipe",
+                    "call this list bleach",
+                ),
+                tools=("saved_list_status", "mark_list_item", "name_saved_list"),
+            ),
         ),
     ),
     CapabilityCategory(
