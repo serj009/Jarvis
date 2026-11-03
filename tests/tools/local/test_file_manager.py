@@ -812,6 +812,22 @@ def test_filtered_find_voice_patterns_route():
     assert a3 and a3.get("newer_than") == "1w"
 
 
+@pytest.mark.parametrize(
+    ("phrase", "size"),
+    [
+        # "мегабайт" contains a "г": the unit used to be read off the whole
+        # phrase, so megabytes became gigabytes.
+        ("найди файлы больше 100 мегабайт", "100mb"),
+        ("найди файлы больше 5 мб", "5mb"),
+        ("найди файлы больше 2 гигабайт", "2gb"),
+        ("знайди файли більше 100 мегабайт", "100mb"),
+        ("знайди файли більше 1 гб", "1gb"),
+    ],
+)
+def test_ru_uk_size_unit(phrase: str, size: str):
+    args = _match_args(phrase)
+    assert args is not None and args.get("min_size") == size
+
 
 # ═══════════════════════════════════════════════════════════════════
 # Gap 2: CreateFileTool

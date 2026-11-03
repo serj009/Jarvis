@@ -409,11 +409,13 @@ class FileManagerTool:
         ),
         # RU: "найди файлы больше 100 мегабайт"
         VoicePattern(
-            regex=r"^найди\s+файлы\s+больше\s+([\d.]+)\s*(?:мб|мегабайт|гб|гигабайт)$",
+            regex=r"^найди\s+файлы\s+больше\s+([\d.]+)\s*(мб|мегабайт|гб|гигабайт)$",
             priority=290,
+            # The unit decides, not the whole phrase: "мегабайт" has a
+            # "г" too, so "100 мегабайт" used to become "100gb".
             args=lambda m: {
                 "action": "find", "path": "",
-                "min_size": m.group(1) + ("gb" if "г" in m.group(0) else "mb"),
+                "min_size": m.group(1) + ("gb" if m.group(2).startswith("г") else "mb"),
             },
         ),
         # RU: "найди файлы за последнюю неделю/месяц/день"
@@ -437,11 +439,13 @@ class FileManagerTool:
         ),
         # UK: "знайди файли більше 100 мегабайт"
         VoicePattern(
-            regex=r"^знайди\s+файли\s+більше\s+([\d.]+)\s*(?:мб|мегабайт|гб|гігабайт)$",
+            regex=r"^знайди\s+файли\s+більше\s+([\d.]+)\s*(мб|мегабайт|гб|гігабайт)$",
             priority=290,
+            # The unit decides, not the whole phrase: "мегабайт" has a
+            # "г" too, so "100 мегабайт" used to become "100gb".
             args=lambda m: {
                 "action": "find", "path": "",
-                "min_size": m.group(1) + ("gb" if "г" in m.group(0) else "mb"),
+                "min_size": m.group(1) + ("gb" if m.group(2).startswith("г") else "mb"),
             },
         ),
         # ── generic: EN ──────────────────────────────────────────
