@@ -7,6 +7,7 @@ import sqlite3
 import pytest
 
 from jarvis.memory.auto_recall import (
+    MAX_FACT_CHARS,
     _is_preference_fact,
     _text_for_injection,
     get_relevant_memories,
@@ -176,6 +177,21 @@ class TestTextForInjection:
     def test_default_tier_is_hot(self) -> None:
         fact = Fact(id="7", text="No tier set")
         assert _text_for_injection(fact) == "No tier set"
+
+    def test_long_text_is_clipped(self) -> None:
+        # A whole saved web page must not ride along with every request.
+        page = "Steam guide (from https://steam.example)\n\n" + "Магазин\n" * 800
+        result = _text_for_injection(Fact(id="8", text=page, tier="hot"))
+        assert result is not None
+        assert result.startswith("Steam guide")
+        assert result.endswith(" …")
+        assert len(result) <= MAX_FACT_CHARS + 2
+
+    def test_long_condensed_text_is_clipped(self) -> None:
+        fact = Fact(id="9", text="x", tier="cold", condensed_text="y" * 5000)
+        result = _text_for_injection(fact)
+        assert result is not None
+        assert len(result) <= len("[old memory] ") + MAX_FACT_CHARS + 2
 
 
 class TestTierAwareRecall:

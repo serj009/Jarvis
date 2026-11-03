@@ -71,6 +71,19 @@ _PREFERENCE_TAGS: frozenset[str] = frozenset(
 )
 
 
+# Longest text one fact may inject. A whole saved web page (the extractor's
+# unstructured fallback keeps up to 5000 chars) otherwise rides along with
+# every matching request: slower first token, and recalled facts buried.
+# The full text stays reachable through the recall tool.
+MAX_FACT_CHARS: int = 400
+
+
+def _clip(text: str) -> str:
+    if len(text) <= MAX_FACT_CHARS:
+        return text
+    return text[:MAX_FACT_CHARS].rstrip() + " …"
+
+
 def _text_for_injection(fact: Fact) -> str | None:
     """Return the text to inject for *fact* based on its tier.
 
@@ -78,6 +91,8 @@ def _text_for_injection(fact: Fact) -> str | None:
     - warm  → condensed_text (falls back to original)
     - cold  → condensed_text prefixed with "[old memory]"
     - archive → None (never injected automatically)
+
+    Any text longer than MAX_FACT_CHARS is cut.
     """
     tier = getattr(fact, "tier", "hot") or "hot"
 
@@ -85,10 +100,10 @@ def _text_for_injection(fact: Fact) -> str | None:
         return None
 
     if tier == "hot":
-        return fact.text
+        return _clip(fact.text)
 
     # warm / cold — use condensed_text with fallback to original
-    condensed = getattr(fact, "condensed_text", None) or fact.text
+    condensed = _clip(getattr(fact, "condensed_text", None) or fact.text)
 
     if tier == "cold":
         return f"[old memory] {condensed}"
