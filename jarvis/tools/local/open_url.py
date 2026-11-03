@@ -66,6 +66,17 @@ _DOMAIN_RE = re.compile(
 )
 
 
+# "в браузере" / "у браузері" / "in the browser" (or a named browser) said
+# before or after the domain: "открой в браузере uakino.best". Without it
+# open_app's greedy "открой (.+)" took the phrase and tried to launch a
+# program called "в браузере uakino.best".
+_IN_BROWSER = (
+    r"(?:в|у|in)\s+(?:the\s+)?"
+    r"(?:браузере|браузері|browser|(?:гугл\s+)?хроме|chrome|опере|opera"
+    r"|эдже|едже|edge|фаерфоксе|firefox)"
+)
+
+
 def _looks_like_domain(text: str) -> bool:
     """True if *text* is a bare domain whose last label is a known TLD.
 
@@ -189,9 +200,12 @@ class OpenUrlTool:
         # file_manager extension patterns no longer steal these because a
         # TLD like .best is not a file extension). priority 450 < 500 so a
         # more specific pattern still wins, but these beat nothing generic.
+        # "в браузере" may come before or after the domain (_IN_BROWSER).
         VoicePattern(
             regex=r"^(?:открой|открыть|відкрий|відкрити|open)\s+"
-                  r"((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?:/\S*)?)$",
+                  rf"(?:{_IN_BROWSER}\s+)?"
+                  r"((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?:/\S*)?)"
+                  rf"(?:\s+{_IN_BROWSER})?$",
             priority=450,
             args=lambda m: _site_arg(m.group(1)),
         ),

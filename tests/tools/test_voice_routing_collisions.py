@@ -51,6 +51,14 @@ _CASES = [
     ("выполни whoami", "run_command"),
     # Test / script execution -> code_runner.
     ("запусти тесты", "code_runner"),
+    # A domain with "в браузере" before or after it is a website, not a
+    # program: open_app's "открой (.+)" used to try to launch
+    # "в браузере uakino.best" (seen in a live session).
+    ("открой uakino.best", "open_url"),
+    ("открой в браузере uakino.best", "open_url"),
+    ("открой uakino.best в браузере", "open_url"),
+    ("відкрий у браузері uakino.best", "open_url"),
+    ("open example.com in the browser", "open_url"),
     # Protocols -> protocol tool (most specific, lowest priority number).
     ("запусти протокол вечеринка", "run_protocol"),
     # "Remember the PAGE" reads the page into memory (save_page_knowledge);
