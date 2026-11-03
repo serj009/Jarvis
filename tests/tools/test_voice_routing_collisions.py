@@ -59,6 +59,15 @@ _CASES = [
     ("открой uakino.best в браузере", "open_url"),
     ("відкрий у браузері uakino.best", "open_url"),
     ("open example.com in the browser", "open_url"),
+    # "в браузере" with no domain (STT heard "uakino.best" as "ur кино",
+    # or a page was named) is a web search, never a program to launch.
+    ("открой в браузере ur кино", "open_url"),
+    ("открой в браузере «железный человек-фильм»", "open_url"),
+    ("открой железный человек в браузере", "open_url"),
+    ("открою в браузере uakino.best", "open_url"),
+    # Neighbours that must keep their own tools.
+    ("открой новую вкладку", "browser_tabs"),
+    ("открой заметки", "open_notes"),
     # Protocols -> protocol tool (most specific, lowest priority number).
     ("запусти протокол вечеринка", "run_protocol"),
     # "Remember the PAGE" reads the page into memory (save_page_knowledge);

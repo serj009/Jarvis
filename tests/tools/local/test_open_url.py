@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from unittest.mock import patch
+from urllib.parse import parse_qs, urlparse
 
-from jarvis.tools.local.open_url import OpenUrlArgs, OpenUrlTool
+from jarvis.tools.local.open_url import OpenUrlArgs, OpenUrlTool, _site_arg
 from tests._typing import output_text
 
 
@@ -79,3 +80,15 @@ async def test_rejects_url_without_host():
 def test_requires_confirmation_false():
     """Phase 4 contract: no tool sets the flag (UX deferred)."""
     assert OpenUrlTool().requires_confirmation is False
+
+
+def test_site_arg_searches_without_quotes():
+    # "открой в браузере «железный человек-фильм»" searches for the words,
+    # not for the quote marks around them.
+    url = urlparse(_site_arg("«железный человек-фильм»")["url"])
+    assert url.netloc == "www.google.com"
+    assert parse_qs(url.query)["q"] == ["железный человек-фильм"]
+
+
+def test_site_arg_opens_a_quoted_domain():
+    assert _site_arg("«uakino.best»") == {"url": "https://uakino.best"}

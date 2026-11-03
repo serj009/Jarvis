@@ -93,7 +93,7 @@ def _looks_like_domain(text: str) -> bool:
 def _site_arg(spoken: str) -> dict:
     """Voice-pattern arg builder for 'open site <X>': open the domain
     directly when X is a domain, otherwise fall back to a web search."""
-    token = spoken.strip()
+    token = spoken.strip().strip("«»\"'“”„").strip()
     if _looks_like_domain(token):
         return {"url": "https://" + token.rstrip("/")}
     return {"url": "https://www.google.com/search?q=" + quote_plus(token)}
@@ -207,6 +207,24 @@ class OpenUrlTool:
                   r"((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}(?:/\S*)?)"
                   rf"(?:\s+{_IN_BROWSER})?$",
             priority=450,
+            args=lambda m: _site_arg(m.group(1)),
+        ),
+        # "в браузере" with something that is not a domain: speech turned
+        # "uakino.best" into "ur кино", or the user named a page ("фильм
+        # железный человек"). Saying "browser" rules out a program, so search
+        # for it instead of letting open_app try to launch "в браузере …".
+        # "открою": how STT often hears "открой". Known targets ("стим в
+        # браузере") are planned by open_targets before voice patterns run.
+        VoicePattern(
+            regex=r"^(?:открой|открою|открыть|відкрий|відкрити|open)\s+"
+                  rf"{_IN_BROWSER}\s+(.+)$",
+            priority=470,
+            args=lambda m: _site_arg(m.group(1)),
+        ),
+        VoicePattern(
+            regex=r"^(?:открой|открою|открыть|відкрий|відкрити|open)\s+"
+                  rf"(.+?)\s+{_IN_BROWSER}$",
+            priority=470,
             args=lambda m: _site_arg(m.group(1)),
         ),
     )
