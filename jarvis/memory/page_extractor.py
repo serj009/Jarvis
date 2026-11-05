@@ -364,6 +364,21 @@ def is_junk_name(name: str, page_titles: tuple[str, ...] = ()) -> bool:
     return False
 
 
+# A checklist "task" that reads like a sentence is a piece of a description
+# the model cut into an item (live, Uncharted guide: "Дельфинов можно найти
+# ..." among the achievements). Achievement / quest names are short.
+_SENTENCE_WORDS = 15
+_SENTENCE_WITH_STOP_WORDS = 10
+_SENTENCE_END = (".", "!", "…", "?")
+
+
+def looks_like_sentence(name: str) -> bool:
+    words = name.split()
+    if len(words) > _SENTENCE_WORDS:
+        return True
+    return len(words) >= _SENTENCE_WITH_STOP_WORDS and name.rstrip().endswith(_SENTENCE_END)
+
+
 def _items_from(data: dict, kind: str, page_titles: tuple[str, ...] = ()) -> list[NewItem]:
     items: list[NewItem] = []
     for raw in data.get("items") or []:
@@ -382,6 +397,8 @@ def _items_from(data: dict, kind: str, page_titles: tuple[str, ...] = ()) -> lis
             role = "step"
         if kind == "list" and role == "task":
             role = "item"
+        if role == "task" and looks_like_sentence(name):
+            continue
         quantity = _to_float(raw.get("q", raw.get("quantity")))
         items.append(NewItem(
             name=name[:300],

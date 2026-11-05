@@ -491,3 +491,33 @@ async def test_a_failing_progress_callback_does_not_stop_the_read():
         FakeLLM([_reply("list", "L", [{"r": "item", "n": "A"}])]), on_progress=broken
     ).extract("A", "u", "t")
     assert page is not None and [i.name for i in page.items] == ["A"]
+
+
+# -- sentence-like "tasks" are description fragments (B-P1-11) ----------------
+
+
+def test_sentence_like_tasks_are_dropped_from_a_checklist():
+    # Live: the Uncharted guide gave 221 "achievements" for 101, many of
+    # them sentences cut out of the descriptions.
+    page = merge_parts([{"kind": "checklist", "title": "Uncharted", "items": [
+        {"r": "task", "n": "Охотник за сокровищами", "d": "найдите 10 сокровищ"},
+        {"r": "task", "n": "Дельфинов можно найти в шестой главе сразу после того, "
+                           "как вы спуститесь к воде у старого маяка."},
+        {"r": "task", "n": "Нужно пройти всю игру на высоком уровне сложности "
+                           "не меняя его ни разу и не используя подсказки вообще"},
+        {"r": "task", "n": "Пройдите главу 4 до конца."},
+    ]}])
+    assert page is not None
+    assert [i.name for i in page.items] == ["Охотник за сокровищами", "Пройдите главу 4 до конца."]
+
+
+def test_recipe_steps_may_be_long_sentences():
+    step = (
+        "Обжарьте лук на среднем огне до золотистого цвета, затем добавьте "
+        "морковь и тушите ещё пять минут, помешивая."
+    )
+    page = merge_parts([{"kind": "recipe", "title": "Борщ", "items": [
+        {"r": "ingredient", "n": "Лук"}, {"r": "step", "n": step},
+    ]}])
+    assert page is not None
+    assert step in [i.name for i in page.items]
