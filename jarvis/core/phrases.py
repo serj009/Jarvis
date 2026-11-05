@@ -317,6 +317,33 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Скриншот сохранён, sir.",
         "uk": "Скриншот збережено, sir.",
     },
+    # ── Weather (jarvis/tools/local/weather.py) ──────────────────────
+    # {temp} is spelled out with its scale by weather._spoken_temperature.
+    "weather_now": {
+        "en": "It's {temp} and {conditions}, sir.",
+        "ru": "Сейчас {temp}, {conditions}, сэр.",
+        "uk": "Зараз {temp}, {conditions}, сер.",
+    },
+    "weather_now_in": {
+        "en": "It's {temp} and {conditions} in {city}, sir.",
+        "ru": "{city}: сейчас {temp}, {conditions}, сэр.",
+        "uk": "{city}: зараз {temp}, {conditions}, сер.",
+    },
+    "weather_city_not_found": {
+        "en": "I couldn't find {location}. Reporting weather for the default location, sir.",
+        "ru": "Не нашёл «{location}». Погода для места по умолчанию, сэр.",
+        "uk": "Не знайшов «{location}». Погода для місця за замовчуванням, сер.",
+    },
+    "weather_no_network": {
+        "en": "I can't check the weather right now, sir. No internet connection.",
+        "ru": "Не могу узнать погоду, сэр: нет подключения к интернету.",
+        "uk": "Не можу дізнатися погоду, сер: немає підключення до інтернету.",
+    },
+    "weather_unreachable": {
+        "en": "I couldn't reach the weather service, sir.",
+        "ru": "Не удалось связаться с сервисом погоды, сэр.",
+        "uk": "Не вдалося зв'язатися із сервісом погоди, сер.",
+    },
 }
 
 

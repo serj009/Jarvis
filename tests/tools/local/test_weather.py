@@ -4,7 +4,18 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from jarvis.tools.local.weather import _WMO, WeatherArgs, WeatherTool, _geocode_queries
+import pytest
+
+from jarvis.core.request_context import current_user_transcription
+from jarvis.tools.local.weather import (
+    _WMO,
+    _WMO_RU,
+    _WMO_UK,
+    WeatherArgs,
+    WeatherTool,
+    _geocode_queries,
+    _spoken_temperature,
+)
 from tests._typing import output_text
 
 
@@ -321,3 +332,66 @@ def test_tool_name_and_description():
     assert "weather" in tool.description.lower()
     assert "location" in tool.description.lower()
     assert tool.requires_confirmation is False
+
+
+# --- B-P1-9: the answer names the scale and follows the request language ---
+
+async def _weather_output(cfg, request_text, temp, code, location=None):
+    tool = WeatherTool(weather_config=cfg)
+    responses = [_meteo_response(temp, code)]
+    if location is not None:
+        responses.insert(0, _geocoding_response(50.45, 30.52, location))
+    client = _make_client(responses)
+    token = current_user_transcription.set(request_text)
+    try:
+        with patch("httpx.AsyncClient") as mock_cls:
+            mock_cls.return_value.__aenter__ = AsyncMock(return_value=client)
+            mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            result = await tool.execute(WeatherArgs(location=location))
+    finally:
+        current_user_transcription.reset(token)
+    assert result.success
+    return output_text(result)
+
+
+async def test_russian_request_gets_russian_answer_with_scale():
+    """Live session: "какая погода?" -> "86 degrees" (English, no scale)."""
+    cfg = _cfg(lat=50.45, lon=30.52, unit="celsius")
+    out = await _weather_output(cfg, "какая погода", 12.4, 2)
+    assert out == "Сейчас 12 градусов по Цельсию, переменная облачность, сэр."
+
+
+async def test_ukrainian_request_gets_ukrainian_answer():
+    cfg = _cfg(lat=50.45, lon=30.52, unit="celsius")
+    out = await _weather_output(cfg, "яка погода у Києві", -2.6, 71, location="Київ")
+    assert out == "Київ: зараз мінус 3 градуси за Цельсієм, невеликий сніг, сер."
+
+
+async def test_english_answer_names_fahrenheit():
+    cfg = _cfg(lat=40.0, lon=-74.0, unit="fahrenheit")
+    out = await _weather_output(cfg, "what's the weather", 86, 0)
+    assert out == "It's 86 degrees Fahrenheit and clear skies, sir."
+
+
+@pytest.mark.parametrize(
+    ("temp", "lang", "expected"),
+    [
+        (1, "ru", "1 градус по Цельсию"),
+        (3, "ru", "3 градуса по Цельсию"),
+        (11, "ru", "11 градусов по Цельсию"),
+        (21, "ru", "21 градус по Цельсию"),
+        (14, "ru", "14 градусов по Цельсию"),
+        (22, "uk", "22 градуси за Цельсієм"),
+        (5, "uk", "5 градусів за Цельсієм"),
+        (-0.4, "ru", "0 градусов по Цельсию"),  # no "минус 0"
+        (-1.2, "en", "minus 1 degree Celsius"),
+        (0, "en", "0 degrees Celsius"),
+    ],
+)
+def test_spoken_temperature(temp, lang, expected):
+    assert _spoken_temperature(temp, "celsius", lang) == expected
+
+
+def test_every_weather_code_is_translated():
+    assert set(_WMO_RU) == set(_WMO)
+    assert set(_WMO_UK) == set(_WMO)

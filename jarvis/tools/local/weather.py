@@ -27,6 +27,7 @@ from typing import ClassVar
 import httpx
 from pydantic import BaseModel
 
+from jarvis.core.phrases import Lang, reply_language, say
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -62,6 +63,118 @@ _WMO: dict[int, str] = {
     96: "thunderstorm with hail",
     99: "thunderstorm with heavy hail",
 }
+
+# The same codes in Russian and Ukrainian (B-P1-9: the answer was English
+# text that the model then retold).
+_WMO_RU: dict[int, str] = {
+    0:  "ясно",
+    1:  "преимущественно ясно",
+    2:  "переменная облачность",
+    3:  "пасмурно",
+    45: "туман",
+    48: "туман с изморозью",
+    51: "лёгкая морось",
+    53: "умеренная морось",
+    55: "сильная морось",
+    56: "лёгкая ледяная морось",
+    57: "сильная ледяная морось",
+    61: "небольшой дождь",
+    63: "умеренный дождь",
+    65: "сильный дождь",
+    66: "небольшой ледяной дождь",
+    67: "сильный ледяной дождь",
+    71: "небольшой снег",
+    73: "умеренный снег",
+    75: "сильный снег",
+    77: "снежная крупа",
+    80: "небольшой ливень",
+    81: "умеренный ливень",
+    82: "сильный ливень",
+    85: "небольшой снегопад",
+    86: "сильный снегопад",
+    95: "гроза",
+    96: "гроза с градом",
+    99: "гроза с сильным градом",
+}
+
+_WMO_UK: dict[int, str] = {
+    0:  "ясно",
+    1:  "переважно ясно",
+    2:  "мінлива хмарність",
+    3:  "похмуро",
+    45: "туман",
+    48: "туман з памороззю",
+    51: "легка мряка",
+    53: "помірна мряка",
+    55: "сильна мряка",
+    56: "легка крижана мряка",
+    57: "сильна крижана мряка",
+    61: "невеликий дощ",
+    63: "помірний дощ",
+    65: "сильний дощ",
+    66: "невеликий крижаний дощ",
+    67: "сильний крижаний дощ",
+    71: "невеликий сніг",
+    73: "помірний сніг",
+    75: "сильний сніг",
+    77: "снігова крупа",
+    80: "невелика злива",
+    81: "помірна злива",
+    82: "сильна злива",
+    85: "невеликий снігопад",
+    86: "сильний снігопад",
+    95: "гроза",
+    96: "гроза з градом",
+    99: "гроза з сильним градом",
+}
+
+_CONDITIONS: dict[Lang, dict[int, str]] = {"en": _WMO, "ru": _WMO_RU, "uk": _WMO_UK}
+_UNKNOWN_CONDITIONS: dict[Lang, str] = {
+    "en": "unknown conditions",
+    "ru": "состояние неба неизвестно",
+    "uk": "стан неба невідомий",
+}
+
+# (one, few, many) forms of "degree"; English uses (one, many, many).
+_DEGREE_FORMS: dict[Lang, tuple[str, str, str]] = {
+    "en": ("degree", "degrees", "degrees"),
+    "ru": ("градус", "градуса", "градусов"),
+    "uk": ("градус", "градуси", "градусів"),
+}
+_SCALE_NAMES: dict[Lang, dict[str, str]] = {
+    "en": {"celsius": "Celsius", "fahrenheit": "Fahrenheit"},
+    "ru": {"celsius": "по Цельсию", "fahrenheit": "по Фаренгейту"},
+    "uk": {"celsius": "за Цельсієм", "fahrenheit": "за Фаренгейтом"},
+}
+_MINUS: dict[Lang, str] = {"en": "minus", "ru": "минус", "uk": "мінус"}
+
+
+def _degree_word(n: int, lang: Lang) -> str:
+    one, few, many = _DEGREE_FORMS[lang]
+    if lang == "en":
+        return one if n == 1 else many
+    if n % 10 == 1 and n % 100 != 11:
+        return one
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        return few
+    return many
+
+
+def _spoken_temperature(temp: float, unit: str, lang: Lang) -> str:
+    """"12 градусов по Цельсию", "minus 3 degrees Celsius".
+
+    The scale is always named: "86 degrees" alone did not say it was
+    Fahrenheit. "minus" is a word because the voices may skip a "-"."""
+    rounded = round(temp)
+    n = abs(rounded)
+    sign = f"{_MINUS[lang]} " if rounded < 0 else ""
+    scale = _SCALE_NAMES[lang].get(unit, _SCALE_NAMES[lang]["celsius"])
+    return f"{sign}{n} {_degree_word(n, lang)} {scale}"
+
+
+def _conditions(code: int, lang: Lang) -> str:
+    return _CONDITIONS[lang].get(code, _UNKNOWN_CONDITIONS[lang])
+
 
 _IPAPI_URL = "https://ipapi.co/json/"
 _OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
@@ -158,13 +271,12 @@ class WeatherTool:
                         lat, lon = await self._resolve_location(client)
                         result = await self._fetch_weather(client, lat, lon)
                         if result.success and result.output:
+                            not_found = say(
+                                "weather_city_not_found", location=args.location
+                            )
                             return ToolResult(
                                 success=True,
-                                output=(
-                                    f"I couldn't find {args.location}. "
-                                    f"Reporting weather for the default location, sir. "
-                                    f"{result.output}"
-                                ),
+                                output=f"{not_found} {result.output}",
                             )
                         return result
                     lat, lon, city_name = geo
@@ -173,16 +285,10 @@ class WeatherTool:
                 return await self._fetch_weather(client, lat, lon)
         except (httpx.ConnectError, httpx.TimeoutException, OSError) as exc:
             log.warning("weather: no network: %s", exc)
-            return ToolResult(
-                success=False,
-                output="I can't check the weather right now, sir. No internet connection.",
-            )
+            return ToolResult(success=False, output=say("weather_no_network"))
         except Exception as exc:
             log.warning("weather fetch failed: %s", exc)
-            return ToolResult(
-                success=False,
-                output="I couldn't reach the weather service, sir.",
-            )
+            return ToolResult(success=False, output=say("weather_unreachable"))
 
     async def _geocode(
         self, client: httpx.AsyncClient, location: str
@@ -256,15 +362,15 @@ class WeatherTool:
         r.raise_for_status()
         data = r.json()
         current = data["current"]
-        temp = current["temperature_2m"]
-        code = int(current["weather_code"])
-        conditions = _WMO.get(code, "unknown conditions")
+        lang = reply_language()
+        temp = _spoken_temperature(float(current["temperature_2m"]), unit, lang)
+        conditions = _conditions(int(current["weather_code"]), lang)
         if city is not None:
             return ToolResult(
                 success=True,
-                output=f"It's {temp:.0f} degrees and {conditions} in {city}, sir.",
+                output=say("weather_now_in", lang, temp=temp, conditions=conditions, city=city),
             )
         return ToolResult(
             success=True,
-            output=f"It's {temp:.0f} degrees and {conditions}, sir.",
+            output=say("weather_now", lang, temp=temp, conditions=conditions),
         )
