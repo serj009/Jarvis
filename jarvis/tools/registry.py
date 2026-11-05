@@ -373,6 +373,21 @@ class ToolRegistry:
     def get(self, name: str) -> Tool[Any] | None:
         return self._tools.get(name)
 
+    async def cancel_background_work(self) -> None:
+        """Shutdown: stop work tools started in the background (a page being
+        read, ...) before the modules it uses are unloaded.
+
+        A tool opts in with an ``async def cancel_background_work()``; one
+        that fails is logged and the others still run."""
+        for name, tool in list(self._tools.items()):
+            cancel = getattr(tool, "cancel_background_work", None)
+            if cancel is None:
+                continue
+            try:
+                await cancel()
+            except Exception:
+                log.warning("[tools] %s: cancelling background work failed", name, exc_info=True)
+
     # -- confirmation -------------------------------------------------
 
     @property

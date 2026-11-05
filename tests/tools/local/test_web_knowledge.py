@@ -1158,3 +1158,90 @@ async def test_foreground_save_tells_the_model_some_parts_were_not_read(tmp_path
     ):
         result = await tool.execute(SavePageKnowledgeArgs())
     assert "2 of 9 parts of the page could not be read" in output_text(result)
+
+
+# ---------------------------------------------------------------------------
+# B-P2-8: a page still being read is stopped on shutdown
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_shutdown_stops_a_background_read(tmp_path, caplog):
+    """Live: after "shutdown" the read kept calling the model being
+    unloaded ("LLM call failed on part 2/9")."""
+    import logging
+
+    from jarvis.memory.collections import CollectionStore
+
+    started = asyncio.Event()
+    calls: list[int] = []
+
+    class HangingLLM:
+        async def stream_chat(self, messages, **kwargs):
+            calls.append(1)
+            started.set()
+            await asyncio.Event().wait()  # a part that takes "forever"
+            yield FakeChunk(content="{}", done=True)  # pragma: no cover
+
+    store = CollectionStore(tmp_path / "collections.db")
+    announced: list[str] = []
+    tool = _collection_tool(store, HangingLLM(), announce=announced.append)
+    await tool.execute(SavePageKnowledgeArgs())
+    await asyncio.wait_for(started.wait(), timeout=2)
+    (task,) = tool._background
+
+    with caplog.at_level(logging.WARNING, logger="jarvis.tools.local.web_knowledge"):
+        await asyncio.wait_for(tool.cancel_background_work(), timeout=2)
+
+    assert task.cancelled()
+    assert tool._background == set()
+    assert calls == [1]  # no further parts sent
+    assert announced == []  # nothing saved, nothing announced as saved
+    assert store.list_all() == []
+    assert "stopped reading https://steam.example/g; the page is NOT saved" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_cancel_with_nothing_running_is_a_no_op(tmp_path):
+    from jarvis.memory.collections import CollectionStore
+
+    tool = _collection_tool(CollectionStore(tmp_path / "c.db"), _llm_replying())
+    await tool.cancel_background_work()
+
+
+@pytest.mark.asyncio
+async def test_registry_cancels_background_work_of_every_tool():
+    from jarvis.core.config import ToolsConfig
+    from jarvis.tools.registry import ToolRegistry
+
+    cancelled: list[str] = []
+
+    class _Tool:
+        def __init__(self, name, fail=False):
+            self.name = name
+            self.fail = fail
+
+        async def cancel_background_work(self):
+            if self.fail:
+                raise RuntimeError("boom")
+            cancelled.append(self.name)
+
+    class _Plain:
+        name = "plain"
+
+    registry = ToolRegistry(ToolsConfig())
+    for tool in (_Tool("a", fail=True), _Plain(), _Tool("b")):
+        registry.register(tool)  # type: ignore[arg-type]
+    await registry.cancel_background_work()
+    assert cancelled == ["b"]  # a failing tool does not stop the others
+
+
+def test_shutdown_cancels_background_tool_work_before_unloading():
+    from pathlib import Path
+
+    import jarvis.app
+
+    source = Path(jarvis.app.__file__).read_text(encoding="utf-8")
+    cancel = source.index("await registry.cancel_background_work()")
+    assert cancel < source.index("await mcp_manager.shutdown()")
+    assert cancel < source.index("await lm.unload_all()", cancel)

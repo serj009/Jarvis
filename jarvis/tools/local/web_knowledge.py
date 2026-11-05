@@ -334,6 +334,22 @@ class SavePageKnowledgeTool:
 
         return await self._save_page(page_text, page_url, page_title)
 
+    async def cancel_background_work(self) -> None:
+        """Stop pages still being read (called on shutdown).
+
+        Live: after "shutdown" the read kept sending parts to a model that
+        was being unloaded ("LLM call failed on part 2/9"). A cancelled read
+        saves nothing and says so in the log; it is not announced."""
+        tasks = [t for t in self._background if not t.done()]
+        for task in tasks:
+            url = task.get_name().removeprefix("save-page:")
+            log.warning(
+                "[web_knowledge] shutdown: stopped reading %s; the page is NOT saved", url
+            )
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
     async def _save_in_background(self, page_text: str, page_url: str, page_title: str) -> None:
         """Run the save and say how it went. Runs in a copy of the request's
         context, so reply_language() still sees the user's words."""

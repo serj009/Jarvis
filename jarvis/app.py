@@ -1689,6 +1689,14 @@ async def _audio_main(
     except Exception:
         log.warning("shutdown: goodbye TTS failed", exc_info=True)
 
+    # Background tool work (a page being read) uses the LLM: stop it before
+    # anything is torn down, so it does not keep calling a model that is
+    # being unloaded (B-P2-8).
+    try:
+        await registry.cancel_background_work()
+    except Exception:
+        log.warning("shutdown: cancelling background tool work failed", exc_info=True)
+
 
 
 
