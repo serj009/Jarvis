@@ -60,6 +60,9 @@ TEMPERATURE = 0.1
 # the next part starts, and how often "busy?" is checked.
 IDLE_GRACE_S = 2.0
 BUSY_POLL_S = 0.25
+# A part whose LLM call fails (live: Ollama answered 500 on part 6 of 9) is
+# tried once more after this pause before it is skipped.
+RETRY_DELAY_S = 15.0
 
 
 class _Preempted:
@@ -67,6 +70,14 @@ class _Preempted:
 
 
 _PREEMPTED = _Preempted()
+
+
+class _Failed:
+    """_ask() result when the LLM call itself failed (HTTP 500, dropped
+    connection) -- unlike None, a reply that held no usable JSON."""
+
+
+_FAILED = _Failed()
 
 _KINDS: tuple[str, ...] = ("checklist", "recipe", "list", "article")
 _ROLES: tuple[str, ...] = ("task", "ingredient", "step", "item")
@@ -151,6 +162,10 @@ class ExtractedPage:
     title: str
     servings: float | None = None
     items: list[NewItem] = field(default_factory=list)
+    # Parts of the page whose items are missing (the LLM failed twice, or
+    # gave no usable JSON), 1-based, out of total_parts.
+    unread_parts: list[int] = field(default_factory=list)
+    total_parts: int = 0
 
     @property
     def is_collection(self) -> bool:
@@ -446,6 +461,7 @@ class PageExtractor:
         is_busy: Callable[[], bool] | None = None,
         idle_grace_s: float = IDLE_GRACE_S,
         poll_s: float = BUSY_POLL_S,
+        retry_delay_s: float = RETRY_DELAY_S,
     ) -> None:
         self._llm = llm
         self._chunk_chars = chunk_chars
@@ -458,6 +474,7 @@ class PageExtractor:
         self._is_busy = is_busy
         self._idle_grace_s = idle_grace_s
         self._poll_s = poll_s
+        self._retry_delay_s = retry_delay_s
 
     async def extract(self, text: str, url: str, title: str) -> ExtractedPage | None:
         chunks = split_into_chunks(text, chunk_chars=self._chunk_chars)
@@ -465,32 +482,60 @@ class PageExtractor:
             return None
         log.info("[page_extractor] %d chars -> %d part(s)", len(text), len(chunks))
         parts: list[dict] = []
+        unread: list[int] = []
         for index, chunk in enumerate(chunks, start=1):
-            while True:
-                await self._wait_until_free()
-                reply = await self._ask(chunk, index, len(chunks), url, title)
-                if reply is not _PREEMPTED:
-                    break
-                log.info(
-                    "[page_extractor] part %d/%d paused: the user is talking; will redo it",
-                    index, len(chunks),
-                )
-            assert not isinstance(reply, _Preempted)
+            reply = await self._read_part(chunk, index, len(chunks), url, title)
             if reply is None:
                 log.warning("[page_extractor] part %d/%d gave no usable JSON", index, len(chunks))
+                unread.append(index)
+                continue
+            if isinstance(reply, _Failed):
+                unread.append(index)
                 continue
             parts.append(reply)
         page = merge_parts(parts, title)
         if page is not None:
+            page.unread_parts = unread
+            page.total_parts = len(chunks)
             log.info(
-                "[page_extractor] kind=%s items=%d (from %d/%d parts)",
-                page.kind, len(page.items), len(parts), len(chunks),
+                "[page_extractor] kind=%s items=%d (from %d/%d parts; unread: %s)",
+                page.kind, len(page.items), len(parts), len(chunks), unread or "none",
             )
         return page
 
+    async def _read_part(
+        self, chunk: str, index: int, total: int, url: str, title: str
+    ) -> dict | None | _Failed:
+        """One part, redone when the user interrupts it and retried once
+        after retry_delay_s when the LLM call fails."""
+        retried = False
+        while True:
+            await self._wait_until_free()
+            reply = await self._ask(chunk, index, total, url, title)
+            if isinstance(reply, _Preempted):
+                log.info(
+                    "[page_extractor] part %d/%d paused: the user is talking; will redo it",
+                    index, total,
+                )
+                continue
+            if isinstance(reply, _Failed):
+                if not retried:
+                    retried = True
+                    log.warning(
+                        "[page_extractor] part %d/%d failed; retrying once in %.0f s",
+                        index, total, self._retry_delay_s,
+                    )
+                    await asyncio.sleep(self._retry_delay_s)
+                    continue
+                log.warning(
+                    "[page_extractor] part %d/%d failed again; skipped, its items are missing",
+                    index, total,
+                )
+            return reply
+
     async def _ask(
         self, chunk: str, index: int, total: int, url: str, title: str
-    ) -> dict | None | _Preempted:
+    ) -> dict | None | _Preempted | _Failed:
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {
@@ -520,7 +565,7 @@ class PageExtractor:
                     break
         except Exception:
             log.exception("[page_extractor] LLM call failed on part %d/%d", index, total)
-            return None
+            return _FAILED
         finally:
             aclose = getattr(stream, "aclose", None)
             if aclose is not None:

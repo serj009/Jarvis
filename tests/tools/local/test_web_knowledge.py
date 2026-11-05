@@ -1100,3 +1100,61 @@ class TestMainContent:
         assert "## Достижение 0" in text
         assert "Наградить" not in text
         browser.get_page_text.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# B-P2-10: parts that could not be read are announced
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_background_save_says_some_parts_were_not_read(tmp_path):
+    from unittest.mock import AsyncMock
+
+    from jarvis.core.request_context import current_user_transcription
+    from jarvis.memory.collections import CollectionStore, NewItem
+    from jarvis.memory.page_extractor import ExtractedPage
+
+    store = CollectionStore(tmp_path / "collections.db")
+    page = ExtractedPage(
+        kind="checklist", title="Uncharted",
+        items=[NewItem(name="A", role="task"), NewItem(name="B", role="task")],
+        unread_parts=[6], total_parts=9,
+    )
+    announced: list[str] = []
+    tool = _collection_tool(store, _llm_replying(), announce=announced.append)
+    token = current_user_transcription.set("запомни эту страницу")
+    try:
+        with patch(
+            "jarvis.memory.page_extractor.PageExtractor.extract",
+            new=AsyncMock(return_value=page),
+        ):
+            await tool.execute(SavePageKnowledgeArgs())
+            await asyncio.gather(*tool._background)
+    finally:
+        current_user_transcription.reset(token)
+    assert announced == [
+        "Сохранил «Uncharted», пунктов: 2, сэр. "
+        "Не прочитано частей страницы: 1 из 9, список может быть неполным."
+    ]
+
+
+@pytest.mark.asyncio
+async def test_foreground_save_tells_the_model_some_parts_were_not_read(tmp_path):
+    from unittest.mock import AsyncMock
+
+    from jarvis.memory.collections import CollectionStore, NewItem
+    from jarvis.memory.page_extractor import ExtractedPage
+
+    store = CollectionStore(tmp_path / "collections.db")
+    page = ExtractedPage(
+        kind="checklist", title="Uncharted", items=[NewItem(name="A", role="task")],
+        unread_parts=[2, 6], total_parts=9,
+    )
+    tool = _collection_tool(store, _llm_replying())
+    with patch(
+        "jarvis.memory.page_extractor.PageExtractor.extract",
+        new=AsyncMock(return_value=page),
+    ):
+        result = await tool.execute(SavePageKnowledgeArgs())
+    assert "2 of 9 parts of the page could not be read" in output_text(result)

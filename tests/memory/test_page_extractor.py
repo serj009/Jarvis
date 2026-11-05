@@ -16,6 +16,7 @@ import pytest
 from jarvis.memory.page_extractor import (
     NUM_PREDICT,
     RESPONSE_SCHEMA,
+    RETRY_DELAY_S,
     SYSTEM_PROMPT,
     PageExtractor,
     is_junk_name,
@@ -263,7 +264,7 @@ class TestExtractor:
                 raise ConnectionError("ollama down")
                 yield  # pragma: no cover
 
-        assert await PageExtractor(Broken()).extract("A", "u", "t") is None
+        assert await PageExtractor(Broken(), retry_delay_s=0).extract("A", "u", "t") is None
 
 
 # -- junk items -------------------------------------------------------------------
@@ -377,3 +378,90 @@ async def test_part_waits_while_jarvis_is_busy():
     busy["now"] = False
     page = await asyncio.wait_for(task, timeout=2)
     assert llm.calls == 1 and page is not None
+
+
+# -- a failed LLM call is retried once (B-P2-10) -------------------------------
+
+
+class _FlakyLLM:
+    """Raises on the calls listed in *fail_on* (1-based), else replies."""
+
+    def __init__(self, replies: list[str], fail_on: set[int]) -> None:
+        self.replies = list(replies)
+        self.fail_on = fail_on
+        self.calls = 0
+
+    def stream_chat(self, messages, *, tools=None, format=None, options=None):  # noqa: A002
+        self.calls += 1
+        return self._gen(self.calls)
+
+    async def _gen(self, call: int):
+        if call in self.fail_on:
+            raise RuntimeError("Ollama: 500 Internal Server Error")
+        yield FakeChunk(self.replies.pop(0), done=True)
+
+
+def _three_parts() -> str:
+    return "\n".join(f"row {i} " + "q" * 60 for i in range(60))
+
+
+@pytest.mark.asyncio
+async def test_failed_part_is_retried_once_and_kept():
+    # Live: Ollama answered 500 on part 6 of 9 and the part was dropped.
+    replies = [
+        _reply("list", "L", [{"r": "item", "n": "row 1"}]),
+        _reply("list", "", [{"r": "item", "n": "row 30"}]),  # the retry
+        _reply("list", "", [{"r": "item", "n": "row 59"}]),
+    ]
+    llm = _FlakyLLM(replies, fail_on={2})
+    page = await PageExtractor(llm, chunk_chars=1500, retry_delay_s=0).extract(
+        _three_parts(), "u", "t"
+    )
+    assert page is not None
+    assert {i.name for i in page.items} == {"row 1", "row 30", "row 59"}
+    assert page.unread_parts == []
+    assert llm.calls == 4
+
+
+@pytest.mark.asyncio
+async def test_part_failing_twice_is_reported_unread():
+    replies = [
+        _reply("list", "L", [{"r": "item", "n": "row 1"}]),
+        _reply("list", "", [{"r": "item", "n": "row 59"}]),
+    ]
+    llm = _FlakyLLM(replies, fail_on={2, 3})
+    page = await PageExtractor(llm, chunk_chars=1500, retry_delay_s=0).extract(
+        _three_parts(), "u", "t"
+    )
+    assert page is not None
+    assert {i.name for i in page.items} == {"row 1", "row 59"}
+    assert page.total_parts >= 3
+    assert page.unread_parts == [2]
+
+
+@pytest.mark.asyncio
+async def test_retry_waits_before_asking_again(monkeypatch):
+    slept: list[float] = []
+    real_sleep = asyncio.sleep
+
+    async def fake_sleep(delay, *args, **kwargs):
+        slept.append(delay)
+        await real_sleep(0)
+
+    monkeypatch.setattr("jarvis.memory.page_extractor.asyncio.sleep", fake_sleep)
+    llm = _FlakyLLM([_reply("list", "L", [{"r": "item", "n": "A"}])], fail_on={1})
+    page = await PageExtractor(llm).extract("A", "u", "t")
+    assert page is not None and page.unread_parts == []
+    assert slept == [RETRY_DELAY_S]
+    assert 10 <= RETRY_DELAY_S <= 20
+
+
+@pytest.mark.asyncio
+async def test_unusable_json_is_not_retried_but_reported_unread():
+    llm = FakeLLM(["garbage", _reply("list", "L", [{"r": "item", "n": "row 30"}])])
+    page = await PageExtractor(llm, chunk_chars=1500, retry_delay_s=0).extract(
+        "\n".join(f"row {i} " + "q" * 60 for i in range(40)), "u", "t"
+    )
+    assert page is not None
+    assert len(llm.calls) == 2
+    assert page.unread_parts == [1]

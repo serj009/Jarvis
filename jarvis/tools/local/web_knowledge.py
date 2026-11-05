@@ -85,6 +85,13 @@ _DONE_PHRASES: dict[str, dict[str, str]] = {
         "uk": "Не вдалося розібрати сторінку, сер.",
         "en": "I could not read that page, sir.",
     },
+    # Appended to "list" / "recipe" when some parts could not be read.
+    "unread": {
+        "ru": " Не прочитано частей страницы: {count} из {total}, список может быть неполным.",
+        "uk": " Не прочитано частин сторінки: {count} з {total}, список може бути неповним.",
+        "en": " {count} of {total} parts of the page could not be read,"
+              " so the list may be incomplete.",
+    },
 }
 
 # What the model is told when the save runs in the background.
@@ -333,8 +340,9 @@ class SavePageKnowledgeTool:
         from jarvis.core.phrases import reply_language
 
         lang = reply_language()
+        unread: tuple[int, int] | None = None
         try:
-            result, collection = await self._save_page_with_collection(
+            result, collection, unread = await self._save_page_with_collection(
                 page_text, page_url, page_title, announce_reading=False
             )
         except Exception:
@@ -350,6 +358,10 @@ class SavePageKnowledgeTool:
             key, values = "list", {"title": collection.label, "count": collection.total}
         phrases = _DONE_PHRASES[key]
         text = phrases.get(lang, phrases["en"]).format(**values)
+        if collection is not None and unread is not None:
+            tail = _DONE_PHRASES["unread"]
+            count, total = unread
+            text += tail.get(lang, tail["en"]).format(count=count, total=total)
         log.info("[web_knowledge] background save done: %s", key)
         try:
             if self._announce is not None:
@@ -358,16 +370,17 @@ class SavePageKnowledgeTool:
             log.warning("[web_knowledge] could not announce the result", exc_info=True)
 
     async def _save_page(self, page_text: str, page_url: str, page_title: str) -> ToolResult:
-        result, _collection = await self._save_page_with_collection(
+        result, _collection, _unread = await self._save_page_with_collection(
             page_text, page_url, page_title, announce_reading=True
         )
         return result
 
     async def _save_page_with_collection(
         self, page_text: str, page_url: str, page_title: str, *, announce_reading: bool
-    ) -> tuple[ToolResult, Any]:
+    ) -> tuple[ToolResult, Any, tuple[int, int] | None]:
         """Save the page as a collection or, failing that, as facts.
-        Returns the tool result and the collection (None for facts)."""
+        Returns the tool result, the collection (None for facts) and, when
+        some parts of the page could not be read, (unread count, total)."""
         # 2a. Structured collection (checklist / recipe / list).
         if self._collections is not None:
             saved = await self._save_as_collection(
@@ -376,7 +389,7 @@ class SavePageKnowledgeTool:
             if saved is not None:
                 return saved
             log.info("[web_knowledge] no list found on the page; saving it as facts")
-        return await self._save_as_facts(page_text, page_url, page_title), None
+        return await self._save_as_facts(page_text, page_url, page_title), None, None
 
     async def _save_as_facts(self, page_text: str, page_url: str, page_title: str) -> ToolResult:
         # 2b. Extract and save via KnowledgeExtractor
@@ -430,11 +443,12 @@ class SavePageKnowledgeTool:
 
     async def _save_as_collection(
         self, text: str, url: str, title: str, *, announce_reading: bool = True
-    ) -> tuple[ToolResult, Any] | None:
+    ) -> tuple[ToolResult, Any, tuple[int, int] | None] | None:
         """Extract a checklist / recipe / list and store it.
 
-        Returns (result, collection), or None when the page holds no list
-        (an article), so the caller falls back to saving facts."""
+        Returns (result, collection, unread), or None when the page holds no
+        list (an article), so the caller falls back to saving facts. unread
+        is (parts not read, total parts) when the LLM failed on some part."""
         from jarvis.memory.page_extractor import PageExtractor
 
         if announce_reading:
@@ -456,10 +470,14 @@ class SavePageKnowledgeTool:
         note_title = None
         if collection.kind == "recipe" and collection.ingredients():
             note_title = await asyncio.to_thread(_write_shopping_note, collection)
-        return (
-            ToolResult(success=True, output=_describe_saved(collection, note_title)),
-            collection,
-        )
+        unread = (len(page.unread_parts), page.total_parts) if page.unread_parts else None
+        output = _describe_saved(collection, note_title)
+        if unread is not None:
+            output += (
+                f" {unread[0]} of {unread[1]} parts of the page could not be read, "
+                "so the list may be incomplete: tell the user."
+            )
+        return ToolResult(success=True, output=output), collection, unread
 
     async def _remember_collection(self, collection: Any) -> None:
         """One short fact so auto-recall knows the list exists ("what did I
