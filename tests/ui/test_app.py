@@ -412,9 +412,18 @@ def test_open_settings_lazy_and_reuses(qapp):
 
 def test_on_test_voice_dispatches_to_audio_loop():
     """_on_test_voice must call asyncio.run_coroutine_threadsafe with
-    tts.speak(phrase) and the audio event loop — not call speak directly."""
+    tts.speak(phrase) and the audio event loop — not call speak directly.
+
+    Drives the real JarvisApp._on_test_voice (this used to test a local copy
+    of it). The fake run_coroutine_threadsafe closes the coroutine it is
+    handed: left un-awaited it raised "coroutine ... was never awaited"
+    during a later test (B-P2-4)."""
     import asyncio
+    import inspect
+    from types import SimpleNamespace
     from unittest.mock import AsyncMock, MagicMock, patch
+
+    from jarvis.app import JarvisApp
 
     tts = MagicMock()
     tts.speak = AsyncMock()
@@ -422,20 +431,16 @@ def test_on_test_voice_dispatches_to_audio_loop():
     dispatched: list = []
 
     def fake_run_coroutine_threadsafe(coro, loop):
-        dispatched.append((coro, loop))
+        dispatched.append((inspect.iscoroutine(coro), loop))
+        coro.close()
         return MagicMock()
 
+    app = SimpleNamespace(tts=tts, audio_loop=audio_loop)
     with patch("asyncio.run_coroutine_threadsafe", side_effect=fake_run_coroutine_threadsafe):
-        def _on_test_voice(phrase: str) -> None:
-            try:
-                asyncio.run_coroutine_threadsafe(tts.speak(phrase), audio_loop)
-            except Exception:
-                pass
+        JarvisApp._on_test_voice(app, "hello, this is jarvis")  # type: ignore[arg-type]
 
-        _on_test_voice("hello, this is jarvis")
-
-    assert len(dispatched) == 1
-    assert dispatched[0][1] is audio_loop
+    assert dispatched == [(True, audio_loop)]
+    tts.speak.assert_called_once_with("hello, this is jarvis")
 
 
 # ---------------------------------------------------------------------------

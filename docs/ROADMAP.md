@@ -117,7 +117,6 @@ $env:JARVIS_DUMP_LLM_REQUEST = "1"; .venv\Scripts\python.exe -m jarvis
 | M2-2 | Автовосстановление: ошибку окружения (нет модели wake word, запуск не из `.venv`) не перезапускать трижды с окнами ошибки, а один раз объяснить, что не так | `__main__.py`, `app.py` (`_boot_audio_stack`) | [Работа] |
 | M2-3 | Падение одного модуля (STT, TTS, wake word) не роняет голосовой цикл: модуль выключается, Jarvis говорит, что именно не работает (T12.3) | `core/lifecycle.py`, `audio/pipeline.py` | [Работа → Дом] |
 | M2-4 | Откат для разрушительных файловых действий: бэкап перед удалением/перезаписью и команда «верни как было» (T12.2), только для удаления и перезаписи | `tools/local/file_manager.py`, `files.py` | [Работа] |
-| M2-6 | Предупреждения в тестах = 0 | B-P2-4 | [Работа] |
 
 **Готово, когда:** pyright, ruff и pytest чистые без предупреждений; ручное «убийство» модуля дома не останавливает Jarvis.
 
@@ -199,9 +198,6 @@ $env:JARVIS_DUMP_LLM_REQUEST = "1"; .venv\Scripts\python.exe -m jarvis
 
 **B-P2-1. Запасной путь извлечения знаний сохраняет сырую страницу. [Работа]**
 `KnowledgeExtractor._save_plain_text_fallback` (`jarvis/memory/knowledge_extractor.py:333`) при битом JSON кладёт в память до 5000 символов страницы с меню и подвалом. В запрос такой факт уже попадает обрезанным до 400 символов, но в памяти лежит мусор. Сохранять заголовок, URL и короткую выжимку из `readable`; битый JSON убрать передачей `format`, как в `page_extractor`.
-
-**B-P2-4. Предупреждение в тестах. [Работа]**
-`tests/ui/test_app.py::test_amplitude_latch_shared_reference`: «coroutine AsyncMockMixin._execute_mock_call was never awaited».
 
 **B-P2-6. Запуск не из `.venv`. [Работа]**
 Неотслеживаемые `run_jarvis.ps1`, `home_check*.ps1` в корне. Один официальный скрипт запуска через `.venv\Scripts\python.exe` (или дополнить `start-jarvis.ps1`); при старте не из venv — понятная подсказка вместо трейсбека про wake word.
