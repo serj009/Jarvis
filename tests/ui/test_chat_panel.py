@@ -549,3 +549,33 @@ class TestMarkdownHelper:
         from jarvis.ui.chat_panel import _md_to_display
 
         assert _md_to_display("  hello  ") == "hello"
+
+
+def test_bubble_is_freed_when_dropped(qapp):
+    """B-P2-15: the copy button's slot was a lambda over self. Qt holds the
+    slot where gc cannot see it, so an unparented bubble was never freed and
+    was destroyed only at interpreter exit -- after the QApplication -- and
+    the test process died with SIGBUS (exit 135) although every test passed."""
+    import gc
+    import weakref
+
+    from jarvis.ui.chat_panel import MessageBubble
+    from jarvis.ui.chat_storage import ChatMessage
+
+    ref = weakref.ref(MessageBubble(ChatMessage(role="user", text="hello")))
+    gc.collect()
+    assert ref() is None
+
+
+def test_copy_button_still_copies(qapp):
+    from PySide6.QtWidgets import QApplication, QPushButton
+
+    from jarvis.ui.chat_panel import MessageBubble
+    from jarvis.ui.chat_storage import ChatMessage
+
+    bubble = MessageBubble(ChatMessage(role="assistant", text="Yes, sir."))
+    button = bubble.findChild(QPushButton, "msgCopyBtn")
+    assert button is not None
+    button.click()
+    clipboard = QApplication.clipboard()
+    assert clipboard is not None and clipboard.text() == "Yes, sir."

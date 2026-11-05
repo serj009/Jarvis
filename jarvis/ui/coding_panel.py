@@ -569,13 +569,14 @@ class InlineConfirmDialog(QFrame):
         self._no_btn = QPushButton("❌ No")
         self._no_btn.setObjectName("cpConfirmNo")
         self._no_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._no_btn.clicked.connect(lambda: self.resolve(False))
+        # Bound methods, not lambdas over self (see _on_no_clicked).
+        self._no_btn.clicked.connect(self._on_no_clicked)
         row.addWidget(self._no_btn)
 
         self._yes_btn = QPushButton("✅ Yes")
         self._yes_btn.setObjectName("cpConfirmYes")
         self._yes_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._yes_btn.clicked.connect(lambda: self.resolve(True))
+        self._yes_btn.clicked.connect(self._on_yes_clicked)
         row.addWidget(self._yes_btn)
 
         lay.addLayout(row)
@@ -584,6 +585,16 @@ class InlineConfirmDialog(QFrame):
         self._tick.setInterval(1000)
         self._tick.timeout.connect(self._on_tick)
         self._tick.start()
+
+    def _on_no_clicked(self) -> None:
+        """Slot for "No". A lambda capturing self, connected to a child's
+        signal, is held by Qt where gc cannot see it: the widget then lived
+        until interpreter exit and its late destruction crashed the process
+        (B-P2-15). A bound method is held weakly by PySide."""
+        self.resolve(False)
+
+    def _on_yes_clicked(self) -> None:
+        self.resolve(True)
 
     # -- public ------------------------------------------------------------
 

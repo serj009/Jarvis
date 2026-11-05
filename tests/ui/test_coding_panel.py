@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from PySide6.QtWidgets import QApplication
 
 # ---------------------------------------------------------------------------
@@ -571,3 +572,31 @@ class TestAstParse:
             Path(__file__).read_text(encoding="utf-8"),
             filename=__file__,
         )
+
+
+def test_inline_confirm_is_freed_when_dropped(qapp):
+    """B-P2-15: Yes / No were lambdas over self; see test_chat_panel's
+    test_bubble_is_freed_when_dropped."""
+    import gc
+    import weakref
+
+    from jarvis.ui.coding_panel import InlineConfirmDialog
+
+    ref = weakref.ref(InlineConfirmDialog("Run it?"))
+    gc.collect()
+    assert ref() is None
+
+
+@pytest.mark.parametrize(("button", "expected"), [("cpConfirmYes", True), ("cpConfirmNo", False)])
+def test_inline_confirm_buttons_still_answer(qapp, button, expected):
+    from PySide6.QtWidgets import QPushButton
+
+    from jarvis.ui.coding_panel import InlineConfirmDialog
+
+    dialog = InlineConfirmDialog("Run it?")
+    answers: list[bool] = []
+    dialog.responded.connect(answers.append)
+    found = dialog.findChild(QPushButton, button)
+    assert found is not None
+    found.click()
+    assert answers == [expected]

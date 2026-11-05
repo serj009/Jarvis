@@ -53,6 +53,7 @@ import logging
 import re
 from collections.abc import Callable
 from datetime import datetime
+from functools import partial
 
 from PySide6.QtCore import Qt, QTimer, Signal, Slot
 from PySide6.QtGui import QKeyEvent
@@ -306,7 +307,10 @@ class MessageBubble(QFrame):
             copy_btn.setObjectName("msgCopyBtn")
             copy_btn.setToolTip("Copy message")
             copy_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            copy_btn.clicked.connect(lambda: self._copy_text(msg.text))
+            # Not a lambda over self: Qt holds the slot, gc cannot see that
+            # reference, and the bubble then lived until interpreter exit,
+            # where its late destruction crashed the process (B-P2-15).
+            copy_btn.clicked.connect(partial(MessageBubble._copy_text, msg.text))
             copy_btn.setFixedSize(24, 20)
             bottom.addWidget(copy_btn)
 
