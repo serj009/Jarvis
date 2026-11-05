@@ -233,6 +233,12 @@ STT пишет «Открый» и «Открою» вместо «Открой�
 **B-P2-12. Приложение Ollama 39 тысяч раз пыталось запустить сервер. [Дом]**
 `%LOCALAPPDATA%\Ollama\server.log`: с 07:15 каждую секунду «bind: Only one usage of each socket address» — сервер уже запущен другим способом (например, `start-jarvis.ps1` делает `ollama serve`), а приложение в трее тоже пытается его поднять. Оставить один способ запуска (или выключить автозапуск приложения Ollama, или не запускать `ollama serve` в скрипте, если приложение уже работает).
 
+**B-P2-13. В русских и украинских фразах «sir» латиницей. [Работа]**
+В `jarvis/core/phrases.py` (блок «TTS action / status phrases»: `coding_*`, `file_*`, `language_switched`, `dictation_*`, `nothing_to_repeat`, `goodbye`, `good_morning/afternoon/evening`, `volume_set`, `screenshot_saved` и др.) ru/uk-варианты пишут «sir» латиницей, а ru/uk-голоса Piper его читают неправильно. Заменить на «сэр» / «сер»; тест: ни в одном ru/uk-варианте нет латинского «sir».
+
+**B-P2-14. `beautifulsoup4` не ставится с `[dev]`. [Работа]**
+`bs4` есть только в extra `[browser]`, а CI ставит `pip install -e ".[dev]"`. Без него 11 тестов (`tests/browser/test_readable.py`, `tests/tools/local/test_web_knowledge.py::TestMainContent`, `tests/dev/test_page_probe.py`) падают, а сам Jarvis молча переходит на разбор страницы регулярным выражением — без вырезания меню и подвала. Добавить `beautifulsoup4` в `[dev]` (и, возможно, в основные зависимости: чтение страниц — основная функция); проверить, что CI на `amazonq` зелёный.
+
 ### P3 — потом (после v1.0)
 
 **B-P3-1. «прохождение первой главы» неоднозначно. [Работа]**
