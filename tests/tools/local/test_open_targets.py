@@ -37,6 +37,7 @@ def _installed(*keys: str):
         # Whisper variants seen in live logs
         ("Открою YouTube в браузере", (), "url", "https://www.youtube.com", "web"),
         ("Открои GitHub", (), "url", "https://github.com", "auto"),
+        ("Открый ютуб", (), "url", "https://www.youtube.com", "auto"),  # B-P2-5
         ("Открой гит хаб", (), "url", "https://github.com", "auto"),
         ("Джарвис, открой ютуб, пожалуйста", (), "url", "https://www.youtube.com", "auto"),
     ],

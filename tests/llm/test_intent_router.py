@@ -1337,3 +1337,42 @@ async def test_game_mode_llm_fallback_returns_generic_fail_on_none():
     assert llm.stream_calls == 0
     # No assistant turn recorded for None answer
     assert len(conv.assistant_turns) == 0
+
+
+# --- B-P2-5: mis-heard leading verbs ----------------------------------------
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("Открый блокнот.", "открой блокнот"),
+        ("Открою калькулятор", "открой калькулятор"),
+        ("Джарвис, открои проводник", "открой проводник"),
+        ("Закрою блокнот", "закрой блокнот"),
+        ("Закрый, блокнот", "закрой блокнот"),
+        ("Відкрию блокнот", "відкрий блокнот"),
+        # Only the first word: the same form inside a sentence is kept.
+        ("завтра открою магазин", "завтра открою магазин"),
+        ("открой блокнот", "открой блокнот"),
+    ],
+)
+def test_normalize_fixes_misheard_leading_verb(raw: str, expected: str):
+    assert _normalize(raw) == expected
+
+
+@pytest.mark.parametrize(
+    "transcription,expected_tool",
+    [
+        ("Открый блокнот", "open_app"),
+        ("Открою блокнот", "open_app"),
+        ("Закрою блокнот", "close_app"),
+    ],
+)
+async def test_misheard_verb_routes_by_pattern_not_the_model(transcription, expected_tool):
+    """Live: "Открый" / "Открою" missed the patterns and went to the model."""
+    router, llm, _conv = _make_router()
+    intents = await _collect(router.route(transcription))
+    assert [type(i) for i in intents] == [ToolIntent]
+    assert intents[0].tool_name == expected_tool
+    assert intents[0].args == {"name": "блокнот"}
+    assert llm.stream_calls == 0

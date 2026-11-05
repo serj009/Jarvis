@@ -268,10 +268,26 @@ _FILLERS: tuple[re.Pattern, ...] = (
 
 _TRAILING_PUNCT = re.compile(r"[\s.!?,]+$")
 
+# Command verbs as Whisper mis-hears them at the start of a phrase (live
+# logs: "Открый", "Открою"). Such a phrase missed every "открой ..." pattern
+# and went to the model (+3-4 s). Only the first word is mapped, so the
+# same word later in a sentence is left alone. (B-P2-5)
+_STT_VERB_FIXES: dict[str, str] = {
+    "открый": "открой",
+    "открою": "открой",
+    "открои": "открой",
+    "закрый": "закрой",
+    "закрою": "закрой",
+    "закрои": "закрой",
+    "відкрию": "відкрий",
+    "закрию": "закрий",
+}
+
 
 def _normalize(text: str) -> str:
     """Lowercase, strip, drop trailing punctuation, peel off fillers
-    iteratively. Returns the form the pattern table sees."""
+    iteratively, fix a mis-heard leading verb. Returns the form the
+    pattern table sees."""
     s = text.lower().strip()
     s = _TRAILING_PUNCT.sub("", s)
     # Iteratively peel fillers (e.g. "could you please open spotify"
@@ -283,6 +299,10 @@ def _normalize(text: str) -> str:
         if new_s == s:
             break
         s = new_s
+    first, sep, rest = s.partition(" ")
+    fixed = _STT_VERB_FIXES.get(first.rstrip(","))
+    if fixed is not None:
+        s = fixed + sep + rest
     return s
 
 
