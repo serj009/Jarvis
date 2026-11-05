@@ -459,3 +459,65 @@ class TestMultiChunkResponse:
 
         result = await extractor.extract_and_save("text", "https://x.com", "T")
         assert result["topic"] == "Chunked"
+
+
+# ---------------------------------------------------------------------------
+# B-P2-1: the fallback keeps a short summary, and JSON is asked for outright
+# ---------------------------------------------------------------------------
+
+
+class TestFallbackSummary:
+    PAGE = "\n".join(
+        ["Магазин", "Главная", "Сообщество", "Войти", "632", "Наградить"]
+        + [
+            f"Это содержательный абзац номер {i} о том, как пройти уровень и "
+            "найти все секреты на карте."
+            for i in range(200)
+        ]
+        + ["© Valve Corporation", "Политика конфиденциальности"]
+    )
+
+    @pytest.mark.asyncio
+    async def test_fallback_fact_is_title_url_and_a_short_summary(self):
+        saved: list[str] = []
+        memory = _build_mock_memory_store()
+
+        async def fake_add(text, **kwargs):
+            saved.append(text)
+            return "fact_001"
+
+        memory.add = fake_add
+        extractor = KnowledgeExtractor(
+            ollama_client=_build_mock_ollama_text("not json {{{"),
+            memory_store=memory,
+        )
+        result = await extractor.extract_and_save(self.PAGE, "https://x.example/g", "Гайд")
+        assert result.get("fallback") is True
+        (fact,) = saved
+        assert fact.startswith("Гайд (from https://x.example/g)\n\n")
+        assert len(fact) < 700  # was up to 5000 characters of the page
+        assert "абзац номер 0" in fact
+        for chrome in ("Магазин", "Войти", "632", "Наградить", "Valve"):
+            assert chrome not in fact
+        assert fact.rstrip().endswith("…")
+
+    def test_short_page_is_kept_whole(self):
+        from jarvis.memory.knowledge_extractor import _short_summary
+
+        assert _short_summary("Short\nlist") == "Short list"
+
+
+@pytest.mark.asyncio
+async def test_json_output_is_requested():
+    calls: list[dict] = []
+    mock = MagicMock()
+
+    async def fake_stream_chat(messages, *, tools=None, format=None, options=None):  # noqa: A002
+        calls.append({"format": format, "options": options})
+        yield FakeChunk(content=json.dumps(SAMPLE_STRUCTURED_RESPONSE), done=True)
+
+    mock.stream_chat = fake_stream_chat
+    extractor = KnowledgeExtractor(ollama_client=mock, memory_store=_build_mock_memory_store())
+    await extractor.extract_and_save("text", "https://x", "t")
+    assert calls[0]["format"] == "json"
+    assert calls[0]["options"]["temperature"] <= 0.2

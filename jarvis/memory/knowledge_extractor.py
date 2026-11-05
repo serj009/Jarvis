@@ -32,8 +32,10 @@ Usage:
 
 from __future__ import annotations
 
+import inspect
 import json
 import logging
+import re
 from typing import Any
 
 log = logging.getLogger(__name__)
@@ -44,6 +46,12 @@ log = logging.getLogger(__name__)
 
 MAX_PAGE_CHARS: int = 10_000
 TRUNCATED_CHARS: int = 8_000
+# When extraction fails, only this much of the page is kept as the fallback
+# fact (B-P2-1: it used to be 5000 characters, menus and footer included).
+FALLBACK_SUMMARY_CHARS: int = 600
+# Lines shorter than this are menu entries, buttons and counters.
+_MIN_CONTENT_LINE = 25
+_LIST_MARK = re.compile(r"^(?:##\s+|-\s+|\d+\.\s+)")
 
 EXTRACTION_PROMPT = """\
 You are a knowledge extraction AI. Extract structured data from the following web page content.
@@ -168,9 +176,16 @@ class KnowledgeExtractor:
         Returns the parsed dict on success, None on any failure.
         """
         messages = [{"role": "user", "content": prompt}]
+        # Ask Ollama for JSON outright (B-P2-1), as page_extractor does: a
+        # free-form reply was the usual way to end up in the fallback.
+        kwargs: dict[str, Any] = {}
+        if _accepts(self._ollama.stream_chat, "format"):
+            kwargs["format"] = "json"
+        if _accepts(self._ollama.stream_chat, "options"):
+            kwargs["options"] = {"temperature": 0.2}
         full_response = ""
         try:
-            async for chunk in self._ollama.stream_chat(messages):
+            async for chunk in self._ollama.stream_chat(messages, **kwargs):
                 full_response += chunk.content
                 if chunk.done:
                     break
@@ -336,10 +351,10 @@ class KnowledgeExtractor:
         url: str,
         title: str,
     ) -> dict[str, Any]:
-        """Save the entire page as a single fact when LLM extraction fails."""
-        # Truncate for storage
-        max_fact_len = 5000
-        fact_text = f"{title or 'Web page'} (from {url})\n\n{text[:max_fact_len]}"
+        """Save the page as one short fact when LLM extraction fails: its
+        title, URL and a summary of its content lines -- not 5000 characters
+        of the page with its menus and footer, which then sat in memory."""
+        fact_text = f"{title or 'Web page'} (from {url})\n\n{_short_summary(text)}"
 
         fact_id = await self._memory_store.add(
             fact_text,
@@ -355,3 +370,28 @@ class KnowledgeExtractor:
             "fact_ids": [fact_id],
             "fallback": True,
         }
+
+
+def _accepts(fn: Any, name: str) -> bool:
+    try:
+        params = inspect.signature(fn).parameters
+    except (TypeError, ValueError):
+        return False
+    return name in params or any(p.kind is p.VAR_KEYWORD for p in params.values())
+
+
+def _short_summary(text: str, limit: int = FALLBACK_SUMMARY_CHARS) -> str:
+    """The first content of *text*, at most *limit* characters, cut at the
+    end of a sentence. Short lines (menus, buttons, counters) are skipped;
+    if nothing else is left, the whole text is used."""
+    lines = []
+    for raw in text.splitlines():
+        line = _LIST_MARK.sub("", raw.strip())
+        if len(line) >= _MIN_CONTENT_LINE:
+            lines.append(line)
+    summary = " ".join(lines) if lines else " ".join(text.split())
+    if len(summary) <= limit:
+        return summary
+    cut = summary[:limit]
+    stop = max(cut.rfind(". "), cut.rfind("! "), cut.rfind("? "))
+    return (cut[: stop + 1] if stop > limit // 2 else cut.rstrip()) + " …"
