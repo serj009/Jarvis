@@ -56,7 +56,8 @@ python -m pytest -q
 
 ## Когда владелец пишет «проверь» (только дома, на его ПК)
 
-Прочитать живую сессию: `jarvis.log.jsonl` в корне (строки после
-`data dir: ...\AppData\Roaming\Jarvis`, время в UTC), `%APPDATA%\Jarvis\logs\jarvis.log`
-(трейсбеки), `%APPDATA%\Jarvis\debug\last_llm_request.json` (запрос к модели).
+Прочитать живую сессию: `%APPDATA%\Jarvis\logs\jarvis.log.jsonl` (время в UTC;
+до 2026-11-05 — `jarvis.log.jsonl` в корне репозитория, вперемешку с тестами),
+`%APPDATA%\Jarvis\logs\jarvis.log` (трейсбеки),
+`%APPDATA%\Jarvis\debug\last_llm_request.json` (запрос к модели).
 Сверить с «Проверкой дома» в плане, проверенное убрать, найденное — в бэклог.
