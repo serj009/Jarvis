@@ -64,6 +64,12 @@ dependencies = [
   #   argon2-cffi:  MIT, ~50 KB (+ argon2-cffi-bindings, the C core).
   "argon2-cffi>=21,<24",
   "cryptography>=41,<44",
+  # Readable page text for "remember this page" (jarvis/browser/readable.py):
+  # without it the page is flattened by a regex, menus and footers included,
+  # and the list extracted from it fills with junk. It used to be only in the
+  # [browser] extra, so CI ([dev]) and plain installs silently ran without
+  # it. Pure Python, MIT. (B-P2-14)
+  "beautifulsoup4>=4,<5",
 ]
 
 [project.optional-dependencies]

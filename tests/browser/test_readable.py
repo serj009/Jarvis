@@ -202,3 +202,17 @@ def test_entry_that_is_mostly_one_link_is_kept():
     lines = extract_main_text(html).splitlines()
     i = lines.index("## Врата 4 зверей")
     assert lines[i + 1] == "подробный гайд в этом руководстве"
+
+
+def test_beautifulsoup_is_a_base_dependency():
+    """B-P2-14: bs4 was only in the [browser] extra, so CI ([dev]) and plain
+    installs fell back to the regex path -- menus and footers kept -- and
+    11 tests failed. It is a runtime dependency of "remember this page"."""
+    import tomllib
+    from pathlib import Path
+
+    from packaging.requirements import Requirement
+
+    pyproject = Path(__file__).resolve().parents[2] / "pyproject.toml"
+    deps = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["dependencies"]
+    assert "beautifulsoup4" in {Requirement(d).name for d in deps}

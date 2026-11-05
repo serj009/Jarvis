@@ -221,9 +221,6 @@ STT пишет «Открый» и «Открою» вместо «Открой�
 **B-P2-13. В русских и украинских фразах «sir» латиницей. [Работа]**
 В `jarvis/core/phrases.py` (блок «TTS action / status phrases»: `coding_*`, `file_*`, `language_switched`, `dictation_*`, `nothing_to_repeat`, `goodbye`, `good_morning/afternoon/evening`, `volume_set`, `screenshot_saved` и др.) ru/uk-варианты пишут «sir» латиницей, а ru/uk-голоса Piper его читают неправильно. Заменить на «сэр» / «сер»; тест: ни в одном ru/uk-варианте нет латинского «sir».
 
-**B-P2-14. `beautifulsoup4` не ставится с `[dev]`. [Работа]**
-`bs4` есть только в extra `[browser]`, а CI ставит `pip install -e ".[dev]"`. Без него 11 тестов (`tests/browser/test_readable.py`, `tests/tools/local/test_web_knowledge.py::TestMainContent`, `tests/dev/test_page_probe.py`) падают, а сам Jarvis молча переходит на разбор страницы регулярным выражением — без вырезания меню и подвала. Добавить `beautifulsoup4` в `[dev]` (и, возможно, в основные зависимости: чтение страниц — основная функция); проверить, что CI на `amazonq` зелёный.
-
 **B-P2-15. На Linux `pytest` падает при выходе (код 139). [Работа]**
 Все тесты проходят («6763 passed»), но процесс после итоговой строки падает с `Segmentation fault` или `malloc_consolidate(): unaligned fastbin chunk detected`. Есть уже на `6f3cf8e` (3 из 3 прогонов в облачной сессии, Python 3.11, `QT_QPA_PLATFORM=offscreen`), так что CI на Ubuntu, скорее всего, красный по коду выхода. Подозрение — порядок разрушения объектов Qt (PySide6) или нативных библиотек (faiss, torch) при выходе интерпретатора. Найти тест, после которого это начинается (делить набор пополам), и закрыть ресурс в фикстуре; на крайний случай — `os._exit` в `pytest_unconfigure` только на Linux. На Windows проверить, есть ли такое.
 
