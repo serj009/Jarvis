@@ -109,6 +109,7 @@ CORPUS: tuple[str, ...] = (
     "remember this page",
     "save this recipe",
     "save this link",
+    "how's the page going",
     "what's left",
     "mark phoenix wings as done",
     "what's my progress",

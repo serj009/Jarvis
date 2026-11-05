@@ -462,8 +462,12 @@ class PageExtractor:
         idle_grace_s: float = IDLE_GRACE_S,
         poll_s: float = BUSY_POLL_S,
         retry_delay_s: float = RETRY_DELAY_S,
+        on_progress: Callable[[int, int], None] | None = None,
     ) -> None:
         self._llm = llm
+        # Called with (part, total) before each part, so a long read can be
+        # shown ("part 3 of 9") instead of looking like a hang (B-P1-10).
+        self._on_progress = on_progress
         self._chunk_chars = chunk_chars
         # The user's turn comes first. A part takes up to a minute of
         # Ollama time; with is_busy (live: "is Jarvis mid-turn?") every
@@ -484,6 +488,7 @@ class PageExtractor:
         parts: list[dict] = []
         unread: list[int] = []
         for index, chunk in enumerate(chunks, start=1):
+            self._report(index, len(chunks))
             reply = await self._read_part(chunk, index, len(chunks), url, title)
             if reply is None:
                 log.warning("[page_extractor] part %d/%d gave no usable JSON", index, len(chunks))
@@ -502,6 +507,14 @@ class PageExtractor:
                 page.kind, len(page.items), len(parts), len(chunks), unread or "none",
             )
         return page
+
+    def _report(self, part: int, total: int) -> None:
+        if self._on_progress is None:
+            return
+        try:
+            self._on_progress(part, total)
+        except Exception:
+            log.debug("[page_extractor] progress callback failed", exc_info=True)
 
     async def _read_part(
         self, chunk: str, index: int, total: int, url: str, title: str

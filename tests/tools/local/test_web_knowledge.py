@@ -16,7 +16,7 @@ from jarvis.tools.local.web_knowledge import (
     SavePageKnowledgeArgs,
     SavePageKnowledgeTool,
 )
-from jarvis.tools.registry import VoicePattern
+from jarvis.tools.registry import EmptyArgs, VoicePattern
 from tests._typing import output_text
 
 # ---------------------------------------------------------------------------
@@ -1245,3 +1245,124 @@ def test_shutdown_cancels_background_tool_work_before_unloading():
     cancel = source.index("await registry.cancel_background_work()")
     assert cancel < source.index("await mcp_manager.shutdown()")
     assert cancel < source.index("await lm.unload_all()", cancel)
+
+
+# ---------------------------------------------------------------------------
+# B-P1-10: progress of a background read
+# ---------------------------------------------------------------------------
+
+
+def test_short_title_keeps_the_guide_name():
+    from jarvis.tools.local.web_knowledge import _short_title
+
+    tab = "Сообщество Steam :: Руководство :: Все достижения и как их получить (100%)"
+    assert _short_title(tab, "u") == "Все достижения и как их получить (100%)"
+    assert _short_title("", "https://x.example/g") == "https://x.example/g"
+    assert len(_short_title("x" * 200, "u")) == 60
+
+
+@pytest.mark.asyncio
+async def test_background_read_reports_progress_and_answers_how_is_it_going(tmp_path):
+    from jarvis.core.events import BackgroundProgress
+    from jarvis.core.request_context import current_user_transcription
+    from jarvis.memory.collections import CollectionStore
+    from jarvis.tools.local.web_knowledge import PageReadingStatusTool
+
+    release = asyncio.Event()
+    started = asyncio.Event()
+    reply = json.dumps({"kind": "checklist", "title": "Bleach", "items": [
+        {"r": "task", "n": "Крылья феникса"}, {"r": "task", "n": "Король душ"},
+    ]}, ensure_ascii=False)
+
+    class SlowLLM:
+        async def stream_chat(self, messages, **kwargs):
+            started.set()
+            await release.wait()
+            yield FakeChunk(content=reply, done=True)
+
+    events: list[BackgroundProgress] = []
+    store = CollectionStore(tmp_path / "collections.db")
+    tool = _collection_tool(store, SlowLLM(), announce=lambda text: None)
+    tool._on_progress = events.append
+    status_tool = PageReadingStatusTool(tool)
+
+    token = current_user_transcription.set("запомни эту страницу")
+    try:
+        await tool.execute(SavePageKnowledgeArgs())
+    finally:
+        current_user_transcription.reset(token)
+    await asyncio.wait_for(started.wait(), timeout=2)
+
+    token = current_user_transcription.set("как там страница")
+    try:
+        answer = output_text(await status_tool.execute(EmptyArgs()))
+    finally:
+        current_user_transcription.reset(token)
+    assert answer == "Читаю «Steam guide»: часть 1 из 1."
+
+    release.set()
+    await asyncio.gather(*tool._background)
+
+    key = "save-page:https://steam.example/g"
+    assert [(e.key, e.status, e.notice) for e in events] == [
+        (key, "Читаю «Steam guide»…", "Читаю «Steam guide» в фоне. Скажу, когда сохраню."),
+        (key, "Читаю «Steam guide»: часть 1 из 1", None),
+        (key, None, "Сохранил «Bleach», пунктов: 2, сэр."),
+    ]
+    assert tool._reading == {}
+
+
+@pytest.mark.asyncio
+async def test_status_when_nothing_is_being_read(tmp_path):
+    from jarvis.core.request_context import current_user_transcription
+    from jarvis.memory.collections import CollectionStore
+    from jarvis.tools.local.web_knowledge import PageReadingStatusTool
+
+    tool = _collection_tool(CollectionStore(tmp_path / "c.db"), _llm_replying())
+    token = current_user_transcription.set("як там сторінка")
+    try:
+        answer = output_text(await PageReadingStatusTool(tool).execute(EmptyArgs()))
+    finally:
+        current_user_transcription.reset(token)
+    assert answer == "Зараз жодної сторінки не читаю, сер."
+
+
+@pytest.mark.asyncio
+async def test_cancelled_read_clears_the_tray_status(tmp_path):
+    from jarvis.core.events import BackgroundProgress
+    from jarvis.memory.collections import CollectionStore
+
+    started = asyncio.Event()
+
+    class HangingLLM:
+        async def stream_chat(self, messages, **kwargs):
+            started.set()
+            await asyncio.Event().wait()
+            yield FakeChunk(content="{}", done=True)  # pragma: no cover
+
+    events: list[BackgroundProgress] = []
+    tool = _collection_tool(
+        CollectionStore(tmp_path / "c.db"), HangingLLM(), announce=lambda text: None
+    )
+    tool._on_progress = events.append
+    await tool.execute(SavePageKnowledgeArgs())
+    await asyncio.wait_for(started.wait(), timeout=2)
+    await tool.cancel_background_work()
+    assert events[-1].status is None and events[-1].notice is None
+    assert tool._reading == {}
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    ["как там страница", "что там со страницей", "як там сторінка", "how's the page going"],
+)
+def test_how_is_the_page_routes_to_the_status_tool(phrase):
+    import re
+
+    from jarvis.tools.catalogue import voice_pattern_catalogue
+
+    for tool_name, vp in voice_pattern_catalogue():
+        if re.match(vp.regex, phrase, re.IGNORECASE):
+            assert tool_name == "page_reading_status"
+            return
+    raise AssertionError(f"no pattern for {phrase!r}")

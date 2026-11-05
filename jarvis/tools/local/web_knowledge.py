@@ -23,12 +23,13 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
 
 from jarvis.memory.collections import CollectionKind
-from jarvis.tools.registry import ToolResult, VoicePattern
+from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
 
@@ -104,6 +105,60 @@ _BACKGROUND_ALREADY = (
     "This page is already being read in the background; nothing new was "
     "started. Tell the user you will say when it is saved."
 )
+
+# Progress of a background read (B-P1-10): the tray tooltip, the "started"
+# notification and the answer to "как там страница?".
+_PROGRESS_PHRASES: dict[str, dict[str, str]] = {
+    "preparing": {
+        "ru": "Читаю «{title}»…",
+        "uk": "Читаю «{title}»…",
+        "en": "Reading \"{title}\"…",
+    },
+    "part": {
+        "ru": "Читаю «{title}»: часть {part} из {total}",
+        "uk": "Читаю «{title}»: частина {part} з {total}",
+        "en": "Reading \"{title}\": part {part} of {total}",
+    },
+    "started": {
+        "ru": "Читаю «{title}» в фоне. Скажу, когда сохраню.",
+        "uk": "Читаю «{title}» у фоні. Скажу, коли збережу.",
+        "en": "Reading \"{title}\" in the background. I will say when it is saved.",
+    },
+    "idle": {
+        "ru": "Сейчас никакую страницу не читаю, сэр.",
+        "uk": "Зараз жодної сторінки не читаю, сер.",
+        "en": "I'm not reading any page right now, sir.",
+    },
+}
+_TITLE_LIMIT = 60
+
+
+def _short_title(title: str, url: str) -> str:
+    """A tab title fit for a tooltip: Steam's "Сообщество Steam ::
+    Руководство :: <name>" keeps only its last part."""
+    text = (title or url or "").strip()
+    if " :: " in text:
+        text = text.rsplit(" :: ", 1)[-1].strip() or text
+    if len(text) > _TITLE_LIMIT:
+        text = text[: _TITLE_LIMIT - 1].rstrip() + "…"
+    return text
+
+
+@dataclass
+class _Reading:
+    """A page being read in the background."""
+
+    title: str
+    lang: str
+    part: int = 0
+    total: int = 0
+
+    def status(self) -> str:
+        key = "part" if self.total else "preparing"
+        phrases = _PROGRESS_PHRASES[key]
+        return phrases.get(self.lang, phrases["en"]).format(
+            title=self.title, part=self.part, total=self.total
+        )
 
 
 def _same_page(a: str, b: str) -> bool:
@@ -247,6 +302,7 @@ class SavePageKnowledgeTool:
         on_speak: Callable[[str], Awaitable[None]] | None = None,
         announce: Callable[[str], None] | None = None,
         is_busy: Callable[[], bool] | None = None,
+        on_progress: Callable[[Any], None] | None = None,
     ) -> None:
         self._ollama = ollama_client
         self._memory_store = memory_store
@@ -266,6 +322,11 @@ class SavePageKnowledgeTool:
         # not sit through it with Jarvis stuck in THINKING.
         self._announce = announce
         self._background: set[asyncio.Task] = set()
+        # B-P1-10: what is being read right now, keyed by the task name
+        # ("save-page:<url>"), and where progress goes (the app publishes it
+        # on the bus as BackgroundProgress for the tray).
+        self._reading: dict[str, _Reading] = {}
+        self._on_progress = on_progress
         # "Is the user mid-turn?" — lets a background read yield the model
         # to the user's questions (PageExtractor waits / redoes a part).
         self._is_busy = is_busy
@@ -350,20 +411,59 @@ class SavePageKnowledgeTool:
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
 
+    def reading_status(self) -> str:
+        """What is being read right now, in the request's language (the
+        answer to "как там страница?")."""
+        from jarvis.core.phrases import reply_language
+
+        if self._reading:
+            return "; ".join(r.status() for r in self._reading.values()) + "."
+        phrases = _PROGRESS_PHRASES["idle"]
+        lang = reply_language()
+        return phrases.get(lang, phrases["en"])
+
+    def _publish_progress(self, key: str, status: str | None, notice: str | None) -> None:
+        if self._on_progress is None:
+            return
+        from jarvis.core.events import BackgroundProgress
+
+        try:
+            self._on_progress(BackgroundProgress(key=key, status=status, notice=notice))
+        except Exception:
+            log.debug("[web_knowledge] progress could not be published", exc_info=True)
+
     async def _save_in_background(self, page_text: str, page_url: str, page_title: str) -> None:
         """Run the save and say how it went. Runs in a copy of the request's
         context, so reply_language() still sees the user's words."""
         from jarvis.core.phrases import reply_language
 
         lang = reply_language()
+        key = f"save-page:{page_url}"
+        reading = _Reading(title=_short_title(page_title, page_url), lang=lang)
+        self._reading[key] = reading
+        started = _PROGRESS_PHRASES["started"]
+        self._publish_progress(
+            key, reading.status(), started.get(lang, started["en"]).format(title=reading.title)
+        )
+
+        def on_part(part: int, total: int) -> None:
+            reading.part, reading.total = part, total
+            log.info("[web_knowledge] reading %s: part %d/%d", page_url, part, total)
+            self._publish_progress(key, reading.status(), None)
+
         unread: tuple[int, int] | None = None
         try:
             result, collection, unread = await self._save_page_with_collection(
-                page_text, page_url, page_title, announce_reading=False
+                page_text, page_url, page_title, announce_reading=False, on_progress=on_part
             )
+        except asyncio.CancelledError:
+            self._reading.pop(key, None)
+            self._publish_progress(key, None, None)
+            raise
         except Exception:
             log.exception("[web_knowledge] background save failed")
             result, collection = ToolResult(success=False, error="crashed"), None
+        self._reading.pop(key, None)
         if not result.success:
             key, values = "failed", {}
         elif collection is None:
@@ -379,6 +479,7 @@ class SavePageKnowledgeTool:
             count, total = unread
             text += tail.get(lang, tail["en"]).format(count=count, total=total)
         log.info("[web_knowledge] background save done: %s", key)
+        self._publish_progress(f"save-page:{page_url}", None, text)
         try:
             if self._announce is not None:
                 self._announce(text)
@@ -392,7 +493,13 @@ class SavePageKnowledgeTool:
         return result
 
     async def _save_page_with_collection(
-        self, page_text: str, page_url: str, page_title: str, *, announce_reading: bool
+        self,
+        page_text: str,
+        page_url: str,
+        page_title: str,
+        *,
+        announce_reading: bool,
+        on_progress: Callable[[int, int], None] | None = None,
     ) -> tuple[ToolResult, Any, tuple[int, int] | None]:
         """Save the page as a collection or, failing that, as facts.
         Returns the tool result, the collection (None for facts) and, when
@@ -400,7 +507,8 @@ class SavePageKnowledgeTool:
         # 2a. Structured collection (checklist / recipe / list).
         if self._collections is not None:
             saved = await self._save_as_collection(
-                page_text, page_url, page_title, announce_reading=announce_reading
+                page_text, page_url, page_title,
+                announce_reading=announce_reading, on_progress=on_progress,
             )
             if saved is not None:
                 return saved
@@ -458,7 +566,13 @@ class SavePageKnowledgeTool:
             log.debug("reading notice could not be spoken", exc_info=True)
 
     async def _save_as_collection(
-        self, text: str, url: str, title: str, *, announce_reading: bool = True
+        self,
+        text: str,
+        url: str,
+        title: str,
+        *,
+        announce_reading: bool = True,
+        on_progress: Callable[[int, int], None] | None = None,
     ) -> tuple[ToolResult, Any, tuple[int, int] | None] | None:
         """Extract a checklist / recipe / list and store it.
 
@@ -469,7 +583,8 @@ class SavePageKnowledgeTool:
 
         if announce_reading:
             await self._say_reading()
-        page = await PageExtractor(self._ollama, is_busy=self._is_busy).extract(text, url, title)
+        extractor = PageExtractor(self._ollama, is_busy=self._is_busy, on_progress=on_progress)
+        page = await extractor.extract(text, url, title)
         if page is None or not page.is_collection:
             return None
         kind = _collection_kind(page.kind)
@@ -706,3 +821,48 @@ def _describe_saved(collection: Any, note_title: str | None) -> str:
         "\"mark <item> as done\"."
     )
 
+
+
+class PageReadingStatusTool:
+    """ "как там страница?" -> how far the background read has got (B-P1-10)."""
+
+    name: str = "page_reading_status"
+    description: str = (
+        "Says how far Jarvis has got reading a page in the background "
+        "(after \"remember this page\"): which page and which part. Use when "
+        "the user asks how the page / the reading is going. "
+        "(RU: как там страница, что со страницей / UK: як там сторінка)"
+    )
+    args_schema = EmptyArgs
+    requires_confirmation: bool = False
+    voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        # RU: "как там страница", "как со страницей", "что там со страницей",
+        # "как идёт чтение страницы"
+        VoicePattern(
+            regex=(
+                r"^(?:как\s+(?:там\s+)?(?:с\s+)?страниц(?:а|ей)"
+                r"|что\s+(?:там\s+)?со\s+страницей"
+                r"|как\s+ид[её]т\s+чтение(?:\s+страницы)?)$"
+            ),
+            priority=500,
+            args=lambda m: {},
+        ),
+        # UK: "як там сторінка", "що там зі сторінкою"
+        VoicePattern(
+            regex=r"^(?:як\s+(?:там\s+)?(?:зі?\s+)?сторінк(?:а|ою)|що\s+(?:там\s+)?зі?\s+сторінкою)$",
+            priority=500,
+            args=lambda m: {},
+        ),
+        # EN: "how's the page going", "page status"
+        VoicePattern(
+            regex=r"^(?:how(?:'s|\s+is)\s+(?:the\s+)?page(?:\s+going)?|page\s+status)$",
+            priority=500,
+            args=lambda m: {},
+        ),
+    )
+
+    def __init__(self, save_tool: SavePageKnowledgeTool) -> None:
+        self._save_tool = save_tool
+
+    async def execute(self, args: EmptyArgs) -> ToolResult:
+        return ToolResult(success=True, output=self._save_tool.reading_status())

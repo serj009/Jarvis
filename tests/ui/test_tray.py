@@ -333,3 +333,44 @@ def test_ensure_system_tray_available_warns_and_returns_false(qapp):
         from jarvis.ui.tray import ensure_system_tray_available
         assert ensure_system_tray_available() is False
         assert warn.called
+
+
+# --- B-P1-10: background progress in the tooltip ------------------------------
+
+
+def test_progress_event_posts_queued_invocation(qapp):
+    from jarvis.core.events import BackgroundProgress
+
+    tray, _, _, _, _, _ = _make_tray()
+    try:
+        with patch("jarvis.ui.tray.QMetaObject.invokeMethod") as invoke:
+            tray._on_progress_event(BackgroundProgress(key="k", status="s", notice=None))
+        args, _ = invoke.call_args
+        assert args[1] == "_on_progress_texts"
+    finally:
+        tray.close()
+
+
+def test_progress_shows_in_tooltip_and_notifies(qapp):
+    tray, _, _, _, _, _ = _make_tray()
+    try:
+        with patch.object(tray, "showMessage") as show:
+            tray._on_progress_texts("save-page:a", "Читаю «Bleach»…", "Читаю «Bleach» в фоне.")
+            assert tray.toolTip() == "Jarvis\nЧитаю «Bleach»…"
+            tray._on_progress_texts("save-page:a", "Читаю «Bleach»: часть 3 из 9", "")
+            assert tray.toolTip() == "Jarvis\nЧитаю «Bleach»: часть 3 из 9"
+            tray._on_progress_texts("save-page:a", "", "Сохранил «Bleach», пунктов: 36, сэр.")
+            assert tray.toolTip() == "Jarvis"
+        assert [c.args[1] for c in show.call_args_list] == [
+            "Читаю «Bleach» в фоне.", "Сохранил «Bleach», пунктов: 36, сэр.",
+        ]
+    finally:
+        tray.close()
+
+
+def test_progress_after_close_is_dropped(qapp):
+    tray, _, _, _, _, _ = _make_tray()
+    tray.close()
+    with patch.object(tray, "showMessage") as show:
+        tray._on_progress_texts("k", "status", "notice")
+    assert not show.called

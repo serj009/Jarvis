@@ -128,6 +128,27 @@ class ProactiveSpeech:
 
     text: str
 
+
+@dataclass(frozen=True, slots=True)
+class BackgroundProgress:
+    """Progress of long background work, for the tray (B-P1-10).
+
+    Published by a tool from the audio loop; the tray shows ``status`` in
+    its tooltip and ``notice`` as a desktop notification. Texts arrive
+    already in the user's language.
+
+    Attributes:
+        key:    identifies the job (e.g. "save-page:<url>").
+        status: one line for the tooltip ("Читаю «…»: часть 3 из 9"), or
+                None when the job is over.
+        notice: text for a notification, or None for none.
+    """
+
+    key: str
+    status: str | None
+    notice: str | None = None
+
+
 # --- bus -------------------------------------------------------------------
 
 # A handler may be sync (returns None) or async (returns Awaitable[None]).

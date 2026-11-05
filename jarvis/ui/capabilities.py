@@ -191,14 +191,17 @@ CAPABILITY_CATEGORIES: tuple[CapabilityCategory, ...] = (
                     "Reads the page open in your browser and keeps what is on "
                     "it: a game guide becomes a checklist, a recipe becomes "
                     "ingredients and steps (with a shopping-list note). "
-                    "\"Save this link\" keeps only the bookmark."
+                    "\"Save this link\" keeps only the bookmark. A long page "
+                    "is read in the background: the tray shows which part, and "
+                    "\"how's the page going\" tells you."
                 ),
                 examples=(
                     "remember this page",
                     "save this recipe",
                     "save this link",
+                    "how's the page going",
                 ),
-                tools=("save_page_knowledge", "bookmarks"),
+                tools=("save_page_knowledge", "page_reading_status", "bookmarks"),
             ),
             Capability(
                 name="Use a saved list",

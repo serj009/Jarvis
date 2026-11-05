@@ -60,7 +60,7 @@ from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QMenu, QMessageBox, QSystemTrayIcon
 
 from jarvis.core.config import HotkeysConfig
-from jarvis.core.events import EventBus, ModeChanged
+from jarvis.core.events import BackgroundProgress, EventBus, ModeChanged
 from jarvis.core.state_machine import Mode, StateMachine
 
 log = logging.getLogger(__name__)
@@ -185,6 +185,10 @@ class TrayIcon(QSystemTrayIcon):
         self.setToolTip("Jarvis")
 
         self._unsubscribe_mode = bus.subscribe(ModeChanged, self._on_mode_event)
+        # B-P1-10: long background work (a page being read) shows in the
+        # tooltip, with a notification when it starts and when it ends.
+        self._progress: dict[str, str] = {}
+        self._unsubscribe_progress = bus.subscribe(BackgroundProgress, self._on_progress_event)
         self._render_for_mode(self._sm.mode)
 
     # -- bus subscriber (audio thread) ------------------------------------
@@ -214,6 +218,32 @@ class TrayIcon(QSystemTrayIcon):
             log.warning("tray received unknown mode name: %r", name)
             return
         self._render_for_mode(mode)
+
+    def _on_progress_event(self, event: BackgroundProgress) -> None:
+        """Audio-loop thread -> Qt thread, like _on_mode_event. None crosses
+        as "" (str is a registered metatype, None is not)."""
+        if not self._alive:
+            return
+        QMetaObject.invokeMethod(
+            self,
+            "_on_progress_texts",
+            Qt.ConnectionType.QueuedConnection,
+            Q_ARG(str, event.key),
+            Q_ARG(str, event.status or ""),
+            Q_ARG(str, event.notice or ""),
+        )
+
+    @Slot(str, str, str)
+    def _on_progress_texts(self, key: str, status: str, notice: str) -> None:
+        if not self._alive:
+            return
+        if status:
+            self._progress[key] = status
+        else:
+            self._progress.pop(key, None)
+        self.setToolTip("\n".join(["Jarvis", *self._progress.values()]))
+        if notice:
+            self.showMessage("Jarvis", notice, QSystemTrayIcon.MessageIcon.Information, 5000)
 
     # -- rendering --------------------------------------------------------
 
@@ -428,6 +458,7 @@ class TrayIcon(QSystemTrayIcon):
         self._alive = False
         try:
             self._unsubscribe_mode()
+            self._unsubscribe_progress()
         except Exception:
             log.exception("tray unsubscribe failed")
         self.hide()

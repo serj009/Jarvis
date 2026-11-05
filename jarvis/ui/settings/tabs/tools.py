@@ -132,6 +132,7 @@ TOOL_DISPLAY_NAMES: dict[str, str] = {
     "package_install": "\U0001f4e6 Package Install",
     "package_search": "\U0001f50d Package Search",
     "package_uninstall": "\U0001f5d1\ufe0f Package Uninstall",
+    "page_reading_status": "\u23f3 Page Reading Status",
     "paste_clipboard_item": "\U0001f4cb Paste Clipboard Item",
     "pause_deep_research": "\u23f8\ufe0f Pause Deep Research",
     "play_youtube_music": "\U0001f3b5 Play YouTube Music",

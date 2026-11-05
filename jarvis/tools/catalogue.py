@@ -274,7 +274,7 @@ def _local_tool_classes() -> tuple[type, ...]:
     # Phase 8: Vision tools
     from jarvis.tools.local.watch_screen import WatchScreenTool
     from jarvis.tools.local.weather import WeatherTool
-    from jarvis.tools.local.web_knowledge import SavePageKnowledgeTool
+    from jarvis.tools.local.web_knowledge import PageReadingStatusTool, SavePageKnowledgeTool
     from jarvis.tools.local.win_notifications import (
         ScheduleNotificationTool,
         ShowNotificationTool,
@@ -358,6 +358,7 @@ def _local_tool_classes() -> tuple[type, ...]:
         VolumeTool,
         WeatherTool,
         SavePageKnowledgeTool,
+        PageReadingStatusTool,
         # Phase 6: Windows control tools
         WindowActionTool,
         ListWindowsTool,

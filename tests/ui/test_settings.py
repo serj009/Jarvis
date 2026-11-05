@@ -431,6 +431,7 @@ def test_tools_tab_populates_checkboxes_for_phase_4_set(qapp):
         "package_install",
         "package_search",
         "package_uninstall",
+        "page_reading_status",
         "paste_clipboard_item",
         "pause_deep_research",
         "play_youtube_music",

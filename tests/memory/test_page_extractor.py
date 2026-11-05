@@ -465,3 +465,29 @@ async def test_unusable_json_is_not_retried_but_reported_unread():
     assert page is not None
     assert len(llm.calls) == 2
     assert page.unread_parts == [1]
+
+
+# -- progress for the tray (B-P1-10) -----------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_progress_is_reported_before_each_part():
+    replies = [_reply("list", "L", [{"r": "item", "n": f"row {i}"}]) for i in (1, 30, 59)]
+    seen: list[tuple[int, int]] = []
+    page = await PageExtractor(
+        FakeLLM(replies), chunk_chars=1500, on_progress=lambda p, t: seen.append((p, t))
+    ).extract("\n".join(f"row {i} " + "q" * 60 for i in range(60)), "u", "t")
+    assert page is not None
+    total = page.total_parts
+    assert seen == [(i, total) for i in range(1, total + 1)]
+
+
+@pytest.mark.asyncio
+async def test_a_failing_progress_callback_does_not_stop_the_read():
+    def broken(part, total):
+        raise RuntimeError("tray gone")
+
+    page = await PageExtractor(
+        FakeLLM([_reply("list", "L", [{"r": "item", "n": "A"}])]), on_progress=broken
+    ).extract("A", "u", "t")
+    assert page is not None and [i.name for i in page.items] == ["A"]

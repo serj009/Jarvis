@@ -2910,6 +2910,8 @@ class JarvisApp:
             reminder_store=self.reminder_store,
             proactive_engine=self.proactive_engine,
             announce=_speak_proactive,
+            # B-P1-10: background page reads report progress to the tray.
+            on_progress=self.bus.publish,
             # Mid-turn = anything but IDLE: wake word heard, thinking, speaking.
             is_busy=lambda: self.sm.conversational_state is not ConversationalState.IDLE,
 

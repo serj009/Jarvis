@@ -55,6 +55,7 @@ def setup_local_tools(
     proactive_engine: object = None,
     announce: Callable[[str], None] | None = None,
     is_busy: Callable[[], bool] | None = None,
+    on_progress: Callable[[Any], None] | None = None,
 ) -> None:
     """Register every built-in local tool into `registry`.
 
@@ -250,7 +251,7 @@ def setup_local_tools(
     # Phase 8: Vision tools
     from jarvis.tools.local.watch_screen import WatchScreenTool
     from jarvis.tools.local.weather import WeatherTool
-    from jarvis.tools.local.web_knowledge import SavePageKnowledgeTool
+    from jarvis.tools.local.web_knowledge import PageReadingStatusTool, SavePageKnowledgeTool
     from jarvis.tools.local.win_notifications import (
         ScheduleNotificationTool,
         ShowNotificationTool,
@@ -542,7 +543,7 @@ def setup_local_tools(
         # current page and always failed with "no active browser tab".
         from jarvis.tools.local.browser_tabs import _get_browser
 
-        registry.register(SavePageKnowledgeTool(
+        save_page_tool = SavePageKnowledgeTool(
             ollama_client=ollama_client,
             memory_store=memory_store,
             relation_store=relation_store,
@@ -551,7 +552,11 @@ def setup_local_tools(
             on_speak=getattr(tts_manager, "speak", None),
             announce=announce,
             is_busy=is_busy,
-        ))
+            # BackgroundProgress for the tray: "Читаю «…»: часть 3 из 9".
+            on_progress=on_progress,
+        )
+        registry.register(save_page_tool)
+        registry.register(PageReadingStatusTool(save_page_tool))
 
     # Page comparison & translation — need ollama_client.
     if ollama_client is not None:
