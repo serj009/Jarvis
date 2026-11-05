@@ -413,39 +413,46 @@ def _setup_logging(level_name: str = "INFO") -> None:
 
 
     # T1.2: Structured JSON log file for machine-parseable analysis.
+    _install_jsonl_log()
 
 
-    # Writes to <data dir>/logs/jarvis.log.jsonl, next to the human-readable
-    # jarvis.log. The JSONL file carries correlation_id, turn_ms, and
-    # structured fields that tools like jq can filter on.
-    #
-    # Always the data dir (B-P2-2): in a source checkout it used to be the
-    # current directory, so test runs and live sessions were mixed in one
-    # jarvis.log.jsonl at the repository root. Tests point the data dir at
-    # a temp folder (tests/conftest.py), so they no longer touch it.
+def _install_jsonl_log() -> logging.Handler | None:
+    """Attach <data dir>/logs/jarvis.log.jsonl to the root logger, once.
+
+    Next to the human-readable jarvis.log. The JSONL file carries
+    correlation_id, turn_ms, and structured fields that tools like jq can
+    filter on.
+
+    Always the data dir (B-P2-2): in a source checkout it used to be the
+    current directory, so test runs and live sessions were mixed in one
+    jarvis.log.jsonl at the repository root. Tests point the data dir at a
+    temp folder (tests/conftest.py), so they no longer touch it.
+
+    Idempotent: start() calls _setup_logging twice (INFO first, then the
+    configured level), and a second handler wrote every line twice.
+    Returns the handler (new or existing), or None if setup failed.
+    """
     try:
         from jarvis.paths import data_path
 
         jsonl_path = data_path("logs", "jarvis.log.jsonl")
         jsonl_path.parent.mkdir(parents=True, exist_ok=True)
-
-
+        target = str(jsonl_path.resolve())
+        root = logging.getLogger()
+        for handler in root.handlers:
+            if (
+                isinstance(handler, logging.FileHandler)
+                and str(Path(handler.baseFilename).resolve()) == target
+            ):
+                return handler
         jsonl_handler = logging.FileHandler(str(jsonl_path), encoding="utf-8")
-
-
         jsonl_handler.setFormatter(JsonFormatter())
-
-
         jsonl_handler.addFilter(CorrelationIdFilter())
-
-
-        logging.getLogger().addHandler(jsonl_handler)
-
-
+        root.addHandler(jsonl_handler)
+        return jsonl_handler
     except Exception:
-
-
         log.debug("JSONL log handler setup failed", exc_info=True)
+        return None
 
 
 
