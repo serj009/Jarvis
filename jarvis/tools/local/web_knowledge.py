@@ -29,6 +29,7 @@ from typing import Any, ClassVar
 from pydantic import BaseModel, Field
 
 from jarvis.memory.collections import CollectionKind
+from jarvis.memory.page_extractor import MAX_PAGE_CHARS
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -38,10 +39,10 @@ log = logging.getLogger(__name__)
 # Args model
 # ---------------------------------------------------------------------------
 
-# How much page text is read. The collection extractor processes it in
-# parts (jarvis.memory.page_extractor.MAX_PAGE_CHARS); the older
-# KnowledgeExtractor cuts it to its own 8000-character limit.
-_MAX_PAGE_CHARS = 40_000
+# How much page text is read: one limit, owned by the collection extractor,
+# which processes it in parts. The older KnowledgeExtractor cuts it to its
+# own smaller limit.
+_MAX_PAGE_CHARS = MAX_PAGE_CHARS
 
 _READING_PHRASES = {
     "ru": "Читаю страницу, сэр. Это займёт около минуты.",

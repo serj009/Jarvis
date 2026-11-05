@@ -1366,3 +1366,30 @@ def test_how_is_the_page_routes_to_the_status_tool(phrase):
             assert tool_name == "page_reading_status"
             return
     raise AssertionError(f"no pattern for {phrase!r}")
+
+
+# ---------------------------------------------------------------------------
+# B-P1-11: a long guide is read to the end
+# ---------------------------------------------------------------------------
+
+
+def test_long_guide_is_read_past_40000_chars():
+    """Live: an 85 139-character Uncharted guide was cut to its first 40 000
+    characters, so half of the achievements were never read."""
+    from jarvis.tools.local.web_knowledge import _main_text
+
+    rows = "".join(
+        f"<h2>Достижение {i}</h2><p>Как получить достижение номер {i}: "
+        + "пройдите главу и найдите сокровище. " * 4 + "</p>"
+        for i in range(500)
+    )
+    text = _main_text(f"<html><body><article>{rows}</article></body></html>")
+    assert len(text) > 85_000
+    assert "## Достижение 499" in text
+
+
+def test_one_page_limit_for_reading_and_extraction():
+    from jarvis.memory import page_extractor
+    from jarvis.tools.local import web_knowledge
+
+    assert web_knowledge._MAX_PAGE_CHARS == page_extractor.MAX_PAGE_CHARS >= 100_000

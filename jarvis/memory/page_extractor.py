@@ -51,7 +51,11 @@ from jarvis.memory.collections import CollectionKind, ItemRole, NewItem, normali
 
 log = logging.getLogger(__name__)
 
-MAX_PAGE_CHARS = 40_000
+# How much of a page is read (jarvis.tools.local.web_knowledge cuts the page
+# text to this). 40 000 read only half of an 85 139-character Uncharted
+# guide (B-P1-11); the parts are read one after another in the background,
+# with progress shown, so a long page costs time, not memory.
+MAX_PAGE_CHARS = 120_000
 CHUNK_CHARS = 5_000
 OVERLAP_LINES = 3
 NUM_PREDICT = 4096
