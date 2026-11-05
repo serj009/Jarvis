@@ -1393,3 +1393,80 @@ def test_one_page_limit_for_reading_and_extraction():
     from jarvis.tools.local import web_knowledge
 
     assert web_knowledge._MAX_PAGE_CHARS == page_extractor.MAX_PAGE_CHARS >= 100_000
+
+
+@pytest.mark.asyncio
+async def test_steam_guide_uses_the_official_achievement_list(tmp_path):
+    """B-P1-11: a Steam guide's items are the game's official achievements;
+    the guide text only adds how to get each one."""
+    from unittest.mock import AsyncMock
+
+    from jarvis.memory.collections import CollectionStore
+    from jarvis.memory.steam_achievements import Achievement
+
+    guide_url = "https://steamcommunity.com/sharedfiles/filedetails/?id=3012345678"
+    guide_html = (
+        "<html><head><title>Сообщество Steam :: Руководство :: Все достижения</title></head>"
+        '<body><a href="https://store.steampowered.com/app/1659420/">Страница в магазине</a>'
+        "<article>" + "<h2>4 глава</h2><p>Дельфинов можно найти в шестой главе.</p>" * 30
+        + "<h2>Охотник за сокровищами</h2><p>сокровища у водопада</p></article></body></html>"
+    )
+
+    def fake_fetch(url, **kwargs):
+        return {"success": True, "html": guide_html, "url": url}
+
+    llm = _llm_replying({"kind": "checklist", "title": "Uncharted", "items": [
+        {"r": "task", "n": "4 глава"},
+        {"r": "task", "n": "Охотник за сокровищами", "d": "сокровища у водопада"},
+    ]})
+    store = CollectionStore(tmp_path / "collections.db")
+    tool = SavePageKnowledgeTool(
+        ollama_client=llm,
+        memory_store=_build_mock_memory_store(),
+        relation_store=_build_mock_relation_store(),
+        collection_store=store,
+    )
+    official = [
+        Achievement("Охотник за сокровищами", "Найдите 10 сокровищ"),
+        Achievement("Дельфин", "Найдите всех дельфинов"),
+    ]
+    fetch = AsyncMock(return_value=official)
+    with patch("jarvis.tools.local.content_reader._httpx_fetch", side_effect=fake_fetch), \
+            patch("jarvis.memory.steam_achievements.fetch_achievements", new=fetch):
+        result = await tool.execute(SavePageKnowledgeArgs(url=guide_url))
+
+    assert result.success, result.error
+    fetch.assert_awaited_once_with("1659420", "ru")
+    col = store.find("")
+    assert col is not None
+    assert [(i.name, i.details) for i in col.items] == [
+        ("Охотник за сокровищами", "сокровища у водопада"),
+        ("Дельфин", "Найдите всех дельфинов"),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_steam_guide_without_the_official_list_keeps_the_extracted_items(tmp_path):
+    from unittest.mock import AsyncMock
+
+    from jarvis.memory.collections import CollectionStore
+
+    guide_url = "https://steamcommunity.com/sharedfiles/filedetails/?id=1"
+    html = '<a href="https://store.steampowered.com/app/1659420/">x</a><p>Крылья феникса</p>'
+    store = CollectionStore(tmp_path / "collections.db")
+    tool = SavePageKnowledgeTool(
+        ollama_client=_llm_replying({"kind": "checklist", "title": "Bleach", "items": [
+            {"r": "task", "n": "Крылья феникса"},
+        ]}),
+        memory_store=_build_mock_memory_store(),
+        relation_store=_build_mock_relation_store(),
+        collection_store=store,
+    )
+    with patch(
+        "jarvis.tools.local.content_reader._httpx_fetch",
+        side_effect=lambda url, **kw: {"success": True, "html": html, "url": url},
+    ), patch("jarvis.memory.steam_achievements.fetch_achievements", new=AsyncMock(return_value=[])):
+        result = await tool.execute(SavePageKnowledgeArgs(url=guide_url))
+    assert result.success, result.error
+    col = store.find("")
+    assert col is not None and [i.name for i in col.items] == ["Крылья феникса"]

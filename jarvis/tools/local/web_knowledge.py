@@ -361,10 +361,13 @@ class SavePageKnowledgeTool:
                 error="Knowledge extraction requires a memory store, but none is available.",
             )
 
-        # 1. Get page content
+        # 1. Get page content. meta collects what only the HTML shows (the
+        # Steam game a guide is for).
+        meta: dict[str, Any] = {}
         page_text, page_url, page_title, err = await self._get_page_content(
-            args.url
+            args.url, meta=meta
         )
+        steam_appid = meta.get("steam_appid")
         if err:
             return ToolResult(success=False, error=err)
         if not page_text or not page_text.strip():
@@ -387,14 +390,14 @@ class SavePageKnowledgeTool:
             if any(t.get_name() == f"save-page:{page_url}" for t in self._background):
                 return ToolResult(success=True, output=_BACKGROUND_ALREADY)
             task = asyncio.create_task(
-                self._save_in_background(page_text, page_url, page_title),
+                self._save_in_background(page_text, page_url, page_title, steam_appid),
                 name=f"save-page:{page_url}",
             )
             self._background.add(task)
             task.add_done_callback(self._background.discard)
             return ToolResult(success=True, output=_BACKGROUND_STARTED)
 
-        return await self._save_page(page_text, page_url, page_title)
+        return await self._save_page(page_text, page_url, page_title, steam_appid)
 
     async def cancel_background_work(self) -> None:
         """Stop pages still being read (called on shutdown).
@@ -433,7 +436,9 @@ class SavePageKnowledgeTool:
         except Exception:
             log.debug("[web_knowledge] progress could not be published", exc_info=True)
 
-    async def _save_in_background(self, page_text: str, page_url: str, page_title: str) -> None:
+    async def _save_in_background(
+        self, page_text: str, page_url: str, page_title: str, steam_appid: str | None = None
+    ) -> None:
         """Run the save and say how it went. Runs in a copy of the request's
         context, so reply_language() still sees the user's words."""
         from jarvis.core.phrases import reply_language
@@ -455,7 +460,8 @@ class SavePageKnowledgeTool:
         unread: tuple[int, int] | None = None
         try:
             result, collection, unread = await self._save_page_with_collection(
-                page_text, page_url, page_title, announce_reading=False, on_progress=on_part
+                page_text, page_url, page_title,
+                announce_reading=False, on_progress=on_part, steam_appid=steam_appid,
             )
         except asyncio.CancelledError:
             self._reading.pop(key, None)
@@ -487,9 +493,11 @@ class SavePageKnowledgeTool:
         except Exception:
             log.warning("[web_knowledge] could not announce the result", exc_info=True)
 
-    async def _save_page(self, page_text: str, page_url: str, page_title: str) -> ToolResult:
+    async def _save_page(
+        self, page_text: str, page_url: str, page_title: str, steam_appid: str | None = None
+    ) -> ToolResult:
         result, _collection, _unread = await self._save_page_with_collection(
-            page_text, page_url, page_title, announce_reading=True
+            page_text, page_url, page_title, announce_reading=True, steam_appid=steam_appid
         )
         return result
 
@@ -501,6 +509,7 @@ class SavePageKnowledgeTool:
         *,
         announce_reading: bool,
         on_progress: Callable[[int, int], None] | None = None,
+        steam_appid: str | None = None,
     ) -> tuple[ToolResult, Any, tuple[int, int] | None]:
         """Save the page as a collection or, failing that, as facts.
         Returns the tool result, the collection (None for facts) and, when
@@ -510,6 +519,7 @@ class SavePageKnowledgeTool:
             saved = await self._save_as_collection(
                 page_text, page_url, page_title,
                 announce_reading=announce_reading, on_progress=on_progress,
+                steam_appid=steam_appid,
             )
             if saved is not None:
                 return saved
@@ -574,6 +584,7 @@ class SavePageKnowledgeTool:
         *,
         announce_reading: bool = True,
         on_progress: Callable[[int, int], None] | None = None,
+        steam_appid: str | None = None,
     ) -> tuple[ToolResult, Any, tuple[int, int] | None] | None:
         """Extract a checklist / recipe / list and store it.
 
@@ -586,6 +597,8 @@ class SavePageKnowledgeTool:
             await self._say_reading()
         extractor = PageExtractor(self._ollama, is_busy=self._is_busy, on_progress=on_progress)
         page = await extractor.extract(text, url, title)
+        if steam_appid:
+            page = await _with_official_achievements(page, steam_appid, text, title)
         if page is None or not page.is_collection:
             return None
         kind = _collection_kind(page.kind)
@@ -647,7 +660,7 @@ class SavePageKnowledgeTool:
     # -- page content retrieval ---------------------------------------------
 
     async def _get_page_content(
-        self, url: str
+        self, url: str, meta: dict[str, Any] | None = None
     ) -> tuple[str, str, str, str | None]:
         """Fetch page text, url, title.  Returns (text, url, title, error).
 
@@ -677,14 +690,14 @@ class SavePageKnowledgeTool:
 
         # Live DOM when Jarvis' own Selenium session is showing this page.
         if bc is not None and getattr(bc, "driver_active", False):
-            text, page_url, title, err = await self._try_selenium(url)
+            text, page_url, title, err = await self._try_selenium(url, meta)
             if err is None:
                 return text, page_url, title, None
 
-        return await asyncio.to_thread(self._fetch_with_httpx, url)
+        return await asyncio.to_thread(self._fetch_with_httpx, url, meta)
 
     async def _try_selenium(
-        self, url: str
+        self, url: str, meta: dict[str, Any] | None = None
     ) -> tuple[str, str, str, str | None]:
         """Read the page shown in the running Selenium session.
 
@@ -712,6 +725,7 @@ class SavePageKnowledgeTool:
             ok = isinstance(source, dict) and source.get("success")
             html = source.get("html") if ok else None
             if isinstance(html, str) and html:
+                _note_steam_game(meta, html, page_url)
                 text = _main_text(html)
                 if text:
                     return text, page_url, page_title, None
@@ -725,7 +739,9 @@ class SavePageKnowledgeTool:
             return "", "", "", f"Selenium error: {exc}"
 
     @staticmethod
-    def _fetch_with_httpx(url: str) -> tuple[str, str, str, str | None]:
+    def _fetch_with_httpx(
+        url: str, meta: dict[str, Any] | None = None
+    ) -> tuple[str, str, str, str | None]:
         """Fetch and extract text via httpx + BeautifulSoup."""
         from jarvis.tools.local.content_reader import (
             _extract_readable,
@@ -741,11 +757,50 @@ class SavePageKnowledgeTool:
         text = _main_text(html) or _extract_readable(html, max_chars=_MAX_PAGE_CHARS)
         title = _extract_title(html)
         final_url = fetched.get("url", url)
+        _note_steam_game(meta, html, final_url)
 
         return text, final_url, title, None
 
 
 # -- helpers for the collection path ---------------------------------------------
+
+
+def _note_steam_game(meta: dict[str, Any] | None, html: str, url: str) -> None:
+    """Record which game a Steam guide is for (B-P1-11)."""
+    if meta is None:
+        return
+    from jarvis.memory.steam_achievements import find_steam_appid
+
+    appid = find_steam_appid(html, url)
+    if appid:
+        meta["steam_appid"] = appid
+        log.info("[web_knowledge] Steam guide for app %s", appid)
+
+
+async def _with_official_achievements(page: Any, appid: str, text: str, title: str) -> Any:
+    """For a Steam guide: the game's official achievements become the items,
+    with the guide's "how to get it" as their details. Without the official
+    list the extracted page is returned unchanged."""
+    from jarvis.core.phrases import detect_language
+    from jarvis.memory.page_extractor import ExtractedPage
+    from jarvis.memory.steam_achievements import (
+        fetch_achievements,
+        merge_with_official,
+        with_items,
+    )
+
+    lang = detect_language(text[:3000]) or "en"
+    official = await fetch_achievements(appid, lang)
+    if not official:
+        return page
+    extracted = list(page.items) if page is not None else []
+    items = merge_with_official(official, extracted)
+    log.info(
+        "[web_knowledge] Steam app %s: %d official achievements (the guide gave %d items)",
+        appid, len(items), len(extracted),
+    )
+    base = page if page is not None else ExtractedPage(kind="checklist", title="")
+    return with_items(base, items)
 
 
 def _main_text(html: str) -> str:
