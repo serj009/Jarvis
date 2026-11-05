@@ -60,7 +60,7 @@ def test_defaults_match_spec():
     # ipapi.co fallback fills it on first use.
     assert c.weather.latitude is None
     assert c.weather.longitude is None
-    assert c.weather.unit == "fahrenheit"
+    assert c.weather.unit == "celsius"
     assert c.tools.enabled == {"type_into_active_window": False}
     # Fresh installs ship a single disabled Trayce MCP entry so the
     # Settings → Tools toggle is discoverable.
@@ -564,7 +564,7 @@ def test_fresh_install_has_continuity_and_debug_defaults():
     assert cfg.debug.log_wake_during_speaking is False
     assert cfg.weather.latitude is None
     assert cfg.weather.longitude is None
-    assert cfg.weather.unit == "fahrenheit"
+    assert cfg.weather.unit == "celsius"
 
 
 # --- v7 → v8 wake debug + weather section --------------------------------
@@ -595,7 +595,8 @@ def test_migrate_v7_to_v8_adds_weather_section():
     # v18 resets those stamped defaults back to None for privacy.
     assert out["weather"]["latitude"] is None
     assert out["weather"]["longitude"] is None
-    assert out["weather"]["unit"] == "fahrenheit"
+    # v8 stamps the upstream "fahrenheit"; v42 switches it to Celsius.
+    assert out["weather"]["unit"] == "celsius"
 
 
 def test_migrate_v7_to_v8_preserves_existing_weather():
@@ -615,7 +616,7 @@ def test_load_config_migrates_v7_file_on_disk(tmp_path: Path):
     assert cfg.debug.log_wake_during_speaking is False
     # v18 reset wipes the stamped Oakwood default.
     assert cfg.weather.latitude is None
-    assert cfg.weather.unit == "fahrenheit"
+    assert cfg.weather.unit == "celsius"
 
 
 # --- v8 → v9 disable debug flag + fill weather coords -------------------

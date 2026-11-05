@@ -43,7 +43,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 
 from jarvis.platform.secrets import decrypt_secret, encrypt_secret
 
-CURRENT_SCHEMA_VERSION = 41
+CURRENT_SCHEMA_VERSION = 42
 
 
 DEFAULT_SYSTEM_PROMPT = (
@@ -561,7 +561,9 @@ class WeatherConfig(_Base):
     # maintainer-specific location in the open-source repo.
     latitude: float | None = None
     longitude: float | None = None
-    unit: Literal["celsius", "fahrenheit"] = "fahrenheit"
+    # Celsius since v42: "fahrenheit" was the upstream (US) default and the
+    # answer did not name the scale ("86 degrees").
+    unit: Literal["celsius", "fahrenheit"] = "celsius"
 
 
 def _default_sandbox_allowed_paths() -> list[str]:

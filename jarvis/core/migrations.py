@@ -875,6 +875,22 @@ def _migrate_v40_to_v41(data: dict) -> dict:
     return data
 
 
+def _migrate_v41_to_v42(data: dict) -> dict:
+    """Schema v42: weather in Celsius by default.
+
+    "fahrenheit" was the upstream (US) default, stamped into every config by
+    the v7->v8 migration. Settings has no unit selector, so a saved
+    "fahrenheit" is that default, not a choice: switch it to "celsius". A
+    missing weather section or unit is not created (the model default is
+    Celsius now).
+    """
+    weather = data.get("weather")
+    if isinstance(weather, dict) and weather.get("unit") == "fahrenheit":
+        weather["unit"] = "celsius"
+    data["schema_version"] = 42
+    return data
+
+
 def _migrate_v37_to_v38(data: dict) -> dict:
     """Schema v38: proactive ("initiative") engine settings.
 
@@ -953,6 +969,7 @@ MIGRATIONS: dict[int, Migration] = {
     38: _migrate_v38_to_v39,
     39: _migrate_v39_to_v40,
     40: _migrate_v40_to_v41,
+    41: _migrate_v41_to_v42,
 }
 
 

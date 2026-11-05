@@ -245,7 +245,7 @@ class WeatherTool:
         *,
         city: str | None = None,
     ) -> ToolResult:
-        unit = getattr(self._config, "unit", "fahrenheit")
+        unit = getattr(self._config, "unit", "celsius")
         params = {
             "latitude": lat,
             "longitude": lon,

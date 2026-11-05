@@ -150,6 +150,47 @@ def test_migrate_v40_to_v41_handles_missing_hotkeys_section():
     assert out["schema_version"] == 41
 
 
+# --- v41 -> v42: weather in Celsius by default (B-P1-9) ---------------------
+
+def test_migrate_v41_to_v42_switches_fahrenheit_to_celsius():
+    """Live session: "86 degrees" -- the upstream US default was still set."""
+    from jarvis.core.migrations import _migrate_v41_to_v42
+    out = _migrate_v41_to_v42({
+        "schema_version": 41,
+        "weather": {"latitude": None, "longitude": None, "unit": "fahrenheit"},
+    })
+    assert out["weather"]["unit"] == "celsius"
+    assert out["weather"]["latitude"] is None
+    assert out["schema_version"] == 42
+
+
+def test_migrate_v41_to_v42_keeps_celsius_and_coordinates():
+    from jarvis.core.migrations import _migrate_v41_to_v42
+    weather = {"latitude": 50.45, "longitude": 30.52, "unit": "celsius"}
+    out = _migrate_v41_to_v42({"schema_version": 41, "weather": dict(weather)})
+    assert out["weather"] == weather
+
+
+def test_migrate_v41_to_v42_handles_missing_weather_section():
+    from jarvis.core.migrations import _migrate_v41_to_v42
+    out = _migrate_v41_to_v42({"schema_version": 41})
+    assert "weather" not in out
+    assert out["schema_version"] == 42
+
+
+def test_load_config_turns_saved_fahrenheit_into_celsius(tmp_path):
+    """End to end: a v41 config.json on disk loads as Celsius."""
+    import json
+
+    from jarvis.core.config import JarvisConfig, load_config
+    data = JarvisConfig().model_dump(mode="json")
+    data["schema_version"] = 41
+    data["weather"]["unit"] = "fahrenheit"
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    assert load_config(path).weather.unit == "celsius"
+
+
 def test_migrate_does_not_mutate_input_for_v40_to_v41():
     """migrate() operates on a deep copy; the caller's dict is untouched."""
     from jarvis.core.migrations import migrate
