@@ -55,7 +55,16 @@ log = logging.getLogger(__name__)
 
 
 class WakeWordModelMissingError(RuntimeError):  # noqa: N818
-    """Raised when openWakeWord model files cannot be located on disk."""
+    """Raised when openWakeWord model files cannot be located on disk.
+
+    The message ends with how to run from the project's .venv when that is
+    the likely cause (jarvis.paths.outside_project_venv)."""
+
+    def __init__(self, message: str) -> None:
+        from jarvis.paths import outside_project_venv
+
+        hint = outside_project_venv()
+        super().__init__(f"{message} {hint}" if hint else message)
 
 
 def _resolve_model_path(model_name: str) -> Path:

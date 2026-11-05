@@ -114,7 +114,6 @@ $env:JARVIS_DUMP_LLM_REQUEST = "1"; .venv\Scripts\python.exe -m jarvis
 | # | Задача | Где | Метка |
 |---|---|---|---|
 | M2-1 | Ошибки pyright = 0 во всём `jarvis/`. Известно: 9 в `app.py` (~1628–1653 и 1731 — `proactive_engine` типизирован как `object`; 2772 — `APILLMClient` против `OllamaClient`; 2958 — `_game_mode` у `Tool`), 12 в `tools/__init__.py`, 4 в `llm/intent_router.py`, 1 в `audio/pipeline.py`; остальной пакет целиком не проверялся | см. слева | [Работа] |
-| M2-2 | Автовосстановление: ошибку окружения (нет модели wake word, запуск не из `.venv`) не перезапускать трижды с окнами ошибки, а один раз объяснить, что не так | `__main__.py`, `app.py` (`_boot_audio_stack`) | [Работа] |
 | M2-3 | Падение одного модуля (STT, TTS, wake word) не роняет голосовой цикл: модуль выключается, Jarvis говорит, что именно не работает (T12.3) | `core/lifecycle.py`, `audio/pipeline.py` | [Работа → Дом] |
 | M2-4 | Откат для разрушительных файловых действий: бэкап перед удалением/перезаписью и команда «верни как было» (T12.2), только для удаления и перезаписи | `tools/local/file_manager.py`, `files.py` | [Работа] |
 
@@ -190,9 +189,6 @@ $env:JARVIS_DUMP_LLM_REQUEST = "1"; .venv\Scripts\python.exe -m jarvis
 
 ### P2 — качество и техдолг (этапы M1–M2)
 
-**B-P2-6. Запуск не из `.venv`. [Работа]**
-Неотслеживаемые `run_jarvis.ps1`, `home_check*.ps1` в корне. Один официальный скрипт запуска через `.venv\Scripts\python.exe` (или дополнить `start-jarvis.ps1`); при старте не из venv — понятная подсказка вместо трейсбека про wake word.
-
 **B-P2-7. Jarvis часто переспрашивает. [Дом]**
 «Повторите» при уверенности 0,42, 0,47, 0,50, 0,66 и 0,69; случай 0,69 — фраза из 45 символов. В одном случае само распознавание шло 7,8 с вместо обычных 0,7–0,9 с — выяснить почему. Посмотреть порог clarify в конфиге STT, учитывать длину фразы.
 
@@ -230,5 +226,6 @@ $env:JARVIS_DUMP_LLM_REQUEST = "1"; .venv\Scripts\python.exe -m jarvis
 - **«Сэр» вместо «sir» (B-P2-13).** По-русски: «Подтвердите», «Громкость: 50%», «Скриншот», «До свидания» — в конце звучит «сэр», а не искажённое английское слово; по-украински — «сер».
 - **Прогресс сохранения страницы (B-P1-10).** «Запомни эту страницу» на большом гайде: всплывает уведомление «Читаю «…» в фоне. Скажу, когда сохраню.»; при наведении на значок в трее — «Читаю «…»: часть 3 из 9», номер растёт; «как там страница?» отвечает тем же; в конце — уведомление и голосом «Сохранил «…», пунктов: N». В логе — `[web_knowledge] reading <адрес>: part N/M`.
 - **Гайды Steam (B-P1-11).** Гайд по Uncharted → «Запомни эту страницу» → 101 пункт (было 221), с описаниями «как получить» из гайда; Bleach — по-прежнему 36. В логе: `Steam guide for app <appid>`, `[steam] app <appid>: N official achievements`, `Steam app ...: N official achievements (the guide gave M items)`. **Разбор страницы статистики Steam написан вслепую** (из облака steamcommunity.com недоступен): если в логе `0 official achievements` или `unavailable`, сохранить страницу `https://steamcommunity.com/stats/<appid>/achievements/?l=russian` (Ctrl+S) и отдать Claude — поправить `parse_achievements`.
+- **Запуск не из `.venv` (B-P2-6, M2-2).** Один раз запустить глобальным `python -m jarvis` из папки проекта: одно окно ошибки, в тексте — «Start it with: …\.venv\Scripts\python.exe -m jarvis (or start-jarvis.ps1)», и Jarvis **не** перезапускается ещё дважды (в логе `cannot start in this environment; not restarting`). Официальный запуск — `start-jarvis.ps1` или `.venv\Scripts\python.exe -m jarvis`; неотслеживаемые `run_jarvis.ps1` / `home_check*.ps1` в корне можно удалить.
 
 После сессии: «Claude, проверь логи» или самостоятельно по таблице «Где логи».

@@ -122,3 +122,28 @@ class TestRestartLoop:
         with pytest.raises(RuntimeError):
             main()
         assert mock_crash_log.call_count >= 1
+
+
+class TestEnvironmentError:
+    """M2-2 / B-P2-6: a broken environment is reported once, not restarted."""
+
+    @patch("jarvis.__main__.time.sleep", return_value=None)
+    @patch("jarvis.__main__.log")
+    def test_environment_error_is_not_restarted(self, _log, _sleep, _mock_jarvis_app) -> None:
+        from jarvis.core.exit_codes import EXIT_ENVIRONMENT_ERROR
+
+        _mock_jarvis_app.run = MagicMock(return_value=EXIT_ENVIRONMENT_ERROR)
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == EXIT_ENVIRONMENT_ERROR
+        assert _mock_jarvis_app.run.call_count == 1
+
+    @patch("jarvis.__main__.log")
+    def test_wrong_python_is_logged_at_start(self, mock_log, _mock_jarvis_app, monkeypatch) -> None:
+        import jarvis.paths
+
+        monkeypatch.setattr(jarvis.paths, "outside_project_venv", lambda: "use the .venv")
+        _mock_jarvis_app.run = MagicMock(return_value=0)
+        with pytest.raises(SystemExit):
+            main()
+        mock_log.warning.assert_any_call("use the .venv")

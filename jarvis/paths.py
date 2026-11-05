@@ -15,6 +15,25 @@ def is_frozen() -> bool:
     return bool(getattr(sys, "frozen", False))
 
 
+def outside_project_venv() -> str | None:
+    """A hint when a source checkout runs on some other Python than its own
+    ``.venv`` (B-P2-6), else None.
+
+    Live: the global ``python`` started Jarvis, whose site-packages had no
+    openWakeWord model, and boot died with a wake-word traceback three times
+    over. Frozen builds and any active virtualenv are fine."""
+    if is_frozen() or sys.prefix != sys.base_prefix:
+        return None
+    venv = install_root() / ".venv"
+    if not venv.is_dir():
+        return None
+    python = venv / ("Scripts/python.exe" if sys.platform == "win32" else "bin/python")
+    return (
+        f"Jarvis is running on {sys.executable}, not on the project's .venv. "
+        f"Start it with: {python} -m jarvis (or start-jarvis.ps1)."
+    )
+
+
 def install_root() -> Path:
     """Directory containing Jarvis.exe (one-folder build) or the repo root."""
     if is_frozen():

@@ -65,6 +65,7 @@ def _show_error_box(message: str) -> None:
 
 
 def main() -> None:
+    from jarvis.core.exit_codes import EXIT_ENVIRONMENT_ERROR
     from jarvis.paths import is_frozen
 
     if is_frozen():
@@ -76,6 +77,12 @@ def main() -> None:
             format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         )
 
+    from jarvis.paths import outside_project_venv
+
+    hint = outside_project_venv()
+    if hint:
+        log.warning(hint)
+
     restarts = 0
     while True:
         try:
@@ -85,6 +92,11 @@ def main() -> None:
             if exit_code == 0:
                 # Clean exit (user quit) — do NOT restart.
                 raise SystemExit(0)
+            if exit_code == EXIT_ENVIRONMENT_ERROR:
+                # The error box already said what is wrong; a restart would
+                # fail the same way and show it again (M2-2).
+                log.error("JARVIS cannot start in this environment; not restarting")
+                raise SystemExit(exit_code)
             # Non-zero = crash / error; attempt restart.
             restarts += 1
             log.warning(

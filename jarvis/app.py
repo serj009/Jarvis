@@ -178,6 +178,7 @@ from jarvis.core.events import (
     TranscriptionReady,
     WakeWordDetected,
 )
+from jarvis.core.exit_codes import EXIT_ENVIRONMENT_ERROR
 from jarvis.core.game_mode import GameMode
 from jarvis.core.instance_lock import acquire_instance_lock, release_instance_lock
 from jarvis.core.lifecycle import LifecycleManager
@@ -319,6 +320,15 @@ LOG_DATEFMT = "%H:%M:%S"
 
 
 
+
+
+# Boot errors that a restart cannot fix: start() returns
+# EXIT_ENVIRONMENT_ERROR for them (jarvis.core.exit_codes).
+_ENVIRONMENT_ERRORS = ("WakeWordModelMissingError",)
+
+
+def _is_environment_error(detail: str) -> bool:
+    return detail.startswith(_ENVIRONMENT_ERRORS)
 
 
 def _setup_logging(level_name: str = "INFO") -> None:
@@ -3386,7 +3396,7 @@ class JarvisApp:
                 "audio devices connected) and try again.",
             )
             self.audio_thread.join(timeout=5.0)
-            return 1
+            return EXIT_ENVIRONMENT_ERROR if _is_environment_error(detail) else 1
 
 
         # T1.5: If the pre-flight Ollama check found a problem but warm()
@@ -3476,7 +3486,7 @@ class JarvisApp:
                 self.audio_thread.join(timeout=5.0)
 
 
-                return 1
+                return EXIT_ENVIRONMENT_ERROR if _is_environment_error(detail) else 1
 
 
 
