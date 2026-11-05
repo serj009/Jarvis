@@ -395,3 +395,71 @@ def test_spoken_temperature(temp, lang, expected):
 def test_every_weather_code_is_translated():
     assert set(_WMO_RU) == set(_WMO)
     assert set(_WMO_UK) == set(_WMO)
+
+
+# --- B-P1-9: where the location came from, and that it is saved ---
+
+
+async def test_ip_location_reaches_config_json_through_setup_local_tools(caplog):
+    """Live config still had latitude/longitude null after a weather answer.
+    The real wiring (setup_local_tools -> save_config) must write the
+    detected coordinates to config.json (conftest points the data dir at
+    a temp folder), and the log must say where they came from."""
+    import logging
+
+    from jarvis.core.config import JarvisConfig, default_config_path, load_config
+    from jarvis.tools import ToolRegistry, setup_local_tools
+
+    cfg = JarvisConfig()
+    registry = ToolRegistry(cfg.tools)
+    setup_local_tools(registry, config=cfg)
+    tool = registry.get("get_weather")
+    assert tool is not None
+
+    client = _make_client([_ipapi_response(50.45, 30.52), _meteo_response(12.0, 0)])
+    with caplog.at_level(logging.INFO, logger="jarvis.tools.local.weather"), \
+            patch("httpx.AsyncClient") as mock_cls:
+        mock_cls.return_value.__aenter__ = AsyncMock(return_value=client)
+        mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+        result = await tool.execute(WeatherArgs())
+    assert result.success
+
+    saved = load_config(default_config_path())
+    assert (saved.weather.latitude, saved.weather.longitude) == (50.45, 30.52)
+    log_text = caplog.text
+    assert "location from IP: Test City" in log_text
+    assert "detected location saved to config" in log_text
+    assert "12.0 celsius" in log_text
+
+
+async def test_ipapi_rate_limit_is_logged_with_reason(caplog):
+    """ipapi.co answers 200 {"error": true, "reason": "RateLimited"}: say
+    so in the log instead of a bare KeyError, and answer that the weather
+    service could not be reached."""
+    import logging
+
+    limited = MagicMock()
+    limited.raise_for_status = MagicMock()
+    limited.json.return_value = {"error": True, "reason": "RateLimited"}
+    tool = WeatherTool(weather_config=_cfg())
+    client = _make_client([limited])
+    with caplog.at_level(logging.INFO, logger="jarvis.tools.local.weather"), \
+            patch("httpx.AsyncClient") as mock_cls:
+        mock_cls.return_value.__aenter__ = AsyncMock(return_value=client)
+        mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+        result = await tool.execute(WeatherArgs())
+    assert not result.success
+    assert "reason: RateLimited" in caplog.text
+
+
+async def test_configured_location_is_logged(caplog):
+    import logging
+
+    tool = WeatherTool(weather_config=_cfg(lat=50.45, lon=30.52, unit="celsius"))
+    client = _make_client([_meteo_response(5.0, 3)])
+    with caplog.at_level(logging.INFO, logger="jarvis.tools.local.weather"), \
+            patch("httpx.AsyncClient") as mock_cls:
+        mock_cls.return_value.__aenter__ = AsyncMock(return_value=client)
+        mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+        await tool.execute(WeatherArgs())
+    assert "location from config: 50.45, 30.52" in caplog.text

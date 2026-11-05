@@ -280,6 +280,10 @@ class WeatherTool:
                             )
                         return result
                     lat, lon, city_name = geo
+                    log.info(
+                        "weather: location from geocoding: %s (%.2f, %.2f)",
+                        city_name, lat, lon,
+                    )
                     return await self._fetch_weather(client, lat, lon, city=city_name)
                 lat, lon = await self._resolve_location(client)
                 return await self._fetch_weather(client, lat, lon)
@@ -326,21 +330,41 @@ class WeatherTool:
         cfg_lat = getattr(self._config, "latitude", None)
         cfg_lon = getattr(self._config, "longitude", None)
         if cfg_lat is not None and cfg_lon is not None:
+            log.info(
+                "weather: location from config: %.2f, %.2f",
+                float(cfg_lat), float(cfg_lon),
+            )
             return float(cfg_lat), float(cfg_lon)
         log.info("weather: auto-detecting location from IP via ipapi.co")
         r = await client.get(_IPAPI_URL, timeout=_TIMEOUT)
         r.raise_for_status()
         data = r.json()
+        if "latitude" not in data or "longitude" not in data:
+            # ipapi.co answers 200 with {"error": true, "reason": ...} when
+            # rate-limited; say so instead of a bare KeyError.
+            log.warning(
+                "weather: ipapi.co gave no location (reason: %s)",
+                data.get("reason", "unknown"),
+            )
+            raise ValueError("ipapi.co returned no location")
         lat = float(data["latitude"])
         lon = float(data["longitude"])
+        log.info(
+            "weather: location from IP: %s, %s, %s (%.2f, %.2f)",
+            data.get("city", "?"), data.get("region", "?"),
+            data.get("country_name", data.get("country", "?")), lat, lon,
+        )
         # Persist so subsequent runs skip ipapi.co.
         try:
             self._config.latitude = lat  # type: ignore[union-attr]
             self._config.longitude = lon  # type: ignore[union-attr]
-            if self._save_fn is not None:
+            if self._save_fn is None:
+                log.warning("weather: no save_fn, detected location kept in memory only")
+            else:
                 self._save_fn()
+                log.info("weather: detected location saved to config")
         except Exception:
-            log.warning("weather: could not persist detected location")
+            log.warning("weather: could not persist detected location", exc_info=True)
         return lat, lon
 
     async def _fetch_weather(
@@ -362,6 +386,10 @@ class WeatherTool:
         r.raise_for_status()
         data = r.json()
         current = data["current"]
+        log.info(
+            "weather: %.1f %s, WMO code %s",
+            float(current["temperature_2m"]), unit, current["weather_code"],
+        )
         lang = reply_language()
         temp = _spoken_temperature(float(current["temperature_2m"]), unit, lang)
         conditions = _conditions(int(current["weather_code"]), lang)
