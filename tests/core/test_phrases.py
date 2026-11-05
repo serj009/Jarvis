@@ -205,3 +205,27 @@ def test_app_announces_timers_and_reminders_through_phrases():
     assert "Reminder, sir:" not in source
     assert "timer_done_phrase(name)" in source
     assert "reminder_phrase(r.text)" in source
+
+
+# ── B-P2-13: no Latin "sir" in Russian / Ukrainian phrases ────────────────
+
+
+@pytest.mark.parametrize("key", sorted(PHRASES))
+def test_ru_uk_phrases_have_no_latin_sir(key):
+    """The ru / uk Piper voices misread a Latin "sir"; it is "сэр" / "сер"."""
+    import re
+
+    for lang in ("ru", "uk"):
+        text = PHRASES[key].get(lang, "")
+        assert not re.search(r"\bsir\b", text, re.IGNORECASE), (key, lang, text)
+
+
+def test_agent_progress_lines_have_no_latin_sir():
+    import re
+    from pathlib import Path
+
+    import jarvis.agents.autonomous as autonomous
+
+    source = Path(autonomous.__file__).read_text(encoding="utf-8")
+    cyrillic_with_sir = re.findall(r'"[^"\n]*[а-яё][^"\n]*\bsir\b[^"\n]*"', source)
+    assert cyrillic_with_sir == []

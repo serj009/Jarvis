@@ -274,14 +274,14 @@ class AutonomousAgent:
         start = time.monotonic()
 
         # 1. Plan
-        yield "Планирую, sir..."
+        yield "Планирую, сэр..."
         try:
             self._plan = await asyncio.wait_for(
                 self._create_plan(goal),
                 timeout=min(60, self._config.max_time_seconds),
             )
         except TimeoutError:
-            yield "Не удалось создать план — таймаут, sir."
+            yield "Не удалось создать план — таймаут, сэр."
             return
         except Exception as exc:
             log.exception("Plan creation failed")
@@ -289,7 +289,7 @@ class AutonomousAgent:
             return
 
         if not self._plan:
-            yield "Не удалось разбить задачу на шаги, sir."
+            yield "Не удалось разбить задачу на шаги, сэр."
             return
 
         yield f"План готов: {len(self._plan)} шагов"
@@ -303,7 +303,7 @@ class AutonomousAgent:
         while iterations < self._config.max_iterations:
             if self._cancelled:
                 partial = await self._save_partial_results()
-                yield "Задача отменена, sir."
+                yield "Задача отменена, сэр."
                 if partial:
                     yield partial
                 break
@@ -311,7 +311,7 @@ class AutonomousAgent:
             elapsed = time.monotonic() - start
             if elapsed >= self._config.max_time_seconds:
                 partial = await self._save_partial_results()
-                yield "Достигнут лимит времени, sir."
+                yield "Достигнут лимит времени, сэр."
                 if partial:
                     yield partial
                 break
@@ -337,7 +337,7 @@ class AutonomousAgent:
                     timeout=min(60, remaining),
                 )
             except TimeoutError:
-                yield "Таймаут при принятии решения, sir."
+                yield "Таймаут при принятии решения, сэр."
                 break
             except Exception as exc:
                 log.exception("Decision failed at iteration %d", iterations)
@@ -517,7 +517,7 @@ class AutonomousAgent:
 
         if iterations >= self._config.max_iterations:
             partial = await self._save_partial_results()
-            yield "Достигнут лимит итераций, sir."
+            yield "Достигнут лимит итераций, сэр."
             if partial:
                 yield partial
 
