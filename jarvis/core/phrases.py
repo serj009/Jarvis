@@ -219,13 +219,18 @@ PHRASES: dict[str, dict[Lang, str]] = {
     # ── TTS action / status phrases ──────────────────────────────────
     "timer_expired": {
         "en": "Timer is up, sir.",
-        "ru": "Таймер истёк, sir.",
-        "uk": "Таймер спрацював, sir.",
+        "ru": "Таймер истёк, сэр.",
+        "uk": "Таймер спрацював, сер.",
+    },
+    "timer_done": {
+        "en": "Timer '{name}' is done, sir!",
+        "ru": "Таймер «{name}» истёк, сэр!",
+        "uk": "Таймер «{name}» спрацював, сер!",
     },
     "reminder_fired": {
         "en": "Reminder, sir: {text}",
-        "ru": "Напоминаю, sir: {text}",
-        "uk": "Нагадую, sir: {text}",
+        "ru": "Напоминаю, сэр: {text}",
+        "uk": "Нагадую, сер: {text}",
     },
     "coding_started": {
         "en": "Working on the project, sir...",
@@ -321,6 +326,35 @@ def say(key: str, lang: Lang | None = None, **values: object) -> str:
     variants = PHRASES[key]
     template = variants.get(lang) or variants[DEFAULT_LANG]
     return template.format(**values)
+
+
+# A timer set without a name gets "timer_<n>" (TimerStore.set_timer);
+# that is not a name to read out.
+_AUTO_TIMER_NAME = re.compile(r"timer_\d+")
+
+
+def timer_done_phrase(name: str) -> str:
+    """What to say when timer `name` runs out.
+
+    Language: the request that set the timer -- TimerStore runs the
+    countdown as an asyncio task, which keeps a copy of that request's
+    context -- or else the timer's name ("Одна минута" -> ru)."""
+    lang = (
+        detect_language(current_user_transcription.get())
+        or detect_language(name)
+        or DEFAULT_LANG
+    )
+    if not name or _AUTO_TIMER_NAME.fullmatch(name):
+        return say("timer_expired", lang)
+    return say("timer_done", lang, name=name)
+
+
+def reminder_phrase(text: str) -> str:
+    """What to say when a reminder fires.
+
+    A reminder can fire days later, long after the request that set it, so
+    the language is that of its text (the user's own words)."""
+    return say("reminder_fired", detect_language(text) or reply_language(), text=text)
 
 
 # Cyrillic spellings (ru, uk) for names the ru/uk voices would misread.

@@ -128,3 +128,80 @@ def test_failure_in_english_keeps_the_error(utterance):
 def test_done_in_ukrainian(utterance):
     utterance("Зроби щось")
     assert _speak(ToolResult(success=True, output=None)) == ["Зроблено, сер."]
+
+
+# ── B-P2-9: timers and reminders speak the language they were set in ──────
+
+
+async def test_timer_set_in_russian_is_announced_in_russian(tmp_path):
+    """Live session: a timer set in Russian said "Timer 'Одна минута' is
+    done, sir!". The countdown task keeps the setting request's context,
+    so the announcement follows that request's language."""
+    from jarvis.core.phrases import timer_done_phrase
+    from jarvis.tools.local.timers import TimerStore
+
+    spoken: list[str] = []
+    store = TimerStore(
+        on_timer_done=lambda name: spoken.append(timer_done_phrase(name)),
+        persist_path=tmp_path / "timers.json",
+    )
+    token = current_user_transcription.set("Поставь таймер на одну минуту")
+    try:
+        assert store.set_timer(0.05, "Одна минута")["success"]
+    finally:
+        # The turn is over long before the timer runs out.
+        current_user_transcription.reset(token)
+
+    await asyncio.sleep(0.2)
+    assert spoken == ["Таймер «Одна минута» истёк, сэр!"]
+
+
+@pytest.mark.parametrize(
+    ("request_text", "name", "expected"),
+    [
+        ("set a timer for tea", "tea", "Timer 'tea' is done, sir!"),
+        ("Постав таймер на чай і печиво", "чай", "Таймер «чай» спрацював, сер!"),
+        # The model may name the timer in English; the request decides.
+        ("Поставь таймер на пасту", "pasta", "Таймер «pasta» истёк, сэр!"),
+        # No request text (timer restored outside a turn): the name decides.
+        (None, "Одна минута", "Таймер «Одна минута» истёк, сэр!"),
+        (None, "tea", "Timer 'tea' is done, sir!"),
+        # Unnamed timer: "timer_1" is not read out.
+        ("Поставь таймер на минуту", "timer_1", "Таймер истёк, сэр."),
+        (None, "timer_3", "Timer is up, sir."),
+    ],
+)
+def test_timer_done_phrase(utterance, request_text, name, expected):
+    from jarvis.core.phrases import timer_done_phrase
+
+    utterance(request_text)
+    assert timer_done_phrase(name) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("купить молоко", "Напоминаю, сэр: купить молоко"),
+        ("подзвонити мамі", "Нагадую, сер: подзвонити мамі"),
+        ("call mom", "Reminder, sir: call mom"),
+    ],
+)
+def test_reminder_phrase_follows_reminder_text(utterance, text, expected):
+    """A reminder fires outside any request: its own text decides."""
+    from jarvis.core.phrases import reminder_phrase
+
+    utterance(None)
+    assert reminder_phrase(text) == expected
+
+
+def test_app_announces_timers_and_reminders_through_phrases():
+    """app.py used hard-coded English f-strings for both announcements."""
+    from pathlib import Path
+
+    import jarvis.app
+
+    source = Path(jarvis.app.__file__).read_text(encoding="utf-8")
+    assert "is done, sir!" not in source
+    assert "Reminder, sir:" not in source
+    assert "timer_done_phrase(name)" in source
+    assert "reminder_phrase(r.text)" in source

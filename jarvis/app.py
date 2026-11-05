@@ -185,6 +185,7 @@ from jarvis.core.logging_utils import JsonFormatter
 from jarvis.core.mode_coordinator import ModeCoordinator
 from jarvis.core.ollama_check import check_ollama
 from jarvis.core.personalization import PersonalizationContext
+from jarvis.core.phrases import reminder_phrase, timer_done_phrase
 from jarvis.core.request_context import (
     CorrelationIdFilter,
     current_user_transcription,
@@ -2802,16 +2803,15 @@ class JarvisApp:
         def _speak_proactive(text: str) -> None:
             self.bus.publish(ProactiveSpeech(text=text))
 
+        # Spoken in the language the timer / reminder was set in (B-P2-9).
         self._on_timer_done = lambda name: _speak_proactive(
-            f"Timer '{name}' is done, sir!"
+            timer_done_phrase(name)
         )
 
         self.reminder_store = ReminderStore()
         self.reminder_scheduler = ReminderScheduler(
             self.reminder_store,
-            on_fire=lambda r: _speak_proactive(
-                f"Reminder, sir: {r.text}"
-            ),
+            on_fire=lambda r: _speak_proactive(reminder_phrase(r.text)),
         )
 
         # Proactive ("initiative") engine — watches usage patterns and
