@@ -143,8 +143,11 @@ class AgentTool:
 
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
         # -- EN: general "do X", "handle X", "figure out X" ---------------
+        # Not a question: "do you remember my name", "do I have meetings"
+        # went to the agent with the goal "you remember my name".
         VoicePattern(
-            regex=r"^(?:do|accomplish|complete|handle)\s+(.+)$",
+            regex=r"^(?:do|accomplish|complete|handle)\s+"
+            r"(?!(?:you|i|we|they|he|she|it|my|your|our|their)\b)(.+)$",
             priority=500,
             args=lambda m: {"goal": m.group(1)},
         ),

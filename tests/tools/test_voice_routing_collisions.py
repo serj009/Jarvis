@@ -193,6 +193,24 @@ def test_phrase_routes_to_expected_tool(phrase: str, expected: str) -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        # Questions, not tasks: the autonomous agent's "do (.+)" took them
+        # with the goal "you remember my name" (M3 regression probe).
+        "do you remember my name",
+        "do i have anything today",
+        "do we have milk",
+    ],
+)
+def test_questions_are_not_agent_goals(phrase: str) -> None:
+    assert _route(phrase) != "autonomous_agent"
+
+
+def test_agent_still_takes_tasks() -> None:
+    assert _route("do the backups") == "autonomous_agent"
+
+
 def test_run_command_does_not_steal_app_launches() -> None:
     """cli_runner must never be the match for a non-whitelisted 'запусти X'."""
     for phrase in ("запусти хром", "запусти сталкер в стиме", "запусти музыку"):
