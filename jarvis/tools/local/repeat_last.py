@@ -56,13 +56,6 @@ class RepeatLastTool:
             return ToolResult(success=True, output=text)
 
         # Nothing spoken yet — tell the user.
-        from jarvis.core.phrases import reply_language
+        from jarvis.core.phrases import say
 
-        lang = reply_language()
-        if lang == "ru":
-            msg = "Я ещё ничего не говорил, сэр."
-        elif lang == "uk":
-            msg = "Я ще нічого не казав, сер."
-        else:
-            msg = "I haven't said anything yet, sir."
-        return ToolResult(success=True, output=msg)
+        return ToolResult(success=True, output=say("repeat_no_history"))

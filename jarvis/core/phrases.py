@@ -178,23 +178,6 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Работаю над этим, сэр.",
         "uk": "Працюю над цим, сер.",
     },
-    # Game mode — spoken when the LLM needs to be temporarily loaded
-    # during game mode (slow path: model evicted, needs re-load).
-    "thinking_game_mode_1": {
-        "en": "One moment, sir, loading the model...",
-        "ru": "Один момент, сэр, загружаю модель...",
-        "uk": "Одну мить, сер, завантажую модель...",
-    },
-    "thinking_game_mode_2": {
-        "en": "Bear with me, sir — game mode is active, loading temporarily.",
-        "ru": "Подождите, сэр — игровой режим, загружаю временно.",
-        "uk": "Зачекайте, сер — ігровий режим, завантажую тимчасово.",
-    },
-    "thinking_game_mode_3": {
-        "en": "Briefly loading for your question, sir.",
-        "ru": "Кратко загружаю для вашего вопроса, сэр.",
-        "uk": "Коротко завантажую для вашого питання, сер.",
-    },
     "thinking_check_1": {
         "en": "Let me check, sir.",
         "ru": "Сейчас проверю, сэр.",
@@ -246,50 +229,10 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Напоминаю, сэр: {text}",
         "uk": "Нагадую, сер: {text}",
     },
-    "coding_started": {
-        "en": "Working on the project, sir...",
-        "ru": "Работаю над проектом, сэр...",
-        "uk": "Працюю над проектом, сер...",
-    },
-    "coding_completed": {
-        "en": "Project is ready, sir.",
-        "ru": "Проект готов, сэр.",
-        "uk": "Проект готовий, сер.",
-    },
-    "coding_failed": {
-        "en": "I couldn't complete the task, sir.",
-        "ru": "Не удалось завершить задачу, сэр.",
-        "uk": "Не вдалося завершити завдання, сер.",
-    },
-    "file_deleted": {
-        "en": "File deleted, sir.",
-        "ru": "Файл удалён, сэр.",
-        "uk": "Файл видалено, сер.",
-    },
-    "file_created": {
-        "en": "File created, sir.",
-        "ru": "Файл создан, сэр.",
-        "uk": "Файл створено, сер.",
-    },
-    "language_switched": {
-        "en": "Switched to English, sir.",
-        "ru": "Переключил на русский, сэр.",
-        "uk": "Переключив на українську, сер.",
-    },
-    "dictation_started": {
-        "en": "Dictation mode on, sir. Speak and I'll type.",
-        "ru": "Режим диктовки включён, сэр. Говорите.",
-        "uk": "Режим диктування увімкнено, сер. Говоріть.",
-    },
-    "dictation_stopped": {
-        "en": "Dictation mode off, sir.",
-        "ru": "Режим диктовки выключен, сэр.",
-        "uk": "Режим диктування вимкнено, сер.",
-    },
     "repeat_no_history": {
-        "en": "Nothing to repeat, sir.",
-        "ru": "Мне нечего повторить, сэр.",
-        "uk": "Мені нічого повторити, сер.",
+        "en": "I haven't said anything yet, sir.",
+        "ru": "Я ещё ничего не говорил, сэр.",
+        "uk": "Я ще нічого не казав, сер.",
     },
     "goodbye": {
         "en": "Goodbye, sir. See you later.",
@@ -310,21 +253,6 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "en": "Good evening, sir!",
         "ru": "Добрый вечер, сэр!",
         "uk": "Доброго вечора, сер!",
-    },
-    "confirm_ask": {
-        "en": "Please confirm, sir.",
-        "ru": "Подтвердите, сэр.",
-        "uk": "Підтвердіть, сер.",
-    },
-    "chat_opened": {
-        "en": "Chat is open. Type your command.",
-        "ru": "Чат открыт. Введите команду.",
-        "uk": "Чат відкрито. Введіть команду.",
-    },
-    "volume_set": {
-        "en": "Volume set to {level}%, sir.",
-        "ru": "Громкость: {level}%, сэр.",
-        "uk": "Гучність: {level}%, сер.",
     },
     "screenshot_saved": {
         "en": "Screenshot saved, sir.",

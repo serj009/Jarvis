@@ -242,3 +242,38 @@ def test_agent_progress_lines_have_no_latin_sir():
     source = Path(autonomous.__file__).read_text(encoding="utf-8")
     cyrillic_with_sir = re.findall(r'"[^"\n]*[а-яё][^"\n]*\bsir\b[^"\n]*"', source)
     assert cyrillic_with_sir == []
+
+
+# Keys built at runtime: say(f"media_{action}"), say(f"window_{action}"),
+# say(f"desktop_{action}"), say(f"module_down_{module}") and the pipeline's
+# thinking_* list.
+_DYNAMIC_PREFIXES = ("media_", "window_", "desktop_", "module_down_")
+# Kept although nothing says them yet, with the reason.
+_NOT_SAID_YET = {
+    "error_ollama": "no error type carries it; Ollama failures are spoken as error_generic",
+    "error_llm_timeout": "listed with the timeout phrases the pipeline tests check",
+    "thinking_long_1": "listed with the thinking phrases the pipeline tests check",
+}
+
+
+def test_every_phrase_is_said_somewhere():
+    """14 keys (volume_set, confirm_ask, coding_*, ...) were never said, and
+    a home check expected two of them."""
+    from pathlib import Path
+
+    import jarvis
+
+    root = Path(jarvis.__file__).parent
+    source = "\n".join(
+        p.read_text(encoding="utf-8")
+        for p in root.rglob("*.py")
+        if p != root / "core" / "phrases.py"
+    )
+    own = (root / "core" / "phrases.py").read_text(encoding="utf-8")
+    helpers = own[own.index("def say("):]
+    unused = [
+        key for key in PHRASES
+        if f'"{key}"' not in source and f'"{key}"' not in helpers
+        and not key.startswith(_DYNAMIC_PREFIXES) and key not in _NOT_SAID_YET
+    ]
+    assert unused == []
