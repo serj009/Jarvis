@@ -7,6 +7,7 @@ already available in the project.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from jarvis.integrations.base import BaseIntegration
 
@@ -24,8 +25,8 @@ class WhatsAppIntegration(BaseIntegration):
     auth_fields = []
     required_packages = []  # Playwright already available
 
-    _browser = None
-    _page = None
+    _browser: Any = None  # the optional library's client; untyped here
+    _page: Any = None  # the optional library's client; untyped here
 
     async def connect(self) -> bool:
         try:

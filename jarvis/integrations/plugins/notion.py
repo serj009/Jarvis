@@ -8,8 +8,12 @@ project); no extra packages are required.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from jarvis.integrations.base import BaseIntegration
+
+if TYPE_CHECKING:
+    from jarvis.integrations.auth import IntegrationAuth
 
 log = logging.getLogger(__name__)
 
@@ -27,7 +31,7 @@ class NotionIntegration(BaseIntegration):
     ]
     required_packages: list[str] = []
 
-    auth: object | None = None
+    auth: IntegrationAuth | None = None
 
     _BASE = "https://api.notion.com/v1"
     _VERSION = "2022-06-28"

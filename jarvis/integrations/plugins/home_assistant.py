@@ -7,8 +7,12 @@ The user must provide the HA URL (ha_url) and token.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from jarvis.integrations.base import BaseIntegration
+
+if TYPE_CHECKING:
+    from jarvis.integrations.auth import IntegrationAuth
 
 log = logging.getLogger(__name__)
 
@@ -31,7 +35,7 @@ class HomeAssistantIntegration(BaseIntegration):
     ]
     required_packages: list[str] = []
 
-    auth: object | None = None
+    auth: IntegrationAuth | None = None
 
     # -- auth helpers ----------------------------------------------------
 

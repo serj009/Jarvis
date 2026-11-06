@@ -7,8 +7,12 @@ auth).  Only httpx is needed.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from jarvis.integrations.base import BaseIntegration
+
+if TYPE_CHECKING:
+    from jarvis.integrations.auth import IntegrationAuth
 
 log = logging.getLogger(__name__)
 
@@ -27,7 +31,7 @@ class TrelloIntegration(BaseIntegration):
     ]
     required_packages: list[str] = []
 
-    auth: object | None = None
+    auth: IntegrationAuth | None = None
 
     _BASE = "https://api.trello.com/1"
 
@@ -37,9 +41,7 @@ class TrelloIntegration(BaseIntegration):
         if self.auth is None:
             return None, None
         key = self.auth.get_api_key(self.name)
-        token = getattr(self.auth, "get_field", lambda *a: None)(self.name, "api_token")
-        if token is None and hasattr(self.auth, "_fields"):
-            token = self.auth._fields.get("api_token")
+        token = self.auth.get_field(self.name, "api_token")
         return key, token
 
     def _params(self) -> dict:

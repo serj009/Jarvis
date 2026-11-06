@@ -13,10 +13,22 @@ the abstract methods.
 
 from __future__ import annotations
 
+import importlib
 import logging
 from abc import ABC, abstractmethod
+from typing import Any
 
 log = logging.getLogger(__name__)
+
+
+def import_optional(module: str) -> Any:
+    """Import a plugin's optional package (lazily, inside a method).
+
+    The same as ``import <module>`` at run time. Written this way because a
+    plugin module is often named like its package (plugins/dropbox.py,
+    plugins/github.py), and a type checker then resolves ``import dropbox``
+    to the plugin file itself and reports its missing attributes."""
+    return importlib.import_module(module)
 
 
 class BaseIntegration(ABC):

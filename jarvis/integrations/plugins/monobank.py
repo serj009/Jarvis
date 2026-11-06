@@ -8,8 +8,12 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import TYPE_CHECKING
 
 from jarvis.integrations.base import BaseIntegration
+
+if TYPE_CHECKING:
+    from jarvis.integrations.auth import IntegrationAuth
 
 log = logging.getLogger(__name__)
 
@@ -29,7 +33,7 @@ class MonobankIntegration(BaseIntegration):
     ]
     required_packages = []  # httpx is a core dep
 
-    auth: object | None = None
+    auth: IntegrationAuth | None = None
 
     def _token(self) -> str | None:
         if self.auth is None:

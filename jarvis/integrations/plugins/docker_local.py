@@ -6,6 +6,7 @@ Off by default. Connects to the local Docker socket (no auth needed).
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from jarvis.integrations.base import BaseIntegration
 
@@ -23,7 +24,7 @@ class DockerIntegration(BaseIntegration):
     auth_fields = []
     required_packages = ["docker"]
 
-    _client = None
+    _client: Any = None  # the optional library's client; untyped here
 
     async def connect(self) -> bool:
         try:

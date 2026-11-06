@@ -13,10 +13,12 @@ zero new pip dependencies.
 
 from __future__ import annotations
 
+import errno
 import hmac
 import logging
 import secrets
 from pathlib import Path
+from typing import Any
 
 from jarvis.platform.encrypted_store import EncryptedJsonStore
 
@@ -75,6 +77,21 @@ class IntegrationAuth:
 
     def get_api_key(self, integration_name: str) -> str | None:
         return self._load().get(integration_name, {}).get("api_key")
+
+    # -- extra fields (bridge IP, server URL, ...) ----------------------
+    # Plugins read these with get_field(); several already called it behind
+    # hasattr() checks, but the method did not exist, so their settings
+    # (hue's bridge_ip, home_assistant's url, ...) were never read.
+
+    def store_field(self, integration_name: str, field: str, value: str) -> None:
+        data = self._load()
+        data.setdefault(integration_name, {})[field] = value
+        self._save(data)
+        log.info("[integrations] stored %s for %s", field, integration_name)
+
+    def get_field(self, integration_name: str, field: str) -> str | None:
+        value = self._load().get(integration_name, {}).get(field)
+        return value if isinstance(value, str) else None
 
     # -- OAuth2 tokens ---------------------------------------------------
 
@@ -234,7 +251,6 @@ class IntegrationAuth:
         Raises ``OAuthPortInUseError`` if ``redirect_port`` is already bound.
         """
         import http.server
-        import socket
         from urllib.parse import parse_qs, urlparse
 
         expected = (expected_state or "").encode("utf-8")
@@ -299,8 +315,8 @@ class IntegrationAuth:
             def do_HEAD(self):  # noqa: N802
                 self._html(405, _static_bad)
 
-            def log_message(self, *a):  # silence default stderr logging
-                return
+            def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
+                return  # silence default stderr logging
 
         try:
             server = http.server.HTTPServer((redirect_host, redirect_port), _Handler)
@@ -310,9 +326,9 @@ class IntegrationAuth:
             # port is held with SO_REUSEADDR by another socket, WSAEACCES
             # (10013, surfaced as PermissionError). Treat all as "in use".
             _in_use = {
-                socket.errno.EADDRINUSE,
-                getattr(socket.errno, "WSAEADDRINUSE", 10048),
-                getattr(socket.errno, "WSAEACCES", 10013),
+                errno.EADDRINUSE,
+                getattr(errno, "WSAEADDRINUSE", 10048),
+                getattr(errno, "WSAEACCES", 10013),
                 10013, 10048,
             }
             if e.errno in _in_use or isinstance(e, PermissionError):

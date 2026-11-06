@@ -19,6 +19,10 @@ key ``"google"``, so a single consent flow authorises the whole suite.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from jarvis.integrations.auth import IntegrationAuth
 
 log = logging.getLogger(__name__)
 
@@ -48,7 +52,7 @@ class GoogleIntegrationMixin:
     scopes: list[str] = []
 
     # Injected by the app/registry when available; tests can set directly.
-    auth: object | None = None
+    auth: IntegrationAuth | None = None
 
     def _get_token(self) -> str | None:
         """Return a valid access token from the shared Google credentials."""

@@ -6,8 +6,12 @@ Off by default. Uses Spotify OAuth2 via the ``spotipy`` library.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING, Any
 
 from jarvis.integrations.base import BaseIntegration
+
+if TYPE_CHECKING:
+    from jarvis.integrations.auth import IntegrationAuth
 
 log = logging.getLogger(__name__)
 
@@ -26,8 +30,8 @@ class SpotifyIntegration(BaseIntegration):
     ]
     required_packages = ["spotipy"]
 
-    auth: object | None = None
-    _sp = None
+    auth: IntegrationAuth | None = None
+    _sp: Any = None  # the optional library's client; untyped here
 
     async def connect(self) -> bool:
         if self.auth is None:

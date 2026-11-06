@@ -6,8 +6,12 @@ Off by default. Uses CoinGecko free tier API. No extra packages (httpx).
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from jarvis.integrations.base import BaseIntegration
+
+if TYPE_CHECKING:
+    from jarvis.integrations.auth import IntegrationAuth
 
 log = logging.getLogger(__name__)
 
@@ -27,7 +31,7 @@ class CurrencyCryptoIntegration(BaseIntegration):
     ]
     required_packages = []
 
-    auth: object | None = None
+    auth: IntegrationAuth | None = None
 
     def _api_key(self) -> str | None:
         if self.auth is None:

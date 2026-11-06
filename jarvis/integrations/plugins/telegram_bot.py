@@ -14,8 +14,12 @@ is needed.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from jarvis.integrations.base import BaseIntegration
+
+if TYPE_CHECKING:
+    from jarvis.integrations.auth import IntegrationAuth
 
 log = logging.getLogger(__name__)
 
@@ -34,7 +38,7 @@ class TelegramIntegration(BaseIntegration):
     required_packages = ["python-telegram-bot"]
 
     # Injected by the app/registry when available; tests can set directly.
-    auth: object | None = None
+    auth: IntegrationAuth | None = None
 
     # -- auth/lifecycle --------------------------------------------------
 

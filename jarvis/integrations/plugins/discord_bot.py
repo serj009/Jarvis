@@ -6,8 +6,12 @@ Off by default. Uses discord.py Bot token.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from jarvis.integrations.base import BaseIntegration
+
+if TYPE_CHECKING:
+    from jarvis.integrations.auth import IntegrationAuth
 
 log = logging.getLogger(__name__)
 
@@ -25,7 +29,7 @@ class DiscordIntegration(BaseIntegration):
     ]
     required_packages = ["discord.py"]
 
-    auth: object | None = None
+    auth: IntegrationAuth | None = None
 
     def _token(self) -> str | None:
         if self.auth is None:

@@ -8,8 +8,12 @@ or the debug page).
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from jarvis.integrations.base import BaseIntegration
+
+if TYPE_CHECKING:
+    from jarvis.integrations.auth import IntegrationAuth
 
 log = logging.getLogger(__name__)
 
@@ -28,7 +32,7 @@ class PhilipsHueIntegration(BaseIntegration):
     ]
     required_packages: list[str] = []
 
-    auth: object | None = None
+    auth: IntegrationAuth | None = None
 
     # -- auth helpers ----------------------------------------------------
 
@@ -138,7 +142,7 @@ class PhilipsHueIntegration(BaseIntegration):
             "purple": {"hue": 56100, "sat": 254},
         }
         color = args.get("color", "").lower()
-        state = {"on": True}
+        state: dict[str, bool | int] = {"on": True}
         if color in color_map:
             state.update(color_map[color])
         return await self._set_state(args["light_id"], state)

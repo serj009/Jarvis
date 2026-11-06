@@ -8,8 +8,12 @@ the package absent.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-from jarvis.integrations.base import BaseIntegration
+from jarvis.integrations.base import BaseIntegration, import_optional
+
+if TYPE_CHECKING:
+    from jarvis.integrations.auth import IntegrationAuth
 
 log = logging.getLogger(__name__)
 
@@ -27,7 +31,7 @@ class GitHubIntegration(BaseIntegration):
     ]
     required_packages = ["PyGithub"]
 
-    auth: object | None = None
+    auth: IntegrationAuth | None = None
 
     def _token(self) -> str | None:
         if self.auth is None:
@@ -97,8 +101,7 @@ class GitHubIntegration(BaseIntegration):
         if token is None:
             return "GitHub is not connected, sir."
         try:
-            from github import Github  # noqa: E402 (lazy)
-            g = Github(token)
+            g = import_optional("github").Github(token)
         except Exception as e:
             return str(e)
         try:
@@ -126,8 +129,7 @@ class GitHubIntegration(BaseIntegration):
         if not token:
             return None
         try:
-            from github import Github
-            g = Github(token)
+            g = import_optional("github").Github(token)
             notifs = list(g.get_user().get_notifications()[:10])
             if not notifs:
                 return None

@@ -7,8 +7,12 @@ credentials are stored as api_key fields.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
 from jarvis.integrations.base import BaseIntegration
+
+if TYPE_CHECKING:
+    from jarvis.integrations.auth import IntegrationAuth
 
 log = logging.getLogger(__name__)
 
@@ -28,7 +32,7 @@ class MqttIntegration(BaseIntegration):
     ]
     required_packages = ["paho-mqtt"]
 
-    auth: object | None = None
+    auth: IntegrationAuth | None = None
     _client = None
 
     # -- auth helpers ----------------------------------------------------

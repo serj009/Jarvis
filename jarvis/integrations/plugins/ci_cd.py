@@ -6,8 +6,12 @@ Off by default. Shares the same GitHub PAT as the github plugin.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-from jarvis.integrations.base import BaseIntegration
+from jarvis.integrations.base import BaseIntegration, import_optional
+
+if TYPE_CHECKING:
+    from jarvis.integrations.auth import IntegrationAuth
 
 log = logging.getLogger(__name__)
 
@@ -25,7 +29,7 @@ class CiCdIntegration(BaseIntegration):
     ]
     required_packages = ["PyGithub"]
 
-    auth: object | None = None
+    auth: IntegrationAuth | None = None
 
     def _token(self) -> str | None:
         if self.auth is None:
@@ -84,8 +88,7 @@ class CiCdIntegration(BaseIntegration):
         if token is None:
             return "GitHub Actions is not connected, sir."
         try:
-            from github import Github
-            g = Github(token)
+            g = import_optional("github").Github(token)
         except Exception as e:
             return str(e)
         try:

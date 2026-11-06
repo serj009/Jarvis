@@ -17,6 +17,7 @@ is the right surface for open-ended online actions anyway.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, create_model
 
@@ -39,7 +40,7 @@ def _schema_to_args_model(name: str, parameters: dict) -> type[BaseModel]:
         "string": str, "integer": int, "number": float,
         "boolean": bool, "array": list, "object": dict,
     }
-    fields: dict[str, tuple] = {}
+    fields: dict[str, Any] = {}
     for field_name, spec in props.items():
         py_type = type_map.get((spec or {}).get("type", "string"), str)
         if field_name in required:

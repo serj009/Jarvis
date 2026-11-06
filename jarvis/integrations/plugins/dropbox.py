@@ -7,8 +7,12 @@ metadata/tools/voice patterns resolve without it.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-from jarvis.integrations.base import BaseIntegration
+from jarvis.integrations.base import BaseIntegration, import_optional
+
+if TYPE_CHECKING:
+    from jarvis.integrations.auth import IntegrationAuth
 
 log = logging.getLogger(__name__)
 
@@ -26,7 +30,7 @@ class DropboxIntegration(BaseIntegration):
     ]
     required_packages = ["dropbox"]
 
-    auth: object | None = None
+    auth: IntegrationAuth | None = None
 
     # -- auth helpers ----------------------------------------------------
 
@@ -79,10 +83,11 @@ class DropboxIntegration(BaseIntegration):
         ]
 
     async def execute_tool(self, tool_name: str, args: dict) -> str:
-        if not self._token():
+        token = self._token()
+        if not token:
             return "Dropbox is not connected, sir."
         try:
-            dbx = _make_client(self._token())
+            dbx = _make_client(token)
         except Exception as e:
             return str(e)
 
@@ -112,7 +117,7 @@ class DropboxIntegration(BaseIntegration):
         return f"Found {len(matches)} file(s), sir:\n" + "\n".join(lines)
 
     def _upload(self, dbx, args: dict) -> str:
-        import dropbox as _dbx  # lazy
+        _dbx = import_optional("dropbox")
 
         with open(args["local_path"], "rb") as f:
             dbx.files_upload(f.read(), args["dropbox_path"],
@@ -134,7 +139,7 @@ class DropboxIntegration(BaseIntegration):
 
 def _make_client(token: str):
     """Build a Dropbox client lazily."""
-    import dropbox as _dbx  # noqa: E402
+    _dbx = import_optional("dropbox")
 
     return _dbx.Dropbox(token)
 

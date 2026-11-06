@@ -6,8 +6,12 @@ Off by default.  Uses python-gitlab SDK.  Personal Access Token as api_key.
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-from jarvis.integrations.base import BaseIntegration
+from jarvis.integrations.base import BaseIntegration, import_optional
+
+if TYPE_CHECKING:
+    from jarvis.integrations.auth import IntegrationAuth
 
 log = logging.getLogger(__name__)
 
@@ -27,7 +31,7 @@ class GitLabIntegration(BaseIntegration):
     ]
     required_packages = ["python-gitlab"]
 
-    auth: object | None = None
+    auth: IntegrationAuth | None = None
 
     # -- auth helpers ----------------------------------------------------
 
@@ -86,10 +90,11 @@ class GitLabIntegration(BaseIntegration):
         ]
 
     async def execute_tool(self, tool_name: str, args: dict) -> str:
-        if not self._token():
+        token = self._token()
+        if not token:
             return "GitLab is not connected, sir."
         try:
-            gl = _make_gitlab(self._url(), self._token())
+            gl = _make_gitlab(self._url(), token)
         except Exception as e:
             return str(e)
 
@@ -153,7 +158,7 @@ class GitLabIntegration(BaseIntegration):
 
 def _make_gitlab(url: str, token: str):
     """Build a python-gitlab client lazily."""
-    import gitlab as _gl  # noqa: E402
+    _gl = import_optional("gitlab")
 
     return _gl.Gitlab(url, private_token=token)
 
