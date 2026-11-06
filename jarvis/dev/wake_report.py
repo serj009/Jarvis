@@ -35,6 +35,7 @@ import argparse
 import re
 import sys
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 # Leading "HH:MM:SS" (optionally "YYYY-MM-DD HH:MM:SS" if the operator used a
@@ -89,7 +90,7 @@ def _hour_bucket(line: str, fallback: str | None) -> str | None:
     return f"{date} {hour}:00" if date else f"{hour}:00"
 
 
-def parse_wake_log(lines: object) -> WakeReport:
+def parse_wake_log(lines: Iterable[str]) -> WakeReport:
     """Build a :class:`WakeReport` from an iterable of log lines.
 
     Chronological walk: a ``[wake] trigger`` opens a *pending* wake. If the

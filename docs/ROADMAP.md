@@ -113,7 +113,7 @@ $env:JARVIS_DUMP_LLM_REQUEST = "1"; .venv\Scripts\python.exe -m jarvis
 
 | # | Задача | Где | Метка |
 |---|---|---|---|
-| M2-1 | Ошибки pyright = 0 во всём `jarvis/`. Известно: 9 в `app.py` (~1628–1653 и 1731 — `proactive_engine` типизирован как `object`; 2772 — `APILLMClient` против `OllamaClient`; 2958 — `_game_mode` у `Tool`), 12 в `tools/__init__.py`, 4 в `llm/intent_router.py`, 1 в `audio/pipeline.py`; остальной пакет целиком не проверялся | см. слева | [Работа] |
+| M2-7 | Ошибки pyright = 0 и в `tests/` (CI проверяет `jarvis` и `tests` вместе; в `jarvis/` уже 0). На 2026-11-06 — 472, в основном `Optional` без проверки (`result.output.lower()` и т. п.) и подмены модулей в тестах; больше всего в `tests/core/test_game_mode.py` (63), `tests/tools/local/test_vault_manager.py` (32), `tests/security/test_leak_scanner.py` (26) | `tests/` | [Работа] |
 | M2-3 | Падение одного модуля (STT, TTS, wake word) не роняет голосовой цикл: модуль выключается, Jarvis говорит, что именно не работает (T12.3) | `core/lifecycle.py`, `audio/pipeline.py` | [Работа → Дом] |
 | M2-4 | Откат для разрушительных файловых действий: бэкап перед удалением/перезаписью и команда «верни как было» (T12.2), только для удаления и перезаписи | `tools/local/file_manager.py`, `files.py` | [Работа] |
 

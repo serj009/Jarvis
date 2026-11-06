@@ -40,8 +40,8 @@ async def with_vram_for_sd(
     if ollama_client is None:
         return await func()
 
-    unload = getattr(ollama_client, "unload", None)
-    warm = getattr(ollama_client, "warm", None)
+    unload: Callable[[], Awaitable[object]] | None = getattr(ollama_client, "unload", None)
+    warm: Callable[[], Awaitable[object]] | None = getattr(ollama_client, "warm", None)
 
     if callable(unload):
         try:

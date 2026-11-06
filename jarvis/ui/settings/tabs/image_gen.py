@@ -305,7 +305,9 @@ class ImageGenTab(QWidget):
         )
         hint.setObjectName("settingHint")
         hint.setWordWrap(True)
-        image_model_card.layout().addWidget(hint)
+        card_layout = image_model_card.layout()
+        if card_layout is not None:
+            card_layout.addWidget(hint)
 
         self._image_model_card = image_model_card
         root.addWidget(image_model_card)

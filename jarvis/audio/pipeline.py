@@ -54,6 +54,7 @@ import random
 import re
 import time
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from jarvis.audio.aec import BargeInManager, BargeInMode
 from jarvis.audio.protocols import (
@@ -94,6 +95,9 @@ from jarvis.core.request_context import (
 )
 from jarvis.core.state_machine import ConversationalState, Mode, StateMachine
 from jarvis.security.origin_tracker import OriginTracker, RequestOrigin, set_request_context
+
+if TYPE_CHECKING:
+    from jarvis.audio.tts_manager import TTSManager
 
 log = logging.getLogger(__name__)
 
@@ -195,7 +199,7 @@ class AudioPipeline:
         bus: EventBus,
         sm: StateMachine,
         *,
-        tts_manager: object | None = None,
+        tts_manager: TTSManager | None = None,
         listening_timeout_seconds: float = LISTENING_TIMEOUT_DEFAULT,
         frame_queue_maxsize: int = _FRAME_QUEUE_DEFAULT,
         post_wake_blackout_ms: int = POST_WAKE_BLACKOUT_MS,
@@ -854,7 +858,8 @@ class AudioPipeline:
                         _skip, result.detected_language,
                         result.language_probability, len(text),
                     )
-                else:
+                elif result.detected_language is not None:
+                    # (_skip is "no-language" when it is None.)
                     try:
                         await self._tts_manager.set_language(
                             result.detected_language

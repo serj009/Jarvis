@@ -24,7 +24,7 @@ import asyncio
 import json
 import logging
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
@@ -225,14 +225,22 @@ class ModelProvider(ABC):
         """Non-streaming chat completion."""
 
     @abstractmethod
-    async def stream_chat(
+    def stream_chat(
         self,
         messages: list[ChatMessage],
         *,
         temperature: float = 0.7,
         max_tokens: int = 4096,
     ) -> AsyncIterator[ChatChunk]:
-        """Streaming chat completion — yields ChatChunk values."""
+        """Streaming chat completion — yields ChatChunk values.
+
+        Implementations are async generators (``async def`` with
+        ``yield``); declared without ``async`` here, since an ``async def``
+        that does not yield is a coroutine returning the iterator, a
+        different type from the generators that override it."""
+
+    async def close(self) -> None:  # noqa: B027 - optional hook, not abstract
+        """Release network clients. Default: nothing to release."""
 
     @abstractmethod
     def display_name(self) -> str:
@@ -285,7 +293,11 @@ def _raise_for_status(response: httpx.Response, provider_name: str) -> None:
 # Auto-retry helper for transient network errors
 # ---------------------------------------------------------------------------
 
-async def _with_retry(coro_fn, max_retries=2, backoff=1.0):
+async def _with_retry(
+    coro_fn: Callable[[], Awaitable[httpx.Response]],
+    max_retries: int = 2,
+    backoff: float = 1.0,
+) -> httpx.Response:
     """Retry *coro_fn()* on transient network errors.
 
     Only retries on ``httpx.ConnectError`` and ``httpx.TimeoutException`` —
@@ -301,6 +313,7 @@ async def _with_retry(coro_fn, max_retries=2, backoff=1.0):
                 raise
             log.warning("Transient error (attempt %d/%d): %s", attempt + 1, max_retries + 1, e)
             await asyncio.sleep(backoff * (attempt + 1))
+    raise AssertionError("unreachable: the last attempt returns or raises")
 
 
 # ---------------------------------------------------------------------------

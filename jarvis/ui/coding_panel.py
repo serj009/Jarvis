@@ -1103,12 +1103,13 @@ class CodingPanel(QWidget):
         except Exception:
             log.debug("toast notification unavailable", exc_info=True)
         # Sound
-        try:
-            import winsound
+        if sys.platform == "win32":
+            try:
+                import winsound
 
-            winsound.MessageBeep(winsound.MB_OK)
-        except Exception:
-            pass
+                winsound.MessageBeep(winsound.MB_OK)
+            except Exception:
+                pass
 
     # ================================================================== #
     # Display helpers                                                      #
@@ -1180,8 +1181,9 @@ class CodingPanel(QWidget):
     def _clear_summary(self) -> None:
         while self._summary_container.count():
             item = self._summary_container.takeAt(0)
-            if item and item.widget():
-                item.widget().deleteLater()
+            widget = item.widget() if item is not None else None
+            if widget is not None:
+                widget.deleteLater()
 
     def _scroll_to_bottom(self) -> None:
         vbar = self._steps_scroll.verticalScrollBar()

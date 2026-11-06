@@ -1158,7 +1158,10 @@ class IntentRouter:
                 if chunk.done:
                     break
         finally:
-            await stream.aclose()
+            # An async generator (the clients) closes its HTTP stream here.
+            aclose = getattr(stream, "aclose", None)
+            if aclose is not None:
+                await aclose()
         return text_parts, tool_calls
 
     def _tool_intents_from(
@@ -1261,7 +1264,8 @@ class IntentRouter:
             # LLM_TOOL_CALL here (the LLM chose the tool, not a
             # voice-pattern match), so the leak scanner applies its
             # strictest rules.
-            _sec_blocked = False
+            # The refusal when a security layer blocks the call, else None.
+            blocked: ToolResult | None = None
             if self._tool_guard is not None:
                 from jarvis.security.origin_tracker import (
                     RequestContext as _RequestContext,
@@ -1284,11 +1288,10 @@ class IntentRouter:
                 )
                 if not _guard.allowed:
                     from jarvis.tools.registry import ToolResult
-                    result = ToolResult(
+                    blocked = ToolResult(
                         success=False,
                         error=f"Security: {_guard.reason}",
                     )
-                    _sec_blocked = True
             else:
                 # ToolGuard failed to initialise (degraded mode). Fail
                 # CLOSED: block LLM-initiated network/exec tools entirely,
@@ -1314,12 +1317,13 @@ class IntentRouter:
                         "[security] blocking LLM-initiated %r: guard "
                         "unavailable (degraded mode)", intent.tool_name,
                     )
-                    result = ToolResult(
+                    blocked = ToolResult(
                         success=False,
                         error="Security: guard unavailable",
                     )
-                    _sec_blocked = True
-            if not _sec_blocked:
+            if blocked is not None:
+                result = blocked
+            else:
                 result = await registry.execute(intent.tool_name, intent.args)
             tool = registry.get(intent.tool_name)
             ends_turn = ends_turn and result.success and bool(

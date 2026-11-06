@@ -61,8 +61,12 @@ import logging
 import math
 import shutil
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from jarvis.core.events import EventBus
 
 from jarvis.audio.protocols import (
     CONFIDENCE_CLARIFY,
@@ -457,7 +461,7 @@ class FasterWhisperSTT:
         confidence_clarify: float = CONFIDENCE_CLARIFY,
         # T2.4 max retries for "clarify" action
         max_clarify_retries: int = 3,
-        bus: object | None = None,
+        bus: EventBus | None = None,
         # language="auto" only: restrict detection to these languages.
         # Empty/None = let Whisper pick any language (old behaviour).
         auto_languages: tuple[str, ...] | None = DEFAULT_AUTO_LANGUAGES,
@@ -603,16 +607,16 @@ class FasterWhisperSTT:
             )
         model_id = _resolve_model_id(size, self.language)
 
+        kwargs: dict = {
+            "device": device,
+            "compute_type": compute_type,
+        }
+        if self._download_root is not None:
+            kwargs["download_root"] = str(self._download_root)
+            kwargs["local_files_only"] = True
         try:
             # Construction can download large model files on first use;
             # run in a thread so the loop stays responsive throughout.
-            kwargs: dict = {
-                "device": device,
-                "compute_type": compute_type,
-            }
-            if self._download_root is not None:
-                kwargs["download_root"] = str(self._download_root)
-                kwargs["local_files_only"] = True
             self._model = await asyncio.to_thread(
                 WhisperModel,
                 model_id,

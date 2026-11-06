@@ -24,10 +24,8 @@ thread (audio loop, Qt thread, etc.) without external synchronisation.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass  # numpy typing only needed for stubs
+from collections.abc import Callable
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -53,8 +51,9 @@ class SoundEffects:
         self._enabled = enabled
         self._volume = max(0.0, min(1.0, volume))
         self._available: bool | None = None  # resolved on first play
-        self._np = None
-        self._sd = None
+        # numpy / sounddevice, imported on first use (_lazy_imports).
+        self._np: Any = None
+        self._sd: Any = None
         # Cached waveform arrays (generated once, replayed many times).
         self._cache: dict[str, object] = {}
 
@@ -192,7 +191,8 @@ def _apply_fade(np, samples, fade_len: int) -> None:
     samples[-fade_len:] *= ramp[::-1]
 
 
-_GENERATORS: dict[str, object] = {
+# (numpy module, volume) -> waveform
+_GENERATORS: dict[str, Callable[[Any, float], Any]] = {
     "wake": _gen_wake,
     "success": _gen_success,
     "error": _gen_error,

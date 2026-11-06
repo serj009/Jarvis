@@ -128,6 +128,8 @@ class ScreenChangeDetector:
         # pixels are bright red.
         rgb = current_small.convert("RGB")
         pixels = rgb.load()
+        if pixels is None:  # an empty image has no pixel access
+            return rgb
         w, h = rgb.size
         for py in range(h):
             for px in range(w):

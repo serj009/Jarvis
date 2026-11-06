@@ -610,7 +610,7 @@ class _SourceCard(QFrame):
                 # keep the letter-avatar, log at DEBUG without the URL.
                 log.debug("favicon fetch failed (%s)", err)
                 return
-            data = bytes(reply.readAll())
+            data = reply.readAll().data()
             if exceeds_size(len(data)):
                 return
             pixmap = QPixmap()

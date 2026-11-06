@@ -366,7 +366,7 @@ class AgentPanel(QWidget):
         # Clear steps
         while self._steps_layout.count() > 1:
             item = self._steps_layout.takeAt(0)
-            w = item.widget()
+            w = item.widget() if item is not None else None
             if w:
                 w.deleteLater()
 
