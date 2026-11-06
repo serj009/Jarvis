@@ -64,8 +64,21 @@
   "Play Rachmaninoff": {
     "kind": "none"
   },
+  "Press Ctrl+Shift+M": {
+    "args": {
+      "combo": "ctrl+shift+m"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "send_hotkey"
+  },
   "Press Ctrl+Shift+P": {
-    "kind": "none"
+    "args": {
+      "combo": "ctrl+shift+p"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "send_hotkey"
   },
   "Read my groceries note": {
     "args": {
@@ -83,8 +96,26 @@
     "spoken_response": null,
     "tool": "take_note"
   },
+  "Tray icon → Mute": {
+    "kind": "none"
+  },
   "Tray icon → Show tutorial": {
     "kind": "none"
+  },
+  "Tray icon → Sleep": {
+    "kind": "none"
+  },
+  "Tray icon → Wake": {
+    "kind": "none"
+  },
+  "VS Code left, Chrome right": {
+    "args": {
+      "left": "vs code",
+      "right": "chrome"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "snap_layout"
   },
   "What time is it": {
     "kind": "speak",
@@ -141,6 +172,14 @@
     "spoken_response": null,
     "tool": "show_logs"
   },
+  "call this list bleach": {
+    "args": {
+      "new_name": "bleach"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "name_saved_list"
+  },
   "can you open spotify": {
     "args": {
       "name": "spotify"
@@ -157,6 +196,15 @@
   },
   "cancel that download": {
     "kind": "none"
+  },
+  "center discord": {
+    "args": {
+      "action": "snap_center",
+      "window": "discord"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "window_action"
   },
   "clear all deep research sessions": {
     "args": {},
@@ -179,11 +227,27 @@
     "spoken_response": null,
     "tool": "clear_clipboard_history"
   },
+  "clipboard": {
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "clipboard"
+  },
   "close Chrome": {
-    "kind": "none"
+    "args": {
+      "name": "chrome"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "close_app"
   },
   "close Spotify": {
-    "kind": "none"
+    "args": {
+      "name": "spotify"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "close_app"
   },
   "close deep research": {
     "args": {},
@@ -270,6 +334,12 @@
     "kind": "tool",
     "spoken_response": null,
     "tool": "open_app"
+  },
+  "cpu usage": {
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "report_cpu_and_memory_percentages"
   },
   "deep research nuclear fusion": {
     "args": {
@@ -373,8 +443,21 @@
     "spoken_response": null,
     "tool": "enable_deep_research_ultra"
   },
+  "exit discord": {
+    "args": {
+      "name": "discord"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "close_app"
+  },
   "go to sleep": {
-    "kind": "none"
+    "args": {
+      "action": "sleep"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "power_control"
   },
   "google AI news": {
     "args": {
@@ -411,8 +494,26 @@
   "how is my computer doing": {
     "kind": "none"
   },
+  "how is the weather": {
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "get_weather"
+  },
   "how much memory am I using": {
     "kind": "none"
+  },
+  "how's the page going": {
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "page_reading_status"
+  },
+  "how's the weather": {
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "get_weather"
   },
   "jarvis, deep research on tidal power": {
     "args": {
@@ -456,14 +557,33 @@
     "spoken_response": null,
     "tool": "read_more"
   },
+  "kill firefox": {
+    "args": {
+      "name": "firefox"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "close_app"
+  },
   "launch Cyberpunk": {
     "kind": "none"
+  },
+  "launch elden ring on steam": {
+    "args": {
+      "game_name": "elden ring"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "launch_steam_game"
   },
   "launch workspace": {
     "args": {},
     "kind": "tool",
     "spoken_response": null,
     "tool": "launch_workspace"
+  },
+  "listen to metallica": {
+    "kind": "none"
   },
   "lock my pc": {
     "args": {},
@@ -505,11 +625,40 @@
     "spoken_response": null,
     "tool": "research"
   },
+  "mark phoenix wings as done": {
+    "args": {
+      "done": true,
+      "item": "phoenix wings"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "mark_list_item"
+  },
+  "memory usage": {
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "report_cpu_and_memory_percentages"
+  },
+  "minimize all": {
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "minimize_all"
+  },
   "mute": {
     "kind": "none"
   },
   "never mind": {
     "kind": "stop"
+  },
+  "next desktop": {
+    "args": {
+      "action": "next"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "virtual_desktop"
   },
   "note that the boiler needs servicing": {
     "args": {
@@ -715,11 +864,49 @@
   "play Bohemian Rhapsody": {
     "kind": "none"
   },
+  "play Control on Steam": {
+    "args": {
+      "game_name": "control"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "launch_steam_game"
+  },
   "play Pink Floyd": {
+    "kind": "none"
+  },
+  "play cyberpunk on steam": {
+    "args": {
+      "game_name": "cyberpunk"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "launch_steam_game"
+  },
+  "play hotel california on youtube": {
     "kind": "none"
   },
   "play some jazz": {
     "kind": "none"
+  },
+  "previous desktop": {
+    "args": {
+      "action": "previous"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "virtual_desktop"
+  },
+  "put on some classical": {
+    "kind": "none"
+  },
+  "quit notepad": {
+    "args": {
+      "name": "notepad"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "close_app"
   },
   "read me my groceries notes": {
     "args": {
@@ -781,6 +968,12 @@
     "spoken_response": null,
     "tool": "read_note"
   },
+  "remember this page": {
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "save_page_knowledge"
+  },
   "remember this the bins go out Tuesday": {
     "args": {
       "content": "the bins go out tuesday"
@@ -827,11 +1020,47 @@
     "spoken_response": null,
     "tool": "research"
   },
+  "restore all": {
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "restore_all"
+  },
+  "restore the deleted file": {
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "undo_file_change"
+  },
   "resume deep research": {
     "args": {},
     "kind": "tool",
     "spoken_response": null,
     "tool": "resume_deep_research"
+  },
+  "save this link": {
+    "args": {
+      "action": "save"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "bookmarks"
+  },
+  "save this recipe": {
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "save_page_knowledge"
+  },
+  "scale the recipe to 6 servings": {
+    "args": {
+      "action": "shopping_list",
+      "name": "",
+      "servings": 6.0
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "saved_list_status"
   },
   "screenshot": {
     "args": {},
@@ -857,7 +1086,7 @@
   },
   "search the web for tide tables": {
     "args": {
-      "url": "https://www.google.com/search?q=the+web+for+tide+tables"
+      "url": "https://www.google.com/search?q=tide+tables"
     },
     "kind": "tool",
     "spoken_response": null,
@@ -885,6 +1114,15 @@
     "spoken_response": null,
     "tool": "see_screen"
   },
+  "shopping list for borscht": {
+    "args": {
+      "action": "shopping_list",
+      "name": "borscht"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "saved_list_status"
+  },
   "show capabilities": {
     "args": {},
     "kind": "tool",
@@ -902,6 +1140,12 @@
     "kind": "tool",
     "spoken_response": null,
     "tool": "show_dashboard"
+  },
+  "show desktop": {
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "minimize_all"
   },
   "show errors": {
     "args": {},
@@ -933,6 +1177,15 @@
     "spoken_response": null,
     "tool": "show_logs"
   },
+  "show me the recipe": {
+    "args": {
+      "action": "show_recipe",
+      "name": ""
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "saved_list_status"
+  },
   "show me the system stats": {
     "args": {},
     "kind": "tool",
@@ -945,8 +1198,43 @@
     "spoken_response": null,
     "tool": "open_notes"
   },
+  "show the whole list": {
+    "args": {
+      "action": "show",
+      "name": ""
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "saved_list_status"
+  },
   "shut up": {
     "kind": "stop"
+  },
+  "snap chrome left": {
+    "args": {
+      "action": "snap_left",
+      "window": "chrome"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "window_action"
+  },
+  "snap vs code top right": {
+    "args": {
+      "action": "snap_top_right",
+      "window": "vs code"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "window_action"
+  },
+  "speak english": {
+    "args": {
+      "language": "en"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "switch_language"
   },
   "start workspace": {
     "args": {},
@@ -962,6 +1250,12 @@
   },
   "stop the music": {
     "kind": "none"
+  },
+  "system stats": {
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "report_cpu_and_memory_percentages"
   },
   "take a note about the meeting being moved to Friday": {
     "args": {
@@ -983,6 +1277,14 @@
     "spoken_response": null,
     "tool": "screenshot"
   },
+  "task view": {
+    "args": {
+      "action": "task_view"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "virtual_desktop"
+  },
   "tell me a joke": {
     "kind": "none"
   },
@@ -1002,10 +1304,26 @@
     "tool": "enable_deep_research_ultra"
   },
   "type hello world": {
-    "kind": "none"
+    "args": {
+      "text": "hello world"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "type_into_active_window"
   },
   "type my email address": {
-    "kind": "none"
+    "args": {
+      "text": "my email address"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "type_into_active_window"
+  },
+  "undo that": {
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "undo_file_change"
   },
   "unmute": {
     "kind": "none"
@@ -1054,6 +1372,12 @@
     "spoken_response": null,
     "tool": "volume"
   },
+  "weather": {
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "get_weather"
+  },
   "weather today": {
     "kind": "none"
   },
@@ -1090,6 +1414,12 @@
     "spoken_response": null,
     "tool": "show_clipboard_history"
   },
+  "what is in my clipboard": {
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "clipboard"
+  },
   "what is on the display": {
     "args": {},
     "kind": "tool",
@@ -1100,8 +1430,33 @@
     "kind": "speak",
     "text": "It's 1:05 PM, sir."
   },
+  "what time is it": {
+    "kind": "speak",
+    "text": "It's 1:05 PM, sir."
+  },
+  "what's left": {
+    "args": {
+      "action": "remaining",
+      "name": ""
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "saved_list_status"
+  },
+  "what's my progress": {
+    "args": {
+      "action": "progress",
+      "name": ""
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "saved_list_status"
+  },
   "what's on my clipboard": {
-    "kind": "none"
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "clipboard"
   },
   "what's on my screen": {
     "args": {},
@@ -1109,18 +1464,35 @@
     "spoken_response": null,
     "tool": "see_screen"
   },
+  "what's the date": {
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "get_time"
+  },
   "what's the time": {
     "kind": "speak",
     "text": "It's 1:05 PM, sir."
   },
   "what's the weather": {
-    "kind": "none"
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "get_weather"
   },
   "would you please take a screenshot": {
     "args": {},
     "kind": "tool",
     "spoken_response": null,
     "tool": "screenshot"
+  },
+  "write meeting notes": {
+    "args": {
+      "text": "meeting notes"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "type_into_active_window"
   },
   "write this down call the dentist": {
     "args": {
@@ -1137,5 +1509,78 @@
     "kind": "tool",
     "spoken_response": null,
     "tool": "take_note"
+  },
+  "говори по-украински": {
+    "args": {
+      "language": "uk"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "switch_language"
+  },
+  "запусти игру Ведьмак": {
+    "args": {
+      "game_name": "ведьмак"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "launch_game"
+  },
+  "код слева, хром справа": {
+    "args": {
+      "left": "код",
+      "right": "хром"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "snap_layout"
+  },
+  "надрукуй привіт світ": {
+    "args": {
+      "text": "привіт світ"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "type_into_active_window"
+  },
+  "напечатай привет мир": {
+    "args": {
+      "text": "привет мир"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "type_into_active_window"
+  },
+  "помести хром в верхний левый угол": {
+    "args": {
+      "action": "snap_top_left",
+      "window": "хром"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "window_action"
+  },
+  "сверни всё": {
+    "args": {},
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "minimize_all"
+  },
+  "следующий рабочий стол": {
+    "args": {
+      "action": "next"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "virtual_desktop"
+  },
+  "центрируй дискорд": {
+    "args": {
+      "action": "snap_center",
+      "window": "дискорд"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "window_action"
   }
 }

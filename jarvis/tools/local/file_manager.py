@@ -87,9 +87,11 @@ _FILE_EXTENSIONS: frozenset[str] = frozenset((
 # from being mistaken for a file and routed to file_manager — those TLDs
 # are not in the set, so the pattern simply does not match and the
 # utterance falls through to open_url. Longest-first so ".docx" wins over
-# ".doc"; case-insensitive at the use site.
+# ".doc"; case-insensitive at the use site. Ties sorted by name: the set's
+# own order changes from run to run (string hashing), and with it the
+# regex text the router golden pins.
 _EXT_ALTERNATION: str = "|".join(
-    sorted((e.lstrip(".") for e in _FILE_EXTENSIONS), key=len, reverse=True)
+    sorted((e.lstrip(".") for e in _FILE_EXTENSIONS), key=lambda e: (-len(e), e))
 )
 
 # Directories searched (in order) when a bare filename has no path.

@@ -145,9 +145,10 @@ _RUN_FIRST_TOKENS: frozenset[str] = frozenset(
 )
 # Alternation of allowed first tokens, longest-first so e.g. "nvidia-smi"
 # is tried before any shorter prefix. Word-boundary after so "ver" does not
-# match "verify".
+# match "verify". Ties sorted by name, so the regex text does not change
+# from run to run with the set's order (the router golden pins it).
 _RUN_CMD_ALT = "|".join(
-    re.escape(t) for t in sorted(_RUN_FIRST_TOKENS, key=len, reverse=True)
+    re.escape(t) for t in sorted(_RUN_FIRST_TOKENS, key=lambda t: (-len(t), t))
 )
 # Captures the whole command (first token guaranteed to be whitelisted).
 _RUN_CMD_CAPTURE = rf"((?:{_RUN_CMD_ALT})(?:\s.*)?)"

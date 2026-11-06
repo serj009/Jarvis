@@ -392,10 +392,6 @@ def _router_without_registry() -> IntentRouter:
 # --- tests -----------------------------------------------------------
 
 
-@pytest.mark.skip(
-    reason="Goldens need regeneration after Phase 6+7 voice patterns — "
-    "run `python tests/llm/_regen_router_goldens.py` and review the diff"
-)
 def test_pattern_table_order_matches_golden():
     """The assembled table must be in exactly the pre-refactor order.
 
@@ -409,10 +405,6 @@ def test_pattern_table_order_matches_golden():
     assert actual == expected
 
 
-@pytest.mark.skip(
-    reason="Goldens need regeneration after Phase 6+7 voice patterns — "
-    "run `python tests/llm/_regen_router_goldens.py` and review the diff"
-)
 def test_every_corpus_utterance_resolves_identically_to_golden():
     expected = json.loads(_INTENT_GOLDEN.read_text(encoding="utf-8"))
     actual = resolve_corpus(_router_without_registry())
