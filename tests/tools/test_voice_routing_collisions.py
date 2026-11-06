@@ -347,6 +347,10 @@ def test_web_search_query_leaves_out_the_web(phrase: str, query: str) -> None:
         ("запиши нотатку купити хліб", "купити хліб"),
         ("запиши собі в нотатки подзвонити", "подзвонити"),
         ("запиши заметку купить хлеб", "купить хлеб"),
+        # "создай заметку X" went to the model (and before d520629, to
+        # image generation).
+        ("создай заметку купить хлеб", "купить хлеб"),
+        ("створи нотатку купити хліб", "купити хліб"),
     ],
 )
 def test_note_content_leaves_out_the_command(phrase: str, content: str) -> None:
