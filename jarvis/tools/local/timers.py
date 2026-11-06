@@ -15,6 +15,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import say, spoken_duration
 from jarvis.platform.encrypted_store import EncryptedJsonStore
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
@@ -182,6 +183,14 @@ class CancelTimerArgs(BaseModel):
 # Tool classes
 # ---------------------------------------------------------------------------
 
+def _timer_set_phrase(name: str, seconds: float) -> str:
+    """'Таймер на 5 минут, сэр.' -- named only when the user named it."""
+    duration = spoken_duration(seconds)
+    if name:
+        return say("timer_set_named", name=name, duration=duration)
+    return say("timer_set", duration=duration)
+
+
 class SetTimerTool:
     name: str = "set_timer"
     description: str = (
@@ -240,6 +249,7 @@ class SetTimerTool:
             return ToolResult(
                 success=True,
                 output=f"Timer '{result['name']}' set for {result['duration']}, sir.",
+                spoken=_timer_set_phrase(args.name, args.seconds),
             )
         return ToolResult(success=False, error=result.get("error", "Failed to set timer."))
 
@@ -283,6 +293,7 @@ class CancelTimerTool:
             return ToolResult(
                 success=True,
                 output=f"Timer '{args.name}' cancelled, sir.",
+                spoken=say("timer_cancelled", name=args.name),
             )
         return ToolResult(success=False, error=result.get("error", "Timer not found."))
 
@@ -320,8 +331,16 @@ class ListTimersTool:
         store = self._get_store()
         timers = store.list_timers()
         if not timers:
-            return ToolResult(success=True, output="No active timers, sir.")
+            return ToolResult(
+                success=True, output="No active timers, sir.", spoken=say("timers_none"),
+            )
         lines = [f"{len(timers)} active timer(s):"]
         for t in timers:
             lines.append(f"  • {t['name']} — {t['remaining']} remaining")
-        return ToolResult(success=True, output="\n".join(lines))
+        items = "; ".join(
+            say("timer_left", name=t["name"], left=spoken_duration(t["remaining_sec"]))
+            for t in timers
+        )
+        return ToolResult(
+            success=True, output="\n".join(lines), spoken=say("timers_list", items=items),
+        )

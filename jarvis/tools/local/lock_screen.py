@@ -7,6 +7,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel
 
+from jarvis.core.phrases import say
 from jarvis.platform import windows as winplat
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
@@ -60,4 +61,6 @@ class LockScreenTool:
             return ToolResult(success=False, error=str(e))
         except OSError as e:
             return ToolResult(success=False, error=f"lock failed: {e}")
-        return ToolResult(success=True, output="Locking the workstation, sir.")
+        return ToolResult(
+            success=True, output="Locking the workstation, sir.", spoken=say("locking"),
+        )

@@ -22,6 +22,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import closing_phrase
 from jarvis.core.request_context import current_user_transcription
 from jarvis.platform.app_discovery import fuzzy_resolve, normalize_open_query, normalize_query
 from jarvis.tools.local.open_app import _APP_ALIASES
@@ -201,4 +202,8 @@ class CloseAppTool:
             log.warning("close_app: kill failed for %r: %s", name, e)
             return ToolResult(success=False, error=f"could not close {name}: {e}")
 
-        return ToolResult(success=True, output=f"Closing {name.title()}, sir.")
+        return ToolResult(
+            success=True,
+            output=f"Closing {name.title()}, sir.",
+            spoken=closing_phrase(name.title()),
+        )

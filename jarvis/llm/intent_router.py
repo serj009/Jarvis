@@ -1634,6 +1634,8 @@ def _result_for_speech(result: ToolResult) -> str:
     there is no further model round to summarise the result."""
     if not result.success:
         return _ensure_sentence_terminator(_spoken_error(result))
+    if result.spoken:
+        return _ensure_sentence_terminator(result.spoken)
     if isinstance(result.output, str) and result.output:
         return _ensure_sentence_terminator(result.output)
     # Terminated (unlike execute_intent's bare _GENERIC_OK) because the
@@ -1689,7 +1691,9 @@ async def execute_intent(
                         "execute_intent: on_tool_success hook failed",
                         exc_info=True,
                     )
-            if isinstance(result.output, str) and result.output:
+            if result.spoken:
+                yield _ensure_sentence_terminator(_scrub_for_speech(result.spoken))
+            elif isinstance(result.output, str) and result.output:
                 yield _ensure_sentence_terminator(
                     _scrub_for_speech(result.output)
                 )

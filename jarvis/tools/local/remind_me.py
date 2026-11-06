@@ -30,6 +30,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import say, spoken_duration, spoken_when
 from jarvis.memory.scheduled_reminders import ReminderStore
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
@@ -382,6 +383,9 @@ class RemindMeTool:
                 f"Reminder set for {delay_str} from now, sir: "
                 f"'{args.text}' (id: {reminder.id})."
             ),
+            spoken=say(
+                "reminder_set_in", duration=spoken_duration(args.seconds), text=args.text,
+            ),
         )
 
 
@@ -562,6 +566,7 @@ class RemindMeAtTool:
                 f"Reminder set for {time_str}, sir: "
                 f"'{args.text}' (id: {reminder.id})."
             ),
+            spoken=say("reminder_set_at", when=spoken_when(local_trigger), text=args.text),
         )
 
 
@@ -604,14 +609,22 @@ class ListRemindersTool:
         store = self._get_store()
         pending = store.list_pending()
         if not pending:
-            return ToolResult(success=True, output="No pending reminders, sir.")
+            return ToolResult(
+                success=True, output="No pending reminders, sir.", spoken=say("reminders_none"),
+            )
         lines = [f"{len(pending)} pending reminder(s):"]
         for r in pending:
             local_t = r.trigger_at.astimezone()
             lines.append(
                 f"  • [{r.id}] {local_t.strftime('%H:%M %d %b')} — {r.text}"
             )
-        return ToolResult(success=True, output="\n".join(lines))
+        items = "; ".join(
+            say("reminder_item", when=spoken_when(r.trigger_at.astimezone()), text=r.text)
+            for r in pending
+        )
+        return ToolResult(
+            success=True, output="\n".join(lines), spoken=say("reminders_list", items=items),
+        )
 
 
 class DeleteReminderTool:
@@ -679,6 +692,7 @@ class DeleteReminderTool:
                 f"Deleted reminder '{deleted.text}' "
                 f"(id: {deleted.id}), sir."
             ),
+            spoken=say("reminder_deleted", text=deleted.text),
         )
 
 
@@ -784,6 +798,12 @@ class RecurringReminderTool:
                 f"Recurring reminder set ({recurrence}) at {hour:02d}:{minute:02d}, "
                 f"first on {first}, sir: '{args.text}' (id: {reminder.id})."
             ),
+            spoken=say(
+                "reminder_recurring",
+                how_often=_how_often(recurrence),
+                time=f"{hour}:{minute:02d}",
+                text=args.text,
+            ),
         )
 
 
@@ -874,13 +894,18 @@ class SnoozeReminderTool:
             new_trigger = resolve_absolute_time(parsed[0], parsed[1])
             when = new_trigger.astimezone().strftime("%H:%M")
             note = f"until {when}"
+            spoken = say("reminder_snoozed_until", text=last.text, time=when)
         else:
             new_trigger = datetime.now(tz=UTC) + timedelta(minutes=args.minutes)
             note = f"for {args.minutes} min"
+            spoken = say(
+                "reminder_snoozed_for", text=last.text, duration=spoken_duration(args.minutes * 60),
+            )
         store.update_reminder(last.id, trigger_at=new_trigger, fired=False)
         return ToolResult(
             success=True,
             output=f"Snoozed '{last.text}' {note}, sir.",
+            spoken=spoken,
         )
 
 
@@ -975,7 +1000,23 @@ class EditReminderTool:
         return ToolResult(
             success=True,
             output=f"Updated reminder '{target.text}' (id: {target.id}), sir.",
+            spoken=say("reminder_updated", text=updates.get("text", target.text)),
         )
+
+
+_HOW_OFTEN: dict[str, dict[str, str]] = {
+    "daily": {"ru": "каждый день", "uk": "щодня", "en": "every day"},
+    "weekdays": {"ru": "по будням", "uk": "у будні", "en": "on weekdays"},
+    "weekly": {"ru": "каждую неделю", "uk": "щотижня", "en": "every week"},
+    "monthly": {"ru": "каждый месяц", "uk": "щомісяця", "en": "every month"},
+}
+
+
+def _how_often(recurrence: str) -> str:
+    from jarvis.core.phrases import reply_language
+
+    words = _HOW_OFTEN.get(recurrence, _HOW_OFTEN["daily"])
+    return words.get(reply_language(), words["en"])
 
 
 def _norm_recurrence(word: str) -> str:

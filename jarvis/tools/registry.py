@@ -142,6 +142,11 @@ class ToolResult:
     # not disturb success, output, error or their consumers (repeat_last,
     # audit log, LLM loop, failure metrics). None when there is no hint.
     suggestion: str | None = None
+    # What to SAY when a voice pattern ran the tool directly: a short
+    # sentence in the request's language (jarvis.core.phrases.say), without
+    # the ids and details `output` keeps for the model. None: `output` is
+    # spoken, as before. The model always reads `output`.
+    spoken: str | None = None
 
 
 # Contravariant because `execute` only ever *consumes* its argument: a

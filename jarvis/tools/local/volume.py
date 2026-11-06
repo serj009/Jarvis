@@ -13,6 +13,7 @@ from typing import ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import say
 from jarvis.platform import windows as winplat
 from jarvis.tools.registry import ToolResult, VoicePattern
 
@@ -115,14 +116,17 @@ class VolumeTool:
             if args.action == "up":
                 await asyncio.to_thread(winplat.volume_up, args.amount)
                 spoken = "Volume up, sir."
+                key = "volume_up"
             elif args.action == "down":
                 await asyncio.to_thread(winplat.volume_down, args.amount)
                 spoken = "Volume down, sir."
+                key = "volume_down"
             else:
                 # mute and unmute both tap the toggle key. The OS owns
                 # the actual mute state; we don't second-guess it.
                 await asyncio.to_thread(winplat.volume_mute_toggle)
                 spoken = "Toggled mute, sir."
+                key = "volume_mute"
         except NotImplementedError as e:
             return ToolResult(success=False, error=str(e))
-        return ToolResult(success=True, output=spoken)
+        return ToolResult(success=True, output=spoken, spoken=say(key))

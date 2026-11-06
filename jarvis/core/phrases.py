@@ -24,6 +24,7 @@ Strings come from the Update Pack (`i18n_action_strings.yaml`,
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from typing import Literal
 
 from jarvis.core.request_context import current_user_transcription
@@ -317,6 +318,101 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Скриншот сохранён, сэр.",
         "uk": "Скриншот збережено, сер.",
     },
+    # ── Spoken results of voice-routed tools (ToolResult.spoken) ──────
+    "volume_up": {"en": "Volume up, sir.", "ru": "Громче, сэр.", "uk": "Гучніше, сер."},
+    "volume_down": {"en": "Volume down, sir.", "ru": "Тише, сэр.", "uk": "Тихіше, сер."},
+    "volume_mute": {
+        "en": "Toggled mute, sir.",
+        "ru": "Переключил звук, сэр.",
+        "uk": "Перемкнув звук, сер.",
+    },
+    "locking": {
+        "en": "Locking the workstation, sir.",
+        "ru": "Блокирую компьютер, сэр.",
+        "uk": "Блокую комп'ютер, сер.",
+    },
+    "closing": {
+        "en": "Closing {name}, sir.",
+        "ru": "Закрываю {name}, сэр.",
+        "uk": "Закриваю {name}, сер.",
+    },
+    "closing_unnamed": {"en": "Closing it, sir.", "ru": "Закрываю, сэр.", "uk": "Закриваю, сер."},
+    "timer_set": {
+        "en": "Timer set for {duration}, sir.",
+        "ru": "Таймер на {duration}, сэр.",
+        "uk": "Таймер на {duration}, сер.",
+    },
+    "timer_set_named": {
+        "en": "Timer '{name}' set for {duration}, sir.",
+        "ru": "Таймер «{name}» на {duration}, сэр.",
+        "uk": "Таймер «{name}» на {duration}, сер.",
+    },
+    "timer_cancelled": {
+        "en": "Timer '{name}' cancelled, sir.",
+        "ru": "Таймер «{name}» отменён, сэр.",
+        "uk": "Таймер «{name}» скасовано, сер.",
+    },
+    "timers_none": {
+        "en": "No active timers, sir.",
+        "ru": "Активных таймеров нет, сэр.",
+        "uk": "Активних таймерів немає, сер.",
+    },
+    "timers_list": {
+        "en": "Active timers: {items}.",
+        "ru": "Активные таймеры: {items}.",
+        "uk": "Активні таймери: {items}.",
+    },
+    "timer_left": {
+        "en": "{name}, {left} left",
+        "ru": "«{name}» ещё {left}",
+        "uk": "«{name}» ще {left}",
+    },
+    "reminder_set_in": {
+        "en": "I'll remind you in {duration}, sir: {text}.",
+        "ru": "Напомню через {duration}, сэр: {text}.",
+        "uk": "Нагадаю через {duration}, сер: {text}.",
+    },
+    "reminder_set_at": {
+        "en": "I'll remind you {when}, sir: {text}.",
+        "ru": "Напомню {when}, сэр: {text}.",
+        "uk": "Нагадаю {when}, сер: {text}.",
+    },
+    "reminder_recurring": {
+        "en": "I'll remind you {how_often} at {time}, sir: {text}.",
+        "ru": "Буду напоминать {how_often} в {time}, сэр: {text}.",
+        "uk": "Нагадуватиму {how_often} о {time}, сер: {text}.",
+    },
+    "reminders_none": {
+        "en": "No pending reminders, sir.",
+        "ru": "Напоминаний нет, сэр.",
+        "uk": "Нагадувань немає, сер.",
+    },
+    "reminders_list": {
+        "en": "Reminders: {items}.",
+        "ru": "Напоминания: {items}.",
+        "uk": "Нагадування: {items}.",
+    },
+    "reminder_item": {"en": "{when}, {text}", "ru": "{when} — {text}", "uk": "{when} — {text}"},
+    "reminder_deleted": {
+        "en": "Deleted the reminder '{text}', sir.",
+        "ru": "Удалил напоминание «{text}», сэр.",
+        "uk": "Видалив нагадування «{text}», сер.",
+    },
+    "reminder_snoozed_for": {
+        "en": "Snoozed '{text}' for {duration}, sir.",
+        "ru": "Отложил «{text}» на {duration}, сэр.",
+        "uk": "Відклав «{text}» на {duration}, сер.",
+    },
+    "reminder_snoozed_until": {
+        "en": "Snoozed '{text}' until {time}, sir.",
+        "ru": "Отложил «{text}» до {time}, сэр.",
+        "uk": "Відклав «{text}» до {time}, сер.",
+    },
+    "reminder_updated": {
+        "en": "Updated the reminder '{text}', sir.",
+        "ru": "Изменил напоминание «{text}», сэр.",
+        "uk": "Змінив нагадування «{text}», сер.",
+    },
     # ── Broken modules (M2-3, jarvis/audio/pipeline.py) ──────────────
     "error_stt_failed": {
         "en": "Speech recognition failed, sir. Please try again.",
@@ -409,6 +505,82 @@ def reminder_phrase(text: str) -> str:
     A reminder can fire days later, long after the request that set it, so
     the language is that of its text (the user's own words)."""
     return say("reminder_fired", detect_language(text) or reply_language(), text=text)
+
+
+def plural(n: int, one: str, few: str, many: str, lang: Lang) -> str:
+    """The form of a noun after the number n: ru / uk rules (1 минуту,
+    2 минуты, 5 минут, 21 минуту); English uses one / many."""
+    n = abs(n)
+    if lang == "en":
+        return one if n == 1 else many
+    if n % 10 == 1 and n % 100 != 11:
+        return one
+    if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
+        return few
+    return many
+
+
+# Accusative forms, for "на 5 минут" / "через 1 минуту" / "for 1 minute".
+_DURATION_UNITS: dict[Lang, tuple[tuple[str, str, str], ...]] = {
+    "ru": (("час", "часа", "часов"), ("минуту", "минуты", "минут"),
+           ("секунду", "секунды", "секунд")),
+    "uk": (("годину", "години", "годин"), ("хвилину", "хвилини", "хвилин"),
+           ("секунду", "секунди", "секунд")),
+    "en": (("hour", "hours", "hours"), ("minute", "minutes", "minutes"),
+           ("second", "seconds", "seconds")),
+}
+
+
+def spoken_duration(seconds: float, lang: Lang | None = None) -> str:
+    """'1 час 30 минут', '5 хвилин', '45 seconds' (accusative in ru / uk)."""
+    lang = lang or reply_language()
+    total = max(0, int(round(seconds)))
+    parts = []
+    for value, forms in zip(
+        (total // 3600, total % 3600 // 60, total % 60), _DURATION_UNITS[lang], strict=True,
+    ):
+        if value:
+            parts.append(f"{value} {plural(value, *forms, lang)}")
+    if not parts:
+        return f"0 {plural(0, *_DURATION_UNITS[lang][2], lang)}"
+    return " ".join(parts)
+
+
+_MONTHS_GENITIVE: dict[Lang, tuple[str, ...]] = {
+    "ru": ("января", "февраля", "марта", "апреля", "мая", "июня", "июля",
+           "августа", "сентября", "октября", "ноября", "декабря"),
+    "uk": ("січня", "лютого", "березня", "квітня", "травня", "червня", "липня",
+           "серпня", "вересня", "жовтня", "листопада", "грудня"),
+    "en": ("January", "February", "March", "April", "May", "June", "July",
+           "August", "September", "October", "November", "December"),
+}
+_AT: dict[Lang, str] = {"ru": "в", "uk": "о", "en": "at"}
+_TOMORROW: dict[Lang, str] = {"ru": "завтра", "uk": "завтра", "en": "tomorrow"}
+
+
+def spoken_when(moment: datetime, now: datetime | None = None, lang: Lang | None = None) -> str:
+    """'в 15:00', 'завтра в 9:05', '7 ноября в 15:00' / 'at 15:00',
+    'tomorrow at 9:05', 'November 7 at 15:00' (local time of `moment`)."""
+    lang = lang or reply_language()
+    now = now or datetime.now(tz=moment.tzinfo)
+    clock = f"{_AT[lang]} {moment.hour}:{moment.minute:02d}"
+    days = (moment.date() - now.date()).days
+    if days == 0:
+        return clock
+    if days == 1:
+        return f"{_TOMORROW[lang]} {clock}"
+    month = _MONTHS_GENITIVE[lang][moment.month - 1]
+    day = f"{month} {moment.day}" if lang == "en" else f"{moment.day} {month}"
+    return f"{day} {clock}"
+
+
+def closing_phrase(name: str, lang: Lang | None = None) -> str:
+    """'Closing {name}, sir.' in the request's language."""
+    lang = lang or reply_language()
+    spoken = spoken_name(name, lang)
+    if spoken:
+        return say("closing", lang, name=spoken)
+    return say("closing_unnamed", lang)
 
 
 # Cyrillic spellings (ru, uk) for names the ru/uk voices would misread.
