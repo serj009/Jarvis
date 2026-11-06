@@ -184,6 +184,10 @@ CORPUS: tuple[str, ...] = (
     "show errors",
     "close logs",
     "Tray icon → Show tutorial",
+    "Tray icon → Sleep",
+    "Tray icon → Wake",
+    "Press Ctrl+Shift+M",
+    "Tray icon → Mute",
     # -- README feature list
     "stop",
     "shut up",

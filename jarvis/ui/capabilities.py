@@ -74,13 +74,16 @@ CAPABILITY_CATEGORIES: tuple[CapabilityCategory, ...] = (
                 examples=("Hey Jarvis", "Hey Jarvis, what time is it?"),
                 tools=(),
             ),
+            # Sleep and mute have no voice command: "go to sleep" is the
+            # computer's sleep (power_control) and "mute" goes to the model.
+            # Roadmap B-P3-8.
             Capability(
                 name="Put Jarvis to sleep",
                 description=(
                     "Stops listening and unloads heavy models so your PC "
-                    "stays quick. Wake him back up with the wake phrase."
+                    "stays quick. Wake him from the same tray menu."
                 ),
-                examples=("go to sleep", "stop listening"),
+                examples=("Tray icon → Sleep", "Tray icon → Wake"),
                 tools=(),
             ),
             Capability(
@@ -89,7 +92,7 @@ CAPABILITY_CATEGORIES: tuple[CapabilityCategory, ...] = (
                     "Mute pauses Jarvis without unloading anything — handy "
                     "on calls or during music."
                 ),
-                examples=("mute", "unmute"),
+                examples=("Press Ctrl+Shift+M", "Tray icon → Mute"),
                 tools=(),
             ),
         ),

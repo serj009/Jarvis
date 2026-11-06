@@ -248,3 +248,17 @@ def test_capability_categories_and_order_are_stable():
         "Window management",
     ]
     assert all(c.icon_glyph for c in CAPABILITY_CATEGORIES)
+
+
+def test_a_capability_without_a_tool_shows_no_voice_command():
+    """"go to sleep" was the example for putting Jarvis to sleep, which has
+    no tool: the phrase put the computer to sleep, and "mute" went to the
+    model. Such a card shows where to click or what to press instead."""
+    for category in CAPABILITY_CATEGORIES:
+        for cap in category.capabilities:
+            if cap.tools:
+                continue
+            for example in cap.examples:
+                assert example.startswith(("Tray icon →", "Press ", "Hey Jarvis", "(")), (
+                    f"{cap.name!r}: {example!r} reads as a voice command"
+                )
