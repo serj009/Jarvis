@@ -56,3 +56,21 @@ def test_exclusions_are_still_needed():
     registered = _registered_tools()
     stale = sorted(n for n in _NOT_CATALOGUED if n in catalogued or n not in registered)
     assert stale == [], f"remove from _NOT_CATALOGUED: {stale}"
+
+
+def test_patterns_pass_the_required_arguments():
+    """A pattern without `args` calls its tool with {}. generate_image had
+    three such patterns over a required `prompt`, so every voice request for
+    a picture failed validation."""
+    from jarvis.tools.catalogue import _local_tool_classes
+    from jarvis.tools.registry import VoicePattern
+
+    no_args = VoicePattern(regex="", priority=0).args
+    missing = [
+        (cls.name, vp.regex)
+        for cls in _local_tool_classes()
+        for vp in getattr(cls, "voice_patterns", ())
+        if vp.args is no_args
+        and any(f.is_required() for f in cls.args_schema.model_fields.values())
+    ]
+    assert missing == []
