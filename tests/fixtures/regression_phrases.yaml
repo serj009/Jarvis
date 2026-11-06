@@ -332,6 +332,10 @@
 - say: "mark phoenix wings as done"
   tool: "mark_list_item"
   args: {item: "phoenix wings", done: true}
+- say: "continue"
+  tool: "read_more"
+- say: "keep going"
+  tool: "read_more"
 - say: "shopping list for borscht"
   tool: "saved_list_status"
   args: {action: "shopping_list", name: "borscht"}

@@ -142,8 +142,10 @@ class MediaControlTool:
             priority=15,
             args=lambda m: {"action": "pause"},
         ),
+        # Not "continue": a bare "continue" is research's "read more"
+        # (research.py, priority 70), and this pattern at 15 took it.
         VoicePattern(
-            regex=r"^(?:play|resume|continue)$",
+            regex=r"^(?:play|resume)$",
             priority=15,
             args=lambda m: {"action": "play"},
         ),
