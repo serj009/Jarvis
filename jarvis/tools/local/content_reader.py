@@ -210,15 +210,19 @@ class ContentReaderTool:
         text, err = await asyncio.to_thread(self._fetch_text, url)
         if err:
             return ToolResult(success=False, error=err)
-        # Copy to clipboard via platform
+        # It called winplat.clipboard_set, which does not exist: the error
+        # was swallowed and "Copied N characters" reported with nothing
+        # copied. write_clipboard_text is the real helper.
+        copied = text[:10000]
         try:
             from jarvis.platform import windows as winplat
-            await asyncio.to_thread(winplat.clipboard_set, text[:10000])
-        except Exception:
-            log.debug("clipboard_set unavailable", exc_info=True)
+            await asyncio.to_thread(winplat.write_clipboard_text, copied)
+        except Exception as exc:
+            log.warning("clipboard write failed: %s", exc)
+            return ToolResult(success=False, error=f"Could not copy to the clipboard: {exc}")
         return ToolResult(
             success=True,
-            output=f"Copied {len(text)} characters to clipboard, sir.",
+            output=f"Copied {len(copied)} characters to clipboard, sir.",
         )
 
     async def _save_pdf(self) -> ToolResult:

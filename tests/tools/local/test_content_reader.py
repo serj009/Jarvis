@@ -226,3 +226,37 @@ class TestCurrentPageWithoutSelenium:
         result = await ContentReaderTool().execute(ContentReaderArgs(action="get_title"))
         assert result.success
         assert "Opened" in output_text(result)
+
+
+# -- copy_text really copies (found by pyright, M2-1) --------------------------
+
+
+@pytest.mark.asyncio
+async def test_copy_text_writes_the_clipboard(monkeypatch):
+    """It called winplat.clipboard_set, which does not exist; the error was
+    swallowed and "Copied N characters" reported with nothing copied."""
+    from jarvis.platform import windows as winplat
+
+    copied: list[str] = []
+    monkeypatch.setattr(winplat, "write_clipboard_text", copied.append)
+    tool = ContentReaderTool()
+    monkeypatch.setattr(tool, "_fetch_text", lambda url: ("page text " * 2000, None))
+    result = await tool.execute(ContentReaderArgs(action="copy_text", url="https://x"))
+    assert result.success
+    assert copied == [("page text " * 2000)[:10000]]
+    assert "Copied 10000 characters" in output_text(result)
+
+
+@pytest.mark.asyncio
+async def test_copy_text_reports_a_clipboard_failure(monkeypatch):
+    from jarvis.platform import windows as winplat
+
+    def busy(text):
+        raise OSError("clipboard is busy")
+
+    monkeypatch.setattr(winplat, "write_clipboard_text", busy)
+    tool = ContentReaderTool()
+    monkeypatch.setattr(tool, "_fetch_text", lambda url: ("text", None))
+    result = await tool.execute(ContentReaderArgs(action="copy_text", url="https://x"))
+    assert not result.success
+    assert "clipboard is busy" in (result.error or "")
