@@ -379,6 +379,21 @@ CAPABILITY_CATEGORIES: tuple[CapabilityCategory, ...] = (
                 tools=("get_weather",),
             ),
             Capability(
+                name="Time and date",
+                description="Tells the time or today's date, without asking the model.",
+                examples=("what time is it", "what's the date"),
+                tools=("get_time",),
+            ),
+            Capability(
+                name="Change the language",
+                description=(
+                    "Switches speech recognition and the voice to Russian, "
+                    "Ukrainian or English, or back to detecting the language."
+                ),
+                examples=("speak english", "говори по-украински"),
+                tools=("switch_language",),
+            ),
+            Capability(
                 name="Take a screenshot",
                 description="Captures the screen and copies it to clipboard.",
                 examples=("take a screenshot", "screenshot"),

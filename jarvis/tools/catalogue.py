@@ -128,6 +128,10 @@ def _local_tool_classes() -> tuple[type, ...]:
         FindGameSavesTool,
         ListKnownGamesTool,
     )
+
+    # Registered by setup_local_tools but missing here, so their voice
+    # patterns never reached the router ("который час" went to the model).
+    from jarvis.tools.local.get_time import GetTimeTool
     from jarvis.tools.local.git_tool import GitTool
     from jarvis.tools.local.help_tools import OpenHelpTool
     from jarvis.tools.local.hotkey_sender import SendHotkeyTool
@@ -251,6 +255,7 @@ def _local_tool_classes() -> tuple[type, ...]:
         ListStartupTool,
         RemoveFromStartupTool,
     )
+    from jarvis.tools.local.switch_language import SwitchLanguageTool
     from jarvis.tools.local.system_stats import SystemStatsTool
 
     # Phase 7 batch 3: browser/cross tools
@@ -358,6 +363,8 @@ def _local_tool_classes() -> tuple[type, ...]:
         SystemStatsTool,
         TypeIntoActiveWindowTool,
         VolumeTool,
+        GetTimeTool,
+        SwitchLanguageTool,
         WeatherTool,
         SavePageKnowledgeTool,
         PageReadingStatusTool,
