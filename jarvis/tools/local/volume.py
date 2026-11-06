@@ -79,6 +79,35 @@ class VolumeTool:
             priority=10,
             args=lambda m: {"action": _VOLUME_ACTION_MAP_UK.get(m.group(1), "up")},
         ),
+        # The everyday forms (M3 regression): "громче", "сделай тише",
+        # "погромче", "выключи звук". Without them "сделай громче" went to
+        # the autonomous agent ("сделай (.+)") and "выключи звук" to
+        # close_app as an app named "звук".
+        VoicePattern(
+            regex=r"^(?:сделай\s+)?(?:по)?(громче|тише)(?:\s+пожалуйста)?$",
+            priority=10,
+            args=lambda m: {"action": _VOLUME_ACTION_MAP_RU[m.group(1)]},
+        ),
+        VoicePattern(
+            regex=r"^(выключи|отключи|включи)\s+звук$",
+            priority=10,
+            args=lambda m: {"action": "unmute" if m.group(1) == "включи" else "mute"},
+        ),
+        VoicePattern(
+            regex=r"^(?:зроби\s+)?(гучніше|тихіше)(?:\s+будь\s+ласка)?$",
+            priority=10,
+            args=lambda m: {"action": _VOLUME_ACTION_MAP_UK[m.group(1)]},
+        ),
+        VoicePattern(
+            regex=r"^(вимкни|увімкни)\s+звук$",
+            priority=10,
+            args=lambda m: {"action": "mute" if m.group(1) == "вимкни" else "unmute"},
+        ),
+        VoicePattern(
+            regex=r"^(?:turn\s+(?:it|the\s+volume)\s+)?(louder|quieter|up|down)$",
+            priority=10,
+            args=lambda m: {"action": "up" if m.group(1) in ("louder", "up") else "down"},
+        ),
     )
 
     async def execute(self, args: VolumeArgs) -> ToolResult:

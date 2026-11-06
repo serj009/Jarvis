@@ -54,6 +54,15 @@ _CASES = [
     # A domain with "в браузере" before or after it is a website, not a
     # program: open_app's "открой (.+)" used to try to launch
     # "в браузере uakino.best" (seen in a live session).
+    # Everyday volume forms (M3): "сделай громче" went to the autonomous
+    # agent's "сделай (.+)", "выключи звук" to close_app ("звук" as an app).
+    ("громче", "volume"),
+    ("сделай тише", "volume"),
+    ("выключи звук", "volume"),
+    ("зроби гучніше", "volume"),
+    ("вимкни звук", "volume"),
+    ("louder", "volume"),
+    ("сделай бэкап сохранений ведьмак", "backup_game_saves"),
     ("открой uakino.best", "open_url"),
     ("открой в браузере uakino.best", "open_url"),
     ("открой uakino.best в браузере", "open_url"),
