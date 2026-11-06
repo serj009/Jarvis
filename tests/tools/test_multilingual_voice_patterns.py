@@ -319,6 +319,13 @@ class TestNotesMultilingual:
         _assert_pattern_matches(p, "запиши купить молоко", expected_group="купить молоко")
         _assert_pattern_matches(p, "заметка: встреча в 3", expected_group="встреча в 3")
         _assert_pattern_matches(p, "запомни номер телефона", expected_group="номер телефона")
+        # The command words are not part of the note (M3 regression probe:
+        # "запиши заметку купить хлеб" saved "заметку купить хлеб").
+        _assert_pattern_matches(p, "запиши заметку купить хлеб", expected_group="купить хлеб")
+        _assert_pattern_matches(p, "запиши себе в заметки позвонить", expected_group="позвонить")
+        _assert_pattern_matches(p, "сделай заметку: встреча в 3", expected_group="встреча в 3")
+        _assert_pattern_matches(p, "запомни, что завтра встреча", expected_group="завтра встреча")
+        assert re.match(p.regex, "сделай скриншот", re.IGNORECASE) is None
 
     def test_uk_take_note(self):
         from jarvis.tools.local.notes_tools import TakeNoteTool
@@ -327,6 +334,10 @@ class TestNotesMultilingual:
         _assert_pattern_matches(p, "запиши купити молоко", expected_group="купити молоко")
         _assert_pattern_matches(p, "нотатка: зустріч о 3", expected_group="зустріч о 3")
         _assert_pattern_matches(p, "запам'ятай номер", expected_group="номер")
+        _assert_pattern_matches(p, "запиши нотатку купити хліб", expected_group="купити хліб")
+        _assert_pattern_matches(p, "зроби нотатку: зустріч о 3", expected_group="зустріч о 3")
+        _assert_pattern_matches(p, "запам'ятай, що завтра зустріч", expected_group="завтра зустріч")
+        assert re.match(p.regex, "зроби скріншот", re.IGNORECASE) is None
 
     def test_ru_open_notes(self):
         from jarvis.tools.local.notes_tools import OpenNotesTool
