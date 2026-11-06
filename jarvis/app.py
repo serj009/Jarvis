@@ -133,11 +133,13 @@ from pathlib import Path
 # annotations`` keeps them as strings at runtime). Importing under
 # TYPE_CHECKING avoids pulling sounddevice/numpy into the module just to name a
 # type — the real value import stays lazy at the call sites.
-from typing import TYPE_CHECKING, Any, cast
+from typing import IO, TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     from jarvis.audio.devices import AudioInputSource
     from jarvis.core.phrases import Lang
+    from jarvis.integrations.registry import IntegrationRegistry
+    from jarvis.memory.proactive_engine import ProactiveEngine
 
 
 
@@ -1318,8 +1320,8 @@ async def _audio_main(
     reminder_scheduler: ReminderScheduler | None = None,
     self_eval_cfg: SelfEvaluationConfig | None = None,
     self_eval_report_dir: Path | None = None,
-    proactive_engine: object = None,
-    integration_registry: object = None,
+    proactive_engine: ProactiveEngine | None = None,
+    integration_registry: IntegrationRegistry | None = None,
 
 ) -> None:
 
@@ -1993,7 +1995,7 @@ class JarvisApp:
 
         # T1.5: singleton instance lock — held for the process lifetime.
         # Acquired in start(), released in _on_quit / finally.
-        self._instance_lock: object | None = None
+        self._instance_lock: IO[str] | None = None
 
 
 
@@ -2776,8 +2778,10 @@ class JarvisApp:
                 num_ctx=self.cfg.llm.num_ctx,
             )
         else:
-            self.ollama = APILLMClient.from_config(
-                self.cfg.llm, self.cfg.vision,
+            # A documented drop-in for OllamaClient (stream_chat, warm,
+            # unload, vision_chat, ...); typed as one for the code below.
+            self.ollama = cast(
+                OllamaClient, APILLMClient.from_config(self.cfg.llm, self.cfg.vision)
             )
 
 
@@ -2964,8 +2968,10 @@ class JarvisApp:
 
         # Wire game_mode into SeeScreenTool so it can use
         # on_demand_vision_query when Ollama is evicted from VRAM.
+        from jarvis.tools.local.see_screen import SeeScreenTool
+
         _see_screen_tool = self.registry.get("see_screen")
-        if _see_screen_tool is not None:
+        if isinstance(_see_screen_tool, SeeScreenTool):
             _see_screen_tool._game_mode = self.game_mode
         # Saved lists: "что осталось" with no name means the running game's
         # list. Wired here because GameMode exists only from this point on.
