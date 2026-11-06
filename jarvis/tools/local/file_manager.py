@@ -541,8 +541,16 @@ class FileManagerTool:
             priority=300,
             args=lambda m: {"action": "rename", "path": m.group(1), "destination": m.group(2)},
         ),
+        # A file only when it says so ("удали файл X") or X has an
+        # extension, as in English: a bare "удали X" is also a note, a
+        # bookmark or a fact, and those went here as paths.
         VoicePattern(
-            regex=r"^удали\s+(?:файл\s+)?(.+)$",
+            regex=r"^удали\s+(?:файл|папку)\s+(.+)$",
+            priority=300,
+            args=lambda m: {"action": "delete", "path": m.group(1)},
+        ),
+        VoicePattern(
+            regex=rf"^удали\s+(.+\.(?i:{_EXT_ALTERNATION}))$",
             priority=300,
             args=lambda m: {"action": "delete", "path": m.group(1)},
         ),
@@ -585,8 +593,16 @@ class FileManagerTool:
             priority=300,
             args=lambda m: {"action": "rename", "path": m.group(1), "destination": m.group(2)},
         ),
+        # A file only when it says so ("видали файл X") or X has an
+        # extension, as in English: a bare "видали X" is also a note, a
+        # bookmark or a fact, and those went here as paths.
         VoicePattern(
-            regex=r"^видали\s+(?:файл\s+)?(.+)$",
+            regex=r"^видали\s+(?:файл|папку|теку)\s+(.+)$",
+            priority=300,
+            args=lambda m: {"action": "delete", "path": m.group(1)},
+        ),
+        VoicePattern(
+            regex=rf"^видали\s+(.+\.(?i:{_EXT_ALTERNATION}))$",
             priority=300,
             args=lambda m: {"action": "delete", "path": m.group(1)},
         ),

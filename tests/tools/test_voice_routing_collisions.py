@@ -207,6 +207,47 @@ def test_questions_are_not_agent_goals(phrase: str) -> None:
     assert _route(phrase) != "autonomous_agent"
 
 
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        # A bare "удали X" is not "uninstall X" (M3 regression probe): these
+        # were offered for uninstalling through winget.
+        "удали файл test.txt на рабочем столе",
+        "удали из памяти мой адрес",
+        "удали заметку покупки",
+        "удали закладку ютуб",
+        "видали нотатку покупки",
+    ],
+)
+def test_delete_is_not_uninstall(phrase: str) -> None:
+    assert _route(phrase) != "package_uninstall"
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    ["удали из памяти мой адрес", "удали заметку покупки", "видали нотатку покупки",
+     "удали историю буфера"],
+)
+def test_delete_without_a_file_is_not_a_file(phrase: str) -> None:
+    assert _route(phrase) != "file_manager"
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    ["удали файл test.txt на рабочем столе", "удали report.docx", "удали папку старое",
+     "видали файл test.txt"],
+)
+def test_delete_a_file(phrase: str) -> None:
+    assert _route(phrase) == "file_manager"
+
+
+@pytest.mark.parametrize(
+    "phrase", ["удали программу zoom", "видали програму zoom", "uninstall zoom"]
+)
+def test_uninstall_a_program(phrase: str) -> None:
+    assert _route(phrase) == "package_uninstall"
+
+
 def test_agent_still_takes_tasks() -> None:
     assert _route("do the backups") == "autonomous_agent"
 

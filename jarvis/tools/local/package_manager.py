@@ -192,13 +192,17 @@ class PackageUninstallTool:
             priority=250,
             args=lambda m: {"package": m.group(1)},
         ),
+        # Only with the word "программу" / "приложение": a bare "удали X"
+        # also means a file, a note, a bookmark or a fact ("удали файл
+        # test.txt", "удали из памяти мой адрес" were offered for uninstall);
+        # those are left to the model.
         VoicePattern(
-            regex=r"^удали\s+(?:программу\s+)?(.+)$",
+            regex=r"^(?:удали|деинсталлируй)\s+(?:программу|приложение)\s+(.+)$",
             priority=250,
             args=lambda m: {"package": m.group(1)},
         ),
         VoicePattern(
-            regex=r"^видали\s+(?:програму\s+)?(.+)$",
+            regex=r"^(?:видали|деінсталюй)\s+(?:програму|застосунок|додаток)\s+(.+)$",
             priority=250,
             args=lambda m: {"package": m.group(1)},
         ),
