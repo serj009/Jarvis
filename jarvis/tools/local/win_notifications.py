@@ -12,6 +12,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.durations import DURATION, parse_duration
 from jarvis.core.phrases import say, spoken_duration
 from jarvis.tools.registry import ToolResult, VoicePattern
 
@@ -198,40 +199,16 @@ class ScheduleNotificationTool:
     args_schema = ScheduleNotificationArgs
     requires_confirmation: bool = False
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
-        # EN: "notify me in 5 minutes", "remind me in 30 seconds"
+        # EN: "notify me in 5 minutes". "remind me in …" / "напомни через …" /
+        # "нагадай через …" are reminders (remind_me, priority 140-141); the
+        # copies of those patterns here could never win and were removed.
         VoicePattern(
-            regex=r"^(?:notify|remind)\s+me\s+in\s+(\d+)\s+(second|minute|hour)s?$",
+            regex=rf"^notify\s+me\s+in\s+({DURATION})$",
             priority=200,
             args=lambda m: {
                 "title": "Jarvis Reminder",
                 "message": "Time's up!",
-                "delay_seconds": int(m.group(1)) * {
-                    "second": 1, "minute": 60, "hour": 3600,
-                }.get(m.group(2), 1),
-            },
-        ),
-        # RU: "напомни через 5 минут уведомлением"
-        VoicePattern(
-            regex=r"^напомни\s+через\s+(\d+)\s+(секунд|минут|час).*$",
-            priority=200,
-            args=lambda m: {
-                "title": "Напоминание Jarvis",
-                "message": "Время вышло!",
-                "delay_seconds": int(m.group(1)) * {
-                    "секунд": 1, "минут": 60, "час": 3600,
-                }.get(m.group(2), 1),
-            },
-        ),
-        # UK: "нагадай через 5 хвилин"
-        VoicePattern(
-            regex=r"^нагадай\s+через\s+(\d+)\s+(секунд|хвилин|годин).*$",
-            priority=200,
-            args=lambda m: {
-                "title": "Нагадування Jarvis",
-                "message": "Час вийшов!",
-                "delay_seconds": int(m.group(1)) * {
-                    "секунд": 1, "хвилин": 60, "годин": 3600,
-                }.get(m.group(2), 1),
+                "delay_seconds": parse_duration(m.group(1)) or 0,
             },
         ),
     )

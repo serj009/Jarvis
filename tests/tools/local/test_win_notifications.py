@@ -117,4 +117,6 @@ def test_requires_confirmation_false():
 
 def test_voice_patterns_exist():
     assert len(ShowNotificationTool.voice_patterns) >= 3
-    assert len(ScheduleNotificationTool.voice_patterns) >= 3
+    # "notify me in …" only: "remind me in …" / "напомни через …" /
+    # "нагадай через …" are reminders (remind_me wins them).
+    assert len(ScheduleNotificationTool.voice_patterns) >= 1

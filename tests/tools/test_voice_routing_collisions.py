@@ -67,6 +67,8 @@ _CASES = [
     ("напомни через 30 секунд", "remind_me"),
     ("нагадай через годину подзвонити", "remind_me"),
     ("remind me in an hour to stretch", "remind_me"),
+    ("remind me in 30 seconds", "remind_me"),
+    ("notify me in half an hour", "schedule_notification"),
     ("громче", "volume"),
     ("сделай тише", "volume"),
     ("выключи звук", "volume"),
