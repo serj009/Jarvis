@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING, ClassVar
 
@@ -27,6 +28,13 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 _LOCAL_PROVIDERS = frozenset({"comfyui", "a1111"})
+
+
+def _prompt(m: re.Match[str]) -> dict:
+    # The patterns had no args, so the router called the tool with {} and
+    # validation failed on the missing prompt: "нарисуй кота" always ended
+    # in "something went wrong".
+    return {"prompt": m.group(1).strip()}
 
 
 class ImageGenArgs(BaseModel):
@@ -64,11 +72,13 @@ class ImageGenTool:
                 r"(?:image|picture|photo)\s+(?:of\s+)?(.+)$"
             ),
             priority=200,
+            args=_prompt,
         ),
         # EN: "draw ..."
         VoicePattern(
             regex=r"^draw\s+(?:me\s+)?(.+)$",
             priority=300,
+            args=_prompt,
         ),
         # RU: "нарисуй ...", "сгенерируй картинку ...", "создай картинку ..."
         VoicePattern(
@@ -77,6 +87,7 @@ class ImageGenTool:
                 r"(?:картинк[уи]\s+)?(.+)$"
             ),
             priority=200,
+            args=_prompt,
         ),
         # UK: "намалюй ...", "згенеруй картинку ...", "створи картинку ..."
         VoicePattern(
@@ -85,6 +96,7 @@ class ImageGenTool:
                 r"(?:картинк[уи]\s+)?(.+)$"
             ),
             priority=200,
+            args=_prompt,
         ),
     )
 

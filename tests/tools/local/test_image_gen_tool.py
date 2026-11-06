@@ -70,6 +70,21 @@ class TestVoicePatterns:
         result = self._match("створи картинку дракона")
         assert result == "дракона"
 
+    # -- The prompt reaches the tool --
+
+    def test_every_pattern_passes_the_prompt(self):
+        """The patterns had no args: the router called the tool with {} and
+        the missing prompt failed validation on every voice request."""
+        for vp, phrase in zip(
+            ImageGenTool.voice_patterns,
+            ["generate an image of a cat", "draw a dragon", "нарисуй кота", "намалюй кота"],
+            strict=True,
+        ):
+            m = re.match(vp.regex, phrase, re.IGNORECASE)
+            assert m, phrase
+            ImageGenArgs.model_validate(vp.args(m))
+            assert vp.args(m)["prompt"] in phrase
+
     # -- Non-matches --
 
     def test_no_match_random(self):
