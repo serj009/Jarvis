@@ -1369,3 +1369,31 @@ class TestHumanInTheLoop:
         await _collect(agent, "task")
         log = agent.reasoning_log
         assert any(s.action.type == "ask_user" for s in log)
+
+
+# -- "agent status" (found by pyright, M2-1) -----------------------------------
+
+
+def test_agent_status_does_not_crash():
+    """AgentTool's "status" called AutonomousAgent._build_summary(), which
+    did not exist: AttributeError instead of a status."""
+    import asyncio
+
+    from jarvis.agents.agent_tool import AgentTool, AgentToolArgs
+    from jarvis.agents.autonomous import AgentAction, AgentStep, AutonomousAgent
+
+    agent = AutonomousAgent.__new__(AutonomousAgent)
+    agent._plan = ["open the file", "fix the bug"]
+    agent._reasoning_log = [
+        AgentStep(iteration=1, action=AgentAction(type="tool_call", description="opened main.py"),
+                  result=None, reasoning=""),
+    ]
+    agent._cancelled = False
+    assert agent.status_summary() == (
+        "Plan: 2 steps. Actions taken: 1. Last action: opened main.py"
+    )
+
+    tool = AgentTool(agent=agent)
+    result = asyncio.run(tool.execute(AgentToolArgs(action="status")))
+    assert result.success
+    assert "Plan: 2 steps" in str(result.output)

@@ -106,7 +106,7 @@ class AgentTool:
             return ToolResult(success=True, output="Agent cancel signal sent.")
 
         if args.action == "status":
-            summary = self._agent._build_summary(partial=True)
+            summary = self._agent.status_summary()
             return ToolResult(success=True, output=summary)
 
         return ToolResult(success=False, error=f"Unknown action: {args.action}")

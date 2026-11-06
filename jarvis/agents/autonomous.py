@@ -528,6 +528,21 @@ class AutonomousAgent:
         """Request cancellation of the running agent."""
         self._cancelled = True
 
+    def status_summary(self) -> str:
+        """Where the agent is: its plan, how many actions it took and the
+        last one ("agent status"). AgentTool called a _build_summary() that
+        did not exist, so asking for the status raised AttributeError."""
+        if not self._plan and not self._reasoning_log:
+            return "The agent has not started a task yet."
+        parts = [f"Plan: {len(self._plan)} steps. Actions taken: {len(self._reasoning_log)}."]
+        if self._reasoning_log:
+            last = self._reasoning_log[-1].action
+            what = last.description or last.reasoning or last.tool_name or last.type
+            parts.append(f"Last action: {what[:200]}")
+        if self._cancelled:
+            parts.append("Cancellation requested.")
+        return " ".join(parts)
+
     @property
     def scratchpad(self) -> AgentScratchpad:
         """Read-only access to the scratchpad (working memory)."""
