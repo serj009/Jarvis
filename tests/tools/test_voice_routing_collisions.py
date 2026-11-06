@@ -321,3 +321,19 @@ def test_run_command_still_catches_whitelisted() -> None:
 )
 def test_snap_window_name_and_corner(phrase: str, action: str, window: str) -> None:
     assert _route_args(phrase) == ("window_action", {"action": action, "window": window})
+
+
+@pytest.mark.parametrize(
+    ("phrase", "query"),
+    [
+        ("search the web for tide tables", "tide+tables"),
+        ("search the internet for cheap flights", "cheap+flights"),
+        ("search online for pasta recipes", "pasta+recipes"),
+        ("search for puppies", "puppies"),
+    ],
+)
+def test_web_search_query_leaves_out_the_web(phrase: str, query: str) -> None:
+    """"search the web for tide tables" searched for "the web for tide tables"."""
+    tool, args = _route_args(phrase)
+    assert tool == "open_url"
+    assert args["url"].endswith(f"?q={query}")

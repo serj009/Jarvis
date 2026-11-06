@@ -159,7 +159,9 @@ class OpenUrlTool:
     # search URL wants "+" for spaces; a live test caught that.
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
         VoicePattern(
-            regex=r"^(?:search|google)\s+(?:(?:up|for)\s+)?(.+)$",
+            # "search the web for X" searched for "the web for X".
+            regex=r"^(?:search|google)\s+"
+            r"(?:(?:the\s+)?(?:web|internet|net|online)\s+for\s+|(?:up|for)\s+)?(.+)$",
             priority=500,
             args=lambda m: {
                 "url": "https://www.google.com/search?q=" + quote_plus(m.group(1))
