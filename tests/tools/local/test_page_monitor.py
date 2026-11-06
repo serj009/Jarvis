@@ -20,6 +20,7 @@ from jarvis.tools.local.page_monitor import (
     _text_hash,
 )
 from jarvis.tools.registry import EmptyArgs
+from tests._typing import output_text
 
 FAKE_PAGE_V1 = "Hello World\nThis is version 1.\nPrice: $100"
 FAKE_PAGE_V2 = "Hello World\nThis is version 2.\nPrice: $200\nNew section added."
@@ -158,7 +159,7 @@ async def test_start_monitor_tool(mock_fetch):
     tool = StartPageMonitorTool(store=store)
     result = await tool.execute(StartMonitorArgs(url="https://example.com", interval_minutes=5))
     assert result.success
-    assert "monitoring" in (result.output or "").lower()
+    assert "monitoring" in output_text(result).lower()
 
 
 @patch("jarvis.tools.local.page_monitor._fetch_page_text")
@@ -186,7 +187,7 @@ async def test_check_changes_tool_no_change(mock_fetch):
     tool = CheckPageChangesTool(store=store)
     result = await tool.execute(CheckPageArgs(url="https://example.com"))
     assert result.success
-    assert "no changes" in (result.output or "").lower()
+    assert "no changes" in output_text(result).lower()
 
 
 @patch("jarvis.tools.local.page_monitor._fetch_page_text")
@@ -199,7 +200,7 @@ async def test_check_changes_tool_with_change(mock_fetch):
     tool = CheckPageChangesTool(store=store)
     result = await tool.execute(CheckPageArgs(url="https://example.com"))
     assert result.success
-    assert "changes detected" in (result.output or "").lower()
+    assert "changes detected" in output_text(result).lower()
 
 
 async def test_list_monitors_tool_empty():
@@ -207,7 +208,7 @@ async def test_list_monitors_tool_empty():
     tool = ListPageMonitorsTool(store=store)
     result = await tool.execute(EmptyArgs())
     assert result.success
-    assert "no pages" in (result.output or "").lower()
+    assert "no pages" in output_text(result).lower()
 
 
 @patch("jarvis.tools.local.page_monitor._fetch_page_text")

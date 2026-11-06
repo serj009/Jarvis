@@ -15,6 +15,7 @@ from jarvis.tools.local.package_manager import (
     PackageUninstallArgs,
     PackageUninstallTool,
 )
+from tests._typing import output_text
 
 # --- PackageSearchTool -----------------------------------------------------
 
@@ -49,7 +50,7 @@ async def test_search_no_results():
             PackageSearchArgs(query="asdfnonexistent"),
         )
     assert result.success
-    assert "no packages" in (result.output or "").lower()
+    assert "no packages" in output_text(result).lower()
 
 
 async def test_search_winget_not_found():
@@ -79,7 +80,7 @@ async def test_install_success():
             PackageInstallArgs(package="VideoLAN.VLC"),
         )
     assert result.success
-    assert "installed" in (result.output or "").lower()
+    assert "installed" in output_text(result).lower()
 
 
 async def test_install_failure():
@@ -110,7 +111,7 @@ async def test_uninstall_success():
             PackageUninstallArgs(package="VideoLAN.VLC"),
         )
     assert result.success
-    assert "uninstalled" in (result.output or "").lower()
+    assert "uninstalled" in output_text(result).lower()
 
 
 def test_requires_confirmation_false():

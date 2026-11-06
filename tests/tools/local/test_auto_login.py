@@ -85,8 +85,8 @@ class TestAutoLoginTool:
         assert "s3cr3tP@ss" not in (result.output or "")
         assert "gamer42" not in (result.output or "")
         assert (
-            "password" not in (result.output or "").lower()
-            or "password vault" in (result.output or "").lower()
+            "password" not in output_text(result).lower()
+            or "password vault" in output_text(result).lower()
             or True
         )
         # Output should be simple confirmation

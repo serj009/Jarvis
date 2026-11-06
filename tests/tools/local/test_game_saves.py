@@ -13,10 +13,11 @@ from jarvis.tools.local.game_saves import (
     BackupSavesArgs,
     FindGameSavesTool,
     FindSavesArgs,
+    ListKnownGamesArgs,
     ListKnownGamesTool,
     _resolve_game,
 )
-from jarvis.tools.registry import EmptyArgs
+from tests._typing import output_text
 
 # --- Game resolution unit tests -------------------------------------------
 
@@ -70,7 +71,7 @@ async def test_find_saves_not_found():
             FindSavesArgs(game="elden ring"),
         )
     assert result.success  # Not an error — just not found
-    assert "not found" in (result.output or "").lower()
+    assert "not found" in output_text(result).lower()
 
 
 async def test_find_saves_unknown_game():
@@ -120,7 +121,7 @@ async def test_backup_unknown_game():
 # --- ListKnownGamesTool ---------------------------------------------------
 
 async def test_list_known_games():
-    result = await ListKnownGamesTool().execute(EmptyArgs())
+    result = await ListKnownGamesTool().execute(ListKnownGamesArgs())
     assert result.success
     assert "Elden Ring" in (result.output or "")
     assert "Dark Souls" in (result.output or "")

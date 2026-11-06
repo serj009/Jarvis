@@ -17,6 +17,7 @@ from jarvis.tools.local.network_tools import (
     SpeedTestTool,
 )
 from jarvis.tools.registry import EmptyArgs
+from tests._typing import output_text
 
 # --- MyIpTool -------------------------------------------------------------
 
@@ -51,7 +52,7 @@ async def test_my_ip_none():
     ):
         result = await MyIpTool().execute(EmptyArgs())
     assert result.success
-    assert "could not determine" in (result.output or "").lower()
+    assert "could not determine" in output_text(result).lower()
 
 
 # --- SpeedTestTool --------------------------------------------------------

@@ -26,7 +26,7 @@ import logging
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 import httpx
 
@@ -102,6 +102,20 @@ def _api_timeout() -> httpx.Timeout:
 # ---------------------------------------------------------------------------
 # Abstract base
 # ---------------------------------------------------------------------------
+
+class ChatReply(Protocol):
+    @property
+    def content(self) -> str: ...
+
+
+class ChatModel(Protocol):
+    """Anything with ModelProvider's non-streaming chat(): what the coding
+    and autonomous agents need from a model (tests pass small fakes)."""
+
+    async def chat(
+        self, messages: list[ChatMessage], *, temperature: float = ..., max_tokens: int = ...,
+    ) -> ChatReply: ...
+
 
 class ModelProvider(ABC):
     """Unified interface for LLM chat completions."""

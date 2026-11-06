@@ -18,6 +18,7 @@ from jarvis.tools.local.git_tool import (
     _find_git_root,
     _run_git,
 )
+from tests._typing import output_text
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -61,7 +62,7 @@ class TestGitArgs:
 
     def test_invalid_action_rejected(self):
         with pytest.raises(ValidationError):
-            GitArgs(action="rebase")
+            GitArgs.model_validate({"action": "rebase"})
 
     def test_all_actions_accepted(self):
         for action in ("status", "diff", "log", "commit", "push", "pull",
@@ -152,7 +153,7 @@ class TestGitToolStatus:
                 GitArgs(action="status", path=str(tmp_path)),
             )
         assert result.success
-        assert "clean" in (result.output or "").lower()
+        assert "clean" in output_text(result).lower()
 
     async def test_status_changes(self, tmp_path):
         mock = _mock_subprocess(stdout=" M file.py\n?? new.txt", returncode=0)
@@ -184,7 +185,7 @@ class TestGitToolDiff:
                 GitArgs(action="diff", path=str(tmp_path)),
             )
         assert result.success
-        assert "no changes" in (result.output or "").lower()
+        assert "no changes" in output_text(result).lower()
 
     async def test_diff_with_changes(self, tmp_path):
         mock = _mock_subprocess(
@@ -223,7 +224,7 @@ class TestGitToolLog:
                 GitArgs(action="log", path=str(tmp_path)),
             )
         assert result.success
-        assert "no commits" in (result.output or "").lower()
+        assert "no commits" in output_text(result).lower()
 
 
 # ---------------------------------------------------------------------------
@@ -238,7 +239,7 @@ class TestGitToolAdd:
                 GitArgs(action="add", path=str(tmp_path)),
             )
         assert result.success
-        assert "staged" in (result.output or "").lower()
+        assert "staged" in output_text(result).lower()
 
 
 # ---------------------------------------------------------------------------
@@ -326,7 +327,7 @@ class TestGitToolPull:
                 GitArgs(action="pull", path=str(tmp_path)),
             )
         assert result.success
-        assert "up to date" in (result.output or "").lower()
+        assert "up to date" in output_text(result).lower()
 
 
 # ---------------------------------------------------------------------------

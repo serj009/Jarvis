@@ -211,6 +211,7 @@ class TestLLMInitiated:
             _llm_ctx(),
         )
         assert result.allowed is False
+        assert result.scan_result is not None
         assert len(result.scan_result.matched_data) >= 2
 
     def test_llm_exfil_domain_flagged(self) -> None:

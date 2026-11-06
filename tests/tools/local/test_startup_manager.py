@@ -15,6 +15,7 @@ from jarvis.tools.local.startup_manager import (
     RemoveFromStartupTool,
 )
 from jarvis.tools.registry import EmptyArgs
+from tests._typing import output_text
 
 # --- ListStartupTool ------------------------------------------------------
 
@@ -50,7 +51,7 @@ async def test_list_startup_empty():
     ):
         result = await ListStartupTool().execute(EmptyArgs())
     assert result.success
-    assert "no startup" in (result.output or "").lower()
+    assert "no startup" in output_text(result).lower()
 
 
 async def test_list_startup_not_implemented():

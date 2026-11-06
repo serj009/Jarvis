@@ -12,6 +12,7 @@ import pytest
 
 from jarvis.tools.local.watch_screen import WatchScreenArgs, WatchScreenTool
 from jarvis.tools.registry import VoicePattern
+from tests._typing import output_text
 
 # --- voice-pattern tests ---------------------------------------------
 
@@ -113,7 +114,7 @@ async def test_start_stop_lifecycle():
         # Start again — idempotent
         result = await tool.execute(WatchScreenArgs(action="start"))
         assert result.success
-        assert "already" in (result.output or "").lower()
+        assert "already" in output_text(result).lower()
 
         # Stop
         result = await tool.execute(WatchScreenArgs(action="stop"))
@@ -123,7 +124,7 @@ async def test_start_stop_lifecycle():
         # Stop again — idempotent
         result = await tool.execute(WatchScreenArgs(action="stop"))
         assert result.success
-        assert "wasn't" in (result.output or "").lower()
+        assert "wasn't" in output_text(result).lower()
 
 
 async def test_status_reports_change():
@@ -142,7 +143,7 @@ async def test_status_reports_change():
         # Status — detector will report change.
         result = await tool.execute(WatchScreenArgs(action="status"))
         assert result.success
-        assert "changed" in (result.output or "").lower()
+        assert "changed" in output_text(result).lower()
 
 
 async def test_status_without_start():
@@ -171,7 +172,7 @@ async def test_wait_timeout():
         )
 
     assert result.success
-    assert "no significant" in (result.output or "").lower()
+    assert "no significant" in output_text(result).lower()
 
 
 async def test_wait_detects_change():
@@ -201,7 +202,7 @@ async def test_wait_detects_change():
         )
 
     assert result.success
-    assert "changed" in (result.output or "").lower()
+    assert "changed" in output_text(result).lower()
 
 
 async def test_unknown_action():

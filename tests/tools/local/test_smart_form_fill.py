@@ -13,6 +13,7 @@ from jarvis.tools.local.smart_form_fill import (
     _match_field,
 )
 from jarvis.tools.registry import EmptyArgs
+from tests._typing import output_text
 
 # ---------------------------------------------------------------------------
 # Mock helpers
@@ -207,7 +208,7 @@ async def test_fill_form_no_matches(mock_profile):
     tool = SmartFormFillTool(browser_controller=bc)
     result = await tool.execute(EmptyArgs())
     assert result.success  # success but 0 filled
-    assert "could not match" in (result.output or "").lower()
+    assert "could not match" in output_text(result).lower()
 
 
 # ---------------------------------------------------------------------------

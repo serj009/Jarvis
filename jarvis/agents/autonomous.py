@@ -65,28 +65,15 @@ from typing import TYPE_CHECKING, Any, Protocol
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from jarvis.llm.model_provider import ChatMessage
+    from jarvis.llm.model_provider import ChatModel
 
 from jarvis.agents.scratchpad import AgentScratchpad
 from jarvis.tools.registry import ToolResult
 from jarvis.tools.risk import RiskLevel, risk_level_for_tool
 
-# What the agent needs from its collaborators. The app passes a
-# ModelProvider, the ToolRegistry and AgentConfig, which match these
-# structurally; tests pass small fakes that are checked against them.
-
-
-class AgentReply(Protocol):
-    @property
-    def content(self) -> str: ...
-
-
-class AgentModel(Protocol):
-    """The LLM: one non-streaming chat call (ModelProvider.chat)."""
-
-    async def chat(
-        self, messages: list[ChatMessage], *, temperature: float = ..., max_tokens: int = ...,
-    ) -> AgentReply: ...
+# What the agent needs from its collaborators besides a ChatModel. The app
+# passes the ToolRegistry and AgentConfig, which match these structurally;
+# tests pass small fakes that are checked against them.
 
 
 class AgentToolInfo(Protocol):
@@ -301,7 +288,7 @@ class AutonomousAgent:
 
     def __init__(
         self,
-        provider: AgentModel,
+        provider: ChatModel,
         registry: AgentToolbox,
         config: AgentLimits,
         confirm_fn: Callable[[AgentAction], Any] | None = None,

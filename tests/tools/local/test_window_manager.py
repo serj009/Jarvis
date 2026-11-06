@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from jarvis.tools.local.window_manager import (
+    ListWindowsArgs,
     ListWindowsTool,
     MinimizeAllTool,
     RestoreAllTool,
@@ -17,7 +18,7 @@ from jarvis.tools.local.window_manager import (
     WindowActionArgs,
     WindowActionTool,
 )
-from jarvis.tools.registry import EmptyArgs
+from tests._typing import output_text
 
 # --- helpers ---------------------------------------------------------------
 
@@ -111,16 +112,16 @@ async def test_list_windows():
                     "active": False,
                 },
             ]
-            result = await ListWindowsTool().execute(EmptyArgs())
+            result = await ListWindowsTool().execute(ListWindowsArgs())
     assert result.success
     assert "2 window" in (result.output or "")
 
 
 async def test_list_windows_empty():
     with patch("jarvis.tools.local.window_manager._list_windows_impl", return_value=[]):
-        result = await ListWindowsTool().execute(EmptyArgs())
+        result = await ListWindowsTool().execute(ListWindowsArgs())
     assert result.success
-    assert "no visible" in (result.output or "").lower()
+    assert "no visible" in output_text(result).lower()
 
 
 def test_requires_confirmation_false():

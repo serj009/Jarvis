@@ -1600,7 +1600,7 @@ def test_migrate_v39_to_v40_keeps_fixed_language():
 def test_stt_config_coerces_none_language_to_auto():
     # The in-memory safety net: constructing STTConfig with language=None must
     # not raise — it coerces to "auto".
-    cfg = cfg_mod.STTConfig(language=None)
+    cfg = cfg_mod.STTConfig.model_validate({"language": None})
     assert cfg.language == "auto"
 
 

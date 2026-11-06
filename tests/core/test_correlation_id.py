@@ -42,7 +42,8 @@ def test_new_ids_are_short_and_distinct():
 def test_outside_turn_id_is_dash():
     logger, handler = _capture()
     logger.info("idle")
-    assert handler.records[0].correlation_id == NO_CORRELATION_ID
+    # The filter adds the attribute at run time; LogRecord does not declare it.
+    assert vars(handler.records[0])["correlation_id"] == NO_CORRELATION_ID
 
 
 def test_each_task_has_its_own_id_including_threads():
@@ -69,7 +70,7 @@ def test_each_task_has_its_own_id_including_threads():
     assert cid_a != cid_b
     by_turn: dict[str, set[str]] = {"a": set(), "b": set()}
     for rec in handler.records:
-        by_turn[rec.getMessage()[0]].add(rec.correlation_id)
+        by_turn[rec.getMessage()[0]].add(vars(rec)["correlation_id"])
     assert by_turn == {"a": {cid_a}, "b": {cid_b}}
     # Nothing leaked into the caller's context.
     assert correlation_id.get() == NO_CORRELATION_ID

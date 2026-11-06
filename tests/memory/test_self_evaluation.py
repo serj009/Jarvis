@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 from jarvis.memory.self_evaluation import (
@@ -294,7 +295,7 @@ class TestScheduler:
         sched = SelfEvaluationScheduler(
             enabled=False, interval_hours=1, max_traces_per_run=5,
             trace_source=lambda: _sample_traces(),
-            send_fn=None, report_dir="/tmp/nope",
+            send_fn=None, report_dir=Path("/tmp/nope"),
         )
         sched.start()  # must not raise, must not launch
         assert sched._task is None

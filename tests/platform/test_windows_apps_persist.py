@@ -88,4 +88,5 @@ def test_refresh_rescans_and_saves(tmp_path):
         assert refresh_installed_app_index(path) == 2
 
     assert load_installed_app_index(path) == _sample()
+    assert wa._installed_index_cache is not None
     assert "old" not in wa._installed_index_cache

@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+
 import pytest
 
 from jarvis.memory.conversation import ConversationMemory
 
 
 @pytest.fixture()
-async def conv_mem(tmp_path) -> ConversationMemory:
+async def conv_mem(tmp_path) -> AsyncIterator[ConversationMemory]:
     cm = ConversationMemory(root_path=tmp_path / "conversations")
     await cm.open()
     yield cm

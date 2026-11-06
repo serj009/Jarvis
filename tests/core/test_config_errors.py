@@ -40,12 +40,10 @@ def test_json_syntax_error_reports_line_and_column(tmp_path: Path):
     # rely on.
     p = tmp_path / "config.json"
     bad = '{\n  "schema_version": 22,\n  "llm": {,\n}\n'
-    try:
+    with pytest.raises(json.JSONDecodeError) as caught:
         json.loads(bad)
-    except json.JSONDecodeError as exc:
-        err = exc
 
-    msg = format_config_error(err, p)
+    msg = format_config_error(caught.value, p)
 
     assert "Jarvis cannot start" in msg
     assert str(p) in msg

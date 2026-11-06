@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import AsyncIterator
 
 import pytest
 
@@ -14,7 +15,7 @@ from jarvis.memory.store import MemoryStore
 # ---------------------------------------------------------------------------
 
 @pytest.fixture()
-async def store(tmp_path) -> MemoryStore:
+async def store(tmp_path) -> AsyncIterator[MemoryStore]:
     """Temporary MemoryStore for each test."""
     s = MemoryStore(db_path=tmp_path / "test_memory.db")
     await s.open()

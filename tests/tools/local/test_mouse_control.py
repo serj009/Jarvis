@@ -37,6 +37,13 @@ def _match(tool_cls, phrase):
     return None
 
 
+def _args(tool_cls, phrase) -> dict:
+    """The arguments a phrase routes to; the phrase must match."""
+    args = _match(tool_cls, phrase)
+    assert args is not None, f"{phrase!r} does not match {tool_cls.__name__}"
+    return args
+
+
 # ── click: coordinates ─────────────────────────────────────────────
 
 class TestClick:
@@ -207,15 +214,15 @@ class TestFindText:
 class TestRouting:
     def test_click_patterns(self):
         assert _match(MouseClickTool, "click at 500 300") == {"x": 500, "y": 300, "button": "left"}
-        assert _match(MouseClickTool, "click on save")["button"] == "left"
-        assert _match(MouseClickTool, "double click on icon")["button"] == "double"
-        assert _match(MouseClickTool, "right click on file")["button"] == "right"
-        assert _match(MouseClickTool, "нажми на сохранить")["text"] == "сохранить"
+        assert _args(MouseClickTool, "click on save")["button"] == "left"
+        assert _args(MouseClickTool, "double click on icon")["button"] == "double"
+        assert _args(MouseClickTool, "right click on file")["button"] == "right"
+        assert _args(MouseClickTool, "нажми на сохранить")["text"] == "сохранить"
 
     def test_scroll_patterns(self):
         assert _match(MouseScrollTool, "scroll down") == {"direction": "down", "amount": 3}
         assert _match(MouseScrollTool, "scroll up 10") == {"direction": "up", "amount": 10}
-        assert _match(MouseScrollTool, "прокрути вниз")["direction"] == "down"
+        assert _args(MouseScrollTool, "прокрути вниз")["direction"] == "down"
 
     def test_drag_patterns(self):
         a = _match(MouseDragTool, "drag from 100 200 to 500 400")

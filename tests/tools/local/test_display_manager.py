@@ -18,6 +18,7 @@ from jarvis.tools.local.display_manager import (
     ToggleNightModeTool,
 )
 from jarvis.tools.registry import EmptyArgs
+from tests._typing import output_text
 
 # --- SetBrightnessTool ----------------------------------------------------
 
@@ -144,7 +145,7 @@ async def test_display_info_no_monitors():
     ):
         result = await DisplayInfoTool().execute(EmptyArgs())
     assert result.success
-    assert "no display" in (result.output or "").lower()
+    assert "no display" in output_text(result).lower()
 
 
 def test_requires_confirmation_false():

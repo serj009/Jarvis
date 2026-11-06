@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -15,7 +16,7 @@ from jarvis.memory.tool_examples import ToolExampleStore
 # ---------------------------------------------------------------------------
 
 @pytest.fixture()
-async def memory(tmp_path) -> MemoryStore:
+async def memory(tmp_path) -> AsyncIterator[MemoryStore]:
     s = MemoryStore(db_path=tmp_path / "ci_memory.db")
     await s.open()
     await s.add("User is playing Mafia 2 on Steam", category="games", tags=["game", "steam"])

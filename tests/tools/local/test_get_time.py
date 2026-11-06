@@ -9,6 +9,7 @@ import pytest
 
 from jarvis.tools.local.get_time import GetTimeTool
 from jarvis.tools.registry import EmptyArgs
+from tests._typing import output_text
 
 # ── execution ─────────────────────────────────────────────────────
 
@@ -23,7 +24,7 @@ async def test_execute_returns_time():
 async def test_execute_english_format():
     """Default (no request context) → English output with AM/PM."""
     result = await GetTimeTool().execute(EmptyArgs())
-    out = result.output or ""
+    out = output_text(result)
     assert "sir" in out.lower()
     # Should contain AM or PM
     assert "AM" in out or "PM" in out

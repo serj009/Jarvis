@@ -18,6 +18,7 @@ from jarvis.tools.local.process_monitor import (
     WaitForExitArgs,
     WaitForProcessTool,
 )
+from tests._typing import output_text
 
 # --- ProcessInfoTool -------------------------------------------------------
 
@@ -80,8 +81,8 @@ async def test_heavy_processes():
             HeavyProcessesArgs(top_n=10),
         )
     assert result.success
-    assert "chrome" in (result.output or "").lower()
-    assert "discord" in (result.output or "").lower()
+    assert "chrome" in output_text(result).lower()
+    assert "discord" in output_text(result).lower()
 
 
 async def test_heavy_processes_psutil_missing():
@@ -109,7 +110,7 @@ async def test_wait_process_exits():
             WaitForExitArgs(name="setup.exe", timeout=60),
         )
     assert result.success
-    assert "finished" in (result.output or "").lower()
+    assert "finished" in output_text(result).lower()
 
 
 async def test_wait_process_timeout():

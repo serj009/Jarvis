@@ -12,6 +12,7 @@ import pytest
 from pydantic import ValidationError
 
 from jarvis.tools.local.power_control import PowerArgs, PowerControlTool
+from tests._typing import output_text
 
 
 async def test_shutdown_calls_subprocess():
@@ -53,7 +54,7 @@ async def test_sleep_dispatches():
             PowerArgs(action="sleep"),
         )
     assert result.success
-    assert "sleep" in (result.output or "").lower()
+    assert "sleep" in output_text(result).lower()
 
 
 async def test_caffeinate():
@@ -81,7 +82,7 @@ async def test_not_implemented_returns_error():
 async def test_unknown_action():
     # Pydantic validates the literal, so this should raise
     with pytest.raises(ValidationError):
-        PowerArgs(action="explode")
+        PowerArgs.model_validate({"action": "explode"})
 
 
 def test_requires_confirmation_false():

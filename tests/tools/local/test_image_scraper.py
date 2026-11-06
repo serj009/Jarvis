@@ -15,6 +15,7 @@ from jarvis.tools.local.image_scraper import (
     _parse_dimension,
     _safe_filename,
 )
+from tests._typing import output_text
 
 # --- Unit tests: image URL extraction -------------------------------------
 
@@ -233,7 +234,7 @@ async def test_execute_some_downloads_fail():
 
     assert result.success
     assert "2" in (result.output or "")
-    assert "failed" in (result.output or "").lower()
+    assert "failed" in output_text(result).lower()
 
 
 def test_requires_confirmation_false():

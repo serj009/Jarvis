@@ -25,6 +25,7 @@ from jarvis.platform.game_launchers import (
     steam_game_to_game,
 )
 from jarvis.platform.registry import HKLM
+from jarvis.platform.windows_apps import SteamGame
 
 # --- build_epic_uri ------------------------------------------------------
 
@@ -252,6 +253,7 @@ def test_parse_gog_game_values_builds_exe_launch():
     assert game is not None
     assert game.launcher is Launcher.GOG
     assert game.launch_spec.kind is LaunchKind.EXECUTABLE
+    assert game.launch_spec.exe is not None
     assert game.launch_spec.exe.endswith("witcher3.exe")
     assert game.launch_spec.install_dir == "C:/GOG/Witcher3"
 
@@ -329,11 +331,6 @@ def test_gog_games_indexed_alongside_epic():
 # --- Steam source adapter + launcher priority (Task 8c commit 4) --------
 
 
-class _FakeSteamGame:
-    def __init__(self, name: str, app_id: int):
-        self.name = name
-        self.app_id = app_id
-
 
 def test_steam_game_to_game_builds_run_uri():
     game = steam_game_to_game("Portal 2", 620)
@@ -350,8 +347,8 @@ def test_steam_game_to_game_rejects_empty_name():
 
 def test_steam_source_adapts_injected_map():
     games_map = {
-        "elden ring": _FakeSteamGame("Elden Ring", 1245620),
-        "portal 2": _FakeSteamGame("Portal 2", 620),
+        "elden ring": SteamGame("Elden Ring", 1245620),
+        "portal 2": SteamGame("Portal 2", 620),
     }
     source = SteamGamesSource(games=games_map)
     games = source.scan()

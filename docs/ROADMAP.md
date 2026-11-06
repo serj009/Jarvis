@@ -113,7 +113,7 @@ $env:JARVIS_DUMP_LLM_REQUEST = "1"; .venv\Scripts\python.exe -m jarvis
 
 | # | Задача | Где | Метка |
 |---|---|---|---|
-| M2-7 | Ошибки pyright = 0 и в `tests/` (CI проверяет `jarvis` и `tests` вместе; в `jarvis/` уже 0). На 2026-11-06 — 472, в основном `Optional` без проверки (`result.output.lower()` и т. п.) и подмены модулей в тестах; больше всего в `tests/core/test_game_mode.py` (63), `tests/tools/local/test_vault_manager.py` (32), `tests/security/test_leak_scanner.py` (26) | `tests/` | [Работа] |
+| — | Этап выполнен: pyright по `jarvis` и `tests` — 0 ошибок, ruff чистый, pytest без предупреждений | | |
 
 **Готово, когда:** pyright, ruff и pytest чистые без предупреждений; ручное «убийство» модуля дома не останавливает Jarvis.
 

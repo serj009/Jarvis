@@ -23,13 +23,12 @@ import asyncio
 import logging
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Protocol
 
 from pydantic import BaseModel, Field
 
 from jarvis.core.phrases import opening_phrase
 from jarvis.core.request_context import current_user_transcription
-from jarvis.memory.personal_aliases import PersonalAliasStore
 from jarvis.platform import windows as winplat
 from jarvis.platform.app_discovery import normalize_open_query
 from jarvis.tools.local.app_aliases import APP_ALIASES as _APP_ALIASES
@@ -40,6 +39,13 @@ if TYPE_CHECKING:
     from jarvis.platform.windows_apps import InstalledApp
 
 log = logging.getLogger(__name__)
+
+
+class AliasResolver(Protocol):
+    """The user's own names for apps ("баттл" -> steam):
+    jarvis.memory.personal_aliases.PersonalAliasStore."""
+
+    def resolve(self, name: str) -> str | None: ...
 
 
 def _needs_path_launch(command: str) -> bool:
@@ -118,7 +124,7 @@ class OpenAppTool:
         self,
         *,
         app_resolver: Callable[[str], InstalledApp | None] | None = None,
-        personal_aliases: PersonalAliasStore | None = None,
+        personal_aliases: AliasResolver | None = None,
         suggest_floor: float = 0.35,
         match_cutoff: float = 0.55,
     ) -> None:

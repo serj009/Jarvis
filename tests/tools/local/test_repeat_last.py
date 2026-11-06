@@ -12,6 +12,7 @@ import pytest
 from jarvis.core.last_spoken import clear_last_spoken, get_last_spoken, set_last_spoken
 from jarvis.tools.local.repeat_last import RepeatLastTool
 from jarvis.tools.registry import EmptyArgs
+from tests._typing import output_text
 
 # ── fixtures ──────────────────────────────────────────────────────────
 
@@ -68,7 +69,7 @@ async def test_execute_nothing_spoken_en():
     with patch("jarvis.core.phrases.reply_language", return_value="en"):
         result = await RepeatLastTool().execute(EmptyArgs())
     assert result.success
-    assert "haven't said anything" in (result.output or "").lower()
+    assert "haven't said anything" in output_text(result).lower()
 
 
 async def test_execute_nothing_spoken_ru():
@@ -101,7 +102,7 @@ async def test_execute_empty_string_treated_as_nothing():
     with patch("jarvis.core.phrases.reply_language", return_value="en"):
         result = await RepeatLastTool().execute(EmptyArgs())
     assert result.success
-    assert "haven't said anything" in (result.output or "").lower()
+    assert "haven't said anything" in output_text(result).lower()
 
 
 # ── voice patterns ────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ from jarvis.tools.local.price_lookup import (
     _format_results,
     _is_game_product,
 )
+from tests._typing import output_text
 
 # --- Unit tests: game detection -------------------------------------------
 
@@ -168,7 +169,7 @@ async def test_execute_network_failure():
 
     # Tool still succeeds (returns "no prices found" rather than failing).
     assert result.success
-    assert "no prices found" in (result.output or "").lower()
+    assert "no prices found" in output_text(result).lower()
 
 
 def test_requires_confirmation_false():

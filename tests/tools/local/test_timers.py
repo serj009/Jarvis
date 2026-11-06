@@ -14,6 +14,7 @@ from jarvis.tools.local.timers import (
     TimerStore,
 )
 from jarvis.tools.registry import EmptyArgs
+from tests._typing import output_text
 
 # --- TimerStore unit tests -------------------------------------------------
 
@@ -97,7 +98,7 @@ async def test_list_timers_tool_empty():
     tool = ListTimersTool(store=store)
     result = await tool.execute(EmptyArgs())
     assert result.success
-    assert "no active" in (result.output or "").lower()
+    assert "no active" in output_text(result).lower()
 
 
 async def test_list_timers_tool_with_timers():

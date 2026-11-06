@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+
 import pytest
 
 from jarvis.memory.session_summary import (
@@ -165,7 +167,7 @@ class TestSummarizeSession:
 # ---------------------------------------------------------------------------
 
 @pytest.fixture()
-async def store(tmp_path) -> MemoryStore:
+async def store(tmp_path) -> AsyncIterator[MemoryStore]:
     s = MemoryStore(db_path=tmp_path / "test.db")
     await s.open()
     yield s

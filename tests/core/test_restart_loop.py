@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import sys
-import types
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from jarvis.__main__ import MAX_RESTARTS, main
+from tests._typing import fake_module
 
 
 @pytest.fixture(autouse=True)
@@ -19,8 +19,7 @@ def _mock_jarvis_app(monkeypatch):
     deps that aren't available in the lightweight test venv. We plant a
     fake module in sys.modules BEFORE main() runs 'from jarvis.app import run'.
     """
-    fake_app = types.ModuleType("jarvis.app")
-    fake_app.run = MagicMock(return_value=0)
+    fake_app = fake_module("jarvis.app", run=MagicMock(return_value=0))
     monkeypatch.setitem(sys.modules, "jarvis.app", fake_app)
     return fake_app
 

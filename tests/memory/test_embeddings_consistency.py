@@ -73,5 +73,5 @@ def test_load_accepts_matching_pair(tmp_path):
 
     idx2 = EmbeddingIndex(index_path=tmp_path)
     idx2._load_index()
-    assert idx2._index.ntotal == 3
+    assert idx2._index is not None and idx2._index.ntotal == 3
     assert len(idx2._id_map) == 3

@@ -629,6 +629,7 @@ class TestV1Migration:
         v._kdf_params = dict(FAST)
         assert v.unlock("master123")
         # Migrated to v2 on disk, backup written, original untouched copy kept.
+        assert v._vault_data is not None
         assert v._vault_data["version"] == 2
         assert vault_path.with_suffix(vault_path.suffix + ".v1.bak").exists()
         cred = v.get_credential("steam")
@@ -637,6 +638,7 @@ class TestV1Migration:
         v2 = PasswordVault(vault_path=vault_path)
         v2._kdf_params = dict(FAST)
         assert v2.unlock("master123")
+        assert v2._vault_data is not None
         assert v2._vault_data["version"] == 2
 
     def test_v1_scrypt_hmacxor_migrates(self, vault_path):
@@ -653,6 +655,7 @@ class TestV1Migration:
         v = PasswordVault(vault_path=vault_path)
         v._kdf_params = dict(FAST)
         assert v.unlock("master123")
+        assert v._vault_data is not None
         assert v._vault_data["version"] == 2
         cred = v.get_credential("gmail")
         assert cred is not None and cred.password == "x"

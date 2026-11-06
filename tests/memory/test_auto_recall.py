@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import AsyncIterator
 
 import pytest
 
@@ -42,7 +43,7 @@ def _get_tier(db_path, fact_id: str) -> str:
 # ---------------------------------------------------------------------------
 
 @pytest.fixture()
-async def store(tmp_path) -> MemoryStore:
+async def store(tmp_path) -> AsyncIterator[MemoryStore]:
     """Create a temporary MemoryStore seeded with a few facts."""
     s = MemoryStore(db_path=tmp_path / "test_memory.db")
     await s.open()
@@ -449,7 +450,7 @@ class TestIsPreferenceFact:
 
 
 @pytest.fixture()
-async def pref_store(tmp_path) -> MemoryStore:
+async def pref_store(tmp_path) -> AsyncIterator[MemoryStore]:
     """MemoryStore with both regular facts and preference facts."""
     s = MemoryStore(db_path=tmp_path / "pref_memory.db")
     await s.open()

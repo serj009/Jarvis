@@ -66,8 +66,10 @@ def test_setup_local_tools_wires_timer_callback() -> None:
     registry = ToolRegistry(ToolsConfig())
     setup_local_tools(registry, on_timer_done=lambda n: fired.append(n))
 
+    from jarvis.tools.local.timers import CancelTimerTool, ListTimersTool, SetTimerTool
+
     tool = registry.get("set_timer")
-    assert tool is not None, "set_timer not registered"
+    assert isinstance(tool, SetTimerTool), "set_timer not registered"
     # The tool's internal store should have the callback
     store = tool._get_store()
     assert store._on_done is not None, "on_timer_done not wired"
@@ -75,8 +77,8 @@ def test_setup_local_tools_wires_timer_callback() -> None:
     # Cancel/List should share the same store
     cancel_tool = registry.get("cancel_timer")
     list_tool = registry.get("list_timers")
-    assert cancel_tool is not None
-    assert list_tool is not None
+    assert isinstance(cancel_tool, CancelTimerTool)
+    assert isinstance(list_tool, ListTimersTool)
     assert cancel_tool._get_store() is store
     assert list_tool._get_store() is store
 
@@ -90,6 +92,12 @@ def test_setup_local_tools_wires_reminder_store(tmp_path) -> None:
     RemindMeTool, RemindMeAtTool, ListRemindersTool, DeleteReminderTool."""
     from jarvis.memory.scheduled_reminders import ReminderStore
     from jarvis.tools import ToolRegistry, setup_local_tools
+    from jarvis.tools.local.remind_me import (
+        DeleteReminderTool,
+        ListRemindersTool,
+        RemindMeAtTool,
+        RemindMeTool,
+    )
 
     store = ReminderStore(db_path=tmp_path / "test.db")
     store.open()
@@ -99,7 +107,9 @@ def test_setup_local_tools_wires_reminder_store(tmp_path) -> None:
 
         for name in ("remind_me", "remind_me_at", "list_reminders", "delete_reminder"):
             tool = registry.get(name)
-            assert tool is not None, f"{name} not registered"
+            assert isinstance(
+                tool, (RemindMeTool, RemindMeAtTool, ListRemindersTool, DeleteReminderTool)
+            ), f"{name} not registered"
             assert tool._get_store() is store, f"{name} not wired to provided store"
     finally:
         store.close()

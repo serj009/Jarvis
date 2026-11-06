@@ -15,6 +15,7 @@ Covers:
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -31,6 +32,7 @@ from jarvis.tools.local.protocol_tools import (
     RunProtocolTool,
 )
 from jarvis.tools.registry import Tool, ToolResult
+from tests._typing import output_text
 
 # --- fixtures -----------------------------------------------------------
 
@@ -40,7 +42,7 @@ def tmp_db(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def engine(tmp_db: Path) -> ProtocolEngine:
+def engine(tmp_db: Path) -> Iterator[ProtocolEngine]:
     eng = ProtocolEngine(db_path=tmp_db, registry=None, ollama_client=None)
     yield eng
     eng.close()
@@ -248,7 +250,7 @@ class TestListProtocolsTool:
         from jarvis.tools.local.protocol_tools import ListProtocolsArgs
         result = await tool.execute(ListProtocolsArgs())
         assert result.success is True
-        assert "no protocols" in (result.output or "").lower()
+        assert "no protocols" in output_text(result).lower()
 
     @pytest.mark.asyncio
     async def test_list_populated(self, engine: ProtocolEngine):

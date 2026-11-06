@@ -35,6 +35,7 @@ from jarvis.tools.local.remind_me import (
     resolve_tomorrow_time,
 )
 from jarvis.tools.registry import EmptyArgs
+from tests._typing import output_text
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -319,7 +320,7 @@ class TestListRemindersToolExecute:
         tool = ListRemindersTool(store=store)
         result = await tool.execute(EmptyArgs())
         assert result.success
-        assert "no pending" in (result.output or "").lower()
+        assert "no pending" in output_text(result).lower()
 
     @pytest.mark.asyncio()
     async def test_list_with_reminders(self, store: ReminderStore) -> None:

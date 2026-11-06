@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+
 import pytest
 
 from jarvis.memory.action_logger import _SKIP_TOOLS, format_action, log_action
@@ -81,7 +83,7 @@ class TestFormatAction:
 # ---------------------------------------------------------------------------
 
 @pytest.fixture()
-async def store(tmp_path) -> MemoryStore:
+async def store(tmp_path) -> AsyncIterator[MemoryStore]:
     s = MemoryStore(db_path=tmp_path / "test.db")
     await s.open()
     yield s

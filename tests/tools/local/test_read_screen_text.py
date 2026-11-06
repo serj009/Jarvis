@@ -17,7 +17,7 @@ from jarvis.tools.local.read_screen_text import (
     ReadScreenTextTool,
 )
 from jarvis.vision.ocr import ScreenOCR
-from tests._typing import fake_module
+from tests._typing import fake_module, output_text
 
 # ── helpers ──────────────────────────────────────────────────────────
 
@@ -66,7 +66,7 @@ async def test_returns_no_text_message_when_empty():
         result = await tool.execute(ReadScreenTextArgs())
 
     assert result.success
-    assert "don't see any readable text" in (result.output or "").lower()
+    assert "don't see any readable text" in output_text(result).lower()
 
 
 async def test_returns_error_when_tesseract_unavailable():

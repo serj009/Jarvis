@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+
 import pytest
 
 from jarvis.memory.store import Fact, MemoryStore
 
 
 @pytest.fixture()
-async def store(tmp_path) -> MemoryStore:
+async def store(tmp_path) -> AsyncIterator[MemoryStore]:
     """Create a temporary MemoryStore for each test."""
     s = MemoryStore(db_path=tmp_path / "test_memory.db")
     await s.open()

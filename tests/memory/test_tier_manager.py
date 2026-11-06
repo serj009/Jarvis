@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -55,7 +56,7 @@ def _get_condensed(db_path, fact_id: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 @pytest.fixture()
-async def store(tmp_path) -> MemoryStore:
+async def store(tmp_path) -> AsyncIterator[MemoryStore]:
     s = MemoryStore(db_path=tmp_path / "test_tier.db")
     await s.open()
     yield s

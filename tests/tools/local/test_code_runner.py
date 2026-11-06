@@ -23,6 +23,7 @@ from jarvis.tools.local.code_runner import (
     _truncate,
 )
 from jarvis.tools.sandbox import PathValidator
+from tests._typing import output_text
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -106,7 +107,7 @@ def test_args_all_actions():
 
 def test_args_invalid_action():
     with pytest.raises(ValidationError):
-        CodeRunnerArgs(action="hack_the_planet")
+        CodeRunnerArgs.model_validate({"action": "hack_the_planet"})
 
 
 # ---------------------------------------------------------------------------
@@ -330,7 +331,7 @@ async def test_last_errors_clean_run(tool: CodeRunnerTool):
         await tool.execute(CodeRunnerArgs(action="run_tests"))
     result = await tool.execute(CodeRunnerArgs(action="last_errors"))
     assert result.success
-    assert "no errors" in (result.output or "").lower()
+    assert "no errors" in output_text(result).lower()
 
 
 # ---------------------------------------------------------------------------

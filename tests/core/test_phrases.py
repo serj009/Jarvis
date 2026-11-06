@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from typing import cast
 
 import pytest
 
@@ -17,7 +18,7 @@ from jarvis.core.phrases import (
 )
 from jarvis.core.request_context import current_user_transcription
 from jarvis.llm.intent_router import ToolIntent, execute_intent
-from jarvis.tools.registry import ToolResult
+from jarvis.tools.registry import ToolRegistry, ToolResult
 
 
 @pytest.fixture
@@ -108,7 +109,9 @@ class _Tool:
 def _speak(result: ToolResult) -> list[str]:
     async def run():
         intent = ToolIntent("thing", {})
-        return [c async for c in execute_intent(intent, _Tool(result))]
+        # _Tool stands in for the registry's execute() / get() only.
+        registry = cast(ToolRegistry, _Tool(result))
+        return [c async for c in execute_intent(intent, registry)]
 
     return asyncio.run(run())
 

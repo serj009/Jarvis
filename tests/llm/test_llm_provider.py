@@ -159,7 +159,7 @@ class TestLifecycle:
 
 class TestStreamChat:
     @pytest.mark.asyncio
-    async def test_yields_chat_chunks(self):
+    async def test_yields_chat_chunks(self, monkeypatch):
         """stream_chat should yield ChatChunk objects (Ollama-compatible)."""
         cfg = _make_llm_config(provider="openai", api_key="sk-test")
         client = APILLMClient.from_config(cfg)
@@ -170,7 +170,7 @@ class TestStreamChat:
             yield ProviderChunk(content=" World", done=False)
             yield ProviderChunk(content="", done=True)
 
-        client._provider.stream_chat = fake_stream
+        monkeypatch.setattr(client._provider, "stream_chat", fake_stream)
 
         chunks = []
         async for chunk in client.stream_chat([{"role": "user", "content": "hi"}]):
@@ -182,7 +182,7 @@ class TestStreamChat:
         assert chunks[-1].done is True
 
     @pytest.mark.asyncio
-    async def test_connection_error_yields_message(self):
+    async def test_connection_error_yields_message(self, monkeypatch):
         """Connection errors should yield a user-friendly message."""
         cfg = _make_llm_config(provider="openai", api_key="sk-test")
         client = APILLMClient.from_config(cfg)
@@ -191,7 +191,7 @@ class TestStreamChat:
             raise ProviderConnectionError("Cannot connect")
             yield  # make it a generator  # noqa: E501, RUF027
 
-        client._provider.stream_chat = failing_stream
+        monkeypatch.setattr(client._provider, "stream_chat", failing_stream)
 
         chunks = []
         async for chunk in client.stream_chat([{"role": "user", "content": "hi"}]):
@@ -202,7 +202,7 @@ class TestStreamChat:
         assert chunks[0].done is True
 
     @pytest.mark.asyncio
-    async def test_auth_error_yields_message(self):
+    async def test_auth_error_yields_message(self, monkeypatch):
         """Auth errors should yield a user-friendly message."""
         cfg = _make_llm_config(provider="openai", api_key="sk-test")
         client = APILLMClient.from_config(cfg)
@@ -211,7 +211,7 @@ class TestStreamChat:
             raise ProviderAuthError("Bad key")
             yield  # noqa: E501, RUF027
 
-        client._provider.stream_chat = failing_stream
+        monkeypatch.setattr(client._provider, "stream_chat", failing_stream)
 
         chunks = []
         async for chunk in client.stream_chat([{"role": "user", "content": "hi"}]):
@@ -221,7 +221,7 @@ class TestStreamChat:
         assert "authentication" in chunks[0].content.lower()
 
     @pytest.mark.asyncio
-    async def test_system_prompt_prepended(self):
+    async def test_system_prompt_prepended(self, monkeypatch):
         """System prompt should be prepended if not in messages."""
         cfg = _make_llm_config(
             provider="openai", api_key="sk-test",
@@ -235,7 +235,7 @@ class TestStreamChat:
             captured_msgs.extend(msgs)
             yield ProviderChunk(content="ok", done=True)
 
-        client._provider.stream_chat = capture_stream
+        monkeypatch.setattr(client._provider, "stream_chat", capture_stream)
 
         async for _ in client.stream_chat([{"role": "user", "content": "hi"}]):
             pass
@@ -245,7 +245,7 @@ class TestStreamChat:
         assert captured_msgs[0].content == "You are Jarvis."
 
     @pytest.mark.asyncio
-    async def test_no_duplicate_system_prompt(self):
+    async def test_no_duplicate_system_prompt(self, monkeypatch):
         """System prompt should NOT be prepended if already in messages."""
         cfg = _make_llm_config(
             provider="openai", api_key="sk-test",
@@ -259,7 +259,7 @@ class TestStreamChat:
             captured_msgs.extend(msgs)
             yield ProviderChunk(content="ok", done=True)
 
-        client._provider.stream_chat = capture_stream
+        monkeypatch.setattr(client._provider, "stream_chat", capture_stream)
 
         async for _ in client.stream_chat([
             {"role": "system", "content": "Custom prompt"},

@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import base64
 import sys
-import types
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -19,6 +18,7 @@ from jarvis.tools.local.full_page_screenshot import (
     _get_save_dir,
 )
 from jarvis.tools.registry import EmptyArgs
+from tests._typing import fake_module
 
 # --- Unit tests: helpers ---------------------------------------------------
 
@@ -74,8 +74,7 @@ def test_capture_viewport_fallback_pyautogui():
     fake_image = MagicMock()
     fake_image.save.side_effect = lambda buf, format: buf.write(b"\x89PNG_fake")
 
-    fake_pyautogui = types.ModuleType("pyautogui")
-    fake_pyautogui.screenshot = MagicMock(return_value=fake_image)
+    fake_pyautogui = fake_module("pyautogui", screenshot=MagicMock(return_value=fake_image))
 
     with patch.dict(sys.modules, {"pyautogui": fake_pyautogui}):
         result = _capture_viewport_fallback()

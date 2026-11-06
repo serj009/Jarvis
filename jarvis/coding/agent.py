@@ -45,15 +45,14 @@ import sys
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
     from jarvis.coding.agent_notepad import AgentNotepad
     from jarvis.coding.code_search import CodeSearch
     from jarvis.coding.project_map import ProjectMap
     from jarvis.coding.voice_confirm import VoiceConfirm
-    from jarvis.core.config import CodingConfig
-    from jarvis.llm.model_provider import ModelProvider
+    from jarvis.llm.model_provider import ChatModel
 
 from jarvis.coding.languages import (
     LANGUAGES,
@@ -211,6 +210,16 @@ class PlanStep:
 # CodingAgent
 # ---------------------------------------------------------------------------
 
+class CodingLimits(Protocol):
+    """The settings CodingAgent reads (CodingConfig matches)."""
+
+    @property
+    def max_iterations(self) -> int: ...
+
+    @property
+    def auto_commit(self) -> bool: ...
+
+
 class CodingAgent:
     """Full-featured coding assistant that can create projects, edit files,
     run tests, fix bugs, and manage git — powered by a dedicated coding model.
@@ -226,9 +235,9 @@ class CodingAgent:
     def __init__(
         self,
         *,
-        provider: ModelProvider,
+        provider: ChatModel,
         workspace: Path,
-        config: CodingConfig,
+        config: CodingLimits,
         confirm: VoiceConfirm | None = None,
     ) -> None:
         from jarvis.llm.model_provider import ChatMessage as _ChatMessage

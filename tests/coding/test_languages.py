@@ -275,7 +275,7 @@ class TestGetLanguageConfig:
 
     def test_python_test_command(self):
         cfg = get_language_config("python")
-        assert "pytest" in cfg.test_command
+        assert cfg.test_command is not None and "pytest" in cfg.test_command
 
     def test_rust_build_command(self):
         cfg = get_language_config("rust")

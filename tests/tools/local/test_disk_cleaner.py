@@ -17,6 +17,7 @@ from jarvis.tools.local.disk_cleaner import (
     FindLargeFoldersTool,
 )
 from jarvis.tools.registry import EmptyArgs
+from tests._typing import output_text
 
 # --- DiskSpaceTool --------------------------------------------------------
 
@@ -73,7 +74,7 @@ async def test_disk_space_empty():
     ):
         result = await DiskSpaceTool().execute(EmptyArgs())
     assert result.success
-    assert "no disk" in (result.output or "").lower()
+    assert "no disk" in output_text(result).lower()
 
 
 # --- FindLargeFoldersTool -------------------------------------------------
@@ -121,7 +122,7 @@ async def test_find_large_folders_empty():
             FindLargeFoldersArgs(path=r"C:\empty"),
         )
     assert result.success
-    assert "no subfolder" in (result.output or "").lower()
+    assert "no subfolder" in output_text(result).lower()
 
 
 # --- CleanTempFilesTool ---------------------------------------------------

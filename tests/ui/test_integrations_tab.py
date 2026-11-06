@@ -10,9 +10,17 @@ from unittest.mock import patch
 
 from jarvis.core.config import JarvisConfig
 from jarvis.integrations.auth import IntegrationAuth
+from jarvis.integrations.base import BaseIntegration
 from jarvis.integrations.registry import IntegrationRegistry
 from jarvis.ui.settings import SettingsWindow
 from jarvis.ui.settings.tabs.integrations import IntegrationsTab
+
+
+def _example(reg: IntegrationRegistry) -> BaseIntegration:
+    """The bundled example plugin (always discovered)."""
+    plugin = reg.get("example")
+    assert plugin is not None
+    return plugin
 
 
 def _build_tab(cfg, auth_path):
@@ -36,8 +44,9 @@ class TestIntegrationsTab:
     def test_toggle_enables_and_persists(self, qapp, tmp_path):
         cfg = JarvisConfig()
         tab, reg, _auth, changed = _build_tab(cfg, tmp_path / "c.json")
-        tab._on_toggle(reg.get("example"), True)
-        assert reg.get("example").enabled is True
+        ex = _example(reg)
+        tab._on_toggle(ex, True)
+        assert ex.enabled is True
         assert cfg.integrations.enabled == ["example"]
         assert changed
 
@@ -45,13 +54,13 @@ class TestIntegrationsTab:
         cfg = JarvisConfig()
         cfg.integrations.enabled = ["example"]
         tab, reg, _auth, _ch = _build_tab(cfg, tmp_path / "c.json")
-        tab._on_toggle(reg.get("example"), False)
+        tab._on_toggle(_example(reg), False)
         assert cfg.integrations.enabled == []
 
     def test_toggle_blocked_by_missing_deps_reverts(self, qapp, tmp_path):
         cfg = JarvisConfig()
         tab, reg, _auth, _ch = _build_tab(cfg, tmp_path / "c.json")
-        ex = reg.get("example")
+        ex = _example(reg)
         ex.required_packages = ["definitely-not-installed-xyz"]
         try:
             tab._on_toggle(ex, True)

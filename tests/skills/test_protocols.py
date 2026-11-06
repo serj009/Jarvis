@@ -12,6 +12,7 @@ Covers:
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -33,7 +34,7 @@ def tmp_db(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def engine(tmp_db: Path) -> ProtocolEngine:
+def engine(tmp_db: Path) -> Iterator[ProtocolEngine]:
     """Engine with no registry / LLM (simple regex mode only)."""
     eng = ProtocolEngine(db_path=tmp_db, registry=None, ollama_client=None)
     yield eng
@@ -217,7 +218,7 @@ class TestCRUD:
 
         assert eng.set_enabled("Toggle", True) is True
         proto = eng.get_protocol("Toggle")
-        assert proto.enabled is True
+        assert proto is not None and proto.enabled is True
         eng.close()
 
     @pytest.mark.asyncio
@@ -328,7 +329,9 @@ class TestExecution:
         eng = ProtocolEngine(db_path=tmp_db, registry=reg)
         await eng.create_protocol("Delay", "screenshot")
         # Manually set delay
-        steps = eng.get_protocol("Delay").steps
+        proto = eng.get_protocol("Delay")
+        assert proto is not None
+        steps = proto.steps
         steps[0].delay_after = 0.01  # 10ms
         eng.update_steps("Delay", steps)
         result = await eng.execute_protocol("Delay")

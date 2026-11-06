@@ -349,7 +349,7 @@ class TestUpcomingDate:
             ],
             now=_NOW,
         )
-        assert "Near" in r[0]
+        assert r is not None and "Near" in r[0]
 
     def test_ignores_beyond_7_days(self, store):
         eng, _ = _engine(store)
