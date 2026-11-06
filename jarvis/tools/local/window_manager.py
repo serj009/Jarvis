@@ -106,6 +106,14 @@ def _send_keys(*keys: str) -> bool:
 # Args models
 # ---------------------------------------------------------------------------
 
+def _corner(spoken: str) -> str:
+    """'top left' / 'верхний левый' / 'левый верхний' / 'нижній правий' ->
+    the snap_* action for that corner (either word order)."""
+    top = any(w in spoken for w in ("top", "верх"))
+    left = any(w in spoken for w in ("left", "лев", "лів"))
+    return f"snap_{'top' if top else 'bottom'}_{'left' if left else 'right'}"
+
+
 class WindowActionArgs(BaseModel):
     action: Literal[
         "focus", "minimize", "maximize", "restore",
@@ -149,18 +157,16 @@ class WindowActionTool:
             },
         ),
         VoicePattern(
-            regex=r"^snap\s+(.+)\s+(left|right)$",
+            regex=r"^snap\s+(.+?)\s+(?:to\s+)?(?:the\s+)?(left|right)$",
             priority=200,
             args=lambda m: {"action": f"snap_{m.group(2)}", "window": m.group(1)},
         ),
         # EN corners + center: "snap chrome top left", "center discord"
         VoicePattern(
-            regex=r"^snap\s+(.+)\s+(top[\s-]?left|top[\s-]?right|bottom[\s-]?left|bottom[\s-]?right)$",
+            regex=r"^snap\s+(.+?)\s+(?:to\s+)?(?:the\s+)?((?:top|bottom)[\s-]?(?:left|right))"
+            r"(?:\s+corner)?$",
             priority=190,
-            args=lambda m: {
-                "action": "snap_" + m.group(2).replace("-", "_").replace(" ", "_"),
-                "window": m.group(1),
-            },
+            args=lambda m: {"action": _corner(m.group(2)), "window": m.group(1)},
         ),
         # Center must use an explicit "center/centre" word and sit at a
         # HIGHER priority number than snap left/right/corners so it never
@@ -177,17 +183,11 @@ class WindowActionTool:
         ),
         # RU corners + center: "сверни хром вверх влево", "центрируй дискорд"
         VoicePattern(
-            regex=r"^(?:помести|поставь|прицепи)\s+(.+)\s+(?:в\s+)?(верхний\s+левый|верхний\s+правый|нижний\s+левый|нижний\s+правый)(?:\s+угол)?$",
+            regex=r"^(?:помести|поставь|прицепи)\s+(.+?)\s+(?:в\s+)?"
+            r"((?:верхний|нижний)\s+(?:левый|правый)|(?:левый|правый)\s+(?:верхний|нижний))"
+            r"(?:\s+угол)?$",
             priority=190,
-            args=lambda m: {
-                "action": {
-                    "верхний левый": "snap_top_left",
-                    "верхний правый": "snap_top_right",
-                    "нижний левый": "snap_bottom_left",
-                    "нижний правый": "snap_bottom_right",
-                }[m.group(2)],
-                "window": m.group(1),
-            },
+            args=lambda m: {"action": _corner(m.group(2)), "window": m.group(1)},
         ),
         VoicePattern(
             regex=r"^(?:помести|поставь)\s+(.+)\s+(?:слева|влево)$",
@@ -206,17 +206,11 @@ class WindowActionTool:
         ),
         # UK corners + center: "постав хром зліва", "центруй діскорд"
         VoicePattern(
-            regex=r"^(?:познач|постав|причепи)\s+(.+)\s+(?:у\s+)?(верхній\s+лівий|верхній\s+правий|нижній\s+лівий|нижній\s+правий)(?:\s+кут)?$",
+            regex=r"^(?:познач|постав|причепи)\s+(.+?)\s+(?:[ув]\s+)?"
+            r"((?:верхній|нижній)\s+(?:лівий|правий)|(?:лівий|правий)\s+(?:верхній|нижній))"
+            r"(?:\s+кут)?$",
             priority=190,
-            args=lambda m: {
-                "action": {
-                    "верхній лівий": "snap_top_left",
-                    "верхній правий": "snap_top_right",
-                    "нижній лівий": "snap_bottom_left",
-                    "нижній правий": "snap_bottom_right",
-                }[m.group(2)],
-                "window": m.group(1),
-            },
+            args=lambda m: {"action": _corner(m.group(2)), "window": m.group(1)},
         ),
         VoicePattern(
             regex=r"^(?:постав|пересунь)\s+(.+)\s+(?:зліва|вліво)$",

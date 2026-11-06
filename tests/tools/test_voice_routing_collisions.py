@@ -303,3 +303,21 @@ def test_run_command_still_catches_whitelisted() -> None:
         assert _route(phrase) == "run_command", (
             f"{phrase!r} did not reach run_command"
         )
+
+
+@pytest.mark.parametrize(
+    ("phrase", "action", "window"),
+    [
+        # The greedy "(.+)" kept the preposition in the window name: "хром в".
+        ("помести хром в верхний левый угол", "snap_top_left", "хром"),
+        ("помести хром в левый верхний угол", "snap_top_left", "хром"),
+        ("поставь дискорд нижний правый", "snap_bottom_right", "дискорд"),
+        ("постав хром у верхній лівий кут", "snap_top_left", "хром"),
+        ("snap chrome to the top left", "snap_top_left", "chrome"),
+        ("snap vs code top right", "snap_top_right", "vs code"),
+        ("snap chrome to the left", "snap_left", "chrome"),
+        ("snap chrome left", "snap_left", "chrome"),
+    ],
+)
+def test_snap_window_name_and_corner(phrase: str, action: str, window: str) -> None:
+    assert _route_args(phrase) == ("window_action", {"action": action, "window": window})
