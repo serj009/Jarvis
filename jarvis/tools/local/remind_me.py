@@ -30,6 +30,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.durations import DURATION, parse_duration
 from jarvis.core.phrases import say, spoken_duration, spoken_when
 from jarvis.memory.scheduled_reminders import ReminderStore
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
@@ -271,90 +272,52 @@ class RemindMeTool:
     args_schema = RemindMeArgs
     requires_confirmation: bool = False
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
+        # Durations as said: "in 30 minutes", "in an hour", "через полчаса",
+        # "через пять минут", "через півтори години" (jarvis.core.durations).
         # EN: "remind me in 30 minutes to buy milk"
         VoicePattern(
-            regex=(
-                r"^remind\s+me\s+(?:in\s+)?(\d+)\s*"
-                r"(minutes?|hours?|mins?|hrs?|h)\s+"
-                r"(?:to\s+)?(.+)$"
-            ),
+            regex=rf"^remind\s+me\s+(?:in\s+)?({DURATION})\s*,?\s+(?:to\s+|that\s+)?(.+)$",
             priority=140,
             args=lambda m: {
-                "seconds": int(m.group(1)) * (
-                    3600 if m.group(2).startswith(("h", "hr")) else 60
-                ),
-                "text": m.group(3).strip(),
+                "seconds": parse_duration(m.group(1)) or 0,
+                "text": m.group(2).strip(),
             },
         ),
         # EN: "remind me in 30 minutes" (no text — fallback)
         VoicePattern(
-            regex=(
-                r"^remind\s+me\s+(?:in\s+)?(\d+)\s*"
-                r"(minutes?|hours?|mins?|hrs?|h)$"
-            ),
+            regex=rf"^remind\s+me\s+(?:in\s+)?({DURATION})$",
             priority=141,
-            args=lambda m: {
-                "seconds": int(m.group(1)) * (
-                    3600 if m.group(2).startswith(("h", "hr")) else 60
-                ),
-                "text": "Reminder",
-            },
+            args=lambda m: {"seconds": parse_duration(m.group(1)) or 0, "text": "Reminder"},
         ),
-        # RU: "напомни через 30 минут купить молоко"
+        # RU: "напомни через 30 минут купить молоко", "напомни через час, что ..."
         VoicePattern(
-            regex=(
-                r"^напомни\s+(?:мне\s+)?через\s+(\d+)\s*"
-                r"(минут[аыу]?|час(?:ов|а)?|мин|ч)\s+(.+)$"
-            ),
+            regex=rf"^напомни\s+(?:мне\s+)?через\s+({DURATION})\s*,?\s+(?:что\s+|чтобы\s+)?(.+)$",
             priority=140,
             args=lambda m: {
-                "seconds": int(m.group(1)) * (
-                    3600 if m.group(2).startswith("час") or m.group(2) == "ч" else 60
-                ),
-                "text": m.group(3).strip(),
+                "seconds": parse_duration(m.group(1)) or 0,
+                "text": m.group(2).strip(),
             },
         ),
         # RU: "напомни через 30 минут" (no text)
         VoicePattern(
-            regex=(
-                r"^напомни\s+(?:мне\s+)?через\s+(\d+)\s*"
-                r"(минут[аыу]?|час(?:ов|а)?|мин|ч)$"
-            ),
+            regex=rf"^напомни\s+(?:мне\s+)?через\s+({DURATION})$",
             priority=141,
-            args=lambda m: {
-                "seconds": int(m.group(1)) * (
-                    3600 if m.group(2).startswith("час") or m.group(2) == "ч" else 60
-                ),
-                "text": "Напоминание",
-            },
+            args=lambda m: {"seconds": parse_duration(m.group(1)) or 0, "text": "Напоминание"},
         ),
-        # UK: "нагадай через 30 хвилин купити молоко"
+        # UK: "нагадай через 30 хвилин купити молоко", "нагадай через годину, що ..."
         VoicePattern(
-            regex=(
-                r"^нагадай\s+(?:мені\s+)?через\s+(\d+)\s*"
-                r"(хвилин[уи]?|годин[уи]?|хв|год)\s+(.+)$"
-            ),
+            regex=rf"^нагадай\s+(?:мені\s+)?через\s+({DURATION})\s*,?\s+(?:що\s+|щоб\s+)?(.+)$",
             priority=140,
             args=lambda m: {
-                "seconds": int(m.group(1)) * (
-                    3600 if m.group(2).startswith("год") else 60
-                ),
-                "text": m.group(3).strip(),
+                "seconds": parse_duration(m.group(1)) or 0,
+                "text": m.group(2).strip(),
             },
         ),
         # UK: "нагадай через 30 хвилин" (no text)
         VoicePattern(
-            regex=(
-                r"^нагадай\s+(?:мені\s+)?через\s+(\d+)\s*"
-                r"(хвилин[уи]?|годин[уи]?|хв|год)$"
-            ),
+            regex=rf"^нагадай\s+(?:мені\s+)?через\s+({DURATION})$",
             priority=141,
-            args=lambda m: {
-                "seconds": int(m.group(1)) * (
-                    3600 if m.group(2).startswith("год") else 60
-                ),
-                "text": "Нагадування",
-            },
+            args=lambda m: {"seconds": parse_duration(m.group(1)) or 0, "text": "Нагадування"},
         ),
     )
 

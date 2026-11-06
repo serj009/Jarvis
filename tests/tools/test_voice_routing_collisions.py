@@ -56,6 +56,17 @@ _CASES = [
     # "в браузере uakino.best" (seen in a live session).
     # Everyday volume forms (M3): "сделай громче" went to the autonomous
     # agent's "сделай (.+)", "выключи звук" to close_app ("звук" as an app).
+    # Durations in words (M3): "на пять минут", "через полчаса", "через час"
+    # went to the model, the patterns understood only digits.
+    ("поставь таймер на пять минут", "set_timer"),
+    ("поставь таймер на полчаса", "set_timer"),
+    ("постав таймер на півхвилини", "set_timer"),
+    ("set a timer for twenty minutes", "set_timer"),
+    ("напомни через пять минут купить хлеб", "remind_me"),
+    ("напомни через час выключить плиту", "remind_me"),
+    ("напомни через 30 секунд", "remind_me"),
+    ("нагадай через годину подзвонити", "remind_me"),
+    ("remind me in an hour to stretch", "remind_me"),
     ("громче", "volume"),
     ("сделай тише", "volume"),
     ("выключи звук", "volume"),

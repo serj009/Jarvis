@@ -15,6 +15,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.durations import DURATION, parse_duration
 from jarvis.core.phrases import say, spoken_duration
 from jarvis.platform.encrypted_store import EncryptedJsonStore
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
@@ -203,36 +204,23 @@ class SetTimerTool:
     requires_confirmation: bool = False
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
         # EN: "set timer 5 minutes", "timer for 30 seconds"
+        # Durations as said: "5 minutes", "half an hour", "an hour and a half".
         VoicePattern(
-            regex=r"^(?:set\s+)?timer\s+(?:for\s+)?(\d+)\s*(minutes?|seconds?|mins?|secs?)$",
+            regex=rf"^(?:set\s+(?:a\s+)?)?timer\s+(?:for\s+)?({DURATION})$",
             priority=150,
-            args=lambda m: {
-                "seconds": int(m.group(1)) * (60 if m.group(2).startswith("min") else 1),
-            },
+            args=lambda m: {"seconds": parse_duration(m.group(1)) or 0},
         ),
-        # RU: "таймер на 5 минут", "поставь таймер на 30 секунд"
+        # RU: "таймер на 5 минут", "поставь таймер на пять минут", "на полчаса"
         VoicePattern(
-            regex=r"^(?:поставь\s+)?таймер\s+(?:на\s+)?(\d+)\s*(?:минут[аыу]?|секунд[уыа]?|мин|сек)$",
+            regex=rf"^(?:(?:поставь|заведи|установи|включи)\s+)?таймер\s+(?:на\s+)?({DURATION})$",
             priority=150,
-            args=lambda m: {
-                "seconds": int(m.group(1)) * (60 if "мин" in m.group(0) else 1),
-            },
+            args=lambda m: {"seconds": parse_duration(m.group(1)) or 0},
         ),
-        # RU: "напомни через 10 минут"
+        # UK: "таймер на 5 хвилин", "постав таймер на п'ять хвилин", "на півхвилини"
         VoicePattern(
-            regex=r"^напомни\s+через\s+(\d+)\s*(?:минут[аыу]?|секунд[уыа]?|мин|сек)$",
+            regex=rf"^(?:(?:постав|заведи|встанови|увімкни)\s+)?таймер\s+(?:на\s+)?({DURATION})$",
             priority=150,
-            args=lambda m: {
-                "seconds": int(m.group(1)) * (60 if "мин" in m.group(0) else 1),
-            },
-        ),
-        # UK: "таймер на 5 хвилин", "постав таймер на 10 секунд"
-        VoicePattern(
-            regex=r"^(?:постав\s+)?таймер\s+(?:на\s+)?(\d+)\s*(?:хвилин[уиа]?|секунд[уиа]?|хв|сек)$",
-            priority=150,
-            args=lambda m: {
-                "seconds": int(m.group(1)) * (60 if "хв" in m.group(0) else 1),
-            },
+            args=lambda m: {"seconds": parse_duration(m.group(1)) or 0},
         ),
     )
 
