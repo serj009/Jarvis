@@ -337,3 +337,17 @@ def test_web_search_query_leaves_out_the_web(phrase: str, query: str) -> None:
     tool, args = _route_args(phrase)
     assert tool == "open_url"
     assert args["url"].endswith(f"?q={query}")
+
+
+@pytest.mark.parametrize(
+    ("phrase", "content"),
+    [
+        # "запиши" is Russian and Ukrainian; the Russian pattern comes first
+        # and kept "нотатку" in the note.
+        ("запиши нотатку купити хліб", "купити хліб"),
+        ("запиши собі в нотатки подзвонити", "подзвонити"),
+        ("запиши заметку купить хлеб", "купить хлеб"),
+    ],
+)
+def test_note_content_leaves_out_the_command(phrase: str, content: str) -> None:
+    assert _route_args(phrase) == ("take_note", {"content": content})

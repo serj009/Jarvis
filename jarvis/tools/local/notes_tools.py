@@ -55,9 +55,12 @@ class TakeNoteTool:
             # (?:те)? so the polite "запомните X" saves "X", not "те X"; the
             # words "заметку" / "в заметки" / "себе" and a leading "что" are
             # the command, not the note.
-            regex=r"^(?:запиши(?:те)?(?:\s+себе)?(?:\s+(?:заметку|в\s+заметк[иу]))?"
+            # "запиши" is also Ukrainian and this pattern comes first, so it
+            # skips "нотатку" / "в нотатки" too.
+            regex=r"^(?:запиши(?:те)?(?:\s+(?:себе|собі))?"
+            r"(?:\s+(?:заметку|в\s+заметк[иу]|нотатку|в\s+нотатк[иу]))?"
             r"|сделай(?:те)?\s+заметку|заметка|запомни(?:те)?)"
-            r"\s*[:,\s]?\s*(?:что\s+)?(.+)$",
+            r"\s*[:,\s]?\s*(?:(?:что|що)\s+)?(.+)$",
             priority=440,
             args=lambda m: {"content": m.group(1)},
         ),
