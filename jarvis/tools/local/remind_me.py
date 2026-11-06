@@ -556,17 +556,21 @@ class ListRemindersTool:
     voice_patterns: ClassVar[tuple[VoicePattern, ...]] = (
         # EN
         VoicePattern(
-            regex=r"^(?:show|list)\s+(?:my\s+)?reminders?$",
+            regex=r"^(?:(?:show|list)\s+(?:my\s+)?reminders?"
+            r"|what\s+(?:are\s+my\s+reminders|reminders\s+do\s+i\s+have))$",
             priority=150,
         ),
         # RU
         VoicePattern(
-            regex=r"^(?:покажи|список)\s+(?:мои\s+)?(?:напоминани[яей]|напоминалки?)$",
+            # "какие у меня напоминания" went to the model.
+            regex=r"^(?:(?:покажи|список)\s+(?:мои\s+)?|какие\s+(?:у\s+меня\s+)?(?:есть\s+)?)"
+            r"(?:напоминани[яей]|напоминалки?)$",
             priority=150,
         ),
         # UK
         VoicePattern(
-            regex=r"^(?:покажи|список)\s+(?:мої\s+)?(?:нагадуванн[яь]|нагадувань)$",
+            regex=r"^(?:(?:покажи|список)\s+(?:мої\s+)?|які\s+(?:[ув]\s+мене\s+)?(?:є\s+)?)"
+            r"(?:нагадуванн[яь]|нагадувань)$",
             priority=150,
         ),
     )

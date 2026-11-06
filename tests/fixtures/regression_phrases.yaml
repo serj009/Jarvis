@@ -193,6 +193,12 @@
   args: {time: "19:00", text: "call mom", tomorrow: false}
 - say: "покажи напоминания"
   tool: "list_reminders"
+- say: "какие у меня напоминания"
+  tool: "list_reminders"
+- say: "які в мене нагадування"
+  tool: "list_reminders"
+- say: "what are my reminders"
+  tool: "list_reminders"
 - say: "notify me in half an hour"
   tool: "schedule_notification"
   args: {title: "Jarvis Reminder", message: "Time's up!", delay_seconds: 1800}
