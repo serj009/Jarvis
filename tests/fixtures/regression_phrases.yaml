@@ -1,0 +1,438 @@
+# Контрольные фразы голосовых команд (M3-1 / M3-2, docs/ROADMAP.md).
+#
+# Каждая фраза проходит через весь роутер (tests/llm/test_regression_phrases.py):
+#   tool / args — шаблон выбирает этот инструмент с ровно этими аргументами,
+#                 без обращения к модели;
+#   speak       — роутер отвечает сам (например, время по-английски);
+#   stop        — остановка речи;
+#   model       — шаблона быть не должно, фразу решает модель (проверяется дома).
+#
+# Фразы — так, как их пишет распознавание: числа бывают словами, предлоги
+# и знаки препинания на месте. Личных данных здесь нет и быть не должно
+# (репозиторий публичный). Новую найденную в живой сессии фразу добавлять
+# сюда вместе с исправлением.
+
+# ── Программы и сайты ─────────────────────────────────────────────────
+- say: "открой блокнот"
+  tool: "open_app"
+  args: {name: "блокнот"}
+- say: "Открый блокнот"
+  tool: "open_app"
+  args: {name: "блокнот"}
+- say: "закрой блокнот"
+  tool: "close_app"
+  args: {name: "блокнот"}
+- say: "закрий блокнот"
+  tool: "close_app"
+  args: {name: "блокнот"}
+- say: "open notepad"
+  tool: "open_app"
+  args: {name: "notepad"}
+- say: "close notepad"
+  tool: "close_app"
+  args: {name: "notepad"}
+- say: "quit notepad"
+  tool: "close_app"
+  args: {name: "notepad"}
+- say: "открой ютуб"
+  tool: "open_url"
+  args: {url: "https://www.youtube.com"}
+- say: "открой ютуб в браузере"
+  tool: "open_url"
+  args: {url: "https://www.youtube.com"}
+- say: "відкрий стім у браузері"
+  tool: "open_url"
+  args: {url: "https://store.steampowered.com"}
+- say: "открой uakino.best"
+  tool: "open_url"
+  args: {url: "https://uakino.best"}
+- say: "open github"
+  tool: "open_url"
+  args: {url: "https://github.com"}
+- say: "open steam website"
+  tool: "open_url"
+  args: {url: "https://store.steampowered.com"}
+- say: "hey jarvis, open spotify"
+  tool: "open_url"
+  args: {url: "https://open.spotify.com"}
+- say: "запусти игру ведьмак"
+  tool: "launch_game"
+  args: {game_name: "ведьмак"}
+- say: "запусти сталкер в стиме"
+  tool: "launch_steam_game"
+  args: {game_name: "сталкер"}
+- say: "play cyberpunk on steam"
+  tool: "launch_steam_game"
+  args: {game_name: "cyberpunk"}
+- say: "launch elden ring on steam"
+  tool: "launch_steam_game"
+  args: {game_name: "elden ring"}
+
+# ── Поиск ─────────────────────────────────────────────────────────────
+- say: "найди рецепт борща"
+  tool: "open_url"
+  args: {url: "https://www.google.com/search?q=%D1%80%D0%B5%D1%86%D0%B5%D0%BF%D1%82+%D0%B1%D0%BE%D1%80%D1%89%D0%B0"}
+- say: "поищи погоду в Киеве"
+  tool: "open_url"
+  args: {url: "https://www.google.com/search?q=%D0%BF%D0%BE%D0%B3%D0%BE%D0%B4%D1%83+%D0%B2+%D0%BA%D0%B8%D0%B5%D0%B2%D0%B5"}
+- say: "google cats"
+  tool: "open_url"
+  args: {url: "https://www.google.com/search?q=cats"}
+- say: "search for puppies"
+  tool: "open_url"
+  args: {url: "https://www.google.com/search?q=puppies"}
+- say: "search the web for tide tables"
+  tool: "open_url"
+  args: {url: "https://www.google.com/search?q=tide+tables"}
+- say: "search up how to poach an egg"
+  tool: "open_url"
+  args: {url: "https://www.google.com/search?q=how+to+poach+an+egg"}
+
+# ── Время, погода, язык ───────────────────────────────────────────────
+- say: "который час"
+  tool: "get_time"
+- say: "котра година"
+  tool: "get_time"
+- say: "какое сегодня число"
+  tool: "get_time"
+- say: "what time is it"
+  speak: true
+- say: "what's the date"
+  tool: "get_time"
+- say: "какая погода"
+  tool: "get_weather"
+- say: "яка погода"
+  tool: "get_weather"
+- say: "what's the weather"
+  tool: "get_weather"
+- say: "говори по-украински"
+  tool: "switch_language"
+  args: {language: "uk"}
+- say: "говори по-русски"
+  tool: "switch_language"
+  args: {language: "ru"}
+- say: "speak english"
+  tool: "switch_language"
+  args: {language: "en"}
+- say: "на русском"
+  tool: "switch_language"
+  args: {language: "ru"}
+- say: "по-українськи"
+  tool: "switch_language"
+  args: {language: "uk"}
+- say: "автоопределение языка"
+  tool: "switch_language"
+  args: {language: "auto"}
+
+# ── Таймеры и напоминания ─────────────────────────────────────────────
+- say: "поставь таймер на 5 минут"
+  tool: "set_timer"
+  args: {seconds: 300}
+- say: "поставь таймер на пять минут"
+  tool: "set_timer"
+  args: {seconds: 300}
+- say: "поставь таймер на полчаса"
+  tool: "set_timer"
+  args: {seconds: 1800}
+- say: "постав таймер на 10 хвилин"
+  tool: "set_timer"
+  args: {seconds: 600}
+- say: "постав таймер на півхвилини"
+  tool: "set_timer"
+  args: {seconds: 30}
+- say: "таймер на 1 час"
+  tool: "set_timer"
+  args: {seconds: 3600}
+- say: "set timer 5 minutes"
+  tool: "set_timer"
+  args: {seconds: 300}
+- say: "set a timer for twenty minutes"
+  tool: "set_timer"
+  args: {seconds: 1200}
+- say: "напомни через 30 минут купить молоко"
+  tool: "remind_me"
+  args: {seconds: 1800, text: "купить молоко"}
+- say: "напомни через пять минут купить хлеб"
+  tool: "remind_me"
+  args: {seconds: 300, text: "купить хлеб"}
+- say: "напомни через час выключить плиту"
+  tool: "remind_me"
+  args: {seconds: 3600, text: "выключить плиту"}
+- say: "напомни через полтора часа забрать ребёнка"
+  tool: "remind_me"
+  args: {seconds: 5400, text: "забрать ребёнка"}
+- say: "напомни через пять минут, что надо выключить плиту"
+  tool: "remind_me"
+  args: {seconds: 300, text: "надо выключить плиту"}
+- say: "напомни через 5 минут"
+  tool: "remind_me"
+  args: {seconds: 300, text: "Напоминание"}
+- say: "нагадай через 30 хвилин купити молоко"
+  tool: "remind_me"
+  args: {seconds: 1800, text: "купити молоко"}
+- say: "нагадай через годину подзвонити"
+  tool: "remind_me"
+  args: {seconds: 3600, text: "подзвонити"}
+- say: "remind me in 30 minutes to buy milk"
+  tool: "remind_me"
+  args: {seconds: 1800, text: "buy milk"}
+- say: "remind me in an hour to stretch"
+  tool: "remind_me"
+  args: {seconds: 3600, text: "stretch"}
+- say: "покажи напоминания"
+  tool: "list_reminders"
+- say: "notify me in half an hour"
+  tool: "schedule_notification"
+  args: {title: "Jarvis Reminder", message: "Time's up!", delay_seconds: 1800}
+
+# ── Звук и медиа ──────────────────────────────────────────────────────
+- say: "громче"
+  tool: "volume"
+  args: {action: "up"}
+- say: "тише"
+  tool: "volume"
+  args: {action: "down"}
+- say: "сделай громче"
+  tool: "volume"
+  args: {action: "up"}
+- say: "сделай тише"
+  tool: "volume"
+  args: {action: "down"}
+- say: "выключи звук"
+  tool: "volume"
+  args: {action: "mute"}
+- say: "зроби гучніше"
+  tool: "volume"
+  args: {action: "up"}
+- say: "вимкни звук"
+  tool: "volume"
+  args: {action: "mute"}
+- say: "louder"
+  tool: "volume"
+  args: {action: "up"}
+- say: "volume up"
+  tool: "volume"
+  args: {action: "up"}
+- say: "volume mute"
+  tool: "volume"
+  args: {action: "mute"}
+- say: "следующий трек"
+  tool: "media_control"
+  args: {action: "next_track"}
+- say: "пауза"
+  tool: "media_control"
+  args: {action: "pause"}
+- say: "наступний трек"
+  tool: "media_control"
+  args: {action: "next_track"}
+- say: "next track"
+  tool: "media_control"
+  args: {action: "next_track"}
+
+# ── Экран и окна ──────────────────────────────────────────────────────
+- say: "сделай скриншот"
+  tool: "screenshot"
+- say: "зроби скріншот"
+  tool: "screenshot"
+- say: "take a screenshot"
+  tool: "screenshot"
+- say: "что на экране"
+  tool: "see_screen"
+- say: "what's on my screen"
+  tool: "see_screen"
+- say: "заблокируй экран"
+  tool: "lock_screen"
+- say: "lock the screen"
+  tool: "lock_screen"
+- say: "сверни всё"
+  tool: "minimize_all"
+- say: "minimize all"
+  tool: "minimize_all"
+- say: "следующий рабочий стол"
+  tool: "virtual_desktop"
+  args: {action: "next"}
+- say: "next desktop"
+  tool: "virtual_desktop"
+  args: {action: "next"}
+- say: "помести хром в верхний левый угол"
+  tool: "window_action"
+  args: {action: "snap_top_left", window: "хром"}
+- say: "центрируй дискорд"
+  tool: "window_action"
+  args: {action: "snap_center", window: "дискорд"}
+- say: "snap chrome left"
+  tool: "window_action"
+  args: {action: "snap_left", window: "chrome"}
+- say: "код слева, хром справа"
+  tool: "snap_layout"
+  args: {left: "код", right: "хром"}
+- say: "VS Code left, Chrome right"
+  tool: "snap_layout"
+  args: {left: "vs code", right: "chrome"}
+
+# ── Заметки ───────────────────────────────────────────────────────────
+- say: "запиши купить хлеб"
+  tool: "take_note"
+  args: {content: "купить хлеб"}
+- say: "запиши заметку купить хлеб"
+  tool: "take_note"
+  args: {content: "купить хлеб"}
+- say: "запомни купить молоко"
+  tool: "take_note"
+  args: {content: "купить молоко"}
+- say: "запомни, что баттл — это стим"
+  tool: "take_note"
+  args: {content: "баттл — это стим"}
+- say: "сделай заметку: встреча в 3"
+  tool: "take_note"
+  args: {content: "встреча в 3"}
+- say: "создай заметку купить хлеб"
+  tool: "take_note"
+  args: {content: "купить хлеб"}
+- say: "запиши нотатку купити хліб"
+  tool: "take_note"
+  args: {content: "купити хліб"}
+- say: "створи нотатку купити хліб"
+  tool: "take_note"
+  args: {content: "купити хліб"}
+- say: "take a note about the roof leak"
+  tool: "take_note"
+  args: {content: "the roof leak"}
+- say: "jot this down buy cat food"
+  tool: "take_note"
+  args: {content: "buy cat food"}
+- say: "открой заметки"
+  tool: "open_notes"
+- say: "open my notes"
+  tool: "open_notes"
+- say: "close notes"
+  tool: "close_notes"
+- say: "read my meeting note"
+  tool: "read_note"
+  args: {title: "meeting"}
+- say: "delete the groceries note"
+  tool: "delete_note"
+  args: {title: "groceries"}
+
+# ── Страницы и списки ─────────────────────────────────────────────────
+- say: "запомни эту страницу"
+  tool: "save_page_knowledge"
+- say: "запамʼятай цю сторінку"
+  tool: "save_page_knowledge"
+- say: "remember this page"
+  tool: "save_page_knowledge"
+- say: "как там страница"
+  tool: "page_reading_status"
+- say: "что осталось"
+  tool: "saved_list_status"
+  args: {action: "remaining", name: ""}
+- say: "what's left"
+  tool: "saved_list_status"
+  args: {action: "remaining", name: ""}
+- say: "mark phoenix wings as done"
+  tool: "mark_list_item"
+  args: {item: "phoenix wings", done: true}
+- say: "shopping list for borscht"
+  tool: "saved_list_status"
+  args: {action: "shopping_list", name: "borscht"}
+
+# ── Файлы ─────────────────────────────────────────────────────────────
+- say: "верни как было"
+  tool: "undo_file_change"
+- say: "undo that"
+  tool: "undo_file_change"
+- say: "удали программу zoom"
+  tool: "package_uninstall"
+  args: {package: "zoom"}
+- say: "видали програму zoom"
+  tool: "package_uninstall"
+  args: {package: "zoom"}
+- say: "uninstall zoom"
+  tool: "package_uninstall"
+  args: {package: "zoom"}
+- say: "создай папку проекты"
+  tool: "file_manager"
+  args: {action: "mkdir", path: "проекты"}
+- say: "створи файл нотатки.md"
+  tool: "create_file"
+  args: {path: "нотатки.md"}
+- say: "создай питон файл utils"
+  tool: "create_file"
+  args: {path: "utils.py"}
+
+# ── Картинки ──────────────────────────────────────────────────────────
+- say: "нарисуй кота в шляпе"
+  tool: "generate_image"
+  args: {prompt: "кота в шляпе"}
+- say: "создай картинку кота"
+  tool: "generate_image"
+  args: {prompt: "кота"}
+- say: "намалюй кота"
+  tool: "generate_image"
+  args: {prompt: "кота"}
+- say: "draw a dragon"
+  tool: "generate_image"
+  args: {prompt: "a dragon"}
+- say: "generate an image of a cat"
+  tool: "generate_image"
+  args: {prompt: "a cat"}
+
+# ── Панели и справка ──────────────────────────────────────────────────
+- say: "что ты умеешь"
+  tool: "open_help"
+- say: "what can you do"
+  tool: "open_help"
+- say: "show logs"
+  tool: "show_logs"
+- say: "покажи логи"
+  tool: "show_logs"
+- say: "show dashboard"
+  tool: "show_dashboard"
+- say: "show clipboard history"
+  tool: "show_clipboard_history"
+- say: "clear my clipboard history"
+  tool: "clear_clipboard_history"
+- say: "what's on my clipboard"
+  tool: "clipboard"
+- say: "повтори"
+  tool: "repeat_last"
+
+# ── Остановка ─────────────────────────────────────────────────────────
+- say: "хватит"
+  stop: true
+- say: "stop"
+  stop: true
+- say: "shut up"
+  stop: true
+- say: "never mind"
+  stop: true
+
+# ── Только модель (шаблона быть не должно) ────────────────────────────
+- say: "расскажи анекдот"
+  model: true
+- say: "как дела"
+  model: true
+- say: "почему небо голубое"
+  model: true
+- say: "привет"
+  model: true
+- say: "tell me a joke"
+  model: true
+- say: "что ты знаешь о погоде"
+  model: true
+- say: "забудь это из памяти"
+  model: true
+- say: "удали из памяти мой адрес"
+  model: true
+- say: "удали заметку покупки"
+  model: true
+- say: "удали файл"
+  model: true
+- say: "do you remember my name"
+  model: true
+- say: "remember that bob is my brother"
+  model: true
+- say: "создай протокол утро"
+  model: true
+- say: "сгенерируй пароль из 20 символов"
+  model: true
