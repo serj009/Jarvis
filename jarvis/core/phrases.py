@@ -739,6 +739,105 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Удалил {files}, освободил {size}, сэр. Занятые файлы оставил: {busy}.",
         "uk": "Видалив {files}, звільнив {size}, сер. Зайняті файли залишив: {busy}.",
     },
+    # ── Panels, dictation, notifications ──────────────────────────────────
+    "logs_showing": {
+        "en": "Showing the logs, sir.",
+        "ru": "Показываю логи, сэр.",
+        "uk": "Показую логи, сер.",
+    },
+    "logs_closed": {
+        "en": "Logs closed, sir.",
+        "ru": "Закрыл логи, сэр.",
+        "uk": "Закрив логи, сер.",
+    },
+    "dashboard_showing": {
+        "en": "Showing your dashboard, sir.",
+        "ru": "Показываю панель, сэр.",
+        "uk": "Показую панель, сер.",
+    },
+    "dashboard_closed": {
+        "en": "Dashboard closed, sir.",
+        "ru": "Закрыл панель, сэр.",
+        "uk": "Закрив панель, сер.",
+    },
+    "chat_open": {
+        "en": "The chat is open, sir.",
+        "ru": "Открыл чат, сэр.",
+        "uk": "Відкрив чат, сер.",
+    },
+    "chat_closed": {
+        "en": "Chat closed, sir.",
+        "ru": "Закрыл чат, сэр.",
+        "uk": "Закрив чат, сер.",
+    },
+    "clip_history_showing": {
+        "en": "Here's your clipboard history, sir.",
+        "ru": "Вот история буфера обмена, сэр.",
+        "uk": "Ось історія буфера обміну, сер.",
+    },
+    "clip_history_closed": {
+        "en": "Clipboard history closed, sir.",
+        "ru": "Закрыл историю буфера, сэр.",
+        "uk": "Закрив історію буфера, сер.",
+    },
+    "clip_history_item": {
+        "en": "Item {index} is ready, sir. Press Control V to paste it.",
+        "ru": "Запись {index} готова, сэр. Вставьте её через Ctrl+V.",
+        "uk": "Запис {index} готовий, сер. Вставте його через Ctrl+V.",
+    },
+    "clip_history_cleared": {
+        "en": "Cleared {items} from the clipboard history, sir.",
+        "ru": "Удалил из истории буфера: {items}, сэр.",
+        "uk": "Видалив з історії буфера: {items}, сер.",
+    },
+    "ultra_on": {
+        "en": "Deep research Ultra is on, sir.",
+        "ru": "Режим «Ультра» включён, сэр.",
+        "uk": "Режим «Ультра» увімкнено, сер.",
+    },
+    "ultra_off": {
+        "en": "Deep research Ultra is off, sir.",
+        "ru": "Режим «Ультра» выключен, сэр.",
+        "uk": "Режим «Ультра» вимкнено, сер.",
+    },
+    "dictation_already": {
+        "en": "Dictation is already on, sir.",
+        "ru": "Диктовка уже включена, сэр.",
+        "uk": "Диктування вже ввімкнено, сер.",
+    },
+    "dictation_on": {
+        "en": (
+            "Dictation on, sir. Everything you say will be typed. Say 'stop dictation' to finish."
+        ),
+        "ru": (
+            "Диктовка включена, сэр. Всё, что скажете, будет напечатано. "
+            "Чтобы закончить, скажите «закончи диктовку»."
+        ),
+        "uk": (
+            "Диктування ввімкнено, сер. Усе, що скажете, буде надруковано. "
+            "Щоб закінчити, скажіть «заверши диктовку»."
+        ),
+    },
+    "dictation_not_on": {
+        "en": "Dictation is not on, sir.",
+        "ru": "Диктовка не включена, сэр.",
+        "uk": "Диктування не ввімкнено, сер.",
+    },
+    "dictation_off": {
+        "en": "Dictation off, sir.",
+        "ru": "Диктовка выключена, сэр.",
+        "uk": "Диктування вимкнено, сер.",
+    },
+    "notification_shown": {
+        "en": "Notification shown, sir.",
+        "ru": "Показал уведомление, сэр.",
+        "uk": "Показав сповіщення, сер.",
+    },
+    "notification_scheduled": {
+        "en": "I'll show the notification in {duration}, sir.",
+        "ru": "Покажу уведомление через {duration}, сэр.",
+        "uk": "Покажу сповіщення через {duration}, сер.",
+    },
     # ── Broken modules (M2-3, jarvis/audio/pipeline.py) ──────────────
     "error_stt_failed": {
         "en": "Speech recognition failed, sir. Please try again.",
@@ -863,6 +962,9 @@ _UNITS: dict[str, dict[Lang, tuple[str, str, str]]] = {
     "file": {"ru": ("файл", "файла", "файлов"),
              "uk": ("файл", "файли", "файлів"),
              "en": ("file", "files", "files")},
+    "item": {"ru": ("запись", "записи", "записей"),
+             "uk": ("запис", "записи", "записів"),
+             "en": ("item", "items", "items")},
     "character": {"ru": ("символ", "символа", "символов"),
                   "uk": ("символ", "символи", "символів"),
                   "en": ("character", "characters", "characters")},

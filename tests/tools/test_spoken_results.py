@@ -187,3 +187,33 @@ async def test_keeping_the_computer_awake_says_for_how_long():
             {"action": "caffeinate", "caffeinate_minutes": 90}, "не давай компьютеру уснуть",
         )
     assert spoken.strip() == "Не дам компьютеру уснуть ещё 1 час 30 минут, сэр."
+
+
+# -- panels, dictation, notifications ------------------------------------------
+
+
+async def test_clearing_clipboard_history_counts_items_in_russian():
+    from jarvis.tools.local.clipboard_history_tools import ClearClipboardHistoryTool
+
+    reg = _one_tool(ClearClipboardHistoryTool(on_clear=lambda: 3))
+    spoken = await _say(reg, "clear_clipboard_history", {}, "очисти историю буфера")
+    assert spoken.strip() == "Удалил из истории буфера: 3 записи, сэр."
+
+
+async def test_dictation_tells_how_to_stop_in_ukrainian():
+    from jarvis.tools.local import dictation
+
+    reg = _one_tool(dictation.DictationTool())
+    try:
+        spoken = await _say(reg, "dictation", {"action": "start"}, "почни диктовку")
+    finally:
+        dictation._set_dictation(False)
+    assert "«заверши диктовку»" in spoken
+    assert spoken.startswith("Диктування ввімкнено, сер.")
+
+
+async def test_logs_panel_answers_in_russian():
+    from jarvis.tools.local.log_tools import ShowLogsTool
+
+    reg = _one_tool(ShowLogsTool(on_open=lambda: None))
+    assert (await _say(reg, "show_logs", {}, "покажи логи")).strip() == "Показываю логи, сэр."

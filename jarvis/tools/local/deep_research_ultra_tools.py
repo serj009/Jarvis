@@ -6,6 +6,7 @@ import logging
 from collections.abc import Callable
 from typing import ClassVar
 
+from jarvis.core.phrases import say
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ class EnableDeepResearchUltraTool:
 
     async def execute(self, args: EmptyArgs) -> ToolResult:  # noqa: ARG002
         message = self._set_ultra(True)
-        return ToolResult(success=True, output=message)
+        return ToolResult(success=True, output=message, spoken=say("ultra_on"))
 
 
 class DisableDeepResearchUltraTool:
@@ -87,4 +88,4 @@ class DisableDeepResearchUltraTool:
 
     async def execute(self, args: EmptyArgs) -> ToolResult:  # noqa: ARG002
         message = self._set_ultra(False)
-        return ToolResult(success=True, output=message)
+        return ToolResult(success=True, output=message, spoken=say("ultra_off"))

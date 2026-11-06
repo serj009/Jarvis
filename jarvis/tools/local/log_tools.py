@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import ClassVar
 
+from jarvis.core.phrases import say
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 
@@ -39,7 +40,11 @@ class ShowLogsTool:
 
     async def execute(self, args: EmptyArgs) -> ToolResult:  # noqa: ARG002
         self._on_open()
-        return ToolResult(success=True, output="Showing logs, sir.")
+        return ToolResult(
+            success=True,
+            output="Showing logs, sir.",
+            spoken=say("logs_showing"),
+        )
 
 
 class CloseLogsTool:
@@ -62,4 +67,8 @@ class CloseLogsTool:
 
     async def execute(self, args: EmptyArgs) -> ToolResult:  # noqa: ARG002
         self._on_close()
-        return ToolResult(success=True, output="Log viewer closed.")
+        return ToolResult(
+            success=True,
+            output="Log viewer closed.",
+            spoken=say("logs_closed"),
+        )

@@ -48,6 +48,7 @@ from typing import ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import say
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -241,6 +242,7 @@ class DictationTool:
                 return ToolResult(
                     success=True,
                     output="Dictation mode is already active, sir.",
+                    spoken=say("dictation_already"),
                 )
             _set_dictation(True)
             log.info("[dictation] mode activated")
@@ -250,16 +252,19 @@ class DictationTool:
                     "Dictation mode activated.  Everything you say will be "
                     "typed.  Say 'stop dictation' to exit."
                 ),
+                spoken=say("dictation_on"),
             )
         else:  # stop
             if not is_dictation_active():
                 return ToolResult(
                     success=True,
                     output="Dictation mode is not active, sir.",
+                    spoken=say("dictation_not_on"),
                 )
             _set_dictation(False)
             log.info("[dictation] mode deactivated")
             return ToolResult(
                 success=True,
                 output="Dictation mode stopped.  Back to normal, sir.",
+                spoken=say("dictation_off"),
             )

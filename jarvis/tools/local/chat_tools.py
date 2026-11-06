@@ -10,6 +10,7 @@ import logging
 from collections.abc import Callable
 from typing import ClassVar
 
+from jarvis.core.phrases import say
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -49,6 +50,7 @@ class OpenChatTool:
         return ToolResult(
             success=True,
             output="Chat panel is open, sir.",
+            spoken=say("chat_open"),
         )
 
 
@@ -82,4 +84,8 @@ class CloseChatTool:
 
     async def execute(self, args: EmptyArgs) -> ToolResult:  # noqa: ARG002
         self._on_close()
-        return ToolResult(success=True, output="Chat panel closed.")
+        return ToolResult(
+            success=True,
+            output="Chat panel closed.",
+            spoken=say("chat_closed"),
+        )

@@ -8,6 +8,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import quantity, say
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -50,6 +51,7 @@ class ShowClipboardHistoryTool:
         return ToolResult(
             success=True,
             output="Here's your clipboard history, sir.",
+            spoken=say("clip_history_showing"),
         )
 
 
@@ -83,7 +85,11 @@ class CloseClipboardHistoryTool:
 
     async def execute(self, args: EmptyArgs) -> ToolResult:  # noqa: ARG002
         self._on_close()
-        return ToolResult(success=True, output="Clipboard history closed.")
+        return ToolResult(
+            success=True,
+            output="Clipboard history closed.",
+            spoken=say("clip_history_closed"),
+        )
 
 
 class PasteClipboardItemArgs(BaseModel):
@@ -132,6 +138,7 @@ class PasteClipboardItemTool:
         return ToolResult(
             success=True,
             output=f"Item {args.index} loaded. Press Ctrl+V to paste: {preview}",
+            spoken=say("clip_history_item", index=args.index),
         )
 
 
@@ -158,4 +165,5 @@ class ClearClipboardHistoryTool:
         return ToolResult(
             success=True,
             output=f"Cleared {n} item(s) from your clipboard history, sir.",
+            spoken=say("clip_history_cleared", items=quantity(n, "item")),
         )

@@ -12,6 +12,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import say, spoken_duration
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -172,7 +173,11 @@ class ShowNotificationTool:
             msg = await asyncio.to_thread(
                 _show_notification_impl, args.title, args.message, args.timeout,
             )
-            return ToolResult(success=True, output=msg)
+            return ToolResult(
+                success=True,
+                output=msg,
+                spoken=say("notification_shown"),
+            )
         except NotImplementedError as e:
             return ToolResult(success=False, error=str(e))
         except Exception as e:
@@ -253,6 +258,9 @@ class ScheduleNotificationTool:
             return ToolResult(
                 success=True,
                 output=f"Notification scheduled in {delay_str}, sir.",
+                spoken=say(
+                    "notification_scheduled", duration=spoken_duration(args.delay_seconds)
+                ),
             )
         except Exception as e:
             log.exception("schedule_notification failed")
