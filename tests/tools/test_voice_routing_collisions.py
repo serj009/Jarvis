@@ -15,6 +15,7 @@ fails CI.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 
 import pytest
 
@@ -239,6 +240,41 @@ def test_delete_without_a_file_is_not_a_file(phrase: str) -> None:
 )
 def test_delete_a_file(phrase: str) -> None:
     assert _route(phrase) == "file_manager"
+
+
+def _route_args(phrase: str) -> tuple[str, dict]:
+    for tool_name, vp in voice_pattern_catalogue():
+        m = re.match(vp.regex, phrase, re.IGNORECASE)
+        if m:
+            return tool_name, (vp.args(m) if vp.args else {})
+    raise AssertionError(f"{phrase!r} matched nothing")
+
+
+@pytest.mark.parametrize(
+    ("phrase", "folder", "name"),
+    [
+        # The home check for M2-4 says "удали файл test.txt на рабочем столе";
+        # the folder stayed in the path ("test.txt на рабочем столе").
+        ("удали файл test.txt на рабочем столе", "Desktop", "test.txt"),
+        ("видали файл test.txt на робочому столі", "Desktop", "test.txt"),
+        ("удали report.docx в загрузках", "Downloads", "report.docx"),
+        ("delete test.txt on the desktop", "Desktop", "test.txt"),
+    ],
+)
+def test_delete_a_file_in_a_known_folder(phrase: str, folder: str, name: str) -> None:
+    tool, args = _route_args(phrase)
+    assert tool == "file_manager"
+    assert args == {"action": "delete", "path": str(Path.home() / folder / name)}
+
+
+@pytest.mark.parametrize(
+    "phrase", ["создай файл заметки.md на рабочем столе", "create file notes.md on the desktop"]
+)
+def test_create_a_file_on_the_desktop(phrase: str) -> None:
+    """"на рабочем столе" was looked up as the key "рабочем столе" and dropped."""
+    tool, args = _route_args(phrase)
+    assert tool == "create_file"
+    assert Path(args["path"]).parent == Path.home() / "Desktop"
 
 
 @pytest.mark.parametrize(

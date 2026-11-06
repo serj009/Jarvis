@@ -195,14 +195,50 @@ def _ensure_ext(name: str, ext: str) -> str:
     return name if Path(name).suffix else name + ext
 
 
+# A known folder as it is said after "на / в / у / on / in": "рабочем
+# столе", "загрузках", "робочому столі", "the desktop".
+_SPOKEN_FOLDERS: dict[str, str] = {
+    "рабочем столе": "desktop", "рабочий стол": "desktop",
+    "робочому столі": "desktop", "робочий стіл": "desktop", "desktop": "desktop",
+    "загрузках": "downloads", "загрузки": "downloads", "завантаженнях": "downloads",
+    "завантаження": "downloads", "downloads": "downloads",
+    "документах": "documents", "документы": "documents", "документи": "documents",
+    "documents": "documents",
+    "изображениях": "pictures", "изображения": "pictures", "зображеннях": "pictures",
+    "зображення": "pictures", "pictures": "pictures",
+}
+_SPOKEN_FOLDER_ALTERNATION = "|".join(
+    re.escape(w).replace(r"\ ", r"\s+") for w in sorted(_SPOKEN_FOLDERS, key=len, reverse=True)
+)
+_WITH_FOLDER = re.compile(
+    rf"^(.+?)\s+(?:на|в|у|on|in|from)\s+(?:the\s+|my\s+)?({_SPOKEN_FOLDER_ALTERNATION})$",
+    re.IGNORECASE,
+)
+
+
+def _known_folder(spoken: str) -> Path | None:
+    """The folder `spoken` names ("рабочем столе", "the desktop"), or None."""
+    key = re.sub(r"^(?:the|my)\s+", "", spoken.strip().lower())
+    key = re.sub(r"\s+", " ", key)
+    folder = _SPOKEN_FOLDERS.get(key)
+    if folder is not None:
+        return KNOWN_FOLDERS[folder]
+    return KNOWN_FOLDERS.get(key)
+
+
 def _join_folder(name: str, folder: str | None) -> str:
     """Combine a filename with an optional spoken folder keyword."""
     name = name.strip()
     if not folder:
         return name
-    key = folder.strip().lower()
-    base = KNOWN_FOLDERS.get(key)
+    base = _known_folder(folder)
     return str(base / name) if base is not None else name
+
+
+def _path_with_folder(spoken: str) -> str:
+    """'test.txt на рабочем столе' -> '<Desktop>/test.txt'; other text as is."""
+    m = _WITH_FOLDER.match(spoken.strip())
+    return _join_folder(m.group(1), m.group(2)) if m else spoken.strip()
 
 
 def _strip_folder_word(text: str) -> str:
@@ -488,9 +524,10 @@ class FileManagerTool:
             args=lambda m: {"action": "rename", "path": m.group(1), "destination": m.group(2)},
         ),
         VoicePattern(
-            regex=rf"^(?:delete|remove)\s+(?:file\s+)?(.+\.(?i:{_EXT_ALTERNATION}))$",
+            regex=rf"^(?:delete|remove)\s+(?:the\s+)?(?:file\s+)?(.+\.(?i:{_EXT_ALTERNATION})"
+            rf"(?:\s+(?:on|in|from)\s+(?:the\s+|my\s+)?(?:{_SPOKEN_FOLDER_ALTERNATION}))?)$",
             priority=300,
-            args=lambda m: {"action": "delete", "path": m.group(1)},
+            args=lambda m: {"action": "delete", "path": _path_with_folder(m.group(1))},
         ),
         VoicePattern(
             regex=r"^create\s+(?:folder|directory)\s+(.+)$",
@@ -547,12 +584,13 @@ class FileManagerTool:
         VoicePattern(
             regex=r"^удали\s+(?:файл|папку)\s+(.+)$",
             priority=300,
-            args=lambda m: {"action": "delete", "path": m.group(1)},
+            args=lambda m: {"action": "delete", "path": _path_with_folder(m.group(1))},
         ),
         VoicePattern(
-            regex=rf"^удали\s+(.+\.(?i:{_EXT_ALTERNATION}))$",
+            regex=rf"^удали\s+(.+\.(?i:{_EXT_ALTERNATION})"
+            rf"(?:\s+(?:на|в|у)\s+(?:{_SPOKEN_FOLDER_ALTERNATION}))?)$",
             priority=300,
-            args=lambda m: {"action": "delete", "path": m.group(1)},
+            args=lambda m: {"action": "delete", "path": _path_with_folder(m.group(1))},
         ),
         VoicePattern(
             regex=r"^создай\s+папку\s+(.+)$",
@@ -599,12 +637,13 @@ class FileManagerTool:
         VoicePattern(
             regex=r"^видали\s+(?:файл|папку|теку)\s+(.+)$",
             priority=300,
-            args=lambda m: {"action": "delete", "path": m.group(1)},
+            args=lambda m: {"action": "delete", "path": _path_with_folder(m.group(1))},
         ),
         VoicePattern(
-            regex=rf"^видали\s+(.+\.(?i:{_EXT_ALTERNATION}))$",
+            regex=rf"^видали\s+(.+\.(?i:{_EXT_ALTERNATION})"
+            rf"(?:\s+(?:на|в|у)\s+(?:{_SPOKEN_FOLDER_ALTERNATION}))?)$",
             priority=300,
-            args=lambda m: {"action": "delete", "path": m.group(1)},
+            args=lambda m: {"action": "delete", "path": _path_with_folder(m.group(1))},
         ),
         VoicePattern(
             regex=r"^створи\s+(?:папку|директорію)\s+(.+)$",
