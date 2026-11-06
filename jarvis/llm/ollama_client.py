@@ -93,15 +93,24 @@ def dump_request_if_enabled(body: dict[str, Any]) -> None:
 
 
 class OllamaError(RuntimeError):
-    """Base for Ollama client errors."""
+    """Base for Ollama client errors.
+
+    `spoken_key` is the jarvis.core.phrases key the voice says when a turn
+    fails with this error (the same convention as jarvis.core.errors)."""
+
+    spoken_key: str = "error_generic"
 
 
 class OllamaConnectionError(OllamaError):
     """Could not reach the Ollama daemon."""
 
+    spoken_key = "error_ollama"
+
 
 class OllamaModelNotFoundError(OllamaError):
     """The configured model is not pulled in Ollama."""
+
+    spoken_key = "error_ollama_model"
 
 
 @dataclass(frozen=True, slots=True)

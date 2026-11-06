@@ -152,10 +152,18 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Недостаточно видеопамяти, сэр. Освобождаю ресурсы.",
         "uk": "Недостатньо відеопам'яті, сер. Звільняю ресурси.",
     },
+    # OllamaConnectionError / OllamaModelNotFoundError (spoken_key). "Оллама"
+    # in Cyrillic: the ru / uk voices misread Latin names.
     "error_ollama": {
-        "en": "The language model is not responding, sir. I'll retry shortly.",
-        "ru": "Языковая модель не отвечает, сэр. Скоро попробую снова.",
-        "uk": "Мовна модель не відповідає, сер. Скоро спробую знову.",
+        "en": "The language model is not responding, sir. Check that Ollama is running.",
+        "ru": "Языковая модель не отвечает, сэр. Проверьте, запущена ли Оллама.",
+        "uk": "Мовна модель не відповідає, сер. Перевірте, чи запущена Оллама.",
+    },
+    "error_ollama_model": {
+        "en": "The language model is not installed in Ollama, sir. Check the model name in "
+              "Settings.",
+        "ru": "Языковая модель не установлена в Олламе, сэр. Проверьте имя модели в настройках.",
+        "uk": "Мовну модель не встановлено в Олламі, сер. Перевірте назву моделі в налаштуваннях.",
     },
     "error_degraded": {
         "en": "Multiple errors in a row, sir. Some features may be limited.",

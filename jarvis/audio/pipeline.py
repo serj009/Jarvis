@@ -1034,16 +1034,19 @@ class AudioPipeline:
         except asyncio.CancelledError:
             # Barge-in or shutdown. Re-raise so the outer awaiter sees it.
             raise
-        except Exception:
+        except Exception as exc:
             # T1.5: unified error handling — log full traceback, speak a
             # user-friendly message via TTS, recover to IDLE.  The audio
             # pipeline is NOT restarted: only the current turn is aborted.
             log.exception("response chain crashed — recovering to IDLE")
-            # Best-effort TTS notification so the user knows something broke.
+            # Best-effort TTS notification so the user knows something broke:
+            # the error's own phrase when it has one (Ollama not running, the
+            # model not pulled), else say("error_generic").
             try:
-                from jarvis.core.phrases import detect_language, say
+                from jarvis.core.phrases import PHRASES, detect_language, say
+                key = getattr(exc, "spoken_key", "error_generic")
                 lang = detect_language(text) or self._spoken_language()
-                await self._tts.speak(say("error_generic", lang))
+                await self._tts.speak(say(key if key in PHRASES else "error_generic", lang))
             except Exception:
                 log.warning("TTS error notification failed", exc_info=True)
             # Don't leave the state machine stuck in THINKING/SPEAKING.

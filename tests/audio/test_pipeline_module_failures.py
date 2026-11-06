@@ -168,6 +168,21 @@ async def _speak_after_failing_turn(error: Exception) -> list[str]:
         await pipeline.stop()
 
 
+async def test_ollama_not_running_is_named():
+    """Ollama down was spoken as the generic "something went wrong"."""
+    from jarvis.llm.ollama_client import OllamaConnectionError
+
+    spoken = await _speak_after_failing_turn(OllamaConnectionError("connection refused"))
+    assert spoken == ["Языковая модель не отвечает, сэр. Проверьте, запущена ли Оллама."]
+
+
+async def test_a_missing_model_is_named():
+    from jarvis.llm.ollama_client import OllamaModelNotFoundError
+
+    spoken = await _speak_after_failing_turn(OllamaModelNotFoundError("qwen3 not found"))
+    assert spoken[0].startswith("Языковая модель не установлена в Олламе, сэр.")
+
+
 async def test_a_failed_turn_is_reported_in_the_request_language():
     """The notice was English in a Russian conversation (the request context
     is gone by the time the error reaches the pipeline) and promised a retry
