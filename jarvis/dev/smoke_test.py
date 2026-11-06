@@ -168,7 +168,9 @@ def check_whisper(ctx: Context) -> str:
         await stt.load()
         try:
             # 1 s of silence, int16 mono @ 16 kHz: must come back empty.
-            return await stt.transcribe(b"\x00\x00" * 16000)
+            # transcribe() returns a TranscriptionResult; checking the result
+            # itself (always truthy) made this check fail on every run.
+            return (await stt.transcribe(b"\x00\x00" * 16000)).text
         finally:
             await stt.unload()
 
@@ -279,7 +281,7 @@ def main(argv: list[str] | None = None) -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(errors="replace")  # type: ignore[union-attr]
 
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or "Jarvis smoke test").splitlines()[0])
     parser.add_argument("--repeat", type=int, default=1, help="run N times in a row")
     args = parser.parse_args(argv)
 
