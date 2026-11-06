@@ -23,6 +23,7 @@ from jarvis.coding.agent import (
     CodingAgent,
     ResponseParser,
 )
+from tests._typing import error_text, output_text
 
 _GIT_AVAILABLE = shutil.which("git") is not None
 requires_git = pytest.mark.skipif(
@@ -615,7 +616,7 @@ class TestCodingAgentTool:
         tool = CodingAgentTool()
         result = await tool.execute(CodingAgentArgs(task="create something"))
         assert result.success is False
-        assert "provider" in result.error.lower()
+        assert "provider" in error_text(result).lower()
 
     @pytest.mark.asyncio
     async def test_tool_runs_with_provider(self, tmp_path):
@@ -633,7 +634,7 @@ class TestCodingAgentTool:
         )
         result = await tool.execute(CodingAgentArgs(task="make x.py"))
         assert result.success is True
-        assert "complete" in result.output.lower()
+        assert "complete" in output_text(result).lower()
 
 
 # ---------------------------------------------------------------------------

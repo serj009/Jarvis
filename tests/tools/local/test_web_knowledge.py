@@ -17,7 +17,7 @@ from jarvis.tools.local.web_knowledge import (
     SavePageKnowledgeTool,
 )
 from jarvis.tools.registry import EmptyArgs, VoicePattern
-from tests._typing import output_text
+from tests._typing import error_text, output_text
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -371,8 +371,8 @@ class TestGameAchievementsPage:
 
         result = await tool.execute(SavePageKnowledgeArgs())
         assert result.success
-        assert "4" in result.output  # 1 topic + 3 achievements
-        assert "Elden Ring" in result.output
+        assert "4" in output_text(result)  # 1 topic + 3 achievements
+        assert "Elden Ring" in output_text(result)
 
     @pytest.mark.asyncio
     async def test_relations_created_for_game_page(self):
@@ -424,8 +424,8 @@ class TestRecipePage:
         result = await tool.execute(SavePageKnowledgeArgs())
         assert result.success
         # 1 topic + 2 items (ingredients, steps)
-        assert "3" in result.output
-        assert "Pancake" in result.output
+        assert "3" in output_text(result)
+        assert "Pancake" in output_text(result)
 
 
 # ---------------------------------------------------------------------------
@@ -454,8 +454,8 @@ class TestCollectionPage:
         result = await tool.execute(SavePageKnowledgeArgs())
         assert result.success
         # 1 topic + 2 cards
-        assert "3" in result.output
-        assert "Pokemon" in result.output
+        assert "3" in output_text(result)
+        assert "Pokemon" in output_text(result)
 
 
 # ---------------------------------------------------------------------------
@@ -483,7 +483,8 @@ class TestInvalidJsonFallback:
 
         result = await tool.execute(SavePageKnowledgeArgs())
         assert result.success
-        assert "single fact" in result.output.lower() or "plain" in result.output.lower()
+        text = output_text(result).lower()
+        assert "single fact" in text or "plain" in text
 
 
 # ---------------------------------------------------------------------------
@@ -522,7 +523,7 @@ class TestLongPageTruncation:
         result = await tool.execute(SavePageKnowledgeArgs())
         assert result.success
         # Should still save — just truncated input to LLM
-        assert "Long Page" in result.output
+        assert "Long Page" in output_text(result)
 
 
 # ---------------------------------------------------------------------------
@@ -574,7 +575,7 @@ class TestMissingDependencies:
         )
         result = await tool.execute(SavePageKnowledgeArgs())
         assert not result.success
-        assert "LLM" in result.error
+        assert "LLM" in error_text(result)
 
     @pytest.mark.asyncio
     async def test_no_memory_store(self):
@@ -584,7 +585,7 @@ class TestMissingDependencies:
         )
         result = await tool.execute(SavePageKnowledgeArgs())
         assert not result.success
-        assert "memory" in result.error.lower()
+        assert "memory" in error_text(result).lower()
 
     @pytest.mark.asyncio
     async def test_no_browser_and_no_url(self):
@@ -606,7 +607,7 @@ class TestMissingDependencies:
         )
         result = await tool.execute(SavePageKnowledgeArgs())
         assert not result.success
-        assert "empty" in result.error.lower()
+        assert "empty" in error_text(result).lower()
 
 
 # ---------------------------------------------------------------------------

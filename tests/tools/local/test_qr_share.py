@@ -18,6 +18,7 @@ from jarvis.tools.local.qr_share import (
     _generate_qr_image,
 )
 from jarvis.tools.registry import VoicePattern
+from tests._typing import error_text, output_text
 
 # ---------------------------------------------------------------------------
 # Protocol conformance
@@ -155,8 +156,8 @@ class TestGenerateQr:
                     data="https://example.com", show=False,
                 ))
                 assert result.success
-                assert "QR code saved" in result.output
-                assert "example.com" in result.output
+                assert "QR code saved" in output_text(result)
+                assert "example.com" in output_text(result)
 
     @pytest.mark.asyncio
     async def test_generate_qr_no_data_no_browser(self, mock_qr_dir):
@@ -167,7 +168,8 @@ class TestGenerateQr:
         ):
             result = await tool.execute(GenerateQrArgs(data=""))
             assert not result.success
-            assert "no text" in result.error.lower() or "no active" in result.error.lower()
+            error = error_text(result).lower()
+            assert "no text" in error or "no active" in error
 
     @pytest.mark.asyncio
     async def test_generate_qr_from_browser(self, mock_qr_dir):
@@ -183,7 +185,7 @@ class TestGenerateQr:
                 with patch("jarvis.tools.local.qr_share._open_image"):
                     result = await tool.execute(GenerateQrArgs(data="", show=False))
                     assert result.success
-                    assert "github.com" in result.output
+                    assert "github.com" in output_text(result)
 
     @pytest.mark.asyncio
     async def test_generate_qr_failure(self, mock_qr_dir):
@@ -194,7 +196,7 @@ class TestGenerateQr:
         ):
             result = await tool.execute(GenerateQrArgs(data="test"))
             assert not result.success
-            assert "failed" in result.error.lower()
+            assert "failed" in error_text(result).lower()
 
 
 class TestShareToPhone:
@@ -212,7 +214,7 @@ class TestShareToPhone:
                 with patch("jarvis.tools.local.qr_share._open_image"):
                     result = await tool.execute(ShareToPhoneArgs())
                     assert result.success
-                    assert "example.com" in result.output
+                    assert "example.com" in output_text(result)
 
     @pytest.mark.asyncio
     async def test_share_no_browser(self, mock_qr_dir):
@@ -223,4 +225,4 @@ class TestShareToPhone:
         ):
             result = await tool.execute(ShareToPhoneArgs())
             assert not result.success
-            assert "no active" in result.error.lower()
+            assert "no active" in error_text(result).lower()

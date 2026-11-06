@@ -34,8 +34,8 @@ class SaveCredentialArgs(BaseModel):
     site: str = Field(..., description="Site name (e.g. 'steam', 'gmail.com')")
     username: str = Field(..., description="Login username or email")
     password: str = Field(..., description="Login password (entered via secure UI)")
-    url: str = Field("", description="Login page URL (optional)")
-    notes: str = Field("", description="Optional notes")
+    url: str = Field(default="", description="Login page URL (optional)")
+    notes: str = Field(default="", description="Optional notes")
     aliases: list[str] = Field(
         default_factory=list,
         description="Alternate names for the site (e.g. ['стім', 'стим'])",

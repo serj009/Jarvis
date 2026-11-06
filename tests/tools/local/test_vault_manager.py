@@ -17,6 +17,7 @@ from unittest.mock import patch
 import pytest
 
 from jarvis.tools.registry import EmptyArgs
+from tests._typing import error_text, output_text
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -74,10 +75,10 @@ class TestSaveCredentialTool:
         )
 
         assert result.success
-        assert "steam" in result.output
+        assert "steam" in output_text(result)
         # CRITICAL: no credentials in output
-        assert "s3cr3t" not in result.output
-        assert "gamer42" not in result.output
+        assert "s3cr3t" not in output_text(result)
+        assert "gamer42" not in output_text(result)
 
     @pytest.mark.asyncio
     async def test_save_credential_vault_locked(self, vault):
@@ -93,7 +94,7 @@ class TestSaveCredentialTool:
         )
 
         assert not result.success
-        assert "locked" in result.error.lower()
+        assert "locked" in error_text(result).lower()
 
 
 # ---------------------------------------------------------------------------
@@ -115,14 +116,14 @@ class TestListSavedSitesTool:
         result = await tool.execute(EmptyArgs())
 
         assert result.success
-        assert "steam" in result.output
-        assert "gmail" in result.output
+        assert "steam" in output_text(result)
+        assert "gmail" in output_text(result)
         # CRITICAL: no passwords in output
-        assert "pass1" not in result.output
-        assert "pass2" not in result.output
-        assert "user1" not in result.output
-        assert "user2" not in result.output
-        assert "2 sites" in result.output
+        assert "pass1" not in output_text(result)
+        assert "pass2" not in output_text(result)
+        assert "user1" not in output_text(result)
+        assert "user2" not in output_text(result)
+        assert "2 sites" in output_text(result)
 
     @pytest.mark.asyncio
     async def test_list_sites_empty_vault(self, vault):
@@ -133,7 +134,7 @@ class TestListSavedSitesTool:
         result = await tool.execute(EmptyArgs())
 
         assert result.success
-        assert "No saved credentials" in result.output
+        assert "No saved credentials" in output_text(result)
 
     @pytest.mark.asyncio
     async def test_list_sites_vault_locked(self, vault):
@@ -143,7 +144,7 @@ class TestListSavedSitesTool:
         result = await tool.execute(EmptyArgs())
 
         assert not result.success
-        assert "locked" in result.error.lower()
+        assert "locked" in error_text(result).lower()
 
 
 # ---------------------------------------------------------------------------
@@ -173,7 +174,7 @@ class TestRemoveCredentialTool:
         result = await tool.execute(RemoveCredentialArgs(site="steam"))
 
         assert result.success
-        assert "removed" in result.output.lower()
+        assert "removed" in output_text(result).lower()
         # Credential should be gone
         assert vault.get_credential("steam") is None
 
@@ -210,7 +211,7 @@ class TestUnlockVaultTool:
         )
 
         assert result.success
-        assert "created" in result.output.lower()
+        assert "created" in output_text(result).lower()
         assert vault.is_unlocked
 
     @pytest.mark.asyncio
@@ -229,7 +230,7 @@ class TestUnlockVaultTool:
         )
 
         assert result.success
-        assert "unlocked" in result.output.lower()
+        assert "unlocked" in output_text(result).lower()
 
     @pytest.mark.asyncio
     async def test_unlock_wrong_password(self, vault):
@@ -247,7 +248,7 @@ class TestUnlockVaultTool:
         )
 
         assert not result.success
-        assert "wrong" in result.error.lower()
+        assert "wrong" in error_text(result).lower()
 
     @pytest.mark.asyncio
     async def test_unlock_empty_password_prompts_ui(self, vault):
@@ -260,7 +261,7 @@ class TestUnlockVaultTool:
         result = await tool.execute(UnlockVaultArgs(master_password=""))
 
         assert not result.success
-        assert "secure input" in result.error.lower()
+        assert "secure input" in error_text(result).lower()
 
     @pytest.mark.asyncio
     async def test_already_unlocked(self, vault):
@@ -277,7 +278,7 @@ class TestUnlockVaultTool:
         )
 
         assert result.success
-        assert "already unlocked" in result.output.lower()
+        assert "already unlocked" in output_text(result).lower()
 
 
 # ---------------------------------------------------------------------------
@@ -295,7 +296,7 @@ class TestLockVaultTool:
         result = await tool.execute(EmptyArgs())
 
         assert result.success
-        assert "locked" in result.output.lower()
+        assert "locked" in output_text(result).lower()
         assert not vault.is_unlocked
 
     @pytest.mark.asyncio
@@ -306,7 +307,7 @@ class TestLockVaultTool:
         result = await tool.execute(EmptyArgs())
 
         assert result.success
-        assert "already locked" in result.output.lower()
+        assert "already locked" in output_text(result).lower()
 
 
 # ---------------------------------------------------------------------------
@@ -339,7 +340,7 @@ class TestChangeVaultPasswordTool:
         )
 
         assert result.success
-        assert "changed" in result.output.lower()
+        assert "changed" in output_text(result).lower()
 
         # Verify new password works
         vault.lock()
@@ -358,7 +359,7 @@ class TestChangeVaultPasswordTool:
         )
 
         assert not result.success
-        assert "secure input" in result.error.lower()
+        assert "secure input" in error_text(result).lower()
 
 
 # ---------------------------------------------------------------------------

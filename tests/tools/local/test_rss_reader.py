@@ -24,6 +24,7 @@ from jarvis.tools.local.rss_reader import (
     _save_feeds,
 )
 from jarvis.tools.registry import VoicePattern
+from tests._typing import output_text
 
 # ---------------------------------------------------------------------------
 # Sample RSS/Atom XML
@@ -222,7 +223,7 @@ class TestSubscribe:
                 url="https://example.com/feed",
             ))
             assert result.success
-            assert "Subscribed" in result.output
+            assert "Subscribed" in output_text(result)
             # Verify stored
             feeds = _load_feeds()
             assert len(feeds) == 1
@@ -265,7 +266,7 @@ class TestListFeeds:
         tool = ListRssFeedsTool()
         result = await tool.execute(ListRssFeedsArgs())
         assert result.success
-        assert "No RSS" in result.output
+        assert "No RSS" in output_text(result)
 
     @pytest.mark.asyncio
     async def test_list_with_feeds(self):
@@ -276,9 +277,9 @@ class TestListFeeds:
         tool = ListRssFeedsTool()
         result = await tool.execute(ListRssFeedsArgs())
         assert result.success
-        assert "Feed A" in result.output
-        assert "Feed B" in result.output
-        assert "(2)" in result.output
+        assert "Feed A" in output_text(result)
+        assert "Feed B" in output_text(result)
+        assert "(2)" in output_text(result)
 
 
 class TestGetNews:
@@ -287,7 +288,7 @@ class TestGetNews:
         tool = GetLatestNewsTool()
         result = await tool.execute(GetLatestNewsArgs())
         assert result.success
-        assert "No RSS" in result.output
+        assert "No RSS" in output_text(result)
 
     @pytest.mark.asyncio
     async def test_get_news_with_feeds(self):
@@ -297,8 +298,8 @@ class TestGetNews:
             tool = GetLatestNewsTool()
             result = await tool.execute(GetLatestNewsArgs())
             assert result.success
-            assert "First Post" in result.output
-            assert "Second Post" in result.output
+            assert "First Post" in output_text(result)
+            assert "Second Post" in output_text(result)
 
     @pytest.mark.asyncio
     async def test_get_news_fetch_error(self):
@@ -308,4 +309,4 @@ class TestGetNews:
             tool = GetLatestNewsTool()
             result = await tool.execute(GetLatestNewsArgs())
             assert result.success  # Partial results still succeed
-            assert "Connection error" in result.output
+            assert "Connection error" in output_text(result)

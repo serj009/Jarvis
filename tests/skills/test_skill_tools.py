@@ -38,6 +38,7 @@ from jarvis.tools.local.skill_tools import (
     SkillHistoryTool,
     SkillNameArgs,
 )
+from tests._typing import error_text, output_text
 
 
 @pytest.fixture
@@ -63,14 +64,14 @@ class TestListSkillsTool:
         tool = ListSkillsTool(forge=None)
         r = await tool.execute(EmptySkillArgs())
         assert not r.success
-        assert "not active" in r.error
+        assert "not active" in error_text(r)
 
     @pytest.mark.asyncio
     async def test_empty_list(self, forge):
         tool = ListSkillsTool(forge=forge)
         r = await tool.execute(EmptySkillArgs())
         assert r.success
-        assert "No user-generated skills" in r.output
+        assert "No user-generated skills" in output_text(r)
 
     @pytest.mark.asyncio
     async def test_with_skills(self, forge):
@@ -79,8 +80,8 @@ class TestListSkillsTool:
         tool = ListSkillsTool(forge=forge)
         r = await tool.execute(EmptySkillArgs())
         assert r.success
-        assert "s1" in r.output
-        assert "s2" in r.output
+        assert "s1" in output_text(r)
+        assert "s2" in output_text(r)
 
 
 # ── 2. skill_detail ──────────────────────────────────────────────────────
@@ -98,7 +99,7 @@ class TestSkillDetailTool:
         tool = SkillDetailTool(forge=forge)
         r = await tool.execute(SkillNameArgs(name="detail_me"))
         assert r.success
-        assert "detail_me" in r.output
+        assert "detail_me" in output_text(r)
 
 
 # ── 3. approve_skill ─────────────────────────────────────────────────────
@@ -195,7 +196,7 @@ class TestAnalyzeSkillsTool:
         tool = AnalyzeSkillsTool(forge=forge)
         r = await tool.execute(EmptySkillArgs())
         assert r.success
-        assert "no patterns" in r.output.lower() or "no issues" in r.output.lower()
+        assert "no patterns" in output_text(r).lower() or "no issues" in output_text(r).lower()
 
 
 # ── 8. improve_skill ─────────────────────────────────────────────────────
@@ -226,7 +227,7 @@ class TestSkillHistoryTool:
         tool = SkillHistoryTool(forge=forge)
         r = await tool.execute(SkillNameArgs(name="new"))
         assert r.success
-        assert "No version history" in r.output or "only v1" in r.output.lower()
+        assert "No version history" in output_text(r) or "only v1" in output_text(r).lower()
 
     @pytest.mark.asyncio
     async def test_with_history(self, forge):
@@ -237,7 +238,7 @@ class TestSkillHistoryTool:
         tool = SkillHistoryTool(forge=forge)
         r = await tool.execute(SkillNameArgs(name="versioned"))
         assert r.success
-        assert "fix" in r.output
+        assert "fix" in output_text(r)
 
 
 # ── Voice patterns ───────────────────────────────────────────────────────

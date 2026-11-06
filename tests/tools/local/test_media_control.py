@@ -16,6 +16,7 @@ from jarvis.tools.local.media_control import (
     _press_media_key,
 )
 from jarvis.tools.registry import VoicePattern
+from tests._typing import error_text, output_text
 
 # -- protocol conformance -----------------------------------------------
 
@@ -131,7 +132,7 @@ class TestExecute:
         tool = MediaControlTool()
         result = await tool.execute(MediaControlArgs(action="pause"))
         assert result.success
-        assert "paused" in result.output.lower()
+        assert "paused" in output_text(result).lower()
 
     @pytest.mark.asyncio
     async def test_play_via_media_key(self, monkeypatch):
@@ -142,7 +143,7 @@ class TestExecute:
         tool = MediaControlTool()
         result = await tool.execute(MediaControlArgs(action="play"))
         assert result.success
-        assert "playing" in result.output.lower()
+        assert "playing" in output_text(result).lower()
 
     @pytest.mark.asyncio
     async def test_next_track(self, monkeypatch):
@@ -153,7 +154,7 @@ class TestExecute:
         tool = MediaControlTool()
         result = await tool.execute(MediaControlArgs(action="next_track"))
         assert result.success
-        assert "next" in result.output.lower()
+        assert "next" in output_text(result).lower()
 
     @pytest.mark.asyncio
     async def test_prev_track(self, monkeypatch):
@@ -164,7 +165,7 @@ class TestExecute:
         tool = MediaControlTool()
         result = await tool.execute(MediaControlArgs(action="prev_track"))
         assert result.success
-        assert "previous" in result.output.lower()
+        assert "previous" in output_text(result).lower()
 
     @pytest.mark.asyncio
     async def test_pause_via_selenium_js(self, _mock_browser, monkeypatch):
@@ -185,7 +186,7 @@ class TestExecute:
         tool = MediaControlTool()
         result = await tool.execute(MediaControlArgs(action="fullscreen"))
         assert not result.success
-        assert "selenium" in result.error.lower()
+        assert "selenium" in error_text(result).lower()
 
     @pytest.mark.asyncio
     async def test_media_key_failure(self, monkeypatch):

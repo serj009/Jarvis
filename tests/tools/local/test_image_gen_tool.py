@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from jarvis.core.config import ImageGenConfig
 from jarvis.tools.local.image_gen_tool import ImageGenArgs, ImageGenTool
+from tests._typing import error_text, output_text
 
 # ---------------------------------------------------------------------------
 # Voice pattern tests
@@ -90,7 +91,7 @@ class TestExecute:
         tool = ImageGenTool(image_gen_config=cfg)
         result = await tool.execute(ImageGenArgs(prompt="a cat"))
         assert not result.success
-        assert "disabled" in result.error.lower()
+        assert "disabled" in error_text(result).lower()
 
     async def test_empty_provider_returns_error(self):
         cfg = ImageGenConfig(provider="")
@@ -120,7 +121,7 @@ class TestExecute:
             result = await tool.execute(ImageGenArgs(prompt="a sunset"))
 
         assert result.success
-        assert "Картинка готова" in result.output
+        assert "Картинка готова" in output_text(result)
 
     async def test_generation_failure(self, tmp_path):
         cfg = ImageGenConfig(
@@ -142,7 +143,7 @@ class TestExecute:
             result = await tool.execute(ImageGenArgs(prompt="test"))
 
         assert not result.success
-        assert "API error" in result.error
+        assert "API error" in error_text(result)
 
     async def test_vram_swap_for_local_provider(self, tmp_path):
         cfg = ImageGenConfig(

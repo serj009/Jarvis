@@ -12,6 +12,7 @@ import pytest
 
 from jarvis.tools.local.browser_tabs import BrowserTabsArgs, BrowserTabsTool
 from jarvis.tools.registry import VoicePattern
+from tests._typing import error_text, output_text
 
 # -- protocol conformance -----------------------------------------------
 
@@ -120,21 +121,21 @@ class TestExecute:
         tool = BrowserTabsTool()
         result = await tool.execute(BrowserTabsArgs(action="new_tab", url="https://x.com"))
         assert result.success
-        assert "new tab" in result.output.lower() or "opened" in result.output.lower()
+        assert "new tab" in output_text(result).lower() or "opened" in output_text(result).lower()
 
     @pytest.mark.asyncio
     async def test_close_tab(self, _mock_browser):
         tool = BrowserTabsTool()
         result = await tool.execute(BrowserTabsArgs(action="close_tab"))
         assert result.success
-        assert "closed" in result.output.lower()
+        assert "closed" in output_text(result).lower()
 
     @pytest.mark.asyncio
     async def test_switch_tab(self, _mock_browser):
         tool = BrowserTabsTool()
         result = await tool.execute(BrowserTabsArgs(action="switch_tab", tab_index=0))
         assert result.success
-        assert "switched" in result.output.lower()
+        assert "switched" in output_text(result).lower()
 
     @pytest.mark.asyncio
     async def test_back(self, _mock_browser):
@@ -171,4 +172,4 @@ class TestExecute:
         tool = BrowserTabsTool()
         result = await tool.execute(BrowserTabsArgs(action="close_tab"))
         assert not result.success
-        assert "No browser" in result.error
+        assert "No browser" in error_text(result)

@@ -24,6 +24,7 @@ from jarvis.tools.local.focus_mode import (
     is_site_blocked,
 )
 from jarvis.tools.registry import VoicePattern
+from tests._typing import output_text
 
 # ---------------------------------------------------------------------------
 # Protocol conformance
@@ -181,8 +182,8 @@ class TestStartFocusMode:
         tool = StartFocusModeTool()
         result = await tool.execute(StartFocusModeArgs())
         assert result.success
-        assert "Focus mode ON" in result.output
-        assert "60 minutes" in result.output
+        assert "Focus mode ON" in output_text(result)
+        assert "60 minutes" in output_text(result)
         # Verify state
         state = _load_state()
         assert state["active"] is True
@@ -197,7 +198,7 @@ class TestStartFocusMode:
             sites=["twitch.tv", "discord.com"],
         ))
         assert result.success
-        assert "30 minutes" in result.output
+        assert "30 minutes" in output_text(result)
         state = _load_state()
         assert "twitch.tv" in state["blocked"]
         assert "discord.com" in state["blocked"]
@@ -235,7 +236,7 @@ class TestStopFocusMode:
         tool = StopFocusModeTool()
         result = await tool.execute(StopFocusModeArgs())
         assert result.success
-        assert "OFF" in result.output
+        assert "OFF" in output_text(result)
         state = _load_state()
         assert state["active"] is False
 
@@ -244,7 +245,7 @@ class TestStopFocusMode:
         tool = StopFocusModeTool()
         result = await tool.execute(StopFocusModeArgs())
         assert result.success
-        assert "not active" in result.output
+        assert "not active" in output_text(result)
 
     @pytest.mark.asyncio
     async def test_stop_hosts_mode(self):
@@ -266,7 +267,7 @@ class TestFocusModeStatus:
         tool = FocusModeStatusTool()
         result = await tool.execute(FocusModeStatusArgs())
         assert result.success
-        assert "not active" in result.output
+        assert "not active" in output_text(result)
 
     @pytest.mark.asyncio
     async def test_status_active(self):
@@ -279,9 +280,9 @@ class TestFocusModeStatus:
         tool = FocusModeStatusTool()
         result = await tool.execute(FocusModeStatusArgs())
         assert result.success
-        assert "ACTIVE" in result.output
-        assert "minute" in result.output.lower()
-        assert "youtube.com" in result.output
+        assert "ACTIVE" in output_text(result)
+        assert "minute" in output_text(result).lower()
+        assert "youtube.com" in output_text(result)
 
     @pytest.mark.asyncio
     async def test_status_expired(self):
@@ -294,4 +295,4 @@ class TestFocusModeStatus:
         tool = FocusModeStatusTool()
         result = await tool.execute(FocusModeStatusArgs())
         assert result.success
-        assert "ended" in result.output.lower()
+        assert "ended" in output_text(result).lower()

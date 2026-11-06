@@ -159,7 +159,7 @@ class TestExecute:
         tool = ContentReaderTool()
         result = await tool.execute(ContentReaderArgs(action="read_page", url="https://example.com"))
         assert result.success
-        assert "Content here" in result.output
+        assert "Content here" in output_text(result)
 
     @pytest.mark.asyncio
     async def test_get_title_with_url(self, monkeypatch):
@@ -170,7 +170,7 @@ class TestExecute:
         tool = ContentReaderTool()
         result = await tool.execute(ContentReaderArgs(action="get_title", url="https://example.com"))
         assert result.success
-        assert "Hello" in result.output
+        assert "Hello" in output_text(result)
 
     @pytest.mark.asyncio
     async def test_read_page_no_url_no_browser(self, _mock_browser):
@@ -189,7 +189,7 @@ class TestExecute:
         tool = ContentReaderTool()
         result = await tool.execute(ContentReaderArgs(action="read_page"))
         assert result.success
-        assert "Selenium extracted" in result.output
+        assert "Selenium extracted" in output_text(result)
 
 
 class TestCurrentPageWithoutSelenium:

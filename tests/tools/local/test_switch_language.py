@@ -16,6 +16,7 @@ from jarvis.tools.local.switch_language import (
     SwitchLanguageArgs,
     SwitchLanguageTool,
 )
+from tests._typing import error_text
 
 # ---------------------------------------------------------------------------
 # Voice pattern matching
@@ -197,7 +198,7 @@ class TestSwitchLanguageExecution:
         result = await tool.execute(SwitchLanguageArgs(language="uk"))
 
         assert result.success is False
-        assert "TTS" in result.error
+        assert "TTS" in error_text(result)
         # STT should still be switched
         assert mock_stt.language == "uk"
 

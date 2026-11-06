@@ -17,6 +17,7 @@ from jarvis.tools.local.password_gen import (
     GeneratePasswordTool,
 )
 from jarvis.tools.registry import VoicePattern
+from tests._typing import error_text, output_text
 
 # ---------------------------------------------------------------------------
 # Protocol conformance
@@ -102,7 +103,7 @@ class TestRandomPassword:
         ))
         assert result.success
         # Extract password from output
-        pwd = result.output.split(":", 1)[1].split("\n")[0].strip()
+        pwd = output_text(result).split(":", 1)[1].split("\n")[0].strip()
         assert len(pwd) == 16
 
     @pytest.mark.asyncio
@@ -112,7 +113,7 @@ class TestRandomPassword:
             mode="random", length=32, copy_to_clipboard=False,
         ))
         assert result.success
-        pwd = result.output.split(":", 1)[1].split("\n")[0].strip()
+        pwd = output_text(result).split(":", 1)[1].split("\n")[0].strip()
         assert len(pwd) == 32
 
     @pytest.mark.asyncio
@@ -124,7 +125,7 @@ class TestRandomPassword:
             copy_to_clipboard=False,
         ))
         assert result.success
-        pwd = result.output.split(":", 1)[1].split("\n")[0].strip()
+        pwd = output_text(result).split(":", 1)[1].split("\n")[0].strip()
         assert pwd == pwd.lower()
 
     @pytest.mark.asyncio
@@ -135,7 +136,7 @@ class TestRandomPassword:
             copy_to_clipboard=False,
         ))
         assert result.success
-        pwd = result.output.split(":", 1)[1].split("\n")[0].strip()
+        pwd = output_text(result).split(":", 1)[1].split("\n")[0].strip()
         specials = set("!@#$%^&*()-_=+[]{}|;:,.<>?")
         assert not any(c in specials for c in pwd)
 
@@ -147,7 +148,7 @@ class TestRandomPassword:
             copy_to_clipboard=False,
         ))
         assert result.success
-        pwd = result.output.split(":", 1)[1].split("\n")[0].strip()
+        pwd = output_text(result).split(":", 1)[1].split("\n")[0].strip()
         assert not any(c in _AMBIGUOUS for c in pwd)
 
     @pytest.mark.asyncio
@@ -158,7 +159,7 @@ class TestRandomPassword:
             mode="random", length=3, copy_to_clipboard=False,
         ))
         assert not result.success
-        assert "minimum" in result.error.lower()
+        assert "minimum" in error_text(result).lower()
 
 
 class TestPassphrase:
@@ -169,7 +170,7 @@ class TestPassphrase:
             mode="passphrase", length=4, copy_to_clipboard=False,
         ))
         assert result.success
-        pwd = result.output.split(":", 1)[1].split("\n")[0].strip()
+        pwd = output_text(result).split(":", 1)[1].split("\n")[0].strip()
         words = pwd.split("-")
         assert len(words) == 4
         # All words should be from the word list
@@ -184,7 +185,7 @@ class TestPassphrase:
             copy_to_clipboard=False,
         ))
         assert result.success
-        pwd = result.output.split(":", 1)[1].split("\n")[0].strip()
+        pwd = output_text(result).split(":", 1)[1].split("\n")[0].strip()
         assert "_" in pwd
         assert len(pwd.split("_")) == 3
 
@@ -195,7 +196,7 @@ class TestPassphrase:
             mode="passphrase", length=6, copy_to_clipboard=False,
         ))
         assert result.success
-        pwd = result.output.split(":", 1)[1].split("\n")[0].strip()
+        pwd = output_text(result).split(":", 1)[1].split("\n")[0].strip()
         assert len(pwd.split("-")) == 6
 
 
@@ -211,7 +212,7 @@ class TestClipboard:
                 mode="random", length=16, copy_to_clipboard=True,
             ))
             assert result.success
-            assert "Copied" in result.output
+            assert "Copied" in output_text(result)
             mock_copy.assert_called_once()
 
     @pytest.mark.asyncio
@@ -221,4 +222,4 @@ class TestClipboard:
             mode="random", length=16, copy_to_clipboard=False,
         ))
         assert result.success
-        assert "Copied" not in result.output
+        assert "Copied" not in output_text(result)

@@ -24,6 +24,7 @@ from jarvis.tools.local.proactive_tools import (
     SetInitiativeArgs,
     SetInitiativeLevelTool,
 )
+from tests._typing import output_text
 
 # ── fixtures ───────────────────────────────────────────────────────
 
@@ -549,7 +550,7 @@ class TestProactiveTools:
     async def test_status_reports(self, store):
         eng, _ = _engine(store, initiative_level="low")
         r = await ProactiveStatusTool(engine=eng).execute(EmptyProactiveArgs())
-        assert r.success and "low" in r.output.lower()
+        assert r.success and "low" in output_text(r).lower()
 
     async def test_dismiss_now(self, store):
         eng, _ = _engine(store)
@@ -562,7 +563,7 @@ class TestProactiveTools:
         r = await DismissProactiveTool(engine=eng).execute(
             DismissProactiveArgs(scope="forever")
         )
-        assert r.success and "again" in r.output.lower()
+        assert r.success and "again" in output_text(r).lower()
 
     def test_voice_patterns_route(self):
         def match(tool_cls, phrase):

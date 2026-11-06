@@ -4,8 +4,9 @@ Nothing here fakes behaviour. These are the few places where a test
 legitimately knows more than the production type does, and where saying
 so once beats repeating the same cast at three dozen call sites. None of
 them changes what any test does at runtime: `as_mock` and `output_text`
-are pure `cast()`, and `fake_module` writes the same module `__dict__`
-that attribute assignment writes.
+are pure `cast()`, `error_text` is the `(result.error or "")` idiom, and
+`fake_module` writes the same module `__dict__` that attribute assignment
+writes.
 
 If you are reaching for another helper, prefer typing the fake properly
 instead: a fake that structurally satisfies the protocol it stands in
@@ -16,7 +17,7 @@ point of running pyright over `tests/`.
 from __future__ import annotations
 
 import types
-from typing import cast
+from typing import Protocol, cast
 from unittest.mock import AsyncMock
 
 from jarvis.tools.registry import ToolResult
@@ -54,6 +55,22 @@ def output_text(result: ToolResult) -> str:
     string method that it raised before.
     """
     return cast(str, result.output or "")
+
+
+class _HasError(Protocol):
+    @property
+    def error(self) -> str | None: ...
+
+
+def error_text(result: _HasError) -> str:
+    """`result.error` as a string, for tests asserting on a failure message.
+
+    `ToolResult.error` (and the other result types' `error`) is
+    `str | None`; a failing result always carries one. Exactly the
+    `(result.error or "")` idiom: a test that expected an error and got
+    None fails on the assertion that follows, as before.
+    """
+    return result.error or ""
 
 
 def fake_module(name: str, **attrs: object) -> types.ModuleType:

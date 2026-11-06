@@ -22,6 +22,7 @@ from jarvis.tools.local.dictation import (
     process_dictation_text,
 )
 from jarvis.tools.registry import VoicePattern
+from tests._typing import output_text
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -196,7 +197,7 @@ class TestLifecycle:
 
         result = await tool.execute(DictationArgs(action="start"))
         assert result.success
-        assert "already active" in result.output.lower()
+        assert "already active" in output_text(result).lower()
         assert is_dictation_active()
 
     @pytest.mark.asyncio
@@ -206,7 +207,7 @@ class TestLifecycle:
 
         result = await tool.execute(DictationArgs(action="stop"))
         assert result.success
-        assert "not active" in result.output.lower()
+        assert "not active" in output_text(result).lower()
         assert not is_dictation_active()
 
     @pytest.mark.asyncio

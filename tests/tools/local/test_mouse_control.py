@@ -18,6 +18,7 @@ from jarvis.tools.local.mouse_control import (
     MouseScrollArgs,
     MouseScrollTool,
 )
+from tests._typing import output_text
 
 _MOD = "jarvis.tools.local.mouse_control"
 
@@ -170,7 +171,7 @@ class TestPosition:
         with patch(f"{_MOD}._get_pyautogui", return_value=pg):
             r = await MousePositionTool().execute(MousePositionArgs())
         assert r.success
-        assert "640" in r.output and "480" in r.output
+        assert "640" in output_text(r) and "480" in output_text(r)
 
 
 # ── OCR helper ────────────────────────────────────────────────────────

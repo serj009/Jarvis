@@ -14,17 +14,17 @@ from jarvis.core.game_mode import (
     GameCategory,
     GameMode,
 )
+from jarvis.platform.windows_apps import SteamGame
+from tests._typing import as_mock
 
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
-def _make_steam_games() -> dict:
-    """Fake Steam library for tests."""
-    # Mimics the dict[str, SteamGame] structure from scan_steam_games()
-    class FakeSteamGame:
-        pass
-    games = {}
+def _make_steam_games() -> dict[str, SteamGame]:
+    """Fake Steam library for tests: the dict[str, SteamGame] that
+    scan_steam_games() returns."""
+    games: dict[str, SteamGame] = {}
     for name, app_id in [
         ("Elden Ring", 1245620),
         ("STALKER 2", 1643320),
@@ -32,50 +32,46 @@ def _make_steam_games() -> dict:
         ("Mafia II", 50130),
         ("Counter-Strike 2", 730),
     ]:
-        g = FakeSteamGame()
-        g.name = name
-        g.app_id = app_id
-        key = name.lower().replace(" ", "")
-        games[key] = g
+        games[name.lower().replace(" ", "")] = SteamGame(name=name, app_id=app_id)
     return games
 
 
-def _make_game_mode(**overrides) -> GameMode:
-    """Build a GameMode with test-friendly mocks."""
-    defaults = dict(
-        vram_manager=MagicMock(),
-        ollama_client=AsyncMock(),
-        stt=AsyncMock(),
-        memory_store=AsyncMock(),
-        scan_interval_seconds=1.0,
-        steam_games=_make_steam_games(),
-        enabled=True,
-    )
-    defaults.update(overrides)
-
-    # Set up STT mock with the attributes GameMode reads
-    stt = defaults["stt"]
+def _make_game_mode(
+    *,
+    custom_main_games: list[str] | None = None,
+    enabled: bool = True,
+) -> GameMode:
+    """Build a GameMode with test-friendly mocks (reach them in a test
+    through as_mock(gm._ollama) and friends)."""
+    # STT mock with the attributes GameMode reads
+    stt = AsyncMock()
     stt.model_size = "small"
     stt._configured_device = "auto"
     stt.compute_type = "auto"
     stt.is_loaded = True
 
-    # VRAMManager mock
-    vram = defaults["vram_manager"]
+    vram = MagicMock()
     vram.release_all = AsyncMock()
 
-    # OllamaClient mock
-    ollama = defaults["ollama_client"]
+    ollama = AsyncMock()
     ollama.unload = AsyncMock()
     ollama.warm = AsyncMock()
 
-    # MemoryStore mock
-    mem = defaults["memory_store"]
+    mem = AsyncMock()
     mem.is_open = True
     mem.search = AsyncMock(return_value=[])
     mem.add = AsyncMock(return_value="test_id")
 
-    return GameMode(**defaults)
+    return GameMode(
+        vram_manager=vram,
+        ollama_client=ollama,
+        stt=stt,
+        memory_store=mem,
+        scan_interval_seconds=1.0,
+        steam_games=_make_steam_games(),
+        custom_main_games=custom_main_games,
+        enabled=enabled,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -165,7 +161,7 @@ class TestActivation:
         )
         await gm._activate(game)
 
-        gm._ollama.unload.assert_awaited_once()
+        as_mock(gm._ollama).unload.assert_awaited_once()
         assert gm.is_active is True
         assert gm.current_game is not None
         assert gm.current_game.title == "Elden Ring"
@@ -179,7 +175,7 @@ class TestActivation:
         )
         await gm._activate(game)
 
-        stt = gm._stt
+        stt = as_mock(gm._stt)
         # Should have been reconfigured
         assert stt.model_size == "tiny"
         assert stt._configured_device == "cpu"
@@ -196,7 +192,7 @@ class TestActivation:
         )
         await gm._activate(game)
 
-        gm._vram.release_all.assert_awaited_once()
+        as_mock(gm._vram).release_all.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_activate_preloads_game_context(self):
@@ -205,7 +201,7 @@ class TestActivation:
         # Return some fake facts
         class FakeFact:
             text = "Elden Ring tip: dodge roll"
-        gm._memory.search = AsyncMock(return_value=[FakeFact()])
+        as_mock(gm._memory).search = AsyncMock(return_value=[FakeFact()])
 
         game = DetectedGame(
             name="eldenring.exe", title="Elden Ring",
@@ -236,7 +232,7 @@ class TestDeactivation:
         # Now deactivate
         await gm._deactivate()
 
-        stt = gm._stt
+        stt = as_mock(gm._stt)
         # Should restore to pre-game values
         assert stt.model_size == "small"
         assert stt._configured_device == "auto"
@@ -256,8 +252,8 @@ class TestDeactivation:
 
         await gm._deactivate()
 
-        gm._memory.add.assert_awaited_once()
-        call_kwargs = gm._memory.add.call_args
+        as_mock(gm._memory).add.assert_awaited_once()
+        call_kwargs = as_mock(gm._memory).add.call_args
         text = call_kwargs.kwargs.get("text", "") or call_kwargs[0][0] if call_kwargs[0] else ""
         if not text:
             text = str(call_kwargs)
@@ -285,7 +281,7 @@ class TestDeactivation:
         gm._current_game = None
         await gm._deactivate()
         # Should not crash, should not call anything
-        gm._stt.unload.assert_not_awaited()
+        as_mock(gm._stt).unload.assert_not_awaited()
 
 
 # ---------------------------------------------------------------------------
@@ -330,7 +326,7 @@ class TestPreloadGameContext:
             f = FakeFact()
             f.text = t
             facts.append(f)
-        gm._memory.search = AsyncMock(return_value=facts)
+        as_mock(gm._memory).search = AsyncMock(return_value=facts)
 
         await gm._preload_game_context("Elden Ring")
 
@@ -343,7 +339,7 @@ class TestPreloadGameContext:
     @pytest.mark.asyncio
     async def test_preload_no_results(self):
         gm = _make_game_mode()
-        gm._memory.search = AsyncMock(return_value=[])
+        as_mock(gm._memory).search = AsyncMock(return_value=[])
 
         await gm._preload_game_context("Unknown Game")
 
@@ -352,7 +348,7 @@ class TestPreloadGameContext:
     @pytest.mark.asyncio
     async def test_preload_memory_error_is_non_fatal(self):
         gm = _make_game_mode()
-        gm._memory.search = AsyncMock(side_effect=RuntimeError("DB error"))
+        as_mock(gm._memory).search = AsyncMock(side_effect=RuntimeError("DB error"))
 
         await gm._preload_game_context("Elden Ring")
 
@@ -389,6 +385,7 @@ class TestForceCommands:
         await gm.force_activate("Game 1")
         await gm.force_activate("Game 2")
         # Should remain on Game 1 (already active)
+        assert gm.current_game is not None
         assert gm.current_game.title == "Game 1"
 
     @pytest.mark.asyncio
@@ -450,7 +447,7 @@ class TestOnDemandVisionQuery:
     @pytest.mark.asyncio
     async def test_vision_query_success(self):
         gm = _make_game_mode()
-        gm._ollama.vision_chat = AsyncMock(return_value="A dark dungeon scene, sir.")
+        as_mock(gm._ollama).vision_chat = AsyncMock(return_value="A dark dungeon scene, sir.")
         gm._active = True
 
         result = await gm.on_demand_vision_query(
@@ -458,18 +455,18 @@ class TestOnDemandVisionQuery:
         )
 
         assert result == "A dark dungeon scene, sir."
-        gm._ollama.vision_chat.assert_awaited_once_with(
+        as_mock(gm._ollama).vision_chat.assert_awaited_once_with(
             model="llava:7b",
             image_b64="AAAA",
             prompt="describe screen",
         )
         # Must unload after answering
-        gm._ollama.unload.assert_awaited_once()
+        as_mock(gm._ollama).unload.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_vision_query_failure_still_unloads(self):
         gm = _make_game_mode()
-        gm._ollama.vision_chat = AsyncMock(side_effect=RuntimeError("model fail"))
+        as_mock(gm._ollama).vision_chat = AsyncMock(side_effect=RuntimeError("model fail"))
         gm._active = True
 
         result = await gm.on_demand_vision_query(
@@ -478,7 +475,7 @@ class TestOnDemandVisionQuery:
 
         assert result is None
         # Should still attempt unload even on failure
-        gm._ollama.unload.assert_awaited()
+        as_mock(gm._ollama).unload.assert_awaited()
 
     @pytest.mark.asyncio
     async def test_vision_query_no_ollama(self):
@@ -496,8 +493,8 @@ class TestOnDemandVisionQuery:
     async def test_vision_query_unload_failure_is_non_fatal(self):
         """If unload fails after a vision_chat error, it should not raise."""
         gm = _make_game_mode()
-        gm._ollama.vision_chat = AsyncMock(side_effect=RuntimeError("model fail"))
-        gm._ollama.unload = AsyncMock(side_effect=RuntimeError("unload fail"))
+        as_mock(gm._ollama).vision_chat = AsyncMock(side_effect=RuntimeError("model fail"))
+        as_mock(gm._ollama).unload = AsyncMock(side_effect=RuntimeError("unload fail"))
         gm._active = True
 
         result = await gm.on_demand_vision_query(

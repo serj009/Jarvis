@@ -21,6 +21,7 @@ from jarvis.tools.local.tab_manager import (
     FindTabTool,
 )
 from jarvis.tools.registry import VoicePattern
+from tests._typing import error_text, output_text
 
 # ---------------------------------------------------------------------------
 # Protocol conformance
@@ -199,14 +200,14 @@ class TestCloseOtherTabs:
         tool = CloseOtherTabsTool()
         result = await tool.execute(CloseOtherTabsArgs())
         assert result.success
-        assert "2" in result.output  # Closed 2 tabs
+        assert "2" in output_text(result)  # Closed 2 tabs
 
     @pytest.mark.asyncio
     async def test_no_selenium_fallback(self, mock_browser_no_selenium):
         tool = CloseOtherTabsTool()
         result = await tool.execute(CloseOtherTabsArgs())
         assert not result.success
-        assert "selenium" in result.error.lower()
+        assert "selenium" in error_text(result).lower()
 
 
 class TestCountTabs:
@@ -215,7 +216,7 @@ class TestCountTabs:
         tool = CountTabsTool()
         result = await tool.execute(CountTabsArgs())
         assert result.success
-        assert "3" in result.output
+        assert "3" in output_text(result)
 
     @pytest.mark.asyncio
     async def test_no_selenium(self, mock_browser_no_selenium):
@@ -230,21 +231,21 @@ class TestFindTab:
         tool = FindTabTool()
         result = await tool.execute(FindTabArgs(query="GitHub"))
         assert result.success
-        assert "GitHub" in result.output
+        assert "GitHub" in output_text(result)
 
     @pytest.mark.asyncio
     async def test_find_by_url(self, mock_browser):
         tool = FindTabTool()
         result = await tool.execute(FindTabArgs(query="gmail"))
         assert result.success
-        assert "gmail" in result.output.lower()
+        assert "gmail" in output_text(result).lower()
 
     @pytest.mark.asyncio
     async def test_find_not_found(self, mock_browser):
         tool = FindTabTool()
         result = await tool.execute(FindTabArgs(query="nonexistent"))
         assert not result.success
-        assert "no tab" in result.error.lower()
+        assert "no tab" in error_text(result).lower()
 
     @pytest.mark.asyncio
     async def test_no_selenium(self, mock_browser_no_selenium):
@@ -259,7 +260,7 @@ class TestDuplicateTab:
         tool = DuplicateTabTool()
         result = await tool.execute(DuplicateTabArgs())
         assert result.success
-        assert "Duplicated" in result.output
+        assert "Duplicated" in output_text(result)
 
     @pytest.mark.asyncio
     async def test_no_selenium(self, mock_browser_no_selenium):

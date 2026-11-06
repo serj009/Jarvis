@@ -16,6 +16,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from jarvis.tools.local.auto_login import AutoLoginArgs, AutoLoginTool
+from tests._typing import error_text, output_text
 
 
 @pytest.fixture()
@@ -79,7 +80,7 @@ class TestAutoLoginTool:
         result = await tool.execute(AutoLoginArgs(site="steam"))
 
         assert result.success
-        assert "steam" in result.output
+        assert "steam" in output_text(result)
         # CRITICAL: password and username MUST NOT be in output
         assert "s3cr3tP@ss" not in (result.output or "")
         assert "gamer42" not in (result.output or "")
@@ -101,9 +102,10 @@ class TestAutoLoginTool:
         result = await tool.execute(AutoLoginArgs(site="steam"))
 
         assert not result.success
-        assert "locked" in result.error.lower()
+        assert "locked" in error_text(result).lower()
         # No credentials in error
-        assert "password" not in result.error.lower() or "password vault" in result.error.lower()
+        error = error_text(result).lower()
+        assert "password" not in error or "password vault" in error
 
     @pytest.mark.asyncio
     async def test_site_not_found_error(self):
@@ -116,8 +118,8 @@ class TestAutoLoginTool:
         result = await tool.execute(AutoLoginArgs(site="unknown_site"))
 
         assert not result.success
-        assert "unknown_site" in result.error
-        assert "No saved credentials" in result.error
+        assert "unknown_site" in error_text(result)
+        assert "No saved credentials" in error_text(result)
 
     @pytest.mark.asyncio
     async def test_no_browser_error(self, mock_vault):
@@ -126,7 +128,7 @@ class TestAutoLoginTool:
         result = await tool.execute(AutoLoginArgs(site="steam"))
 
         assert not result.success
-        assert "browser" in result.error.lower()
+        assert "browser" in error_text(result).lower()
 
     @pytest.mark.asyncio
     async def test_no_vault_available(self):
@@ -138,7 +140,7 @@ class TestAutoLoginTool:
             result = await tool.execute(AutoLoginArgs(site="steam"))
 
         assert not result.success
-        assert "not available" in result.error.lower()
+        assert "not available" in error_text(result).lower()
 
     def test_tool_metadata(self):
         """Tool has correct name and properties."""

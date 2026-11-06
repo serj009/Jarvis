@@ -11,6 +11,7 @@ from jarvis.integrations.wiring import (
     wire_integration_tools,
 )
 from jarvis.tools.registry import ToolRegistry
+from tests._typing import error_text, output_text
 
 
 def _reg_with_example(enabled=True):
@@ -49,7 +50,7 @@ class TestAdapter:
         assert adapter.name == "example_ping"
         result = await adapter.execute(adapter.args_schema())
         assert result.success
-        assert "pong" in result.output
+        assert "pong" in output_text(result)
 
     async def test_adapter_reports_plugin_error(self):
         reg = _reg_with_example()
@@ -63,7 +64,7 @@ class TestAdapter:
         plugin.execute_tool = boom
         result = await adapter.execute(adapter.args_schema())
         assert not result.success
-        assert "network down" in result.error
+        assert "network down" in error_text(result)
 
 
 # ── wire_integration_tools ───────────────────────────────────────────
@@ -128,7 +129,7 @@ class TestWiring:
         ireg = _reg_with_example(enabled=True)
         wire_integration_tools(tools, ireg)
         result = await tools.execute("example_ping", {})
-        assert result.success and "pong" in result.output
+        assert result.success and "pong" in output_text(result)
 
 
 # ── events ───────────────────────────────────────────────────────────

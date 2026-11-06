@@ -58,6 +58,7 @@ from jarvis.skills.sandbox import (
     SkillSandbox,
     SkillValidator,
 )
+from tests._typing import error_text
 
 # ── Level 3: AST Validator ───────────────────────────────────────────────
 
@@ -1077,7 +1078,7 @@ class TestSkillSandbox:
 
 
 
-        assert "boom" in result.error
+        assert "boom" in error_text(result)
 
 
 
@@ -1122,7 +1123,7 @@ class TestSkillSandbox:
 
 
 
-        assert "circuit breaker" in result.error.lower()
+        assert "circuit breaker" in error_text(result).lower()
 
 
 

@@ -17,6 +17,7 @@ from jarvis.tools.local.bookmarks import (
     _save_bookmarks,
 )
 from jarvis.tools.registry import VoicePattern
+from tests._typing import output_text
 
 # -- protocol conformance -----------------------------------------------
 
@@ -142,7 +143,7 @@ class TestExecute:
             action="save", url="https://github.com", name="GitHub",
         ))
         assert result.success
-        assert "GitHub" in result.output
+        assert "GitHub" in output_text(result)
 
         bm = _load_bookmarks()
         assert len(bm) == 1
@@ -159,7 +160,7 @@ class TestExecute:
         tool = BookmarksTool()
         result = await tool.execute(BookmarksArgs(action="list"))
         assert result.success
-        assert "no bookmark" in result.output.lower() or "0" in result.output
+        assert "no bookmark" in output_text(result).lower() or "0" in output_text(result)
 
     @pytest.mark.asyncio
     async def test_list_with_items(self, _temp_bookmarks):
@@ -170,7 +171,7 @@ class TestExecute:
         tool = BookmarksTool()
         result = await tool.execute(BookmarksArgs(action="list"))
         assert result.success
-        assert "2" in result.output
+        assert "2" in output_text(result)
 
     @pytest.mark.asyncio
     @patch("jarvis.tools.local.bookmarks.webbrowser")
