@@ -179,10 +179,11 @@ class SmartSearch:
 
         # Get semantic scores if embeddings are available.
         semantic_scores: dict[str, float] = {}
-        use_semantic = self.has_embeddings
-        if use_semantic:
+        index = self._embedding_index if self.has_embeddings else None
+        use_semantic = index is not None
+        if index is not None:
             try:
-                sem_results = self._embedding_index.search(
+                sem_results = index.search(
                     query, top_k=max(limit * 3, 50)
                 )
                 semantic_scores = {fid: score for fid, score in sem_results}

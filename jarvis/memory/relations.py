@@ -130,7 +130,8 @@ class RelationStore:
                 (from_id, to_id, relation_type, strength),
             )
             conn.commit()
-            rel_id = cursor.lastrowid
+            # Always set after a successful INSERT on a rowid table.
+            rel_id = cursor.lastrowid or 0
             log.debug(
                 "relation added: %s -[%s]-> %s (id=%d)",
                 from_id, relation_type, to_id, rel_id,

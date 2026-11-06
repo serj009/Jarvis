@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from jarvis.memory.auto_classifier import AutoClassifier
 from jarvis.memory.auto_cleanup import AutoCleanup
@@ -45,7 +45,7 @@ from jarvis.memory.embedding_cache import EmbeddingCache
 from jarvis.memory.knowledge_store import KnowledgeStore
 from jarvis.memory.relations import RelationStore
 from jarvis.memory.smart_search import SmartSearch
-from jarvis.memory.store import Fact, MemoryStore
+from jarvis.memory.store import Fact, FactSource, MemoryStore
 
 if TYPE_CHECKING:
     from jarvis.memory.embeddings import EmbeddingIndex
@@ -69,8 +69,10 @@ class MemoryManager:
 
         # Core stores
         self.store = MemoryStore(db_path=data_root / "memory.db" if data_root else None)
+        # ConversationMemory takes root_path; "db_dir" raised TypeError, so
+        # MemoryManager could not be constructed at all.
         self.conversations = ConversationMemory(
-            db_dir=data_root / "conversations" if data_root else None
+            root_path=data_root / "conversations" if data_root else None
         )
         self.knowledge = KnowledgeStore(knowledge_dir=knowledge_dir)
 
@@ -192,7 +194,7 @@ class MemoryManager:
         text: str,
         *,
         category: str = "general",
-        source: str = "user",
+        source: FactSource = "user",
         tags: list[str] | None = None,
         is_permanent: bool = False,
     ) -> str:
@@ -259,7 +261,7 @@ class MemoryManager:
 
         # 3. If semantic search is available, also include facts found by
         #    embeddings that keyword search might have missed.
-        if self._search.has_embeddings:
+        if self._search.has_embeddings and self._embedding_index is not None:
             try:
                 sem_results = self._embedding_index.search(query, top_k=20)
                 sem_ids = {fid for fid, _ in sem_results}
@@ -381,10 +383,10 @@ class MemoryManager:
 
     # -- Stats --
 
-    async def stats(self) -> dict:
+    async def stats(self) -> dict[str, Any]:
         """Get stats from all subsystems."""
         store_count = await self.store.count() if self.store.is_open else 0
-        result = {
+        result: dict[str, Any] = {
             "facts": store_count,
             "knowledge_facts": self.knowledge.fact_count,
             "response_cache_size": self.response_cache.size,

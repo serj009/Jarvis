@@ -410,6 +410,8 @@ class EmbeddingIndex:
         """Encode text without cache (for internal use and batch ops)."""
         import numpy as np
 
+        if self._model is None:
+            raise RuntimeError("embedding model is not loaded")
         vec = self._model.encode(
             [text],
             normalize_embeddings=True,

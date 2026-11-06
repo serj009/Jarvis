@@ -46,10 +46,11 @@ import logging
 import re
 import shutil
 import sqlite3
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal
 from uuid import uuid4
 
 from jarvis.memory.auto_tagger import AutoTagger
@@ -981,7 +982,7 @@ class MemoryStore:
     # -- helpers ------------------------------------------------------------
 
     @staticmethod
-    def _row_to_fact(row: tuple, tags: list[str]) -> Fact:
+    def _row_to_fact(row: Sequence[Any], tags: list[str]) -> Fact:
         # Columns: id(0) text(1) category(2) source(3) language(4)
         # created_at(5) updated_at(6) access_count(7) last_accessed_at(8)
         # is_permanent(9) [tier(10) condensed_text(11)]
