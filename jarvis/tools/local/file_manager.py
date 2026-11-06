@@ -30,7 +30,9 @@ Design notes:
 - **move / copy / rename**: ``shutil.move`` / ``shutil.copy2`` /
   ``os.rename``.  Both source AND destination are sandbox-validated.
 
-- **delete**: ``os.remove`` for files, ``shutil.rmtree`` for directories.
+- **delete**: moved into the undo store (file_undo.py), not erased, so
+  "undo that" can bring it back; move / copy / rename keep a file they
+  would overwrite there too.
   Requires confirmation (risk=DESTRUCTIVE).
 
 - **mkdir**: ``os.makedirs(path, exist_ok=True)``.
@@ -51,6 +53,7 @@ from typing import ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
+from jarvis.tools.local.file_undo import UndoEntry, UndoStore
 from jarvis.tools.registry import ToolResult, VoicePattern
 from jarvis.tools.risk import RiskLevel
 from jarvis.tools.sandbox import PathValidator, SandboxViolationError
@@ -598,8 +601,28 @@ class FileManagerTool:
         self,
         *,
         path_validator: PathValidator | None = None,
+        undo_store: UndoStore | None = None,
     ) -> None:
         self._validator = path_validator
+        # M2-4: deleted and overwritten files go here first, so
+        # "верни как было" (UndoFileChangeTool) can put them back.
+        self._undo = undo_store or UndoStore()
+
+    def _keep_overwritten(self, src: Path, dst: Path) -> UndoEntry | None:
+        """Before move / copy / rename: if the operation would replace an
+        existing file, move that file into the undo store first."""
+        target = dst / src.name if dst.is_dir() else dst
+        if target.is_file() and target.resolve() != src.resolve():
+            return self._undo.keep(target, "overwrite")
+        return None
+
+    def _put_back(self, entry: UndoEntry | None) -> None:
+        """The operation failed after its target was kept: restore it."""
+        if entry is not None:
+            try:
+                self._undo.restore(entry.id)
+            except OSError:
+                log.warning("could not put back %s", entry.original, exc_info=True)
 
     # ── public entry point ────────────────────────────────────────
 
@@ -872,8 +895,13 @@ class FileManagerTool:
             return Path(result)
 
         try:
+            kept = await asyncio.to_thread(self._keep_overwritten, src, dst)
+        except OSError as e:
+            return ToolResult(success=False, error=f"Move failed: {e}")
+        try:
             final = await asyncio.to_thread(_move_file)
         except (OSError, shutil.Error) as e:
+            await asyncio.to_thread(self._put_back, kept)
             return ToolResult(success=False, error=f"Move failed: {e}")
 
         return ToolResult(
@@ -904,8 +932,13 @@ class FileManagerTool:
             return Path(result)
 
         try:
+            kept = await asyncio.to_thread(self._keep_overwritten, src, dst)
+        except OSError as e:
+            return ToolResult(success=False, error=f"Copy failed: {e}")
+        try:
             final = await asyncio.to_thread(_copy_file)
         except (OSError, shutil.Error) as e:
+            await asyncio.to_thread(self._put_back, kept)
             return ToolResult(success=False, error=f"Copy failed: {e}")
 
         return ToolResult(
@@ -949,8 +982,13 @@ class FileManagerTool:
             os.rename(str(src), str(new_path))
 
         try:
+            kept = await asyncio.to_thread(self._keep_overwritten, src, new_path)
+        except OSError as e:
+            return ToolResult(success=False, error=f"Rename failed: {e}")
+        try:
             await asyncio.to_thread(_rename_file)
         except OSError as e:
+            await asyncio.to_thread(self._put_back, kept)
             return ToolResult(success=False, error=f"Rename failed: {e}")
 
         return ToolResult(
@@ -973,21 +1011,17 @@ class FileManagerTool:
         target_name = resolved.name
         is_dir = resolved.is_dir()
 
-        def _delete_target() -> None:
-            if is_dir:
-                shutil.rmtree(str(resolved))
-            else:
-                os.remove(str(resolved))
-
+        # Not erased: moved into the undo store (M2-4), so "верни как было"
+        # can bring it back for a while.
         try:
-            await asyncio.to_thread(_delete_target)
+            await asyncio.to_thread(self._undo.keep, resolved, "delete")
         except (OSError, shutil.Error) as e:
             return ToolResult(success=False, error=f"Delete failed: {e}")
 
         kind = "folder" if is_dir else "file"
         return ToolResult(
             success=True,
-            output=f"Deleted {kind} {target_name}, sir.",
+            output=f"Deleted {kind} {target_name}, sir. Say \"undo that\" to bring it back.",
         )
 
     async def _mkdir(self, args: FileManagerArgs) -> ToolResult:

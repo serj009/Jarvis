@@ -407,6 +407,16 @@ CAPABILITY_CATEGORIES: tuple[CapabilityCategory, ...] = (
                 tools=("lock_screen",),
             ),
             Capability(
+                name="Undo a file deletion",
+                description=(
+                    "Files and folders Jarvis deletes, and files it would "
+                    "overwrite, are kept for a week (the last 20). Ask and "
+                    "the most recent one is put back."
+                ),
+                examples=("undo that", "restore the deleted file"),
+                tools=("undo_file_change",),
+            ),
+            Capability(
                 name="System stats by voice",
                 description="Reports CPU and memory usage out loud.",
                 examples=("how much memory am I using",),

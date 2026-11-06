@@ -152,6 +152,8 @@ CORPUS: tuple[str, ...] = (
     "look at my screen",
     "describe my screen",
     "what do you see",
+    "undo that",
+    "restore the deleted file",
     "lock the screen",
     "lock my pc",
     "how much memory am I using",

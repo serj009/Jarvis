@@ -182,6 +182,7 @@ TOOL_DISPLAY_NAMES: dict[str, str] = {
     "toggle_night_mode": "\U0001f319 Toggle Night Mode",
     "translate_page": "\U0001f310 Translate Page",
     "type_into_active_window": "\u2328\ufe0f Type Into Window",
+    "undo_file_change": "\u21a9\ufe0f Undo File Change",
     "unlock_vault": "\U0001f513 Unlock Vault",
     "unsubscribe_rss": "\U0001f4f0 Unsubscribe RSS",
     "virtual_desktop": "\U0001f5a5\ufe0f Virtual Desktop",

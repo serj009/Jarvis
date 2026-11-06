@@ -117,6 +117,7 @@ def setup_local_tools(
         CreateFileTool,
         FileManagerTool,
     )
+    from jarvis.tools.local.file_undo import UndoFileChangeTool, UndoStore
     from jarvis.tools.local.files import ListDirectoryTool
     from jarvis.tools.local.focus_mode import (
         FocusModeStatusTool,
@@ -317,6 +318,9 @@ def setup_local_tools(
         allowed_paths=sandbox_paths,
         allow_home_fallback=True,
     )
+    # M2-4: one undo store for file_manager (keeps deleted / overwritten
+    # files) and undo_file_change ("верни как было").
+    undo_store = UndoStore()
 
     vision_cfg = getattr(config, "vision", None) if config is not None else None
     if vision_cfg is None:
@@ -357,7 +361,8 @@ def setup_local_tools(
         MousePositionTool(),
         CloseAppTool(),
         GetTimeTool(),
-        FileManagerTool(path_validator=path_validator),
+        FileManagerTool(path_validator=path_validator, undo_store=undo_store),
+        UndoFileChangeTool(store=undo_store),
         CreateFileTool(path_validator=path_validator),
         ArchiveTool(path_validator=path_validator),
         ListDirectoryTool(path_validator=path_validator),

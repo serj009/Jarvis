@@ -115,6 +115,7 @@ def _local_tool_classes() -> tuple[type, ...]:
         CreateFileTool,
         FileManagerTool,
     )
+    from jarvis.tools.local.file_undo import UndoFileChangeTool
     from jarvis.tools.local.files import ListDirectoryTool
     from jarvis.tools.local.focus_mode import (
         FocusModeStatusTool,
@@ -316,6 +317,7 @@ def _local_tool_classes() -> tuple[type, ...]:
         DisableDeepResearchUltraTool,
         EnableDeepResearchUltraTool,
         FileManagerTool,
+        UndoFileChangeTool,
         CreateFileTool,
         ArchiveTool,
         GitTool,

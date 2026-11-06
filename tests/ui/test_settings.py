@@ -475,6 +475,7 @@ def test_tools_tab_populates_checkboxes_for_phase_4_set(qapp):
         "toggle_night_mode",
         "translate_page",
         "type_into_active_window",
+        "undo_file_change",
         "unlock_vault",
         "unsubscribe_rss",
         "volume",
