@@ -864,6 +864,9 @@ class AudioPipeline:
             "[turn] start: %d ms of audio",
             (len(audio) // 2) * 1000 // SAMPLE_RATE,
         )
+        # The request, once transcribed: an error notice is said in its
+        # language (the producer's request context is gone by then).
+        text: str | None = None
         try:
             # T3.4: STT with timeout — if transcription takes too long, abort.
             try:
@@ -1038,8 +1041,9 @@ class AudioPipeline:
             log.exception("response chain crashed — recovering to IDLE")
             # Best-effort TTS notification so the user knows something broke.
             try:
-                from jarvis.core.phrases import say
-                await self._tts.speak(say("error_generic"))
+                from jarvis.core.phrases import detect_language, say
+                lang = detect_language(text) or self._spoken_language()
+                await self._tts.speak(say("error_generic", lang))
             except Exception:
                 log.warning("TTS error notification failed", exc_info=True)
             # Don't leave the state machine stuck in THINKING/SPEAKING.

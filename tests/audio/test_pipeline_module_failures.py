@@ -138,3 +138,39 @@ def test_every_reportable_module_has_a_phrase(module):
     from jarvis.core.phrases import PHRASES
 
     assert set(PHRASES[f"module_down_{module}"]) == {"ru", "uk", "en"}
+
+
+async def _speak_after_failing_turn(error: Exception) -> list[str]:
+    pipeline, _bus, sm, source, _ww, _vad, _stt, tts = make_pipeline(
+        detect_at=1, vad_script={2: VADEvent.SPEECH_STARTED, 4: VADEvent.ENDPOINT},
+        transcription="какая сегодня погода",
+    )
+
+    async def failing_producer(text):
+        raise error
+        yield  # an async generator, like the real producer
+
+    pipeline._response_producer = failing_producer
+    await pipeline.start()
+    try:
+        source.push()
+        await wait_for_cs(sm, ConversationalState.LISTENING)
+        for _ in range(4):
+            source.push()
+        for _ in range(200):
+            if tts.spoken:
+                break
+            await yield_loop(5)
+        tts.finish_speaking()
+        await wait_for_cs(sm, ConversationalState.IDLE)
+        return tts.spoken
+    finally:
+        await pipeline.stop()
+
+
+async def test_a_failed_turn_is_reported_in_the_request_language():
+    """The notice was English in a Russian conversation (the request context
+    is gone by the time the error reaches the pipeline) and promised a retry
+    that nothing does: "Something went wrong, sir. I'll try again."."""
+    spoken = await _speak_after_failing_turn(RuntimeError("boom"))
+    assert spoken == ["Что-то пошло не так, сэр. Попробуйте ещё раз."]

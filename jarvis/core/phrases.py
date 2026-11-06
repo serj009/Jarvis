@@ -131,10 +131,11 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "uk": "Запам'ятав, сер — {alias} тепер відкриває {target}.",
     },
     # T1.5 / T2.4: Error phrases for the ErrorHandler and confidence routing.
+    # Nothing retries the turn, so the phrase does not promise it.
     "error_generic": {
-        "en": "Something went wrong, sir. I'll try again.",
-        "ru": "Что-то пошло не так, сэр. Сейчас попробую ещё раз.",
-        "uk": "Щось пішло не так, сер. Зараз спробую ще раз.",
+        "en": "Something went wrong, sir. Please try again.",
+        "ru": "Что-то пошло не так, сэр. Попробуйте ещё раз.",
+        "uk": "Щось пішло не так, сер. Спробуйте ще раз.",
     },
     "error_stt": {
         "en": "I couldn't understand what you said, sir. Could you repeat?",

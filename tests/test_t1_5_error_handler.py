@@ -184,7 +184,8 @@ def test_finally_releases_lock():
 def test_pipeline_speaks_error_on_crash():
     """Response chain exception handler speaks error_generic via TTS."""
     src = (REPO / "jarvis" / "audio" / "pipeline.py").read_text(encoding="utf-8")
-    assert 'say("error_generic")' in src
+    # What is said is checked by tests/audio/test_pipeline_module_failures.py.
+    assert '"error_generic"' in src
     assert "response chain crashed" in src
     # Verify TTS speak is called in the except block
     assert "await self._tts.speak(say(" in src
