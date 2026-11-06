@@ -15,6 +15,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import quantity, say
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -238,7 +239,16 @@ class MyIpTool:
         if not info.get("local_ip") and not info.get("public_ip"):
             lines.append("  Could not determine IP addresses.")
 
-        return ToolResult(success=True, output="\n".join(lines))
+        local, public = info.get("local_ip"), info.get("public_ip")
+        if local and public:
+            spoken = say("ip_both", local=local, public=public)
+        elif local:
+            spoken = say("ip_local", local=local)
+        elif public:
+            spoken = say("ip_public", public=public)
+        else:
+            spoken = say("ip_unknown")
+        return ToolResult(success=True, output="\n".join(lines), spoken=spoken)
 
 
 class SpeedTestTool:
@@ -285,6 +295,9 @@ class SpeedTestTool:
                 f"({result['download_speed_mb_s']} MB/s), sir. "
                 f"Downloaded {result['downloaded_bytes']} bytes "
                 f"in {result['elapsed_seconds']}s."
+            ),
+            spoken=say(
+                "speed_result", speed=quantity(result["download_speed_mbps"], "megabit")
             ),
         )
 

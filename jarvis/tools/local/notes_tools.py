@@ -8,6 +8,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import say
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -90,6 +91,7 @@ class TakeNoteTool:
         return ToolResult(
             success=True,
             output=f"Note saved, sir. Titled '{stored_title}'.",
+            spoken=say("note_saved", title=stored_title),
         )
 
 
@@ -146,6 +148,7 @@ class AppendToNoteTool:
             return ToolResult(
                 success=True,
                 output=f"Added to '{updated}', sir.",
+                spoken=say("note_appended", title=updated),
             )
         updated = self._on_append_by_title(title, content)
         if updated is None:
@@ -153,7 +156,11 @@ class AppendToNoteTool:
                 success=False,
                 error=f"No note matching {title!r} found.",
             )
-        return ToolResult(success=True, output=f"Added to '{updated}', sir.")
+        return ToolResult(
+            success=True,
+            output=f"Added to '{updated}', sir.",
+            spoken=say("note_appended", title=updated),
+        )
 
 
 class ReadNoteArgs(BaseModel):
@@ -250,7 +257,9 @@ class OpenNotesTool:
 
     async def execute(self, args: EmptyArgs) -> ToolResult:  # noqa: ARG002
         self._on_open()
-        return ToolResult(success=True, output="Opening your notes, sir.")
+        return ToolResult(
+            success=True, output="Opening your notes, sir.", spoken=say("notes_opening")
+        )
 
 
 class CloseNotesTool:
@@ -279,7 +288,7 @@ class CloseNotesTool:
 
     async def execute(self, args: EmptyArgs) -> ToolResult:  # noqa: ARG002
         self._on_close()
-        return ToolResult(success=True, output="Notes panel closed.")
+        return ToolResult(success=True, output="Notes panel closed.", spoken=say("notes_closed"))
 
 
 class DeleteNoteArgs(BaseModel):
@@ -326,8 +335,16 @@ class DeleteNoteTool:
             removed = self._on_delete_active()
             if removed is None:
                 return ToolResult(success=False, error="No active note to delete.")
-            return ToolResult(success=True, output=f"Deleted note '{removed}', sir.")
+            return ToolResult(
+                success=True,
+                output=f"Deleted note '{removed}', sir.",
+                spoken=say("note_deleted", title=removed),
+            )
         removed = self._on_delete_by_title(title)
         if removed is None:
             return ToolResult(success=False, error=f"No note matching {title!r}.")
-        return ToolResult(success=True, output=f"Deleted note '{removed}', sir.")
+        return ToolResult(
+            success=True,
+            output=f"Deleted note '{removed}', sir.",
+            spoken=say("note_deleted", title=removed),
+        )

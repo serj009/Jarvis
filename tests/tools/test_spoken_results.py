@@ -20,7 +20,7 @@ from jarvis.memory.scheduled_reminders import ReminderStore
 from jarvis.tools.local.remind_me import RemindMeTool
 from jarvis.tools.local.timers import SetTimerTool, TimerStore
 from jarvis.tools.local.volume import VolumeTool
-from jarvis.tools.registry import EmptyArgs, ToolRegistry, ToolResult
+from jarvis.tools.registry import ConfirmationRequest, EmptyArgs, ToolRegistry, ToolResult
 
 
 async def _say(registry: ToolRegistry, tool: str, args: dict, request: str) -> str:
@@ -90,3 +90,100 @@ async def test_without_spoken_the_output_is_read_as_before():
     reg = ToolRegistry(ToolsConfig())
     reg.register(_Plain())  # type: ignore[arg-type]
     assert (await _say(reg, "plain", {}, "сделай")).strip() == "Done the old way, sir."
+
+
+# -- notes, media keys, windows ------------------------------------------------
+
+
+class _Approve:
+    async def confirm(self, request: ConfirmationRequest) -> bool:
+        return True
+
+
+def _one_tool(tool: object) -> ToolRegistry:
+    reg = ToolRegistry(ToolsConfig(), confirmer=_Approve())
+    reg.register(tool)  # type: ignore[arg-type]
+    return reg
+
+
+async def test_note_is_confirmed_in_russian():
+    from jarvis.tools.local.notes_tools import TakeNoteTool
+
+    reg = _one_tool(TakeNoteTool(on_create=lambda title, content: title))
+    spoken = await _say(reg, "take_note", {"content": "купить хлеб"}, "запиши купить хлеб")
+    assert spoken.strip() == "Записал, сэр: «купить хлеб»."
+
+
+async def test_media_key_answers_in_ukrainian():
+    from jarvis.tools.local import media_control
+
+    with (
+        patch("jarvis.tools.local.browser_tabs._get_browser", side_effect=RuntimeError),
+        patch.object(media_control, "_press_media_key", return_value={"success": True}),
+    ):
+        spoken = await _say(_one_tool(media_control.MediaControlTool()), "media_control",
+                            {"action": "next_track"}, "наступний трек")
+    assert spoken.strip() == "Наступний трек, сер."
+
+
+async def test_minimize_all_answers_in_russian():
+    from jarvis.tools.local import window_manager
+
+    with patch.object(window_manager, "_send_keys", return_value=True):
+        spoken = await _say(_one_tool(window_manager.MinimizeAllTool()), "minimize_all", {},
+                            "сверни все окна")
+    assert spoken.strip() == "Свернул все окна, сэр."
+
+
+# -- system tools: numbers are said with their nouns ----------------------------
+
+
+@pytest.mark.parametrize(
+    ("n", "unit", "lang", "said"),
+    [
+        (50, "percent", "ru", "50 процентов"),
+        (21, "percent", "uk", "21 відсоток"),
+        (1, "gigabyte", "en", "1 gigabyte"),
+        (119.6, "gigabyte", "ru", "120 гигабайт"),
+        (3, "file", "uk", "3 файли"),
+        (2, "character", "en", "2 characters"),
+    ],
+)
+def test_quantity(n, unit, lang, said):
+    from jarvis.core.phrases import quantity
+
+    assert quantity(n, unit, lang) == said
+
+
+async def test_disk_space_is_said_per_drive():
+    from jarvis.tools.local import disk_cleaner
+
+    disks = [{"device": "C:\\", "mountpoint": "C:\\", "fstype": "NTFS", "percent_used": 76,
+              "used_gb": 380.2, "total_gb": 500.0, "free_gb": 119.8}]
+    with (
+        patch.object(disk_cleaner, "_disk_space_impl", return_value=disks),
+        patch.object(disk_cleaner, "_get_temp_info", side_effect=OSError),
+    ):
+        spoken = await _say(_one_tool(disk_cleaner.DiskSpaceTool()), "disk_space", {},
+                            "сколько места на диске")
+    assert spoken.strip() == "Свободно, сэр: на диске C 120 гигабайт из 500 гигабайт."
+
+
+async def test_my_ip_in_ukrainian():
+    from jarvis.tools.local import network_tools
+
+    info = {"local_ip": "192.168.1.5", "public_ip": None}
+    with patch.object(network_tools, "_my_ip_impl", return_value=info):
+        spoken = await _say(_one_tool(network_tools.MyIpTool()), "my_ip", {}, "який мій айпі")
+    assert spoken.strip().startswith("Локальна IP 192.168.1.5, сер.")
+
+
+async def test_keeping_the_computer_awake_says_for_how_long():
+    from jarvis.tools.local import power_control
+
+    with patch.object(power_control, "_caffeinate", return_value="Preventing sleep."):
+        spoken = await _say(
+            _one_tool(power_control.PowerControlTool()), "power_control",
+            {"action": "caffeinate", "caffeinate_minutes": 90}, "не давай компьютеру уснуть",
+        )
+    assert spoken.strip() == "Не дам компьютеру уснуть ещё 1 час 30 минут, сэр."

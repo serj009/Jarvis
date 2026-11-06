@@ -15,6 +15,7 @@ from typing import ClassVar
 from pydantic import BaseModel, Field
 
 from jarvis import platform as platform_ops
+from jarvis.core.phrases import quantity, say
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -104,7 +105,11 @@ class SetBrightnessTool:
     async def execute(self, args: SetBrightnessArgs) -> ToolResult:
         try:
             msg = await asyncio.to_thread(_set_brightness_impl, args.level)
-            return ToolResult(success=True, output=msg)
+            return ToolResult(
+                success=True,
+                output=msg,
+                spoken=say("brightness_set", level=quantity(args.level, "percent")),
+            )
         except NotImplementedError as e:
             return ToolResult(success=False, error=str(e))
         except Exception as e:
@@ -146,7 +151,11 @@ class ToggleNightModeTool:
     async def execute(self, args: ToggleNightModeArgs) -> ToolResult:
         try:
             msg = await asyncio.to_thread(_toggle_night_mode_impl, args.enable)
-            return ToolResult(success=True, output=msg)
+            return ToolResult(
+                success=True,
+                output=msg,
+                spoken=say("night_mode_on" if args.enable else "night_mode_off"),
+            )
         except NotImplementedError as e:
             return ToolResult(success=False, error=str(e))
         except Exception as e:

@@ -7,6 +7,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel
 
+from jarvis.core.phrases import quantity, say
 from jarvis.platform import windows as winplat
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
@@ -56,7 +57,11 @@ class ClipboardTool:
         except OSError as e:
             return ToolResult(success=False, error=f"clipboard read failed: {e}")
         if not text:
-            return ToolResult(success=True, output="The clipboard is empty, sir.")
+            return ToolResult(
+                success=True,
+                output="The clipboard is empty, sir.",
+                spoken=say("clipboard_empty"),
+            )
         if len(text) > _SPEAK_CAP_CHARS:
             preview = text[:_SPEAK_CAP_CHARS].rstrip()
             return ToolResult(
@@ -64,6 +69,9 @@ class ClipboardTool:
                 output=(
                     f"Clipboard has {len(text)} characters. "
                     f"The first part reads: {preview}"
+                ),
+                spoken=say(
+                    "clipboard_long", count=quantity(len(text), "character"), preview=preview
                 ),
             )
         return ToolResult(success=True, output=text)

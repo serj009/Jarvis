@@ -13,6 +13,7 @@ from typing import ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import say, spoken_duration
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -106,6 +107,22 @@ def _caffeinate(minutes: int) -> str:
     except (ImportError, AttributeError, OSError) as e:
         raise NotImplementedError(f"Caffeinate not available: {e}") from e
     return f"Preventing sleep for {minutes} minutes."
+
+
+def _spoken(args: PowerArgs) -> str | None:
+    """What to say once `args.action` is done, in the request's language."""
+    if args.action == "shutdown":
+        return say("power_shutdown", duration=spoken_duration(args.delay_sec))
+    if args.action == "restart":
+        return say("power_restart", duration=spoken_duration(args.delay_sec))
+    if args.action == "caffeinate":
+        return say("power_caffeinate", duration=spoken_duration(args.caffeinate_minutes * 60))
+    key = {
+        "cancel_shutdown": "power_cancelled",
+        "sleep": "power_sleep",
+        "hibernate": "power_hibernate",
+    }.get(args.action)
+    return say(key) if key else None
 
 
 class PowerControlTool:
@@ -220,7 +237,7 @@ class PowerControlTool:
             else:
                 return ToolResult(success=False, error=f"Unknown action: {action}")
 
-            return ToolResult(success=True, output=msg)
+            return ToolResult(success=True, output=msg, spoken=_spoken(args))
         except NotImplementedError as e:
             return ToolResult(success=False, error=str(e))
         except PermissionError:

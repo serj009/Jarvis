@@ -426,6 +426,319 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Изменил напоминание «{text}», сэр.",
         "uk": "Змінив нагадування «{text}», сер.",
     },
+    # ── Notes (jarvis/tools/local/notes_tools.py) ────────────────────
+    "note_saved": {
+        "en": "Note saved, sir. Titled '{title}'.",
+        "ru": "Записал, сэр: «{title}».",
+        "uk": "Записав, сер: «{title}».",
+    },
+    "note_appended": {
+        "en": "Added to '{title}', sir.",
+        "ru": "Добавил в заметку «{title}», сэр.",
+        "uk": "Додав до нотатки «{title}», сер.",
+    },
+    "notes_opening": {
+        "en": "Opening your notes, sir.",
+        "ru": "Открываю заметки, сэр.",
+        "uk": "Відкриваю нотатки, сер.",
+    },
+    "notes_closed": {
+        "en": "Notes closed, sir.",
+        "ru": "Закрыл заметки, сэр.",
+        "uk": "Закрив нотатки, сер.",
+    },
+    "note_deleted": {
+        "en": "Deleted note '{title}', sir.",
+        "ru": "Удалил заметку «{title}», сэр.",
+        "uk": "Видалив нотатку «{title}», сер.",
+    },
+    # ── Media keys (jarvis/tools/local/media_control.py) ─────────────
+    "media_pause": {
+        "en": "Paused, sir.",
+        "ru": "Пауза, сэр.",
+        "uk": "Пауза, сер.",
+    },
+    "media_play": {
+        "en": "Playing, sir.",
+        "ru": "Продолжаю, сэр.",
+        "uk": "Продовжую, сер.",
+    },
+    "media_toggle": {
+        "en": "Toggled playback, sir.",
+        "ru": "Готово, сэр.",
+        "uk": "Готово, сер.",
+    },
+    "media_next_track": {
+        "en": "Next track, sir.",
+        "ru": "Следующий трек, сэр.",
+        "uk": "Наступний трек, сер.",
+    },
+    "media_prev_track": {
+        "en": "Previous track, sir.",
+        "ru": "Предыдущий трек, сэр.",
+        "uk": "Попередній трек, сер.",
+    },
+    "media_fullscreen": {
+        "en": "Fullscreen mode, sir.",
+        "ru": "Полный экран, сэр.",
+        "uk": "Повний екран, сер.",
+    },
+    "media_exit_fullscreen": {
+        "en": "Exited fullscreen, sir.",
+        "ru": "Вышел из полного экрана, сэр.",
+        "uk": "Вийшов з повного екрана, сер.",
+    },
+    "media_skip_forward": {
+        "en": "Skipped forward, sir.",
+        "ru": "Перемотал вперёд, сэр.",
+        "uk": "Перемотав уперед, сер.",
+    },
+    "media_skip_backward": {
+        "en": "Skipped backward, sir.",
+        "ru": "Перемотал назад, сэр.",
+        "uk": "Перемотав назад, сер.",
+    },
+    # ── Windows (jarvis/tools/local/window_manager.py) ────────────────────
+    "window_focus": {
+        "en": "Focused {title}, sir.",
+        "ru": "Переключил на {title}, сэр.",
+        "uk": "Переключив на {title}, сер.",
+    },
+    "window_minimize": {
+        "en": "Minimized {title}, sir.",
+        "ru": "Свернул {title}, сэр.",
+        "uk": "Згорнув {title}, сер.",
+    },
+    "window_maximize": {
+        "en": "Maximized {title}, sir.",
+        "ru": "Развернул {title}, сэр.",
+        "uk": "Розгорнув {title}, сер.",
+    },
+    "window_restore": {
+        "en": "Restored {title}, sir.",
+        "ru": "Вернул {title}, сэр.",
+        "uk": "Повернув {title}, сер.",
+    },
+    "window_snap_left": {
+        "en": "Snapped {title} left, sir.",
+        "ru": "{title} слева, сэр.",
+        "uk": "{title} ліворуч, сер.",
+    },
+    "window_snap_right": {
+        "en": "Snapped {title} right, sir.",
+        "ru": "{title} справа, сэр.",
+        "uk": "{title} праворуч, сер.",
+    },
+    "window_snap_top_left": {
+        "en": "Snapped {title} to the top left, sir.",
+        "ru": "{title} слева вверху, сэр.",
+        "uk": "{title} ліворуч угорі, сер.",
+    },
+    "window_snap_top_right": {
+        "en": "Snapped {title} to the top right, sir.",
+        "ru": "{title} справа вверху, сэр.",
+        "uk": "{title} праворуч угорі, сер.",
+    },
+    "window_snap_bottom_left": {
+        "en": "Snapped {title} to the bottom left, sir.",
+        "ru": "{title} слева внизу, сэр.",
+        "uk": "{title} ліворуч унизу, сер.",
+    },
+    "window_snap_bottom_right": {
+        "en": "Snapped {title} to the bottom right, sir.",
+        "ru": "{title} справа внизу, сэр.",
+        "uk": "{title} праворуч унизу, сер.",
+    },
+    "window_snap_center": {
+        "en": "Centered {title}, sir.",
+        "ru": "{title} по центру, сэр.",
+        "uk": "{title} по центру, сер.",
+    },
+    "window_close": {
+        "en": "Closed {title}, sir.",
+        "ru": "Закрыл {title}, сэр.",
+        "uk": "Закрив {title}, сер.",
+    },
+    "windows_arranged": {
+        "en": "{left} on the left, {right} on the right, sir.",
+        "ru": "{left} слева, {right} справа, сэр.",
+        "uk": "{left} ліворуч, {right} праворуч, сер.",
+    },
+    "windows_minimized_all": {
+        "en": "Minimized all windows, sir.",
+        "ru": "Свернул все окна, сэр.",
+        "uk": "Згорнув усі вікна, сер.",
+    },
+    "windows_restored_all": {
+        "en": "Restored all windows, sir.",
+        "ru": "Вернул все окна, сэр.",
+        "uk": "Повернув усі вікна, сер.",
+    },
+    "desktop_next": {
+        "en": "Switched to the next desktop, sir.",
+        "ru": "Следующий рабочий стол, сэр.",
+        "uk": "Наступний робочий стіл, сер.",
+    },
+    "desktop_previous": {
+        "en": "Switched to the previous desktop, sir.",
+        "ru": "Предыдущий рабочий стол, сэр.",
+        "uk": "Попередній робочий стіл, сер.",
+    },
+    "desktop_task_view": {
+        "en": "Opened Task View, sir.",
+        "ru": "Открыл все рабочие столы, сэр.",
+        "uk": "Відкрив усі робочі столи, сер.",
+    },
+    "windows_none": {
+        "en": "No visible windows found, sir.",
+        "ru": "Открытых окон нет, сэр.",
+        "uk": "Відкритих вікон немає, сер.",
+    },
+    "windows_list": {
+        "en": "{count} windows open, sir: {titles}.",
+        "ru": "Открыто окон: {count}, сэр: {titles}.",
+        "uk": "Відкрито вікон: {count}, сер: {titles}.",
+    },
+    # ── System: clipboard, display, focus, power, network, disk ───────────
+    "clipboard_empty": {
+        "en": "The clipboard is empty, sir.",
+        "ru": "Буфер обмена пуст, сэр.",
+        "uk": "Буфер обміну порожній, сер.",
+    },
+    "clipboard_long": {
+        "en": "The clipboard has {count}. It begins: {preview}",
+        "ru": "В буфере обмена {count}. Начало: {preview}",
+        "uk": "У буфері обміну {count}. Початок: {preview}",
+    },
+    "brightness_set": {
+        "en": "Brightness {level}, sir.",
+        "ru": "Яркость {level}, сэр.",
+        "uk": "Яскравість {level}, сер.",
+    },
+    "night_mode_on": {
+        "en": "Night light on, sir.",
+        "ru": "Ночной режим включён, сэр.",
+        "uk": "Нічний режим увімкнено, сер.",
+    },
+    "night_mode_off": {
+        "en": "Night light off, sir.",
+        "ru": "Ночной режим выключен, сэр.",
+        "uk": "Нічний режим вимкнено, сер.",
+    },
+    "focus_on": {
+        "en": "Focus mode on for {duration}, sir. Distracting sites are blocked.",
+        "ru": "Режим фокуса на {duration}, сэр. Отвлекающие сайты заблокированы.",
+        "uk": "Режим фокусу на {duration}, сер. Сайти, що відволікають, заблоковано.",
+    },
+    "focus_off": {
+        "en": "Focus mode off, sir. All sites are unblocked.",
+        "ru": "Режим фокуса выключен, сэр. Сайты снова доступны.",
+        "uk": "Режим фокусу вимкнено, сер. Сайти знову доступні.",
+    },
+    "focus_inactive": {
+        "en": "Focus mode is not on, sir.",
+        "ru": "Режим фокуса не включён, сэр.",
+        "uk": "Режим фокусу не ввімкнено, сер.",
+    },
+    "focus_ended": {
+        "en": "Focus mode has ended, sir. Sites are unblocked.",
+        "ru": "Режим фокуса закончился, сэр. Сайты снова доступны.",
+        "uk": "Режим фокусу закінчився, сер. Сайти знову доступні.",
+    },
+    "focus_active": {
+        "en": "Focus mode is on for another {duration}, sir.",
+        "ru": "Режим фокуса включён ещё на {duration}, сэр.",
+        "uk": "Режим фокусу ввімкнено ще на {duration}, сер.",
+    },
+    "power_shutdown": {
+        "en": "Shutting down in {duration}, sir. Say 'cancel shutdown' to stop it.",
+        "ru": (
+            "Выключу компьютер через {duration}, сэр. "
+            "Чтобы отменить, скажите «отмени выключение»."
+        ),
+        "uk": "Вимкну комп'ютер через {duration}, сер. Щоб скасувати, скажіть «скасуй вимкнення».",
+    },
+    "power_restart": {
+        "en": "Restarting in {duration}, sir. Say 'cancel restart' to stop it.",
+        "ru": (
+            "Перезагружу компьютер через {duration}, сэр. "
+            "Чтобы отменить, скажите «отмени перезагрузку»."
+        ),
+        "uk": (
+            "Перезавантажу комп'ютер через {duration}, сер. "
+            "Щоб скасувати, скажіть «скасуй перезавантаження»."
+        ),
+    },
+    "power_cancelled": {
+        "en": "Shutdown cancelled, sir.",
+        "ru": "Отменил выключение, сэр.",
+        "uk": "Скасував вимкнення, сер.",
+    },
+    "power_sleep": {
+        "en": "Going to sleep, sir.",
+        "ru": "Перевожу компьютер в сон, сэр.",
+        "uk": "Переводжу комп'ютер у сон, сер.",
+    },
+    "power_hibernate": {
+        "en": "Hibernating, sir.",
+        "ru": "Перевожу компьютер в гибернацию, сэр.",
+        "uk": "Переводжу комп'ютер у глибокий сон, сер.",
+    },
+    "power_caffeinate": {
+        "en": "The computer will stay awake for {duration}, sir.",
+        "ru": "Не дам компьютеру уснуть ещё {duration}, сэр.",
+        "uk": "Не дам комп'ютеру заснути ще {duration}, сер.",
+    },
+    "ip_both": {
+        "en": "Your local IP is {local}, the public one is {public}, sir.",
+        "ru": "Локальный IP {local}, внешний {public}, сэр.",
+        "uk": "Локальна IP {local}, зовнішня {public}, сер.",
+    },
+    "ip_local": {
+        "en": "Your local IP is {local}, sir. The public one is unknown.",
+        "ru": "Локальный IP {local}, сэр. Внешний узнать не удалось.",
+        "uk": "Локальна IP {local}, сер. Зовнішню дізнатися не вдалося.",
+    },
+    "ip_public": {
+        "en": "Your public IP is {public}, sir.",
+        "ru": "Внешний IP {public}, сэр.",
+        "uk": "Зовнішня IP {public}, сер.",
+    },
+    "ip_unknown": {
+        "en": "I could not find out your IP address, sir.",
+        "ru": "Не удалось узнать IP-адрес, сэр.",
+        "uk": "Не вдалося дізнатися IP-адресу, сер.",
+    },
+    "speed_result": {
+        "en": "Download speed is {speed} a second, sir.",
+        "ru": "Скорость загрузки {speed} в секунду, сэр.",
+        "uk": "Швидкість завантаження {speed} за секунду, сер.",
+    },
+    "disk_none": {
+        "en": "No disk information available, sir.",
+        "ru": "Не удалось узнать, сколько места на дисках, сэр.",
+        "uk": "Не вдалося дізнатися, скільки місця на дисках, сер.",
+    },
+    "disk_free": {
+        "en": "Free space, sir: {disks}.",
+        "ru": "Свободно, сэр: {disks}.",
+        "uk": "Вільно, сер: {disks}.",
+    },
+    "disk_item": {
+        "en": "{free} of {total} on {drive}",
+        "ru": "на диске {drive} {free} из {total}",
+        "uk": "на диску {drive} {free} з {total}",
+    },
+    "temp_cleaned": {
+        "en": "Cleaned {files}, freed {size}, sir.",
+        "ru": "Удалил {files}, освободил {size}, сэр.",
+        "uk": "Видалив {files}, звільнив {size}, сер.",
+    },
+    "temp_cleaned_busy": {
+        "en": "Cleaned {files}, freed {size}, sir. Files in use were left: {busy}.",
+        "ru": "Удалил {files}, освободил {size}, сэр. Занятые файлы оставил: {busy}.",
+        "uk": "Видалив {files}, звільнив {size}, сер. Зайняті файли залишив: {busy}.",
+    },
     # ── Broken modules (M2-3, jarvis/audio/pipeline.py) ──────────────
     "error_stt_failed": {
         "en": "Speech recognition failed, sir. Please try again.",
@@ -531,6 +844,37 @@ def plural(n: int, one: str, few: str, many: str, lang: Lang) -> str:
     if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14:
         return few
     return many
+
+
+# Nouns read after a number: (one, few, many) per language.
+_UNITS: dict[str, dict[Lang, tuple[str, str, str]]] = {
+    "percent": {"ru": ("процент", "процента", "процентов"),
+                "uk": ("відсоток", "відсотки", "відсотків"),
+                "en": ("percent", "percent", "percent")},
+    "gigabyte": {"ru": ("гигабайт", "гигабайта", "гигабайт"),
+                 "uk": ("гігабайт", "гігабайти", "гігабайт"),
+                 "en": ("gigabyte", "gigabytes", "gigabytes")},
+    "megabyte": {"ru": ("мегабайт", "мегабайта", "мегабайт"),
+                 "uk": ("мегабайт", "мегабайти", "мегабайт"),
+                 "en": ("megabyte", "megabytes", "megabytes")},
+    "megabit": {"ru": ("мегабит", "мегабита", "мегабит"),
+                "uk": ("мегабіт", "мегабіти", "мегабіт"),
+                "en": ("megabit", "megabits", "megabits")},
+    "file": {"ru": ("файл", "файла", "файлов"),
+             "uk": ("файл", "файли", "файлів"),
+             "en": ("file", "files", "files")},
+    "character": {"ru": ("символ", "символа", "символов"),
+                  "uk": ("символ", "символи", "символів"),
+                  "en": ("character", "characters", "characters")},
+}
+
+
+def quantity(n: float, unit: str, lang: Lang | None = None) -> str:
+    """'50 процентов', '1 гигабайт', '3 файли', '2 characters': the number
+    rounded to a whole one (that is how it is said) and the noun after it."""
+    lang = lang or reply_language()
+    whole = int(round(n))
+    return f"{whole} {plural(whole, *_UNITS[unit][lang], lang)}"
 
 
 # Accusative forms, for "на 5 минут" / "через 1 минуту" / "for 1 minute".

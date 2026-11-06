@@ -22,6 +22,7 @@ from typing import Any, ClassVar, Literal
 from pydantic import BaseModel, Field
 
 from jarvis.browser.js_scripts import JS_SCRIPTS
+from jarvis.core.phrases import PHRASES, say
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -219,10 +220,7 @@ class MediaControlTool:
                         bc.execute_js, _JS_MEDIA_ACTIONS[js_action],
                     )
                     if result.get("success"):
-                        return ToolResult(
-                            success=True,
-                            output=self._spoken(action),
-                        )
+                        return self._done(action)
         except Exception:
             log.debug("Selenium media control failed", exc_info=True)
 
@@ -238,7 +236,7 @@ class MediaControlTool:
         if media_key:
             result = await asyncio.to_thread(_press_media_key, media_key)
             if result.get("success"):
-                return ToolResult(success=True, output=self._spoken(action))
+                return self._done(action)
             return ToolResult(success=False, error=result.get("error", "Media key failed"))
 
         # Actions only available via Selenium
@@ -249,6 +247,12 @@ class MediaControlTool:
             )
 
         return ToolResult(success=False, error=f"Unknown action {action!r}")
+
+    @classmethod
+    def _done(cls, action: str) -> ToolResult:
+        key = f"media_{action}"
+        spoken = say(key) if key in PHRASES else None
+        return ToolResult(success=True, output=cls._spoken(action), spoken=spoken)
 
     @staticmethod
     def _spoken(action: str) -> str:

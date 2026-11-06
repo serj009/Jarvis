@@ -29,6 +29,7 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import say, spoken_duration
 from jarvis.platform.encrypted_store import EncryptedJsonStore
 from jarvis.tools.registry import ToolResult, VoicePattern
 
@@ -317,6 +318,7 @@ class StartFocusModeTool:
                 f"🎯 Focus mode ON ({mode_label}) for {args.duration_minutes} minutes.\n"
                 f"Blocked: {domains_preview}"
             ),
+            spoken=say("focus_on", duration=spoken_duration(args.duration_minutes * 60)),
         )
 
 
@@ -359,12 +361,15 @@ class StopFocusModeTool:
     async def execute(self, args: StopFocusModeArgs) -> ToolResult:
         state = await asyncio.to_thread(_load_state)
         if not state.get("active", False):
-            return ToolResult(success=True, output="Focus mode is not active.")
+            return ToolResult(
+                success=True, output="Focus mode is not active.", spoken=say("focus_inactive")
+            )
 
         await asyncio.to_thread(_deactivate_focus, state)
         return ToolResult(
             success=True,
             output="🔓 Focus mode OFF. All sites unblocked.",
+            spoken=say("focus_off"),
         )
 
 
@@ -408,13 +413,16 @@ class FocusModeStatusTool:
         state = await asyncio.to_thread(_load_state)
 
         if not state.get("active", False):
-            return ToolResult(success=True, output="Focus mode is not active.")
+            return ToolResult(
+                success=True, output="Focus mode is not active.", spoken=say("focus_inactive")
+            )
 
         if _is_expired(state):
             await asyncio.to_thread(_deactivate_focus, state)
             return ToolResult(
                 success=True,
                 output="Focus mode session has ended. Sites are unblocked.",
+                spoken=say("focus_ended"),
             )
 
         end_time = state.get("end_time", 0)
@@ -434,4 +442,5 @@ class FocusModeStatusTool:
                 f"Time remaining: {mins_left} minute(s)\n"
                 f"Blocked: {domains_preview}"
             ),
+            spoken=say("focus_active", duration=spoken_duration(max(60, mins_left * 60))),
         )

@@ -17,6 +17,7 @@ from typing import ClassVar, Literal
 from pydantic import BaseModel, Field
 
 from jarvis import platform as platform_ops
+from jarvis.core.phrases import PHRASES, say
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -297,9 +298,11 @@ class WindowActionTool:
                 "close": "Closed",
             }.get(action, action.title())
 
+            key = f"window_{action}"
             return ToolResult(
                 success=True,
                 output=f"{action_past} {win.title}, sir.",
+                spoken=say(key, title=win.title) if key in PHRASES else None,
             )
         except NotImplementedError as e:
             return ToolResult(success=False, error=str(e))
@@ -414,6 +417,7 @@ class SnapLayoutTool:
         return ToolResult(
             success=True,
             output=f"Arranged {placed[0]} left and {placed[1]} right, sir.",
+            spoken=say("windows_arranged", left=placed[0], right=placed[1]),
         )
 
 
@@ -447,7 +451,11 @@ class MinimizeAllTool:
                 success=False,
                 error="Could not send the shortcut (pyautogui unavailable), sir.",
             )
-        return ToolResult(success=True, output="Minimized all windows, sir.")
+        return ToolResult(
+            success=True,
+            output="Minimized all windows, sir.",
+            spoken=say("windows_minimized_all"),
+        )
 
 
 class RestoreAllTool:
@@ -473,7 +481,11 @@ class RestoreAllTool:
                 success=False,
                 error="Could not send the shortcut (pyautogui unavailable), sir.",
             )
-        return ToolResult(success=True, output="Restored all windows, sir.")
+        return ToolResult(
+            success=True,
+            output="Restored all windows, sir.",
+            spoken=say("windows_restored_all"),
+        )
 
 
 class VirtualDesktopArgs(BaseModel):
@@ -527,7 +539,7 @@ class VirtualDesktopTool:
                 success=False,
                 error="Could not send the shortcut (pyautogui unavailable), sir.",
             )
-        return ToolResult(success=True, output=msg)
+        return ToolResult(success=True, output=msg, spoken=say(f"desktop_{args.action}"))
 
 
 class ListWindowsTool:
@@ -558,7 +570,11 @@ class ListWindowsTool:
             return ToolResult(success=False, error=f"Failed to list windows: {e}")
 
         if not windows:
-            return ToolResult(success=True, output="No visible windows found, sir.")
+            return ToolResult(
+                success=True,
+                output="No visible windows found, sir.",
+                spoken=say("windows_none"),
+            )
 
         lines = [f"Found {len(windows)} window(s), sir:"]
         for w in windows[:25]:
@@ -573,4 +589,9 @@ class ListWindowsTool:
             lines.append(f"  • {title}{state}")
         if len(windows) > 25:
             lines.append(f"  … and {len(windows) - 25} more.")
-        return ToolResult(success=True, output="\n".join(lines))
+        titles = ", ".join(w.get("title", "Untitled") for w in windows[:5])
+        return ToolResult(
+            success=True,
+            output="\n".join(lines),
+            spoken=say("windows_list", count=len(windows), titles=titles),
+        )

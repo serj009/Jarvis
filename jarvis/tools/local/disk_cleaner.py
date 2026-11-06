@@ -13,6 +13,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import quantity, say
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -110,6 +111,14 @@ def _find_large_folders_impl(path: str, top_n: int = 10) -> list[dict]:
 
     folder_sizes.sort(key=lambda x: x["size_mb"], reverse=True)
     return folder_sizes[:top_n]
+
+
+def _drive_name(disk: dict) -> str:
+    """'C' for "C:\\" (how a Windows drive is said), else the mount point."""
+    device = str(disk.get("device") or "")
+    if len(device) >= 2 and device[1] == ":":
+        return device[0].upper()
+    return str(disk.get("mountpoint") or device)
 
 
 def _get_temp_info() -> dict:
@@ -257,7 +266,11 @@ class DiskSpaceTool:
             return ToolResult(success=False, error=f"Failed to get disk space: {e}")
 
         if not disks:
-            return ToolResult(success=True, output="No disk information available, sir.")
+            return ToolResult(
+                success=True,
+                output="No disk information available, sir.",
+                spoken=say("disk_none"),
+            )
 
         lines = ["Disk space, sir:"]
         for d in disks:
@@ -280,7 +293,16 @@ class DiskSpaceTool:
         except Exception:
             pass
 
-        return ToolResult(success=True, output="\n".join(lines))
+        spoken = say("disk_free", disks="; ".join(
+            say(
+                "disk_item",
+                drive=_drive_name(d),
+                free=quantity(d["free_gb"], "gigabyte"),
+                total=quantity(d["total_gb"], "gigabyte"),
+            )
+            for d in disks
+        ))
+        return ToolResult(success=True, output="\n".join(lines), spoken=spoken)
 
 
 class FindLargeFoldersTool:
@@ -398,5 +420,11 @@ class CleanTempFilesTool:
                 f"({result['cleaned_size_mb']} MB freed), sir."
                 + (f" {result['errors']} files could not be deleted (in use)."
                    if result['errors'] else "")
+            ),
+            spoken=say(
+                "temp_cleaned_busy" if result["errors"] else "temp_cleaned",
+                files=quantity(result["cleaned_files"], "file"),
+                size=quantity(result["cleaned_size_mb"], "megabyte"),
+                busy=quantity(result["errors"], "file"),
             ),
         )
