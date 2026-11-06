@@ -7,6 +7,13 @@ import pytest
 from jarvis.integrations.base import BaseIntegration, _pip_to_module
 from jarvis.integrations.registry import IntegrationRegistry
 
+
+def _example(reg: IntegrationRegistry) -> BaseIntegration:
+    """The bundled example plugin (it is always discovered)."""
+    plugin = reg.get("example")
+    assert plugin is not None
+    return plugin
+
 # ── discovery ───────────────────────────────────────────────────────
 
 class TestDiscovery:
@@ -25,7 +32,7 @@ class TestDiscovery:
     def test_enabled_names_from_config_mark_enabled(self):
         reg = IntegrationRegistry(enabled_names=["example"])
         reg.discover_plugins()
-        assert reg.get("example").enabled is True
+        assert _example(reg).enabled is True
 
     def test_discovery_is_idempotent(self):
         reg = IntegrationRegistry()
@@ -41,10 +48,10 @@ class TestEnableDisable:
         reg = IntegrationRegistry()
         reg.discover_plugins()
         assert reg.enable("example") is True
-        assert reg.get("example").enabled is True
+        assert _example(reg).enabled is True
         assert "example" in reg.enabled_names
         assert reg.disable("example") is True
-        assert reg.get("example").enabled is False
+        assert _example(reg).enabled is False
         assert "example" not in reg.enabled_names
 
     def test_enable_unknown_returns_false(self):
@@ -55,7 +62,7 @@ class TestEnableDisable:
     def test_enable_blocked_by_missing_packages(self):
         reg = IntegrationRegistry()
         reg.discover_plugins()
-        ex = reg.get("example")
+        ex = _example(reg)
         ex.required_packages = ["definitely-not-installed-xyz"]
         assert reg.enable("example") is False
         assert ex.enabled is False
@@ -122,7 +129,7 @@ class TestExamplePlugin:
     async def test_connect_health_disconnect(self):
         reg = IntegrationRegistry()
         reg.discover_plugins()
-        ex = reg.get("example")
+        ex = _example(reg)
         assert await ex.health_check() is False
         assert await ex.connect() is True
         assert ex.connected is True
@@ -142,7 +149,7 @@ class TestBaseHelpers:
             async def disconnect(self): return None
             async def health_check(self): return True
             def get_tools(self): return []
-            async def execute_tool(self, n, a): return ""
+            async def execute_tool(self, tool_name, args): return ""
             def get_voice_patterns(self): return []
 
         assert _P().missing_packages() == ["definitely-not-installed-xyz"]
@@ -155,7 +162,7 @@ class TestBaseHelpers:
             async def disconnect(self): return None
             async def health_check(self): return True
             def get_tools(self): return []
-            async def execute_tool(self, n, a): return ""
+            async def execute_tool(self, tool_name, args): return ""
             def get_voice_patterns(self): return []
 
         assert _P().missing_packages() == []
@@ -184,6 +191,7 @@ class TestIntegrationAuth:
         auth = self._auth(tmp_path)
         auth.store_tokens("svc", {"access_token": "a", "refresh_token": "r"})
         tok = auth.get_tokens("svc")
+        assert tok is not None
         assert tok["access_token"] == "a" and tok["refresh_token"] == "r"
 
     def test_delete_credentials(self, tmp_path):

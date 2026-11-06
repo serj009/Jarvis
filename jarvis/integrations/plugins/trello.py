@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 from jarvis.integrations.base import BaseIntegration
 
 if TYPE_CHECKING:
-    from jarvis.integrations.auth import IntegrationAuth
+    from jarvis.integrations.auth import AuthSource
 
 log = logging.getLogger(__name__)
 
@@ -31,7 +31,7 @@ class TrelloIntegration(BaseIntegration):
     ]
     required_packages: list[str] = []
 
-    auth: IntegrationAuth | None = None
+    auth: AuthSource | None = None
 
     _BASE = "https://api.trello.com/1"
 

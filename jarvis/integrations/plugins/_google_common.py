@@ -22,7 +22,7 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from jarvis.integrations.auth import IntegrationAuth
+    from jarvis.integrations.auth import AuthSource
 
 log = logging.getLogger(__name__)
 
@@ -52,7 +52,7 @@ class GoogleIntegrationMixin:
     scopes: list[str] = []
 
     # Injected by the app/registry when available; tests can set directly.
-    auth: IntegrationAuth | None = None
+    auth: AuthSource | None = None
 
     def _get_token(self) -> str | None:
         """Return a valid access token from the shared Google credentials."""

@@ -25,16 +25,22 @@ import base64
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 from urllib.parse import parse_qs, unquote_plus, urlparse
 
 from jarvis.security.origin_tracker import RequestContext
 
 if TYPE_CHECKING:
     from jarvis.memory.store import MemoryStore
-    from jarvis.memory.user_profile import UserProfile
 
 log = logging.getLogger(__name__)
+
+
+class ProfileSource(Protocol):
+    """What the scanner reads from a profile: field values by key
+    (jarvis.memory.user_profile.UserProfile is one)."""
+
+    def get(self, key: str) -> Any: ...
 
 # UserProfile fields scanned for sensitive values.
 _PROFILE_KEYS = ("name", "city", "country", "timezone", "occupation")
@@ -92,7 +98,7 @@ class DataLeakScanner:
 
     def __init__(
         self,
-        user_profile: UserProfile | None = None,
+        user_profile: ProfileSource | None = None,
         memory_store: MemoryStore | None = None,
     ) -> None:
         self._sensitive_strings: set[str] = set()
@@ -102,7 +108,7 @@ class DataLeakScanner:
 
     def _update_sensitive_data(
         self,
-        profile: UserProfile | None,
+        profile: ProfileSource | None,
         memory: MemoryStore | None,
     ) -> None:
         """Rebuild the full set of sensitive strings from all sources."""
@@ -180,7 +186,7 @@ class DataLeakScanner:
 
     def refresh(
         self,
-        user_profile: UserProfile | None = None,
+        user_profile: ProfileSource | None = None,
         memory_store: MemoryStore | None = None,
     ) -> None:
         """Re-collect sensitive strings (call after profile changes)."""

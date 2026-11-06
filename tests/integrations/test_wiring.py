@@ -31,7 +31,7 @@ class TestSchemaModel:
         })
         # required present, optional defaulting
         inst = model(q="hi")
-        assert inst.q == "hi"
+        assert inst.model_dump()["q"] == "hi"
 
     def test_allows_extra(self):
         model = _schema_to_args_model("t", {"type": "object", "properties": {}})
@@ -45,6 +45,7 @@ class TestAdapter:
     async def test_adapter_executes_via_plugin(self):
         reg = _reg_with_example()
         plugin = reg.get("example")
+        assert plugin is not None
         schema = plugin.get_tools()[0]
         adapter = IntegrationToolAdapter(plugin, schema)
         assert adapter.name == "example_ping"
@@ -52,16 +53,17 @@ class TestAdapter:
         assert result.success
         assert "pong" in output_text(result)
 
-    async def test_adapter_reports_plugin_error(self):
+    async def test_adapter_reports_plugin_error(self, monkeypatch):
         reg = _reg_with_example()
         plugin = reg.get("example")
+        assert plugin is not None
         schema = {"function": {"name": "example_ping", "description": "",
                                "parameters": {}}}
         adapter = IntegrationToolAdapter(plugin, schema)
 
         async def boom(name, args):
             raise RuntimeError("network down")
-        plugin.execute_tool = boom
+        monkeypatch.setattr(plugin, "execute_tool", boom)
         result = await adapter.execute(adapter.args_schema())
         assert not result.success
         assert "network down" in error_text(result)
@@ -122,7 +124,8 @@ class TestWiring:
         ireg = _reg_with_example(enabled=True)
         wire_integration_tools(tools, ireg)
         # The local tool stays — integration did not overwrite it.
-        assert tools.get("example_ping").description == "local"
+        local = tools.get("example_ping")
+        assert local is not None and local.description == "local"
 
     async def test_wired_tool_executes_through_registry(self):
         tools = ToolRegistry(ToolsConfig())

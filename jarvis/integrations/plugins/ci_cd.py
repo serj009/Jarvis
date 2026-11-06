@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 from jarvis.integrations.base import BaseIntegration, import_optional
 
 if TYPE_CHECKING:
-    from jarvis.integrations.auth import IntegrationAuth
+    from jarvis.integrations.auth import AuthSource
 
 log = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ class CiCdIntegration(BaseIntegration):
     ]
     required_packages = ["PyGithub"]
 
-    auth: IntegrationAuth | None = None
+    auth: AuthSource | None = None
 
     def _token(self) -> str | None:
         if self.auth is None:

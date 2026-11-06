@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 from jarvis.integrations.base import BaseIntegration
 
 if TYPE_CHECKING:
-    from jarvis.integrations.auth import IntegrationAuth
+    from jarvis.integrations.auth import AuthSource
 
 log = logging.getLogger(__name__)
 
@@ -33,7 +33,7 @@ class MonobankIntegration(BaseIntegration):
     ]
     required_packages = []  # httpx is a core dep
 
-    auth: IntegrationAuth | None = None
+    auth: AuthSource | None = None
 
     def _token(self) -> str | None:
         if self.auth is None:

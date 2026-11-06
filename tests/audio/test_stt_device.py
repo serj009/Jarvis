@@ -13,6 +13,8 @@ from __future__ import annotations
 import logging
 import sys
 import types
+from typing import Any, cast
+from unittest.mock import MagicMock
 
 from jarvis.audio.stt import (
     FasterWhisperSTT,
@@ -23,6 +25,8 @@ from jarvis.audio.stt import (
     _resolve_model_id,
     recommend_whisper_model,
 )
+from jarvis.core.events import EventBus
+from tests._typing import fake_module
 
 
 def _fake_ct2(*, device_count: int, compute_types=("float16",),
@@ -258,7 +262,8 @@ def test_recommend_suggests_medium_when_only_small_downloaded(tmp_path):
     assert rec["recommended_vram_mb"] == 2600
     assert rec["downloaded"] == ["small"]
     assert rec["free_mb"] == 7000
-    assert "setup_jarvis.step_whisper('medium')" in rec["download_cmd"]
+    cmd = rec["download_cmd"]
+    assert isinstance(cmd, str) and "setup_jarvis.step_whisper('medium')" in cmd
 
 
 def test_recommend_silent_when_best_already_downloaded(tmp_path):
@@ -333,6 +338,11 @@ def test_is_cuda_runtime_error_ignores_unrelated():
     ) is False
 
 
+
+def _with_model(stt: FasterWhisperSTT, model: object) -> None:
+    """Put a fake Whisper model where faster_whisper.WhisperModel goes."""
+    stt._model = cast(Any, model)
+
 class _CublasCrashModel:
     """Fake whisper model: .transcribe() raises the cuBLAS error once per
     call (simulating a CUDA runtime that never works)."""
@@ -359,14 +369,14 @@ class _OkModel:
 async def test_transcribe_reloads_on_cpu_after_cuda_runtime_crash(monkeypatch):
     stt = FasterWhisperSTT(device="auto", language="auto")
     # Simulate a loaded CUDA model that crashes on encode.
-    stt._model = _CublasCrashModel()
+    _with_model(stt, _CublasCrashModel())
     stt.is_loaded = True
     stt._active_device = "cuda"
     stt._model_id = "small"
 
     async def fake_reload() -> bool:
         # Swap in a working CPU model, mirroring the real _reload_on_cpu.
-        stt._model = _OkModel()
+        _with_model(stt, _OkModel())
         stt._active_device = "cpu"
         return True
 
@@ -385,13 +395,13 @@ async def test_transcribe_falls_back_even_when_cuda_forced(monkeypatch):
     CPU STT beats crashing every turn. (Previously we refused the downgrade on
     forced cuda; the task reverses that decision.)"""
     stt = FasterWhisperSTT(device="cuda", language="auto")
-    stt._model = _CublasCrashModel()
+    _with_model(stt, _CublasCrashModel())
     stt.is_loaded = True
     stt._active_device = "cuda"
     stt._model_id = "small"
 
     async def fake_reload() -> bool:
-        stt._model = _OkModel()
+        _with_model(stt, _OkModel())
         stt._active_device = "cpu"
         return True
 
@@ -410,7 +420,7 @@ async def test_transcribe_passes_through_unrelated_error(monkeypatch):
             raise ValueError("bad audio shape")
 
     stt = FasterWhisperSTT(device="auto", language="auto")
-    stt._model = _BadAudioModel()
+    _with_model(stt, _BadAudioModel())
     stt.is_loaded = True
     stt._active_device = "cuda"
     stt._model_id = "small"
@@ -435,7 +445,7 @@ async def test_fallback_happens_once_under_concurrency(monkeypatch):
     import asyncio
 
     stt = FasterWhisperSTT(device="auto", language="auto")
-    stt._model = _CublasCrashModel()
+    _with_model(stt, _CublasCrashModel())
     stt.is_loaded = True
     stt._active_device = "cuda"
     stt._model_id = "small"
@@ -446,7 +456,7 @@ async def test_fallback_happens_once_under_concurrency(monkeypatch):
         nonlocal reload_count
         reload_count += 1
         await asyncio.sleep(0.01)  # let the second call queue on the lock
-        stt._model = _OkModel()
+        _with_model(stt, _OkModel())
         stt._active_device = "cpu"
         return True
 
@@ -470,8 +480,7 @@ async def test_reload_on_cpu_downgrades_auto_model_to_small(monkeypatch):
         def __init__(self, model_id, **kwargs):
             built.append((model_id, kwargs.get("device")))
 
-    fake_fw = types.ModuleType("faster_whisper")
-    fake_fw.WhisperModel = _FakeWM
+    fake_fw = fake_module("faster_whisper", WhisperModel=_FakeWM)
     monkeypatch.setitem(sys.modules, "faster_whisper", fake_fw)
 
     ok = await stt._reload_on_cpu()
@@ -497,8 +506,7 @@ async def test_reload_on_cpu_keeps_explicit_model(monkeypatch):
         def __init__(self, model_id, **kwargs):
             built.append((model_id, kwargs.get("device")))
 
-    fake_fw = types.ModuleType("faster_whisper")
-    fake_fw.WhisperModel = _FakeWM
+    fake_fw = fake_module("faster_whisper", WhisperModel=_FakeWM)
     monkeypatch.setitem(sys.modules, "faster_whisper", fake_fw)
 
     ok = await stt._reload_on_cpu()
@@ -511,11 +519,10 @@ async def test_gpu_fallback_notifies_bus_once():
     is published, and only once per session."""
     published: list = []
 
-    class _Bus:
-        def publish(self, evt):
-            published.append(evt)
+    bus = MagicMock(spec=EventBus)
+    bus.publish.side_effect = published.append
 
-    stt = FasterWhisperSTT(device="auto", language="en", bus=_Bus())
+    stt = FasterWhisperSTT(device="auto", language="en", bus=bus)
     stt._notify_gpu_fallback("cublas missing")
     stt._notify_gpu_fallback("cublas missing")  # second call is a no-op
     assert len(published) == 1

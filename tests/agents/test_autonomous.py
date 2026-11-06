@@ -18,6 +18,7 @@ deterministic.  25+ tests covering:
 from __future__ import annotations
 
 import asyncio
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -32,6 +33,7 @@ from jarvis.agents.autonomous import (
     AutonomousAgent,
     _extract_json,
 )
+from jarvis.llm.model_provider import ChatMessage
 from jarvis.tools.registry import ToolResult
 from jarvis.tools.risk import RiskLevel
 
@@ -55,9 +57,11 @@ class FakeProvider:
     def __init__(self, responses: list[str] | None = None) -> None:
         self._responses = list(responses or [])
         self._call_index = 0
-        self.calls: list[list[object]] = []
+        self.calls: list[list[ChatMessage]] = []
 
-    async def chat(self, messages, *, temperature=0.7, max_tokens=4096):
+    async def chat(
+        self, messages: list[ChatMessage], *, temperature: float = 0.7, max_tokens: int = 4096,
+    ) -> _FakeChatResponse:
         self.calls.append(messages)
         if self._call_index < len(self._responses):
             resp = self._responses[self._call_index]
@@ -161,8 +165,9 @@ class CrashingTool:
 class FakeRegistry:
     """A minimal tool registry mock."""
 
-    def __init__(self, tools: dict[str, object] | None = None):
-        self._tools = tools or {}
+    def __init__(self, tools: dict[str, Any] | None = None):
+        # Any: the fake tools quack like Tool without being typed as one.
+        self._tools: dict[str, Any] = tools or {}
 
     def list_enabled(self):
         return list(self._tools.values())
@@ -184,7 +189,7 @@ class FakeRegistry:
 def _make_agent(
     responses: list[str],
     *,
-    tools: dict[str, object] | None = None,
+    tools: dict[str, Any] | None = None,
     max_iterations: int = 5,
     max_time_seconds: int = 60,
     confirm_destructive: bool = True,
@@ -234,12 +239,12 @@ class TestExtractJson:
     def test_with_surrounding_text(self):
         text = 'Here is my response:\n{"type": "done", "reasoning": "ok"}\nDone.'
         result = _extract_json(text)
-        assert result["type"] == "done"
+        assert isinstance(result, dict) and result["type"] == "done"
 
     def test_fenced_code_block(self):
         text = '```json\n{"type": "tool_call", "tool": "test"}\n```'
         result = _extract_json(text)
-        assert result["type"] == "tool_call"
+        assert isinstance(result, dict) and result["type"] == "tool_call"
 
     def test_fenced_block_no_lang(self):
         text = '```\n["a", "b", "c"]\n```'
@@ -797,6 +802,7 @@ class TestDataClasses:
             result=result,
             reasoning="worked",
         )
+        assert step.result is not None
         assert step.result.success
         assert step.result.output == "ok"
 

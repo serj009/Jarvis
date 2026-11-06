@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 from jarvis.integrations.base import BaseIntegration, import_optional
 
 if TYPE_CHECKING:
-    from jarvis.integrations.auth import IntegrationAuth
+    from jarvis.integrations.auth import AuthSource
 
 log = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class DropboxIntegration(BaseIntegration):
     ]
     required_packages = ["dropbox"]
 
-    auth: IntegrationAuth | None = None
+    auth: AuthSource | None = None
 
     # -- auth helpers ----------------------------------------------------
 

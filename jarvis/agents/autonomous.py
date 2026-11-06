@@ -53,7 +53,6 @@ Security:
 from __future__ import annotations
 
 import asyncio
-import copy
 import json
 import logging
 import re
@@ -61,16 +60,79 @@ import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    from jarvis.core.config import AgentConfig
-    from jarvis.llm.model_provider import ModelProvider
-    from jarvis.tools.registry import ToolRegistry
+    from collections.abc import Sequence
+
+    from jarvis.llm.model_provider import ChatMessage
 
 from jarvis.agents.scratchpad import AgentScratchpad
 from jarvis.tools.registry import ToolResult
 from jarvis.tools.risk import RiskLevel, risk_level_for_tool
+
+# What the agent needs from its collaborators. The app passes a
+# ModelProvider, the ToolRegistry and AgentConfig, which match these
+# structurally; tests pass small fakes that are checked against them.
+
+
+class AgentReply(Protocol):
+    @property
+    def content(self) -> str: ...
+
+
+class AgentModel(Protocol):
+    """The LLM: one non-streaming chat call (ModelProvider.chat)."""
+
+    async def chat(
+        self, messages: list[ChatMessage], *, temperature: float = ..., max_tokens: int = ...,
+    ) -> AgentReply: ...
+
+
+class AgentToolInfo(Protocol):
+    @property
+    def name(self) -> str: ...
+
+    @property
+    def description(self) -> str: ...
+
+
+class AgentToolbox(Protocol):
+    """The tools (ToolRegistry): list, look up for its risk level, run."""
+
+    def list_enabled(self) -> Sequence[AgentToolInfo]: ...
+
+    def get(self, name: str) -> object | None: ...
+
+    async def execute(self, name: str, raw_args: dict) -> ToolResult: ...
+
+
+class AgentLimits(Protocol):
+    """The agent's settings (AgentConfig)."""
+
+    @property
+    def max_iterations(self) -> int: ...
+
+    @property
+    def max_time_seconds(self) -> int: ...
+
+    @property
+    def confirm_destructive(self) -> bool: ...
+
+    @property
+    def verbose_reasoning(self) -> bool: ...
+
+
+@dataclass(frozen=True)
+class AgentBudget:
+    """AgentLimits for a sub-agent: the parent's settings with smaller
+    budgets (a copy of the parent's config was modified before)."""
+
+    max_iterations: int
+    max_time_seconds: int
+    confirm_destructive: bool
+    verbose_reasoning: bool
+
 
 log = logging.getLogger(__name__)
 
@@ -239,9 +301,9 @@ class AutonomousAgent:
 
     def __init__(
         self,
-        provider: ModelProvider,
-        registry: ToolRegistry,
-        config: AgentConfig,
+        provider: AgentModel,
+        registry: AgentToolbox,
+        config: AgentLimits,
         confirm_fn: Callable[[AgentAction], Any] | None = None,
         *,
         ask_fn: Callable[[str, list[str] | None], Awaitable[str]] | None = None,
@@ -844,9 +906,12 @@ class AutonomousAgent:
         str
             Progress messages from the sub-agent, prefixed with ``[sub]``.
         """
-        sub_config = copy.copy(self._config)
-        sub_config.max_iterations = max(1, self._config.max_iterations // 2)
-        sub_config.max_time_seconds = max(30, self._config.max_time_seconds // 2)
+        sub_config = AgentBudget(
+            max_iterations=max(1, self._config.max_iterations // 2),
+            max_time_seconds=max(30, self._config.max_time_seconds // 2),
+            confirm_destructive=self._config.confirm_destructive,
+            verbose_reasoning=self._config.verbose_reasoning,
+        )
 
         sub_agent = AutonomousAgent(
             provider=self._provider,

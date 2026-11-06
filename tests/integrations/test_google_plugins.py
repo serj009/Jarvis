@@ -16,16 +16,7 @@ from jarvis.integrations.plugins.google_contacts import (
     _next_occurrence,
 )
 from jarvis.integrations.registry import IntegrationRegistry
-
-
-class _FakeAuth:
-    """Minimal IntegrationAuth stand-in with an in-memory token bucket."""
-    def __init__(self, tokens=None):
-        self._tokens = tokens
-
-    def get_tokens(self, key):
-        return self._tokens
-
+from tests.integrations._fakes import FakeAuth
 
 # ── discovery works without the SDK ─────────────────────────────────
 
@@ -82,6 +73,7 @@ class TestDependencyGate:
         reg = IntegrationRegistry()
         reg.discover_plugins()
         cal = reg.get("google_calendar")
+        assert cal is not None
         sdk_present = importlib.util.find_spec("googleapiclient") is not None
         result = reg.enable("google_calendar")
         if sdk_present:
@@ -96,18 +88,18 @@ class TestDependencyGate:
 class TestSharedToken:
     async def test_connect_false_without_token(self):
         c = GoogleCalendarIntegration()
-        c.auth = _FakeAuth(tokens=None)
+        c.auth = FakeAuth(tokens=None)
         assert await c.connect() is False
         assert c.connected is False
 
     async def test_connect_true_with_shared_token(self):
         c = GoogleCalendarIntegration()
-        c.auth = _FakeAuth(tokens={"access_token": "abc"})
+        c.auth = FakeAuth(tokens={"access_token": "abc"})
         assert await c.connect() is True
         assert c.connected is True
 
     async def test_both_plugins_share_one_token(self):
-        shared = _FakeAuth(tokens={"access_token": "xyz"})
+        shared = FakeAuth(tokens={"access_token": "xyz"})
         cal = GoogleCalendarIntegration()
         cal.auth = shared
         con = GoogleContactsIntegration()
@@ -117,9 +109,9 @@ class TestSharedToken:
 
     async def test_health_check_reflects_token(self):
         c = GoogleContactsIntegration()
-        c.auth = _FakeAuth(tokens=None)
+        c.auth = FakeAuth(tokens=None)
         assert await c.health_check() is False
-        c.auth = _FakeAuth(tokens={"access_token": "t"})
+        c.auth = FakeAuth(tokens={"access_token": "t"})
         assert await c.health_check() is True
 
 
@@ -142,13 +134,13 @@ class TestProactiveGuards:
 class TestExecuteGuards:
     async def test_calendar_execute_without_token(self):
         c = GoogleCalendarIntegration()
-        c.auth = _FakeAuth(tokens=None)
+        c.auth = FakeAuth(tokens=None)
         out = await c.execute_tool("calendar_today", {})
         assert "not connected" in out.lower()
 
     async def test_contacts_execute_without_token(self):
         c = GoogleContactsIntegration()
-        c.auth = _FakeAuth(tokens=None)
+        c.auth = FakeAuth(tokens=None)
         out = await c.execute_tool("contacts_find", {"name": "x"})
         assert "not connected" in out.lower()
 

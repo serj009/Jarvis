@@ -29,20 +29,7 @@ from jarvis.integrations.plugins.trello import TrelloIntegration
 from jarvis.integrations.plugins.twitch import TwitchIntegration
 from jarvis.integrations.plugins.wikipedia import WikipediaIntegration
 from jarvis.integrations.registry import IntegrationRegistry
-
-
-class _FakeAuth:
-    """Minimal IntegrationAuth stand-in with an in-memory store."""
-    def __init__(self, api_key=None, fields=None):
-        self._api_key = api_key
-        self._fields = fields or {}
-
-    def get_api_key(self, name):
-        return self._api_key
-
-    def get_field(self, name, field):
-        return self._fields.get(field)
-
+from tests.integrations._fakes import FakeAuth
 
 # ── Mapping: (plugin_class, name, expected_tools, auth_type, has_proactive) ──
 
@@ -177,7 +164,7 @@ class TestConnect:
     )
     async def test_connect_false_without_key(self, cls, name, _t, auth_type, _p):
         inst = cls()
-        inst.auth = _FakeAuth(api_key=None)
+        inst.auth = FakeAuth(api_key=None)
         assert await inst.connect() is False
         assert inst.connected is False
 
@@ -188,7 +175,7 @@ class TestConnect:
     )
     async def test_connect_true_with_key(self, cls, name, _t, auth_type, _p):
         inst = cls()
-        inst.auth = _FakeAuth(api_key="test-key-123",
+        inst.auth = FakeAuth(api_key="test-key-123",
                               fields={"api_token": "test-token",
                                       "access_token": "test-at"})
         result = await inst.connect()
@@ -213,7 +200,7 @@ class TestExecuteGuards:
     )
     async def test_execute_without_token(self, cls, name, expected_tools, auth_type, _p):
         inst = cls()
-        inst.auth = _FakeAuth(api_key=None)
+        inst.auth = FakeAuth(api_key=None)
         first_tool = sorted(expected_tools)[0]
         result = await inst.execute_tool(first_tool, {})
         assert "not connected" in result.lower()

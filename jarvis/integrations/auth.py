@@ -18,7 +18,7 @@ import hmac
 import logging
 import secrets
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from jarvis.platform.encrypted_store import EncryptedJsonStore
 
@@ -43,6 +43,17 @@ def _creds_path() -> Path:
     from jarvis.paths import data_path
 
     return data_path("integration_credentials.json")
+
+
+class AuthSource(Protocol):
+    """What a plugin reads its credentials through: IntegrationAuth, or a
+    test fake."""
+
+    def get_api_key(self, integration_name: str) -> str | None: ...
+
+    def get_tokens(self, integration_name: str) -> dict | None: ...
+
+    def get_field(self, integration_name: str, field: str) -> str | None: ...
 
 
 class IntegrationAuth:

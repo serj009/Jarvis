@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 from jarvis.integrations.base import BaseIntegration
 
 if TYPE_CHECKING:
-    from jarvis.integrations.auth import IntegrationAuth
+    from jarvis.integrations.auth import AuthSource
 
 log = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class SpotifyIntegration(BaseIntegration):
     ]
     required_packages = ["spotipy"]
 
-    auth: IntegrationAuth | None = None
+    auth: AuthSource | None = None
     _sp: Any = None  # the optional library's client; untyped here
 
     async def connect(self) -> bool:

@@ -27,20 +27,7 @@ from jarvis.integrations.plugins.weather_extended import WeatherExtendedIntegrat
 from jarvis.integrations.plugins.whatsapp import WhatsAppIntegration
 from jarvis.integrations.plugins.youtube import YouTubeIntegration
 from jarvis.integrations.registry import IntegrationRegistry
-
-
-class _FakeAuth:
-    """Minimal IntegrationAuth stand-in."""
-    def __init__(self, api_key=None, tokens=None):
-        self._api_key = api_key
-        self._tokens = tokens
-
-    def get_api_key(self, name):
-        return self._api_key
-
-    def get_tokens(self, name):
-        return self._tokens
-
+from tests.integrations._fakes import FakeAuth
 
 # Names the registry must discover
 _EXPECTED_NAMES = {
@@ -168,7 +155,7 @@ class TestDepGating:
             "PyGithub": "github", "discord.py": "discord",
             "spotipy": "spotipy", "docker": "docker",
         }
-        module = special.get(pkgs[0], pkgs[0].replace("-", "_"))
+        module = special.get(pkgs[0]) or pkgs[0].replace("-", "_")
         sdk_present = importlib.util.find_spec(module) is not None
         result = reg.enable(name)
         if sdk_present:
@@ -205,7 +192,7 @@ class TestApiKeyConnect:
                              ids=[c.name for c in (c() for c in _API_KEY_PLUGINS)])
     async def test_connect_false_without_key(self, cls):
         inst = cls()
-        inst.auth = _FakeAuth(api_key=None)
+        inst.auth = FakeAuth(api_key=None)
         assert await inst.connect() is False
         assert inst.connected is False
 
@@ -213,7 +200,7 @@ class TestApiKeyConnect:
                              ids=[c.name for c in (c() for c in _API_KEY_PLUGINS)])
     async def test_connect_true_with_key(self, cls):
         inst = cls()
-        inst.auth = _FakeAuth(api_key="test-key-123")
+        inst.auth = FakeAuth(api_key="test-key-123")
         assert await inst.connect() is True
         assert inst.connected is True
 
@@ -221,9 +208,9 @@ class TestApiKeyConnect:
                              ids=[c.name for c in (c() for c in _API_KEY_PLUGINS)])
     async def test_health_check_reflects_key(self, cls):
         inst = cls()
-        inst.auth = _FakeAuth(api_key=None)
+        inst.auth = FakeAuth(api_key=None)
         assert await inst.health_check() is False
-        inst.auth = _FakeAuth(api_key="test-key-123")
+        inst.auth = FakeAuth(api_key="test-key-123")
         assert await inst.health_check() is True
 
 
@@ -285,7 +272,7 @@ class TestExecuteGuards:
     )
     async def test_execute_without_token_returns_message(self, cls, tool):
         inst = cls()
-        inst.auth = _FakeAuth(api_key=None)
+        inst.auth = FakeAuth(api_key=None)
         out = await inst.execute_tool(tool, {})
         assert "not connected" in out.lower()
 

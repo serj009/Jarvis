@@ -18,16 +18,7 @@ from jarvis.integrations.plugins.gmail import (
 )
 from jarvis.integrations.plugins.google_drive import GoogleDriveIntegration
 from jarvis.integrations.registry import IntegrationRegistry
-
-
-class _FakeAuth:
-    """Minimal IntegrationAuth stand-in with an in-memory token bucket."""
-    def __init__(self, tokens=None):
-        self._tokens = tokens
-
-    def get_tokens(self, key):
-        return self._tokens
-
+from tests.integrations._fakes import FakeAuth
 
 # ── discovery works without the SDK ──────────────────────────────────
 
@@ -79,6 +70,7 @@ class TestDependencyGate:
         reg = IntegrationRegistry()
         reg.discover_plugins()
         gmail = reg.get("gmail")
+        assert gmail is not None
         sdk_present = importlib.util.find_spec("googleapiclient") is not None
         result = reg.enable("gmail")
         if sdk_present:
@@ -93,16 +85,16 @@ class TestDependencyGate:
 class TestSharedToken:
     async def test_connect_false_without_token(self):
         g = GmailIntegration()
-        g.auth = _FakeAuth(tokens=None)
+        g.auth = FakeAuth(tokens=None)
         assert await g.connect() is False
 
     async def test_connect_true_with_shared_token(self):
         g = GmailIntegration()
-        g.auth = _FakeAuth(tokens={"access_token": "abc"})
+        g.auth = FakeAuth(tokens={"access_token": "abc"})
         assert await g.connect() is True
 
     async def test_gmail_and_drive_share_one_token(self):
-        shared = _FakeAuth(tokens={"access_token": "xyz"})
+        shared = FakeAuth(tokens={"access_token": "xyz"})
         g = GmailIntegration()
         g.auth = shared
         d = GoogleDriveIntegration()
@@ -112,9 +104,9 @@ class TestSharedToken:
 
     async def test_health_check_reflects_token(self):
         d = GoogleDriveIntegration()
-        d.auth = _FakeAuth(tokens=None)
+        d.auth = FakeAuth(tokens=None)
         assert await d.health_check() is False
-        d.auth = _FakeAuth(tokens={"access_token": "t"})
+        d.auth = FakeAuth(tokens={"access_token": "t"})
         assert await d.health_check() is True
 
 
@@ -132,13 +124,13 @@ class TestProactiveGuards:
 class TestExecuteGuards:
     async def test_gmail_execute_without_token(self):
         g = GmailIntegration()
-        g.auth = _FakeAuth(tokens=None)
+        g.auth = FakeAuth(tokens=None)
         out = await g.execute_tool("gmail_inbox", {})
         assert "not connected" in out.lower()
 
     async def test_drive_execute_without_token(self):
         d = GoogleDriveIntegration()
-        d.auth = _FakeAuth(tokens=None)
+        d.auth = FakeAuth(tokens=None)
         out = await d.execute_tool("drive_list", {})
         assert "not connected" in out.lower()
 
@@ -149,7 +141,7 @@ class TestExecuteGuards:
         not-connected message rather than the file guard here.
         """
         d = GoogleDriveIntegration()
-        d.auth = _FakeAuth(tokens=None)
+        d.auth = FakeAuth(tokens=None)
         out = await d.execute_tool("drive_upload", {"path": "/no/such.file"})
         assert "not connected" in out.lower()
 

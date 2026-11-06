@@ -12,16 +12,7 @@ import re
 
 from jarvis.integrations.plugins.telegram_bot import TelegramIntegration
 from jarvis.integrations.registry import IntegrationRegistry
-
-
-class _FakeAuth:
-    """Minimal IntegrationAuth stand-in with an in-memory api_key store."""
-    def __init__(self, api_key=None):
-        self._api_key = api_key
-
-    def get_api_key(self, name):
-        return self._api_key
-
+from tests.integrations._fakes import FakeAuth
 
 # ── discovery ────────────────────────────────────────────────────────
 
@@ -67,6 +58,7 @@ class TestDependencyGate:
         reg = IntegrationRegistry()
         reg.discover_plugins()
         tg = reg.get("telegram")
+        assert tg is not None
         sdk_present = importlib.util.find_spec("telegram") is not None
         result = reg.enable("telegram")
         if sdk_present:
@@ -81,21 +73,21 @@ class TestDependencyGate:
 class TestApiKeyConnect:
     async def test_connect_false_without_key(self):
         t = TelegramIntegration()
-        t.auth = _FakeAuth(api_key=None)
+        t.auth = FakeAuth(api_key=None)
         assert await t.connect() is False
         assert t.connected is False
 
     async def test_connect_true_with_key(self):
         t = TelegramIntegration()
-        t.auth = _FakeAuth(api_key="123:abc")
+        t.auth = FakeAuth(api_key="123:abc")
         assert await t.connect() is True
         assert t.connected is True
 
     async def test_health_check_reflects_key(self):
         t = TelegramIntegration()
-        t.auth = _FakeAuth(api_key=None)
+        t.auth = FakeAuth(api_key=None)
         assert await t.health_check() is False
-        t.auth = _FakeAuth(api_key="123:abc")
+        t.auth = FakeAuth(api_key="123:abc")
         assert await t.health_check() is True
 
 
@@ -113,12 +105,12 @@ class TestProactiveGuard:
 class TestExecuteGuards:
     async def test_send_without_token(self):
         t = TelegramIntegration()
-        t.auth = _FakeAuth(api_key=None)
+        t.auth = FakeAuth(api_key=None)
         out = await t.execute_tool("telegram_send", {"chat_id": "1", "text": "hi"})
         assert "not connected" in out.lower()
 
     async def test_read_without_token(self):
         t = TelegramIntegration()
-        t.auth = _FakeAuth(api_key=None)
+        t.auth = FakeAuth(api_key=None)
         out = await t.execute_tool("telegram_read", {})
         assert "not connected" in out.lower()
