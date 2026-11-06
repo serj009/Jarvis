@@ -500,3 +500,27 @@ def test_registry_gate_still_falls_through_for_unregistered_tools():
     # ... but non-tool intents are unaffected.
     assert isinstance(router._try_pattern("what time is it"), SpeakIntent)
     assert isinstance(router._try_pattern("stop"), StopIntent)
+
+
+def test_pattern_table_does_not_depend_on_the_hash_seed():
+    """Alternations built from sets and sorted by length only came out in a
+    different order on every run, so the order golden failed at random."""
+    import os
+    import subprocess
+    import sys
+
+    code = (
+        "import datetime, json\n"
+        "from jarvis.llm.intent_router import _build_patterns\n"
+        "print(json.dumps([p.pattern for p, _ in "
+        "_build_patterns(lambda: datetime.datetime(2026, 1, 1))]))\n"
+    )
+    tables = []
+    for seed in ("1", "2"):
+        env = {**os.environ, "PYTHONHASHSEED": seed, "QT_QPA_PLATFORM": "offscreen"}
+        out = subprocess.run(
+            [sys.executable, "-c", code], env=env, capture_output=True, text=True,
+            check=True, cwd=Path(__file__).parents[2],
+        )
+        tables.append(json.loads(out.stdout.splitlines()[-1]))
+    assert tables[0] == tables[1]

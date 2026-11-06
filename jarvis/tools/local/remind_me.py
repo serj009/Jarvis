@@ -30,7 +30,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
-from jarvis.core.durations import DURATION, parse_duration
+from jarvis.core.durations import CLOCK, DURATION, parse_clock, parse_duration
 from jarvis.core.phrases import say, spoken_duration, spoken_when
 from jarvis.memory.scheduled_reminders import ReminderStore
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
@@ -409,74 +409,83 @@ class RemindMeAtTool:
                 "tomorrow": False,
             },
         ),
-        # EN: "remind me at 15:00 to call mom"
+        # Clock times as said ("at ten", "в восемь вечера", "о десятій")
+        # come from jarvis.core.durations.CLOCK; a bare "15:00" needs no
+        # "at" / "в" / "о".
+        # EN: "remind me at 15:00 to call mom", "remind me at seven pm to ..."
         VoicePattern(
             regex=(
-                r"^remind\s+me\s+(?:at\s+)?(\d{1,2}[:.]\d{2})\s+"
+                rf"^remind\s+me\s+(?:at\s+({CLOCK})|(\d{{1,2}}[:.]\d{{2}}))\s+"
                 r"(?:to\s+)?(.+)$"
             ),
             priority=139,
             args=lambda m: {
-                "time": m.group(1).replace(".", ":"),
-                "text": m.group(2).strip(),
+                "time": parse_clock(m.group(1) or m.group(2)) or "",
+                "text": m.group(3).strip(),
                 "tomorrow": False,
             },
         ),
-        # EN: "remind me tomorrow at 9:00 to check email"
+        # EN: "remind me tomorrow at 9:00 to check email", "... at nine am"
         VoicePattern(
             regex=(
-                r"^remind\s+me\s+tomorrow\s+(?:at\s+)?(\d{1,2}(?:[:.]\d{2})?)\s*"
-                r"(?:to\s+)?(.+)?$"
+                rf"^remind\s+me\s+tomorrow\s+(?:at\s+)?({CLOCK})"
+                r"(?:\s+(?:to\s+)?(.+))?$"
             ),
             priority=138,
             args=lambda m: {
-                "time": m.group(1).replace(".", ":")
-                if ":" in m.group(1) or "." in m.group(1)
-                else m.group(1) + ":00",
+                "time": parse_clock(m.group(1)) or "",
                 "text": (m.group(2) or "Reminder").strip(),
                 "tomorrow": True,
             },
         ),
-        # RU: "напомни в 15:00 позвонить маме"
+        # RU: "напомни в 15:00 позвонить маме", "напомни в восемь вечера, что ..."
         VoicePattern(
-            regex=(r"^напомни\s+(?:мне\s+)?(?:в\s+)?(\d{1,2}[:.]\d{2})\s+(.+)$"),
+            regex=(
+                rf"^напомни\s+(?:мне\s+)?(?:в\s+({CLOCK})|(\d{{1,2}}[:.]\d{{2}}))"
+                r"\s*,?\s+(?:что\s+|чтобы\s+)?(.+)$"
+            ),
             priority=139,
             args=lambda m: {
-                "time": m.group(1).replace(".", ":"),
-                "text": m.group(2).strip(),
+                "time": parse_clock(m.group(1) or m.group(2)) or "",
+                "text": m.group(3).strip(),
                 "tomorrow": False,
             },
         ),
-        # RU: "напомни завтра в 9:00 проверить почту"
+        # RU: "напомни завтра в 9:00 проверить почту", "завтра в девять утра ..."
         VoicePattern(
-            regex=(r"^напомни\s+(?:мне\s+)?завтра\s+(?:в\s+)?(\d{1,2}(?:[:.]\d{2})?)\s*(.+)?$"),
+            regex=(
+                rf"^напомни\s+(?:мне\s+)?завтра\s+(?:в\s+)?({CLOCK})"
+                r"(?:\s*,?\s+(?:что\s+|чтобы\s+)?(.+))?$"
+            ),
             priority=138,
             args=lambda m: {
-                "time": m.group(1).replace(".", ":")
-                if ":" in m.group(1) or "." in m.group(1)
-                else m.group(1) + ":00",
+                "time": parse_clock(m.group(1)) or "",
                 "text": (m.group(2) or "Напоминание").strip(),
                 "tomorrow": True,
             },
         ),
-        # UK: "нагадай о 15:00 зателефонувати мамі"
+        # UK: "нагадай о 15:00 зателефонувати мамі", "нагадай о десятій, що ..."
         VoicePattern(
-            regex=(r"^нагадай\s+(?:мені\s+)?(?:о\s+)?(\d{1,2}[:.]\d{2})\s+(.+)$"),
+            regex=(
+                rf"^нагадай\s+(?:мені\s+)?(?:(?:о|об)\s+({CLOCK})|(\d{{1,2}}[:.]\d{{2}}))"
+                r"\s*,?\s+(?:що\s+|щоб\s+)?(.+)$"
+            ),
             priority=139,
             args=lambda m: {
-                "time": m.group(1).replace(".", ":"),
-                "text": m.group(2).strip(),
+                "time": parse_clock(m.group(1) or m.group(2)) or "",
+                "text": m.group(3).strip(),
                 "tomorrow": False,
             },
         ),
-        # UK: "нагадай завтра о 9:00 перевірити пошту"
+        # UK: "нагадай завтра о 9:00 перевірити пошту", "завтра о дев'ятій ..."
         VoicePattern(
-            regex=(r"^нагадай\s+(?:мені\s+)?завтра\s+(?:о\s+)?(\d{1,2}(?:[:.]\d{2})?)\s*(.+)?$"),
+            regex=(
+                rf"^нагадай\s+(?:мені\s+)?завтра\s+(?:(?:о|об)\s+)?({CLOCK})"
+                r"(?:\s*,?\s+(?:що\s+|щоб\s+)?(.+))?$"
+            ),
             priority=138,
             args=lambda m: {
-                "time": m.group(1).replace(".", ":")
-                if ":" in m.group(1) or "." in m.group(1)
-                else m.group(1) + ":00",
+                "time": parse_clock(m.group(1)) or "",
                 "text": (m.group(2) or "Нагадування").strip(),
                 "tomorrow": True,
             },

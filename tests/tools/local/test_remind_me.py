@@ -211,7 +211,7 @@ class TestVoicePatterns:
     def test_en_tomorrow(self) -> None:
         args = self._match(RemindMeAtTool, "remind me tomorrow at 9:00 to check email")
         assert args is not None
-        assert args["time"] == "9:00"
+        assert args["time"] == "09:00"
         assert args["tomorrow"] is True
 
     def test_ru_at_time(self) -> None:

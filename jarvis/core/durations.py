@@ -1,10 +1,12 @@
-"""Durations as people say them: "пять минут", "полчаса", "через минуту",
-"півтори години", "2 часа 30 минут", "an hour and a half".
+"""Durations and clock times as people say them: "пять минут",
+"полчаса", "через минуту", "півтори години", "2 часа 30 минут", "an hour
+and a half"; "в десять", "в восемь вечера", "о десятій", "at seven pm".
 
 Speech recognition writes small numbers as words as often as digits, and a
 unit without a number means one ("через час", "на минуту"). Voice patterns
-put DURATION into their regex (it has no capture groups of its own) and turn
-the captured text into seconds with parse_duration().
+put DURATION / CLOCK into their regex (neither has capture groups of its
+own) and turn the captured text into seconds with parse_duration() or into
+"HH:MM" with parse_clock().
 """
 
 from __future__ import annotations
@@ -48,7 +50,7 @@ _APOSTROPHE = "['ʼ’]"
 
 def _words(table: dict[str, float]) -> str:
     # Longest first, so "одиннадцать" is not read as "один" + "надцать".
-    spelled = sorted(table, key=len, reverse=True)
+    spelled = sorted(table, key=lambda w: (-len(w), w))
     return "|".join(re.escape(w).replace("'", _APOSTROPHE) for w in spelled)
 
 
@@ -113,3 +115,69 @@ def parse_duration(text: str) -> int | None:
         seconds += last_unit / 2  # "an hour and a half", "час с половиной"
     whole = int(round(seconds))
     return whole if whole > 0 else None
+
+
+# ── Clock times ──────────────────────────────────────────────────────────
+# Hours as said after "в" / "о" / "at": cardinals (ru / uk / en) and the
+# Ukrainian ordinal locative ("о десятій").
+_HOUR_WORDS: dict[str, int] = {
+    **{w: int(v) for w, v in _ONES.items() if w not in ("a", "an")},
+    **{w: int(v) for w, v in _TEENS.items()},
+    "двадцать": 20, "двадцять": 20,
+    "першій": 1, "другій": 2, "третій": 3, "четвертій": 4, "п'ятій": 5,
+    "шостій": 6, "сьомій": 7, "восьмій": 8, "дев'ятій": 9, "десятій": 10,
+    "одинадцятій": 11, "дванадцятій": 12,
+}
+_MINUTE_ONES = {w: v for w, v in _ONES.items() if w not in ("a", "an")}
+_HOUR = (
+    rf"(?:двадцать|двадцять)(?:\s+(?:один|одна|два|две|дві|три))?"
+    rf"|{_words({w: float(v) for w, v in _HOUR_WORDS.items()})}"
+)
+_MINUTE = (
+    rf"(?:{_words(_TENS)})(?:\s+(?:{_words(_MINUTE_ONES)}))?"
+    rf"|{_words(_TEENS)}|(?:ноль|нуль|oh)\s+(?:{_words(_MINUTE_ONES)})"
+)
+_HOUR_NOUN = r"час(?:а|ов)?|годин[иі]?|o'?clock"
+_PM = ("дня", "вечера", "вечора", "pm", "p.m.", "p.m")
+_AM = ("утра", "ранку", "am", "a.m.", "a.m")
+_NIGHT = ("ночи", "ночі")
+# Sorted with ties by name: a set's order changes with the string hash seed,
+# and the router golden pins the regex text.
+_DAYPART = "|".join(
+    re.escape(w) for w in sorted({*_PM, *_AM, *_NIGHT}, key=lambda w: (-len(w), w))
+)
+
+# A clock time: "15:00", "10", "десять", "десять тридцать", "восемь вечера",
+# "о десятій" (the "о"/"в"/"at" belongs to the pattern). No capture groups.
+CLOCK = (
+    rf"(?:(?:\d{{1,2}}(?:[:.]\d{{2}})?|(?:{_HOUR})(?:\s+(?:{_MINUTE}))?)"
+    rf"(?:\s+(?:{_HOUR_NOUN}))?(?:\s+(?:{_DAYPART}))?)"
+)
+_CLOCK_RE = re.compile(
+    rf"(?:(?P<h>\d{{1,2}})(?:[:.](?P<m>\d{{2}}))?|(?P<hw>{_HOUR})(?:\s+(?P<mw>{_MINUTE}))?)"
+    rf"(?:\s+(?:{_HOUR_NOUN}))?(?:\s+(?P<part>{_DAYPART}))?",
+    re.IGNORECASE,
+)
+
+
+def parse_clock(text: str) -> str | None:
+    """"HH:MM" for a CLOCK text ("восемь вечера" -> "20:00", "о десятій"
+    without the "о" -> "10:00"), or None when it is not a valid time."""
+    m = _CLOCK_RE.fullmatch(re.sub(_APOSTROPHE, "'", text.strip().lower()))
+    if m is None:
+        return None
+    hour = int(m.group("h")) if m.group("h") else 0
+    if m.group("hw"):
+        hour = sum(_HOUR_WORDS.get(w) or int(_ONES.get(w, 0)) for w in m.group("hw").split())
+    minute = int(m.group("m")) if m.group("m") else 0
+    if m.group("mw"):
+        minute = int(_number(m.group("mw").replace("ноль ", "").replace("нуль ", "")
+                             .replace("oh ", "")))
+    part = (m.group("part") or "").lower()
+    if part in _PM and hour < 12:
+        hour += 12
+    elif part in (*_AM, *_NIGHT) and hour == 12:
+        hour = 0
+    if not (0 <= hour < 24 and 0 <= minute < 60):
+        return None
+    return f"{hour:02d}:{minute:02d}"

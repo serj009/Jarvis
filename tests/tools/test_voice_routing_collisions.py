@@ -355,3 +355,21 @@ def test_web_search_query_leaves_out_the_web(phrase: str, query: str) -> None:
 )
 def test_note_content_leaves_out_the_command(phrase: str, content: str) -> None:
     assert _route_args(phrase) == ("take_note", {"content": content})
+
+
+@pytest.mark.parametrize(
+    ("phrase", "time", "tomorrow"),
+    [
+        # Clock times in words went to the model: only "15:00" / "в 9" matched.
+        ("напомни в десять позвонить", "10:00", False),
+        ("напомни в восемь вечера купить хлеб", "20:00", False),
+        ("напомни завтра в девять утра проверить почту", "09:00", True),
+        ("нагадай о десятій подзвонити", "10:00", False),
+        ("remind me at seven pm to call mom", "19:00", False),
+        ("напомни в 15:00 позвонить маме", "15:00", False),
+    ],
+)
+def test_reminder_at_a_spoken_time(phrase: str, time: str, tomorrow: bool) -> None:
+    tool, args = _route_args(phrase)
+    assert tool == "remind_me_at"
+    assert (args["time"], args["tomorrow"]) == (time, tomorrow)

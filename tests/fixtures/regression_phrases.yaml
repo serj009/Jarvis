@@ -179,6 +179,18 @@
 - say: "remind me in an hour to stretch"
   tool: "remind_me"
   args: {seconds: 3600, text: "stretch"}
+- say: "напомни в восемь вечера купить хлеб"
+  tool: "remind_me_at"
+  args: {time: "20:00", text: "купить хлеб", tomorrow: false}
+- say: "напомни завтра в девять утра проверить почту"
+  tool: "remind_me_at"
+  args: {time: "09:00", text: "проверить почту", tomorrow: true}
+- say: "нагадай о десятій подзвонити"
+  tool: "remind_me_at"
+  args: {time: "10:00", text: "подзвонити", tomorrow: false}
+- say: "remind me at seven pm to call mom"
+  tool: "remind_me_at"
+  args: {time: "19:00", text: "call mom", tomorrow: false}
 - say: "покажи напоминания"
   tool: "list_reminders"
 - say: "notify me in half an hour"

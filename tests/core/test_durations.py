@@ -11,7 +11,7 @@ import re
 
 import pytest
 
-from jarvis.core.durations import DURATION, parse_duration
+from jarvis.core.durations import CLOCK, DURATION, parse_clock, parse_duration
 
 
 @pytest.mark.parametrize(
@@ -58,3 +58,40 @@ def test_not_a_duration(text):
 def test_duration_has_no_groups_of_its_own():
     """Patterns wrap DURATION in their own group and count on the numbering."""
     assert re.compile(DURATION).groups == 0
+
+
+# -- clock times ----------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("text", "clock"),
+    [
+        ("15:00", "15:00"),
+        ("9.30", "09:30"),
+        ("10", "10:00"),
+        ("десять", "10:00"),
+        ("десять тридцать", "10:30"),
+        ("десять ноль пять", "10:05"),
+        ("восемь вечера", "20:00"),
+        ("три часа дня", "15:00"),
+        ("девять утра", "09:00"),
+        ("двенадцать ночи", "00:00"),
+        ("двадцать два пятнадцать", "22:15"),
+        ("10 вечера", "22:00"),
+        ("десятій", "10:00"),
+        ("дев'ятій", "09:00"),
+        ("seven pm", "19:00"),
+        ("ten thirty", "10:30"),
+    ],
+)
+def test_parse_clock(text, clock):
+    assert parse_clock(text) == clock
+
+
+@pytest.mark.parametrize("text", ["25", "10:75", "купить", "a"])
+def test_not_a_clock_time(text):
+    assert parse_clock(text) is None
+
+
+def test_clock_has_no_groups_of_its_own():
+    assert re.compile(CLOCK).groups == 0
