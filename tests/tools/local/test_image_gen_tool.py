@@ -93,6 +93,13 @@ class TestVoicePatterns:
     def test_no_match_weather(self):
         assert self._match("what is the weather") is None
 
+    def test_create_without_picture_is_not_an_image(self):
+        """A bare "создай X" took files, folders, notes and protocols."""
+        for phrase in ("создай файл заметки.md", "создай папку проекты",
+                       "создай протокол утро", "створи папку проекти",
+                       "сгенерируй пароль", "згенеруй пароль"):
+            assert self._match(phrase) is None, phrase
+
 
 # ---------------------------------------------------------------------------
 # Execute tests
