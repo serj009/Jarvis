@@ -76,16 +76,16 @@ def _extract_image_urls(html: str, base_url: str) -> list[str]:
     seen: set[str] = set()
 
     for img in soup.find_all("img"):
-        src = img.get("src", "")
-        srcset = img.get("srcset", "")
+        src = _attr(img, "src")
+        srcset = _attr(img, "srcset")
 
         # Skip base64 data URIs.
         if src.startswith("data:"):
             continue
 
         # Check dimension attributes to skip tiny images.
-        width = _parse_dimension(img.get("width", ""))
-        height = _parse_dimension(img.get("height", ""))
+        width = _parse_dimension(_attr(img, "width"))
+        height = _parse_dimension(_attr(img, "height"))
         if (width and width < _MIN_DIMENSION) or (height and height < _MIN_DIMENSION):
             continue
 
@@ -107,6 +107,17 @@ def _extract_image_urls(html: str, base_url: str) -> list[str]:
                         urls.append(src_url)
 
     return urls
+
+
+def _attr(tag: Any, name: str) -> str:
+    """A tag attribute as text ("" when missing). bs4 returns a list for
+    multi-valued attributes such as class; join those."""
+    value = tag.get(name)
+    if value is None:
+        return ""
+    if isinstance(value, list):
+        return " ".join(str(v) for v in value)
+    return str(value)
 
 
 def _parse_dimension(value: str) -> int | None:

@@ -13,11 +13,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 from pydantic import BaseModel, Field
 
 from jarvis.tools.registry import ToolResult, VoicePattern
+
+if TYPE_CHECKING:
+    from jarvis.vision.screen_change import ScreenChangeDetector
 
 log = logging.getLogger(__name__)
 
@@ -145,7 +148,7 @@ class WatchScreenTool:
     def __init__(self) -> None:
         # Lazily created on first "start" so PIL is not imported at
         # registration time.
-        self._detector: object | None = None
+        self._detector: ScreenChangeDetector | None = None
         self._monitoring: bool = False
         self._monitor_task: asyncio.Task | None = None  # type: ignore[type-arg]
 
@@ -265,7 +268,7 @@ class WatchScreenTool:
     # -- helpers ------------------------------------------------------
 
     @staticmethod
-    def _make_detector(threshold: float):  # noqa: ANN205
+    def _make_detector(threshold: float) -> ScreenChangeDetector:
         """Lazy import + construction of ScreenChangeDetector."""
         from jarvis.vision.screen_change import ScreenChangeDetector
 

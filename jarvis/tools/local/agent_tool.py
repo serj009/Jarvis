@@ -290,6 +290,8 @@ class AgentTool:
 
     def _build_provider(self) -> Any:
         """Build a ModelProvider from the agent config."""
+        if self._agent_config is None:
+            raise RuntimeError("no agent configuration")
 
         provider_name = self._agent_config.model_provider
 

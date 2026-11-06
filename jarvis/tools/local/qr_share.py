@@ -50,7 +50,8 @@ def _generate_qr_image(data: str, out_path: Path) -> str | None:
     try:
         import qrcode
         img = qrcode.make(data)
-        img.save(str(out_path))
+        with out_path.open("wb") as stream:
+            img.save(stream)
         return None
     except ImportError:
         log.debug("qrcode library not installed, trying fallback")

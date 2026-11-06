@@ -106,7 +106,8 @@ def _safe_eval_node(node: ast.AST) -> float:
             raise ValueError(f"Unknown function: {name}")
         if callable(fn):
             evaluated_args = [_safe_eval_node(a) for a in node.args]
-            return float(fn(*evaluated_args))
+            value: Any = fn(*evaluated_args)
+            return float(value)
         raise ValueError(f"{name} is a constant, not a function")
 
     if isinstance(node, ast.Name):

@@ -38,8 +38,11 @@ from jarvis.tools.risk import RiskLevel, risk_level_for_tool, should_confirm
 from jarvis.tools.sandbox import PathValidator, SandboxViolationError
 
 if TYPE_CHECKING:
+    from jarvis.audio.stt import FasterWhisperSTT
+    from jarvis.audio.tts_manager import TTSManager
     from jarvis.core.game_mode import GameMode
     from jarvis.core.vram_manager import VRAMManager
+    from jarvis.llm.ollama_client import OllamaClient
     from jarvis.memory.personal_aliases import PersonalAliasStore
     from jarvis.memory.scheduled_reminders import ReminderStore
     from jarvis.memory.store import MemoryStore
@@ -51,12 +54,12 @@ def setup_local_tools(
     registry: ToolRegistry,
     config: object = None,
     *,
-    ollama_client: object = None,
+    ollama_client: OllamaClient | None = None,
     vram_manager: VRAMManager | None = None,
     memory_store: MemoryStore | None = None,
     skill_forge: object = None,
-    stt: object = None,
-    tts_manager: object = None,
+    stt: FasterWhisperSTT | None = None,
+    tts_manager: TTSManager | None = None,
     personal_aliases: PersonalAliasStore | None = None,
     game_mode: GameMode | None = None,
     on_timer_done: Callable[[str], None] | None = None,

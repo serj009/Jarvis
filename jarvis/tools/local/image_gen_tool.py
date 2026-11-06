@@ -21,6 +21,8 @@ from jarvis.tools.registry import ToolResult, VoicePattern
 
 if TYPE_CHECKING:
     from jarvis.core.config import ImageGenConfig
+    from jarvis.llm.model_provider import ModelProvider
+    from jarvis.llm.ollama_client import OllamaClient
 
 log = logging.getLogger(__name__)
 
@@ -90,8 +92,8 @@ class ImageGenTool:
         self,
         *,
         image_gen_config: ImageGenConfig,
-        ollama_client: object | None = None,
-        model_provider: object | None = None,
+        ollama_client: OllamaClient | None = None,
+        model_provider: ModelProvider | None = None,
     ) -> None:
         self._cfg = image_gen_config
         self._ollama = ollama_client

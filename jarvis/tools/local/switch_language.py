@@ -16,12 +16,16 @@ Architecture:
 from __future__ import annotations
 
 import logging
-from typing import ClassVar, Literal
+from typing import TYPE_CHECKING, ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
 from jarvis.core.phrases import Lang
 from jarvis.tools.registry import ToolResult, VoicePattern
+
+if TYPE_CHECKING:
+    from jarvis.audio.stt import FasterWhisperSTT
+    from jarvis.audio.tts_manager import TTSManager
 
 log = logging.getLogger(__name__)
 
@@ -197,8 +201,8 @@ class SwitchLanguageTool:
     def __init__(
         self,
         *,
-        stt: object | None = None,
-        tts_manager: object | None = None,
+        stt: FasterWhisperSTT | None = None,
+        tts_manager: TTSManager | None = None,
     ) -> None:
         """
         Args:

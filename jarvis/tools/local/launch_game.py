@@ -36,6 +36,7 @@ from jarvis.tools.registry import ToolResult, VoicePattern
 
 if TYPE_CHECKING:
     from jarvis.platform.game_launchers import Game
+    from jarvis.platform.windows_apps import SteamGame
 
 log = logging.getLogger(__name__)
 
@@ -112,7 +113,7 @@ class LaunchGameTool:
         self,
         *,
         index_provider: Callable[[], dict[str, Game] | None] | None = None,
-        steam_resolver: Callable[[str], object | None] | None = None,
+        steam_resolver: Callable[[str], SteamGame | None] | None = None,
         launcher_priority: list[str] | None = None,
         match_cutoff: float = _MATCH_CUTOFF,
         suggest_floor: float = _SUGGEST_FLOOR,
@@ -168,7 +169,7 @@ class LaunchGameTool:
         the caller can still offer a near-miss suggestion."""
         from jarvis.platform import windows as winplat
 
-        def _resolve():
+        def _resolve() -> SteamGame | None:
             if self._steam_resolver is not None:
                 return self._steam_resolver(name)
             from jarvis.platform.windows_apps import resolve_steam_game

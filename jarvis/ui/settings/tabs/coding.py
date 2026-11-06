@@ -16,12 +16,12 @@ from PySide6.QtWidgets import (
 )
 
 from jarvis.coding.languages import LANGUAGES
-from jarvis.core.config import JarvisConfig, save_config
+from jarvis.core.config import CodingProvider, JarvisConfig, save_config
 from jarvis.ui.settings._widgets import SectionCard, ToggleSwitch, slider_with_label
 
 log = logging.getLogger(__name__)
 
-_PROVIDERS = [
+_PROVIDERS: list[tuple[CodingProvider, str]] = [
     ("main", "Main LLM (Ollama)"),
     ("ollama", "Ollama Local"),
     ("openai", "OpenAI"),

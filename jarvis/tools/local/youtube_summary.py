@@ -20,7 +20,7 @@ import logging
 import re
 import tempfile
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 
 from pydantic import BaseModel, Field
 
@@ -84,7 +84,7 @@ def _download_subtitles(url: str) -> dict[str, Any]:
         description = ""
 
         try:
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            with yt_dlp.YoutubeDL(cast(Any, ydl_opts)) as ydl:
                 info = ydl.extract_info(url, download=True)
                 title = info.get("title", "")
                 description = info.get("description", "")

@@ -34,10 +34,10 @@ import json
 import logging
 import os
 import shutil
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator
 
@@ -700,6 +700,9 @@ class GameModeConfig(_Base):
     custom_main_games: list[str] = Field(default_factory=list)
 
 
+CodingProvider = Literal["main", "ollama", "openai", "anthropic", "groq"]
+
+
 class CodingConfig(_Base):
     """Settings for the Coding Agent — a separate LLM for code generation.
 
@@ -710,7 +713,7 @@ class CodingConfig(_Base):
     """
 
     # Provider: "main" (use main LLM), "ollama", "openai", "anthropic", "groq"
-    provider: Literal["main", "ollama", "openai", "anthropic", "groq"] = "main"
+    provider: CodingProvider = "main"
 
     # Ollama model (when provider="ollama")
     ollama_model: str = "qwen2.5-coder:7b"
@@ -1349,7 +1352,7 @@ def _short_repr(value: object) -> str:
     return text
 
 
-def _format_validation_item(err: dict) -> str:
+def _format_validation_item(err: Mapping[str, Any]) -> str:
     loc_parts = [str(part) for part in err.get("loc", ())]
     loc = ".".join(loc_parts) or "<root>"
     err_type = err.get("type", "")

@@ -77,19 +77,23 @@ class ChangeVaultPasswordArgs(BaseModel):
 # Shared vault accessor
 # ---------------------------------------------------------------------------
 
+_vault: Any = None
+
+
 def _get_vault() -> Any:
     """Get or create the PasswordVault singleton."""
+    global _vault
     from jarvis.security.password_vault import PasswordVault
 
-    if not hasattr(_get_vault, "_instance"):
-        _get_vault._instance = PasswordVault()
-    return _get_vault._instance
+    if _vault is None:
+        _vault = PasswordVault()
+    return _vault
 
 
 def _reset_vault_singleton() -> None:
     """Test hook: clear the singleton so a fresh vault is created."""
-    if hasattr(_get_vault, "_instance"):
-        del _get_vault._instance
+    global _vault
+    _vault = None
 
 
 # ---------------------------------------------------------------------------

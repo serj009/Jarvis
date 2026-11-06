@@ -103,7 +103,9 @@ def install_crash_handlers() -> None:
         log.critical(
             "uncaught exception in thread %s",
             args.thread.name if args.thread else "?",
-            exc_info=(args.exc_type, args.exc_value, args.exc_traceback),
+            # The exception itself carries its traceback; logging takes it
+            # as exc_info like the (type, value, tb) triple.
+            exc_info=args.exc_value if args.exc_value is not None else False,
         )
 
     threading.excepthook = _thread_hook
