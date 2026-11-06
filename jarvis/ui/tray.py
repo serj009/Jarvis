@@ -60,7 +60,7 @@ from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QMenu, QMessageBox, QSystemTrayIcon
 
 from jarvis.core.config import HotkeysConfig
-from jarvis.core.events import BackgroundProgress, EventBus, ModeChanged
+from jarvis.core.events import BackgroundProgress, EventBus, ModeChanged, NonFatalError
 from jarvis.core.state_machine import Mode, StateMachine
 
 log = logging.getLogger(__name__)
@@ -189,6 +189,9 @@ class TrayIcon(QSystemTrayIcon):
         # tooltip, with a notification when it starts and when it ends.
         self._progress: dict[str, str] = {}
         self._unsubscribe_progress = bus.subscribe(BackgroundProgress, self._on_progress_event)
+        # M2-3: a module that degraded or stopped working is shown here, so
+        # the user learns of it even when the broken module is TTS itself.
+        self._unsubscribe_problem = bus.subscribe(NonFatalError, self._on_problem_event)
         self._render_for_mode(self._sm.mode)
 
     # -- bus subscriber (audio thread) ------------------------------------
@@ -244,6 +247,23 @@ class TrayIcon(QSystemTrayIcon):
         self.setToolTip("\n".join(["Jarvis", *self._progress.values()]))
         if notice:
             self.showMessage("Jarvis", notice, QSystemTrayIcon.MessageIcon.Information, 5000)
+
+    def _on_problem_event(self, event: NonFatalError) -> None:
+        """Audio-loop thread -> Qt thread, like _on_mode_event."""
+        if not self._alive:
+            return
+        QMetaObject.invokeMethod(
+            self,
+            "_on_problem_text",
+            Qt.ConnectionType.QueuedConnection,
+            Q_ARG(str, describe_problem(event)),
+        )
+
+    @Slot(str)
+    def _on_problem_text(self, text: str) -> None:
+        if not self._alive:
+            return
+        self.showMessage("Jarvis: problem", text, QSystemTrayIcon.MessageIcon.Warning, 10000)
 
     # -- rendering --------------------------------------------------------
 
@@ -459,12 +479,39 @@ class TrayIcon(QSystemTrayIcon):
         try:
             self._unsubscribe_mode()
             self._unsubscribe_progress()
+            self._unsubscribe_problem()
         except Exception:
             log.exception("tray unsubscribe failed")
         self.hide()
 
 
 # --- helpers --------------------------------------------------------------
+
+_PROBLEM_TEXT: dict[tuple[str, str], str] = {
+    ("wake_word", "module_failed"): (
+        "Wake word detection keeps failing and is switched off. "
+        "Use the push-to-talk hotkey, or restart Jarvis."
+    ),
+    ("vad", "module_failed"): "End-of-speech detection keeps failing. Restart Jarvis.",
+    ("stt", "module_failed"): "Speech recognition keeps failing. Restart Jarvis.",
+    ("stt", "gpu_fallback"): "Speech recognition runs on the CPU: CUDA failed to load.",
+}
+
+
+def describe_problem(event: NonFatalError) -> str:
+    """A tray notification for a NonFatalError."""
+    if event.issue == "device_fallback":
+        what = "Microphone" if event.module == "audio_input" else "Speakers"
+        return f"{what} \"{event.expected}\" not available; using \"{event.actual}\"."
+    known = _PROBLEM_TEXT.get((event.module, event.issue))
+    detail = f" ({event.actual})" if event.issue == "module_failed" and event.actual else ""
+    if known is not None:
+        return known + detail
+    return (
+        f"{event.module}: {event.issue.replace('_', ' ')} "
+        f"(expected {event.expected}, using {event.actual})"
+    )
+
 
 
 def _format_hotkey(raw: str | None) -> str:

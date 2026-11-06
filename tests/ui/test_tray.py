@@ -374,3 +374,54 @@ def test_progress_after_close_is_dropped(qapp):
     with patch.object(tray, "showMessage") as show:
         tray._on_progress_texts("k", "status", "notice")
     assert not show.called
+
+
+# --- M2-3: a broken module is shown in the tray -------------------------------
+
+
+def test_problem_event_posts_queued_invocation(qapp):
+    from jarvis.core.events import NonFatalError
+
+    tray, _, _, _, _, _ = _make_tray()
+    try:
+        with patch("jarvis.ui.tray.QMetaObject.invokeMethod") as invoke:
+            tray._on_problem_event(NonFatalError(
+                module="wake_word", issue="module_failed", expected="working",
+                actual="RuntimeError: onnx session lost",
+            ))
+        args, _ = invoke.call_args
+        assert args[1] == "_on_problem_text"
+    finally:
+        tray.close()
+
+
+def test_problem_is_shown_as_a_warning(qapp):
+    tray, _, _, _, _, _ = _make_tray()
+    try:
+        with patch.object(tray, "showMessage") as show:
+            tray._on_problem_text("Wake word detection keeps failing.")
+        assert show.call_args.args[1] == "Wake word detection keeps failing."
+    finally:
+        tray.close()
+
+
+@pytest.mark.parametrize(
+    ("module", "issue", "expected", "actual", "text"),
+    [
+        ("wake_word", "module_failed", "working", "RuntimeError: x",
+         "Wake word detection keeps failing and is switched off. Use the "
+         "push-to-talk hotkey, or restart Jarvis. (RuntimeError: x)"),
+        ("audio_input", "device_fallback", "USB Mic", "Default",
+         'Microphone "USB Mic" not available; using "Default".'),
+        ("stt", "gpu_fallback", "cuda", "cpu",
+         "Speech recognition runs on the CPU: CUDA failed to load."),
+        ("ollama", "timeout", "a", "b", "ollama: timeout (expected a, using b)"),
+    ],
+)
+def test_describe_problem(module, issue, expected, actual, text):
+    from jarvis.core.events import NonFatalError
+    from jarvis.ui.tray import describe_problem
+
+    assert describe_problem(NonFatalError(
+        module=module, issue=issue, expected=expected, actual=actual,
+    )) == text

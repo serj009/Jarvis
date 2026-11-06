@@ -82,6 +82,7 @@ from jarvis.core.events import (
     LLMResponseChunk,
     LLMResponseComplete,
     ModeChanged,
+    NonFatalError,
     ProactiveSpeech,
     TranscriptionReady,
     WakeWordDetected,
@@ -98,10 +99,16 @@ from jarvis.security.origin_tracker import OriginTracker, RequestOrigin, set_req
 
 if TYPE_CHECKING:
     from jarvis.audio.tts_manager import TTSManager
+    from jarvis.core.phrases import Lang
 
 log = logging.getLogger(__name__)
 
 # T3.4: filler phrases spoken while the LLM thinks (module-level constant).
+# M2-3: failures in a row after which a module is reported to the user (and
+# the wake word switched off). Per frame that is ~0.1 s, so a transient
+# glitch does not trip it, a broken module does at once.
+MODULE_FAILURE_LIMIT = 5
+
 _THINKING_KEYS = [
     "thinking_general_1", "thinking_general_2", "thinking_general_3",
     "thinking_check_1", "thinking_check_2",
@@ -305,6 +312,60 @@ class AudioPipeline:
         self._proactive_queue: list[tuple[str, float]] = []
         self._proactive_speaking = False
 
+        # M2-3 (T12.3): a module that keeps failing is reported, not left to
+        # crash the frame loop (which then restarted on every frame, logged a
+        # traceback each time, and stayed deaf). Consecutive failures per
+        # module; the wake word is switched off after MODULE_FAILURE_LIMIT.
+        self._module_failures: dict[str, int] = {}
+        self._modules_reported: set[str] = set()
+        self._wake_word_off = False
+        # Language of the last conversation, for notices spoken outside a
+        # turn (there is no request text then).
+        self._last_language: str | None = None
+
+    # -- module failures (M2-3) --
+
+    def _module_ok(self, module: str) -> None:
+        if self._module_failures.get(module):
+            log.info("[module] %s works again", module)
+            self._module_failures[module] = 0
+
+    def _module_failed(self, module: str, exc: BaseException) -> int:
+        """Count a failure of *module*; log the traceback once per streak.
+        Returns the number of failures in a row."""
+        count = self._module_failures.get(module, 0) + 1
+        self._module_failures[module] = count
+        if count == 1:
+            log.error("[module] %s failed", module, exc_info=exc)
+        else:
+            log.debug("[module] %s failed again (%d in a row): %s", module, count, exc)
+        if count >= MODULE_FAILURE_LIMIT and module not in self._modules_reported:
+            self._modules_reported.add(module)
+            self._report_module_down(module, exc)
+        return count
+
+    def _report_module_down(self, module: str, exc: BaseException) -> None:
+        """Tell the user once: a tray notice (NonFatalError, works even when
+        TTS is the broken module) and, if TTS works, a spoken one."""
+        from jarvis.core.phrases import say
+
+        if module == "wake_word":
+            self._wake_word_off = True
+        log.error(
+            "[module] %s failed %d times in a row; %s",
+            module, MODULE_FAILURE_LIMIT,
+            "switched off" if module == "wake_word" else "reporting it",
+        )
+        self._bus.publish(NonFatalError(
+            module=module,
+            issue="module_failed",
+            expected="working",
+            actual=f"{type(exc).__name__}: {exc}"[:200],
+        ))
+        self._bus.publish(ProactiveSpeech(
+            text=say(f"module_down_{module}", self._spoken_language())
+        ))
+
     # -- lifecycle --
 
     async def start(self) -> None:
@@ -447,7 +508,14 @@ class AudioPipeline:
                 # mid-response, _handle_wake_detection cancels TTS and
                 # returns to LISTENING. openWakeWord's narrow phoneme set
                 # means TTS output won't self-trigger it.
-                wake_result = await self._wake_word.feed(frame)
+                wake_result = None
+                if not self._wake_word_off:
+                    try:
+                        wake_result = await self._wake_word.feed(frame)
+                    except Exception as exc:
+                        self._module_failed("wake_word", exc)
+                    else:
+                        self._module_ok("wake_word")
                 if wake_result is not None:
                     cs_at_trigger = self._sm.conversational_state
                     ms_since_tts = self._ms_since_last_tts()
@@ -491,14 +559,20 @@ class AudioPipeline:
                             getattr(self._wake_word, "last_score", 0.0),
                             getattr(self._wake_word, "threshold", float("nan")),
                         )
-                if cs is ConversationalState.LISTENING:
-                    await self._dispatch_listening(frame)
-                elif cs is ConversationalState.THINKING:
-                    # Run VAD so its internal state stays warm; do not act.
-                    await self._vad.feed(frame)
-                elif cs is ConversationalState.SPEAKING:
-                    await self._dispatch_speaking(frame)
-                # IDLE: nothing to do beyond the wake-word feed already done.
+                try:
+                    if cs is ConversationalState.LISTENING:
+                        await self._dispatch_listening(frame)
+                    elif cs is ConversationalState.THINKING:
+                        # Run VAD so its internal state stays warm; do not act.
+                        await self._vad.feed(frame)
+                    elif cs is ConversationalState.SPEAKING:
+                        await self._dispatch_speaking(frame)
+                    # IDLE: nothing to do beyond the wake-word feed already done.
+                except Exception as exc:
+                    await self._on_vad_failure(exc, cs)
+                else:
+                    if cs is not ConversationalState.IDLE:
+                        self._module_ok("vad")
         except asyncio.CancelledError:  # noqa: S110
             # Normal shutdown of the frame loop; re-raising is unnecessary
             # here because the task is being torn down. Not an error.
@@ -506,6 +580,23 @@ class AudioPipeline:
         except Exception:
             log.exception("frame loop crashed")
             raise
+
+    async def _on_vad_failure(self, exc: Exception, cs: ConversationalState) -> None:
+        """VAD (end-of-speech detection) raised on a frame. While listening,
+        the turn cannot end normally, so it is dropped back to IDLE."""
+        self._module_failed("vad", exc)
+        if cs is ConversationalState.LISTENING:
+            self._cancel_listening_timer()
+            self._listen_buffer.clear()
+            self._sm.set_conversational_state(ConversationalState.IDLE)
+
+    def _spoken_language(self) -> Lang | None:
+        """Language for notices outside a turn: the last conversation's,
+        else STT's configured one, else None (English)."""
+        lang = self._last_language or getattr(self._stt, "language", None)
+        if lang == "ru" or lang == "uk" or lang == "en":
+            return lang
+        return None
 
     async def _dispatch_listening(self, frame: AudioFrame) -> None:
         # Post-wake blackout: discard the first ~POST_WAKE_BLACKOUT_MS of
@@ -788,6 +879,16 @@ class AudioPipeline:
                 await self._tts.speak(say("error_stt_timeout"))
                 self._sm.set_conversational_state(ConversationalState.IDLE)
                 return
+            except Exception as exc:
+                # M2-3: say what failed instead of the generic error.
+                self._module_failed("stt", exc)
+                from jarvis.core.phrases import say
+                await self._tts.speak(say("error_stt_failed", self._spoken_language()))
+                self._sm.set_conversational_state(ConversationalState.IDLE)
+                return
+            self._module_ok("stt")
+            if result.detected_language:
+                self._last_language = result.detected_language
             text = result.text
             # Security Layer 1: cryptographically sign the STT output so
             # the IntentRouter (and ultimately ToolGuard) can distinguish

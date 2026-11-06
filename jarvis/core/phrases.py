@@ -317,6 +317,33 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Скриншот сохранён, сэр.",
         "uk": "Скриншот збережено, сер.",
     },
+    # ── Broken modules (M2-3, jarvis/audio/pipeline.py) ──────────────
+    "error_stt_failed": {
+        "en": "Speech recognition failed, sir. Please try again.",
+        "ru": "Распознавание речи не сработало, сэр. Попробуйте ещё раз.",
+        "uk": "Розпізнавання мовлення не спрацювало, сер. Спробуйте ще раз.",
+    },
+    "module_down_wake_word": {
+        "en": "Sir, wake word detection keeps failing, so I switched it off. "
+              "Use the push-to-talk hotkey until I am restarted.",
+        "ru": "Сэр, распознавание слова «Джарвис» постоянно сбоит, я его отключил. "
+              "Пока меня не перезапустят, пользуйтесь горячей клавишей.",
+        "uk": "Сер, розпізнавання слова «Джарвіс» постійно збоїть, я його вимкнув. "
+              "Поки мене не перезапустять, користуйтеся гарячою клавішею.",
+    },
+    "module_down_vad": {
+        "en": "Sir, detecting the end of your speech keeps failing, "
+              "so I may not hear you out. Please restart me.",
+        "ru": "Сэр, определение конца фразы постоянно сбоит, "
+              "я могу вас не дослушать. Перезапустите меня, пожалуйста.",
+        "uk": "Сер, визначення кінця фрази постійно збоїть, "
+              "я можу вас не дослухати. Перезапустіть мене, будь ласка.",
+    },
+    "module_down_stt": {
+        "en": "Sir, speech recognition keeps failing. Please restart me.",
+        "ru": "Сэр, распознавание речи постоянно сбоит. Перезапустите меня, пожалуйста.",
+        "uk": "Сер, розпізнавання мовлення постійно збоїть. Перезапустіть мене, будь ласка.",
+    },
     # ── Weather (jarvis/tools/local/weather.py) ──────────────────────
     # {temp} is spelled out with its scale by weather._spoken_temperature.
     "weather_now": {
