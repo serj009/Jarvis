@@ -38,8 +38,21 @@ DEFAULT_LANG: Lang = "en"
 _CYRILLIC = re.compile(r"[а-яёіїєґ]", re.IGNORECASE)
 _LATIN = re.compile(r"[a-z]", re.IGNORECASE)
 _UK_LETTERS = re.compile(r"[іїєґ]", re.IGNORECASE)
-# Ukrainian words written without і/ї/є/ґ that Russian does not use.
-_UK_WORDS = frozenset({"що", "щось", "ще", "це", "як", "дуже", "й", "шо"})
+# Ukrainian words written without і/ї/є/ґ that Russian does not use. Short
+# commands often have none of those letters ("наступний трек", "закрий
+# блокнот", "постав таймер на п'ять хвилин"), so the everyday command words
+# are listed too; each is spelled differently in Russian.
+_UK_WORDS = frozenset({
+    "що", "щось", "ще", "це", "як", "дуже", "й", "шо",
+    "яка", "який", "яке", "яку", "котра", "котрий", "хто", "чому", "коли",
+    "чи", "або", "але", "ось", "його", "буде", "треба", "можна", "зараз",
+    "тепер", "трохи", "добре", "гаразд", "дякую", "ласка",
+    "наступний", "наступна", "наступне", "наступну",
+    "постав", "поставте", "зроби", "зробити", "згорни", "закрий", "закрийте",
+    "вимкни", "увімкни", "ввімкни", "зупини", "продовжи", "продовжуй", "грай",
+    "нагадай", "нагадайте", "знайди", "шукай", "вийди",
+    "хвилин", "хвилину", "хвилини", "годину",
+})
 _WORD = re.compile(r"[а-яёіїєґ']+", re.IGNORECASE)
 
 

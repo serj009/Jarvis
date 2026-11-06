@@ -21,43 +21,15 @@ import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-# ---------------------------------------------------------------------------
-# Language detection (same logic as phrases.py but standalone)
-# ---------------------------------------------------------------------------
-
-_CYRILLIC = re.compile(r"[\u0430-\u044f\u0451\u0456\u0457\u0454\u0491]", re.IGNORECASE)
+from jarvis.core.phrases import detect_language as _detect_language
 
 if TYPE_CHECKING:
     from jarvis.memory.auto_classifier import AutoClassifier
-_LATIN = re.compile(r"[a-z]", re.IGNORECASE)
-_UK_LETTERS = re.compile(r"[\u0456\u0457\u0454\u0491]", re.IGNORECASE)
-_UK_WORDS = frozenset(
-    {
-        "\u0449\u043e",
-        "\u0449\u043e\u0441\u044c",
-        "\u0449\u0435",
-        "\u0446\u0435",
-        "\u044f\u043a",
-        "\u0434\u0443\u0436\u0435",
-        "\u0439",
-        "\u0448\u043e",
-    }
-)
-_WORD = re.compile(r"[\u0430-\u044f\u0451\u0456\u0457\u0454\u0491']+", re.IGNORECASE)
 
 
 def detect_language(text: str) -> str:
-    """Detect language from text: 'uk', 'ru', or 'en'."""
-    if not text:
-        return "en"
-    if _CYRILLIC.search(text):
-        if _UK_LETTERS.search(text):
-            return "uk"
-        words = {w.lower() for w in _WORD.findall(text)}
-        return "uk" if words & _UK_WORDS else "ru"
-    if _LATIN.search(text):
-        return "en"
-    return "en"
+    """Language of a fact: 'uk', 'ru' or 'en' (jarvis.core.phrases rules)."""
+    return _detect_language(text) or "en"
 
 
 # ---------------------------------------------------------------------------
