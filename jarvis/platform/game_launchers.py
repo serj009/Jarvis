@@ -42,9 +42,12 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 from jarvis.platform.app_discovery import normalize_query
+
+if TYPE_CHECKING:
+    from jarvis.platform.windows_apps import SteamGame
 from jarvis.platform.registry import HKLM, RegistryReader
 
 log = logging.getLogger(__name__)
@@ -392,7 +395,7 @@ class SteamGamesSource:
     launcher = Launcher.STEAM
 
     def __init__(
-        self, games: dict[str, object] | None = None
+        self, games: dict[str, SteamGame] | None = None
     ) -> None:
         # Injectable for tests: a pre-built {norm_name: SteamGame} map.
         self._games = games

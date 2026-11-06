@@ -40,9 +40,18 @@ ENUM_CURRENT_SETTINGS = -1
 
 def _require_windows(feature: str) -> None:
     if sys.platform != "win32":
-        raise NotImplementedError(
-            f"{feature} is Windows-only; current platform: {sys.platform}"
-        )
+        raise NotImplementedError(_windows_only_message(feature))
+
+
+def _windows_only_message(feature: str) -> str:
+    """Message for a Windows-only feature called elsewhere.
+
+    Functions that use winreg / ctypes.windll check inline,
+    ``if sys.platform != "win32": raise NotImplementedError(...)``, rather
+    than through _require_windows: written out like that, type checkers on
+    Linux treat the rest of the function as Windows-only code instead of
+    reporting winreg / windll as unknown."""
+    return f"{feature} is Windows-only; current platform: {sys.platform}"
 
 
 def _windll() -> Any:
@@ -150,6 +159,8 @@ def default_browser_exe() -> str | None:
 def _user32() -> Any:
     """Private user32 instance with explicit prototypes (64-bit safe
     handles), so ctypes.windll.user32 used elsewhere is not affected."""
+    if sys.platform != "win32":
+        raise NotImplementedError(_windows_only_message("window control"))
     user32 = ctypes.WinDLL("user32", use_last_error=True)
     user32.EnumWindows.argtypes = [ctypes.c_void_p, wintypes.LPARAM]
     user32.IsWindowVisible.argtypes = [wintypes.HWND]
@@ -174,6 +185,8 @@ def _top_window_of(exe_name: str, user32: Any) -> int | None:
 
     EnumWindows walks the Z-order from the top, so the first match is the
     browser window used most recently -- the one the new tab went to."""
+    if sys.platform != "win32":
+        raise NotImplementedError(_windows_only_message("window control"))
     import psutil
 
     names: dict[int, str] = {}
@@ -206,6 +219,8 @@ def _top_window_of(exe_name: str, user32: Any) -> int | None:
 
 def _raise_window(hwnd: int, user32: Any) -> bool:
     """Restore if minimised and make foreground. True on success."""
+    if sys.platform != "win32":
+        raise NotImplementedError(_windows_only_message("window control"))
     if user32.IsIconic(hwnd):
         user32.ShowWindow(hwnd, _SW_RESTORE)
     foreground = user32.GetForegroundWindow()
@@ -764,7 +779,8 @@ def list_startup() -> list[dict]:
     Each entry is a dict with ``name``, ``command``, ``source`` and
     ``removable``. Raises NotImplementedError off Windows.
     """
-    _require_windows("list_startup")
+    if sys.platform != "win32":
+        raise NotImplementedError(_windows_only_message("list_startup"))
     import winreg
 
     entries: list[dict] = []
@@ -835,7 +851,8 @@ def remove_from_startup(name: str) -> str:
     Returns a human-readable result string. Raises NotImplementedError off
     Windows; OSError (winerror 5) on access-denied.
     """
-    _require_windows("remove_from_startup")
+    if sys.platform != "win32":
+        raise NotImplementedError(_windows_only_message("remove_from_startup"))
     import winreg
 
     try:
@@ -863,7 +880,8 @@ def add_to_startup(name: str, command: str) -> str:
     Returns a confirmation string. Raises NotImplementedError off Windows;
     OSError (winerror 5) on access-denied.
     """
-    _require_windows("add_to_startup")
+    if sys.platform != "win32":
+        raise NotImplementedError(_windows_only_message("add_to_startup"))
     import winreg
 
     key = winreg.OpenKey(
@@ -963,7 +981,8 @@ def toggle_night_mode(enable: bool) -> str:
     Returns a confirmation string. Raises NotImplementedError when the
     registry key is missing or the flip fails (and off Windows).
     """
-    _require_windows("toggle_night_mode")
+    if sys.platform != "win32":
+        raise NotImplementedError(_windows_only_message("toggle_night_mode"))
     try:
         import winreg
         key_path = (
