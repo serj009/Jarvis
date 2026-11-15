@@ -38,11 +38,31 @@ mock on teardown.
 
 from __future__ import annotations
 
+import logging
 import os
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _drop_leaked_file_log_handlers():
+    """Remove file log handlers a test left on the root logger.
+
+    Starting the app in a test (tests/ui/test_jarvis_app.py) attaches
+    <tmp data dir>/logs/jarvis.log.jsonl to the root logger and never takes
+    it off; a later test then saw two JSON logs (B-P2-16), and on Windows
+    the open handle keeps the temp file locked. pytest's own capture
+    handlers are not file handlers and are left alone.
+    """
+    root = logging.getLogger()
+    before = set(root.handlers)
+    yield
+    for handler in [h for h in root.handlers if h not in before]:
+        if isinstance(handler, logging.FileHandler):
+            root.removeHandler(handler)
+            handler.close()
 
 
 @pytest.fixture(autouse=True)

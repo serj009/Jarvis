@@ -192,9 +192,6 @@ $env:JARVIS_DUMP_LLM_REQUEST = "1"; .venv\Scripts\python.exe -m jarvis
 **B-P2-11. В 18:42 закончилась память. [Дом]**
 В одну секунду: `MemoryError` в wake word (openwakeword, процесс Jarvis) и HTTP 500 от Ollama. На машине 32 ГБ; во время проверки была запущена игра (~5 ГБ). Jarvis теперь раз в минуту пишет в лог `[mem] jarvis rss=… MB, system free=… MB of … MB` (`jarvis/core/memory_log.py`), а при свободной памяти меньше 1,5 ГБ — WARNING «memory is running low». Дома: после пары часов работы (и одного чтения большой страницы) посмотреть эти строки в `%APPDATA%\Jarvis\logs\jarvis.log` — растёт ли `rss`; при следующем сбое по памяти — что было перед ним.
 
-**B-P2-16. Тесты зависят от порядка: JSON-лог из теста приложения «протекает». [Работа]**
-`pytest tests/ui/test_jarvis_app.py tests/core/test_jsonl_log_path.py` — 2 падения в `test_jsonl_log_path.py`: после `test_jarvis_app.py` на корневом логгере остаётся JSON-обработчик его временной папки (`.pytest_tmp/jarvis_data9/logs/jarvis.log.jsonl`), и следующий тест видит два файла вместо одного. В полном прогоне порядок другой, и всё зелёное, поэтому это не видно. Снимать обработчики `JsonFormatter` с корневого логгера после каждого теста (фикстура в `tests/conftest.py`) или в самом тесте приложения.
-
 ### P3 — потом (после v1.0)
 
 **B-P3-5. Онлайн-интеграции с ключом не подключаются. [Работа]**
