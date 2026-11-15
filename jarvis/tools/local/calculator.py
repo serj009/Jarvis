@@ -56,6 +56,16 @@ _SAFE_OPS: dict[type, Any] = {
     ast.UAdd: operator.pos,
 }
 
+# Spoken English operators -> symbols, longest first ("multiplied by" before
+# "by" could ever matter). Used on whole words only.
+_EN_OPERATORS: tuple[tuple[str, str], ...] = (
+    ("multiplied by", "*"),
+    ("divided by", "/"),
+    ("times", "*"),
+    ("plus", "+"),
+    ("minus", "-"),
+)
+
 _SAFE_FUNCS: dict[str, Any] = {
     "sqrt": math.sqrt,
     "sin": math.sin,
@@ -482,6 +492,18 @@ class CalculatorTool:
             priority=85,
             args=lambda m: {"expression": m.group(1).strip()},
         ),
+        # EN: "how much is 15 times 37", "what is 100 divided by 4" — numbers
+        # on both sides of a spoken operator, so "what is the capital of
+        # France" still goes to the model.
+        VoicePattern(
+            regex=(
+                r"^(?:how\s+much\s+is|what(?:'s|\s+is))\s+"
+                r"(\d+(?:\.\d+)?(?:\s+(?:plus|minus|times|multiplied\s+by|divided\s+by)"
+                r"\s+\d+(?:\.\d+)?)+)$"
+            ),
+            priority=85,
+            args=lambda m: {"expression": m.group(1).strip()},
+        ),
         # EN: "calculate ...", "compute ..."
         VoicePattern(
             regex=r"^(?:calculate|compute)\s+(.+)$",
@@ -684,9 +706,13 @@ def _try_math(expr: str, lang: str) -> ToolResult | None:
 
     # Replace spoken operators
     cleaned = cleaned.replace("×", "*").replace("÷", "/")
-    cleaned = cleaned.replace("плюс", "+").replace("минус", "-")
+    cleaned = cleaned.replace("плюс", "+").replace("минус", "-").replace("мінус", "-")
     cleaned = cleaned.replace("умножить на", "*").replace("разделить на", "/")
     cleaned = cleaned.replace("помножити на", "*").replace("поділити на", "/")
+    # English words too: "calculate 2 plus 2" / "15 times 37" could not be
+    # evaluated at all. Whole words only, longest first.
+    for word, op in _EN_OPERATORS:
+        cleaned = re.sub(rf"\b{word}\b", op, cleaned, flags=re.IGNORECASE)
 
     try:
         result = safe_math_eval(cleaned)

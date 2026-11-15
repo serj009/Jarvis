@@ -96,6 +96,25 @@ def test_math_division_by_zero():
         safe_math_eval("1 / 0")
 
 
+@pytest.mark.parametrize(
+    ("expression", "value"),
+    [
+        # English operator words could not be evaluated at all ("calculate 2
+        # plus 2" -> "Could not evaluate"); Ukrainian "мінус" neither.
+        ("15 times 37", "555"),
+        ("15 multiplied by 37", "555"),
+        ("100 divided by 4", "25"),
+        ("2 plus 2", "4"),
+        ("10 minus 3", "7"),
+        ("10 мінус 3", "7"),
+    ],
+)
+async def test_spoken_operator_words(expression: str, value: str):
+    result = await CalculatorTool().execute(CalculatorArgs(expression=expression))
+    assert result.success, result.error
+    assert output_text(result).startswith(value)
+
+
 # ── percentage tests ──────────────────────────────────────────────────
 
 

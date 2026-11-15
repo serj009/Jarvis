@@ -130,6 +130,19 @@
   tool: "switch_language"
   args: {language: "auto"}
 
+# ── Калькулятор ───────────────────────────────────────────────────────
+- say: "Сколько будет 15 умножить на 37?"
+  tool: "calculator"
+  args: {expression: "15 умножить на 37"}
+- say: "Скільки буде 15 помножити на 37?"
+  tool: "calculator"
+  args: {expression: "15 помножити на 37"}
+- say: "How much is 15 times 37?"
+  tool: "calculator"
+  args: {expression: "15 times 37"}
+- say: "what is the capital of france"
+  model: true
+
 # ── Таймеры и напоминания ─────────────────────────────────────────────
 - say: "поставь таймер на 5 минут"
   tool: "set_timer"
