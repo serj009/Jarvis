@@ -479,6 +479,52 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "{name} нет в автозагрузке, сэр.",
         "uk": "{name} немає в автозавантаженні, сер.",
     },
+    # Downloads, packages and game saves (B-P1-12): paths stay for the model.
+    "downloaded": {
+        "en": "Downloaded {name}, sir: {size}.",
+        "ru": "Скачал {name}, сэр: {size}.",
+        "uk": "Завантажив {name}, сер: {size}.",
+    },
+    "packages_none": {
+        "en": "No packages found for “{query}”, sir.",
+        "ru": "Не нашёл пакетов «{query}», сэр.",
+        "uk": "Не знайшов пакетів «{query}», сер.",
+    },
+    "packages_found": {
+        "en": "Here is what I found for “{query}”, sir.",
+        "ru": "Вот что нашлось по запросу «{query}», сэр.",
+        "uk": "Ось що знайшлося за запитом «{query}», сер.",
+    },
+    "package_installed": {
+        "en": "Installed {name}, sir.",
+        "ru": "Установил {name}, сэр.",
+        "uk": "Встановив {name}, сер.",
+    },
+    "package_uninstalled": {
+        "en": "Uninstalled {name}, sir.",
+        "ru": "Удалил программу {name}, сэр.",
+        "uk": "Видалив програму {name}, сер.",
+    },
+    "game_saves_found": {
+        "en": "Found the {game} saves, sir.",
+        "ru": "Нашёл сохранения {game}, сэр.",
+        "uk": "Знайшов збереження {game}, сер.",
+    },
+    "game_saves_missing": {
+        "en": "I could not find the {game} saves, sir.",
+        "ru": "Не нашёл сохранений {game}, сэр.",
+        "uk": "Не знайшов збережень {game}, сер.",
+    },
+    "game_saves_backed_up": {
+        "en": "Backed up the {game} saves, sir: {count}.",
+        "ru": "Сделал копию сохранений {game}, сэр: {count}.",
+        "uk": "Зробив копію збережень {game}, сер: {count}.",
+    },
+    "known_games": {
+        "en": "I know where these games keep saves, sir: {names}.",
+        "ru": "Я знаю, где сохранения этих игр, сэр: {names}.",
+        "uk": "Я знаю, де збереження цих ігор, сер: {names}.",
+    },
     "file_archived": {
         "en": "Packed {name} into {archive}, sir.",
         "ru": "Упаковал {name} в {archive}, сэр.",

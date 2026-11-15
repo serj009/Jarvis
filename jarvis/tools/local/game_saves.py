@@ -16,6 +16,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import quantity, say
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -220,10 +221,12 @@ class FindGameSavesTool:
                     f"Save directory for {display} not found. "
                     f"Expected locations: {expected}"
                 ),
+                spoken=say("game_saves_missing", game=display),
             )
         return ToolResult(
             success=True,
             output=f"{display} saves found at: {path}",
+            spoken=say("game_saves_found", game=display),
         )
 
 
@@ -288,6 +291,8 @@ class BackupGameSavesTool:
                     f"{result['file_count']} files ({result['total_size_mb']} MB) "
                     f"to {result['backup_path']}, sir."
                 ),
+                spoken=say("game_saves_backed_up", game=info["display_name"],
+                           count=quantity(int(result["file_count"]), "file")),
             )
         return ToolResult(success=False, error=result.get("error", "Backup failed."))
 
@@ -310,4 +315,9 @@ class ListKnownGamesTool:
         lines = ["Known games with save locations:"]
         for info in KNOWN_GAMES.values():
             lines.append(f"  • {info['display_name']}")
-        return ToolResult(success=True, output="\n".join(lines))
+        return ToolResult(
+            success=True,
+            output="\n".join(lines),
+            spoken=say("known_games",
+                       names=", ".join(i["display_name"] for i in KNOWN_GAMES.values())),
+        )

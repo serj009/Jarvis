@@ -335,3 +335,32 @@ async def test_startup_list_names_programs_in_russian():
         spoken = await _say(_one_tool(startup_manager.ListStartupTool()), "list_startup", {},
                             "покажи автозагрузку")
     assert spoken.strip() == "В автозагрузке программ: 2, сэр: Steam, Ollama."
+
+
+async def test_package_install_in_ukrainian():
+    from jarvis.tools.local import package_manager
+
+    with patch.object(package_manager, "_run_winget", return_value={"success": True}):
+        spoken = await _say(_one_tool(package_manager.PackageInstallTool()), "package_install",
+                            {"package": "Spotify"}, "встанови spotify, будь ласка, зі стору")
+    assert spoken.strip() == "Встановив Spotify, сер."
+
+
+async def test_package_search_does_not_read_the_table_aloud():
+    from jarvis.tools.local import package_manager
+
+    table = "Name  Id  Version\nSpotify  Spotify.Spotify  1.2"
+    with patch.object(package_manager, "_run_winget",
+                      return_value={"success": True, "output": table}):
+        spoken = await _say(_one_tool(package_manager.PackageSearchTool()), "package_search",
+                            {"query": "spotify"}, "найди пакет spotify")
+    assert spoken.strip() == "Вот что нашлось по запросу «spotify», сэр."
+
+
+async def test_game_saves_found_in_russian(tmp_path):
+    from jarvis.tools.local import game_saves
+
+    with patch.object(game_saves, "_find_save_path", return_value=tmp_path):
+        spoken = await _say(_one_tool(game_saves.FindGameSavesTool()), "find_game_saves",
+                            {"game": "dark souls 2"}, "где сохранения дарк соулс 2")
+    assert spoken.strip() == "Нашёл сохранения Dark Souls II, сэр."

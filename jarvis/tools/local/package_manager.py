@@ -13,6 +13,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import say
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -118,6 +119,7 @@ class PackageSearchTool:
             return ToolResult(
                 success=True,
                 output=f"No packages found for '{args.query}', sir.",
+                spoken=say("packages_none", query=args.query),
             )
 
         # Truncate long output.
@@ -128,6 +130,8 @@ class PackageSearchTool:
         return ToolResult(
             success=True,
             output=f"Search results for '{args.query}':\n{output}",
+            # The winget table is for the model / the screen, not the voice.
+            spoken=say("packages_found", query=args.query),
         )
 
 
@@ -171,6 +175,7 @@ class PackageInstallTool:
             return ToolResult(
                 success=True,
                 output=f"Successfully installed {args.package}, sir.",
+                spoken=say("package_installed", name=args.package),
             )
         error = result.get("error") or result.get("stderr") or "Install failed."
         return ToolResult(success=False, error=error)
@@ -220,6 +225,7 @@ class PackageUninstallTool:
             return ToolResult(
                 success=True,
                 output=f"Successfully uninstalled {args.package}, sir.",
+                spoken=say("package_uninstalled", name=args.package),
             )
         error = result.get("error") or result.get("stderr") or "Uninstall failed."
         return ToolResult(success=False, error=error)

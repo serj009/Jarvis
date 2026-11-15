@@ -16,6 +16,7 @@ from urllib.parse import unquote, urlparse
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import quantity, say
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -158,5 +159,7 @@ class DownloadFileTool:
                     f"Downloaded '{result['filename']}' "
                     f"({size_mb:.1f} MB, {elapsed}s) to {result['path']}, sir."
                 ),
+                spoken=say("downloaded", name=result["filename"],
+                           size=quantity(max(size_mb, 1), "megabyte")),
             )
         return ToolResult(success=False, error=result.get("error", "Download failed."))
