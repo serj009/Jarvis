@@ -884,7 +884,12 @@
     "tool": "launch_steam_game"
   },
   "play hotel california on youtube": {
-    "kind": "none"
+    "args": {
+      "query": "hotel california"
+    },
+    "kind": "tool",
+    "spoken_response": null,
+    "tool": "play_youtube_music"
   },
   "play some jazz": {
     "kind": "none"
