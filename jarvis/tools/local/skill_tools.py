@@ -25,6 +25,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import quantity, say
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -85,7 +86,8 @@ class ListSkillsTool:
             return ToolResult(success=False, error="SkillForge is not active, sir.")
         skills = self._forge.list_skills()
         if not skills:
-            return ToolResult(success=True, output="No user-generated skills yet, sir.")
+            return ToolResult(success=True, output="No user-generated skills yet, sir.",
+                              spoken=say("skills_none"))
         lines = []
         for s in skills:
             status_icon = {
@@ -100,6 +102,8 @@ class ListSkillsTool:
         return ToolResult(
             success=True,
             output=f"Your skills ({len(skills)}):\n" + "\n".join(lines),
+            spoken=say("skills_list", n=len(skills), count=quantity(len(skills), "skill"),
+                       names=", ".join(s["name"] for s in skills)),
         )
 
 
@@ -144,7 +148,9 @@ class SkillDetailTool:
         ]
         if skill['trigger_patterns']:
             lines.append(f"  Triggers: {', '.join(skill['trigger_patterns'])}")
-        return ToolResult(success=True, output="\n".join(lines))
+        spoken = say("skill_detail", name=skill["name"], version=skill["version"],
+                     used=skill["use_count"])
+        return ToolResult(success=True, output="\n".join(lines), spoken=spoken)
 
 
 # ── 3. approve_skill ─────────────────────────────────────────────────────
@@ -183,7 +189,8 @@ class ApproveSkillTool:
             )
         latest = skills[-1]
         ok, msg = self._forge.approve_skill(latest["id"])
-        return ToolResult(success=ok, output=msg if ok else None, error=msg if not ok else None)
+        return ToolResult(success=ok, output=msg if ok else None, error=msg if not ok else None,
+                          spoken=say("skill_approved", name=latest["name"]) if ok else None)
 
 
 # ── 4. reject_skill ──────────────────────────────────────────────────────
@@ -218,7 +225,8 @@ class RejectSkillTool:
             return ToolResult(success=False, error="No skills pending approval, sir.")
         latest = skills[-1]
         ok, msg = self._forge.reject_skill(latest["id"], args.reason)
-        return ToolResult(success=ok, output=msg if ok else None, error=msg if not ok else None)
+        return ToolResult(success=ok, output=msg if ok else None, error=msg if not ok else None,
+                          spoken=say("skill_rejected", name=latest["name"]) if ok else None)
 
 
 # ── 5. delete_skill ──────────────────────────────────────────────────────
@@ -249,7 +257,8 @@ class DeleteSkillTool:
         if self._forge is None:
             return ToolResult(success=False, error="SkillForge is not active, sir.")
         ok, msg = self._forge.delete_skill(args.name)
-        return ToolResult(success=ok, output=msg if ok else None, error=msg if not ok else None)
+        return ToolResult(success=ok, output=msg if ok else None, error=msg if not ok else None,
+                          spoken=say("skill_deleted", name=args.name) if ok else None)
 
 
 # ── 6. disable_all_skills ────────────────────────────────────────────────
@@ -280,7 +289,8 @@ class DisableAllSkillsTool:
         if self._forge is None:
             return ToolResult(success=False, error="SkillForge is not active, sir.")
         ok, msg = self._forge.disable_all_skills()
-        return ToolResult(success=ok, output=msg if ok else None, error=msg if not ok else None)
+        return ToolResult(success=ok, output=msg if ok else None, error=msg if not ok else None,
+                          spoken=say("skills_disabled") if ok else None)
 
 
 # ── 7. analyze_skills ────────────────────────────────────────────────────
@@ -317,6 +327,7 @@ class AnalyzeSkillsTool:
             return ToolResult(
                 success=True,
                 output="Analysis complete. No patterns or issues found, sir.",
+                spoken=say("skills_analysis_clean"),
             )
         lines = [f"Analysis: {report.summary}"]
         if report.needs_detected:
@@ -331,7 +342,12 @@ class AnalyzeSkillsTool:
             lines.append("\nInefficient skills (>20% failure rate):")
             for name in report.inefficient_skills[:5]:
                 lines.append(f"  • {name}")
-        return ToolResult(success=True, output="\n".join(lines))
+        return ToolResult(
+            success=True,
+            output="\n".join(lines),
+            spoken=say("skills_analysis", needs=len(report.needs_detected),
+                       stale=len(report.stale_skills), bad=len(report.inefficient_skills)),
+        )
 
 
 # ── 8. improve_skill ─────────────────────────────────────────────────────
@@ -382,6 +398,7 @@ class ImproveSkillTool:
                 f"Skill '{args.name}' marked for improvement, sir. "
                 f"I'll generate an update during the next idle window."
             ),
+            spoken=say("skill_improving", name=args.name),
         )
 
 
@@ -431,4 +448,9 @@ class SkillHistoryTool:
                 )
         else:
             lines.append("\nNo version history yet (only v1).")
-        return ToolResult(success=True, output="\n".join(lines))
+        return ToolResult(
+            success=True,
+            output="\n".join(lines),
+            spoken=say("skill_history", name=skill["name"], version=skill["version"],
+                       n=len(history)),
+        )

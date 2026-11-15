@@ -440,3 +440,31 @@ async def test_protocol_list_in_english_counts_with_quantity():
     spoken = await _say(_one_tool(ListProtocolsTool(engine)), "list_protocols", {},
                         "list my protocols")
     assert spoken.strip() == "1 protocol, sir: party."
+
+
+async def test_skill_list_names_skills_in_ukrainian():
+    from unittest.mock import MagicMock
+
+    from jarvis.tools.local.skill_tools import ListSkillsTool
+
+    forge = MagicMock()
+    forge.list_skills.return_value = [
+        {"name": "ранок", "version": 2, "type": "macro", "status": "approved",
+         "use_count": 5, "failure_count": 0},
+    ]
+    spoken = await _say(_one_tool(ListSkillsTool(forge=forge)), "list_skills", {},
+                        "які в мене навички")
+    assert spoken.strip() == "Навичок: 1, сер: ранок."
+
+
+async def test_approving_a_skill_names_it_in_russian():
+    from unittest.mock import MagicMock
+
+    from jarvis.tools.local.skill_tools import ApproveSkillTool
+
+    forge = MagicMock()
+    forge.list_skills.return_value = [{"id": 7, "name": "утро"}]
+    forge.approve_skill.return_value = (True, "Skill 'утро' approved and activated.")
+    spoken = await _say(_one_tool(ApproveSkillTool(forge=forge)), "approve_skill", {},
+                        "одобри навык")
+    assert spoken.strip() == "Одобрил навык «утро», сэр."

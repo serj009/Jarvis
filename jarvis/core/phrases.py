@@ -700,6 +700,65 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Выключил протокол «{name}», сэр.",
         "uk": "Вимкнув протокол «{name}», сер.",
     },
+    # Skills (SkillForge, B-P1-12).
+    "skills_none": {
+        "en": "There are no skills of yours yet, sir.",
+        "ru": "Своих навыков пока нет, сэр.",
+        "uk": "Власних навичок поки немає, сер.",
+    },
+    "skills_list": {
+        "en": "{count}, sir: {names}.",
+        "ru": "Навыков: {n}, сэр: {names}.",
+        "uk": "Навичок: {n}, сер: {names}.",
+    },
+    "skill_detail": {
+        "en": "{name}, version {version}, sir: run {used} times.",
+        "ru": "Навык «{name}», версия {version}, сэр. Запусков: {used}.",
+        "uk": "Навичка «{name}», версія {version}, сер. Запусків: {used}.",
+    },
+    "skill_approved": {
+        "en": "Approved the “{name}” skill, sir.",
+        "ru": "Одобрил навык «{name}», сэр.",
+        "uk": "Схвалив навичку «{name}», сер.",
+    },
+    "skill_rejected": {
+        "en": "Rejected the “{name}” skill, sir.",
+        "ru": "Отклонил навык «{name}», сэр.",
+        "uk": "Відхилив навичку «{name}», сер.",
+    },
+    "skill_deleted": {
+        "en": "Deleted the “{name}” skill, sir.",
+        "ru": "Удалил навык «{name}», сэр.",
+        "uk": "Видалив навичку «{name}», сер.",
+    },
+    "skills_disabled": {
+        "en": "All your skills are off, sir.",
+        "ru": "Выключил все свои навыки, сэр.",
+        "uk": "Вимкнув усі власні навички, сер.",
+    },
+    "skills_analysis_clean": {
+        "en": "I checked the skills, sir: nothing to fix.",
+        "ru": "Проверил навыки, сэр: исправлять нечего.",
+        "uk": "Перевірив навички, сер: виправляти нічого.",
+    },
+    "skills_analysis": {
+        "en": "I checked the skills, sir: {needs} ideas for new ones, {stale} unused, "
+              "{bad} failing often.",
+        "ru": "Проверил навыки, сэр. Идей для новых: {needs}, давно не используются: {stale}, "
+              "часто ошибаются: {bad}.",
+        "uk": "Перевірив навички, сер. Ідей для нових: {needs}, давно не використовуються: "
+              "{stale}, часто помиляються: {bad}.",
+    },
+    "skill_improving": {
+        "en": "I'll improve the “{name}” skill when I'm idle, sir.",
+        "ru": "Улучшу навык «{name}», когда буду свободен, сэр.",
+        "uk": "Покращу навичку «{name}», коли буду вільний, сер.",
+    },
+    "skill_history": {
+        "en": "{name}, version {version}, sir: {n} changes in its history.",
+        "ru": "Навык «{name}», версия {version}, сэр. Изменений в истории: {n}.",
+        "uk": "Навичка «{name}», версія {version}, сер. Змін в історії: {n}.",
+    },
     "file_archived": {
         "en": "Packed {name} into {archive}, sir.",
         "ru": "Упаковал {name} в {archive}, сэр.",
@@ -1320,6 +1379,9 @@ _UNITS: dict[str, dict[Lang, tuple[str, str, str]]] = {
     "program": {"ru": ("программа", "программы", "программ"),
                 "uk": ("програма", "програми", "програм"),
                 "en": ("program", "programs", "programs")},
+    "skill": {"ru": ("навык", "навыка", "навыков"),
+              "uk": ("навичка", "навички", "навичок"),
+              "en": ("skill", "skills", "skills")},
     "step": {"ru": ("шаг", "шага", "шагов"),
              "uk": ("крок", "кроки", "кроків"),
              "en": ("step", "steps", "steps")},
