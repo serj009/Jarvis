@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+from jarvis.llm.ollama_client import DEFAULT_NUM_CTX
+
 _ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -26,6 +28,15 @@ def test_project_dir_defaults_to_the_scripts_own_folder(name: str):
     m = re.search(r"\[string\]\s*\$ProjectDir\s*=\s*([^,\r\n]+)", _script(name))
     assert m is not None
     assert m.group(1).strip() == "$PSScriptRoot"
+
+
+def test_warm_up_context_matches_the_client():
+    # A warm-up with another num_ctx makes Ollama reload the model on
+    # Jarvis' first request; the script had 8192 against the client's 16384.
+    script = _script("start-jarvis.ps1")
+    m = re.search(r"\[int\]\s*\$DefaultNumCtx\s*=\s*(\d+)", script)
+    assert m is not None and int(m.group(1)) == DEFAULT_NUM_CTX
+    assert "llm.num_ctx" in script  # the config value wins when present
 
 
 def test_does_not_race_the_ollama_tray_app():

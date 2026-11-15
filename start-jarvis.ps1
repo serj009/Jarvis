@@ -32,10 +32,13 @@ param(
     [string]$ConfigPath  = (Join-Path $env:APPDATA 'Jarvis\config.json'),
     # Used only if config.json is missing/unreadable or has no llm.model.
     [string]$FallbackModel = 'qwen3:8b',
-    # Must match DEFAULT_NUM_CTX in jarvis/llm/ollama_client.py: a warm-up
-    # with a different context size makes Ollama reload the model on
-    # Jarvis' first real request.
-    [int]   $NumCtx = 8192,
+    # Must match what Jarvis sends: a warm-up with a different context size
+    # makes Ollama reload the model on Jarvis' first real request. 0 = read
+    # llm.num_ctx from config.json, else DEFAULT_NUM_CTX of
+    # jarvis/llm/ollama_client.py (16384). A hard-coded 8192 here did not
+    # match the 16384 Jarvis uses, so the warm-up was wasted.
+    [int]   $NumCtx = 0,
+    [int]   $DefaultNumCtx = 16384,
     [int]   $ReadyTimeoutSec = 30,
     # How long to wait for the Ollama tray app's own server at logon.
     [int]   $AppStartWaitSec = 90
@@ -93,6 +96,18 @@ if ($Model) {
     }
 }
 Write-Log ("Model      = {0}" -f $Model)
+
+# --- Resolve context size: -NumCtx > config.json llm.num_ctx > default -----
+if ($NumCtx -le 0) {
+    $NumCtx = $DefaultNumCtx
+    try {
+        $cfgCtx = (Get-Content -Path $ConfigPath -Raw -Encoding UTF8 -ErrorAction Stop | ConvertFrom-Json).llm.num_ctx
+        if ($cfgCtx -and [int]$cfgCtx -gt 0) { $NumCtx = [int]$cfgCtx }
+    } catch {
+        Write-Log ("Cannot read num_ctx from {0}; using {1}." -f $ConfigPath, $NumCtx) 'WARN'
+    }
+}
+Write-Log ("NumCtx     = {0}" -f $NumCtx)
 
 # --- Sanity checks ---------------------------------------------------------
 if (-not (Test-Path $ProjectDir))  { Fail ("Project dir not found: {0}"  -f $ProjectDir) }
