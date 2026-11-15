@@ -32,6 +32,7 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import say
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -83,7 +84,8 @@ class OpenAgentPanelTool:
     async def execute(self, args: Any) -> ToolResult:
         if self._on_open is not None:
             self._on_open()
-        return ToolResult(success=True, output="Agent panel opened.")
+        return ToolResult(success=True, output="Agent panel opened.",
+                          spoken=say("agent_panel_opened"))
 
 
 class CloseAgentPanelTool:
@@ -115,7 +117,8 @@ class CloseAgentPanelTool:
     async def execute(self, args: Any) -> ToolResult:
         if self._on_close is not None:
             self._on_close()
-        return ToolResult(success=True, output="Agent panel closed.")
+        return ToolResult(success=True, output="Agent panel closed.",
+                          spoken=say("agent_panel_closed"))
 
 
 # ---------------------------------------------------------------------------

@@ -394,3 +394,21 @@ async def test_news_reads_three_headlines_without_links():
                             {"count": 5}, "какие новости")
     assert spoken.strip() == "Вот новости, сэр: Заголовок 0; Заголовок 1; Заголовок 2."
     assert "https://" not in spoken
+
+
+async def test_quiet_mode_is_confirmed_in_russian():
+    from unittest.mock import MagicMock
+
+    from jarvis.tools.local.proactive_tools import SetInitiativeLevelTool
+
+    spoken = await _say(_one_tool(SetInitiativeLevelTool(engine=MagicMock())), "set_initiative",
+                        {"direction": "silent"}, "не мешай мне пока")
+    assert spoken.strip() == "Буду молчать, пока не спросите, сэр."
+
+
+async def test_end_of_summary_in_ukrainian():
+    from jarvis.tools.local.research import ReadMoreTool
+
+    spoken = await _say(_one_tool(ReadMoreTool(get_next=lambda: None)), "read_more", {},
+                        "читай далі")
+    assert spoken.strip() == "Це кінець зведення, сер."

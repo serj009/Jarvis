@@ -602,6 +602,63 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Сменил мастер-пароль, сэр.",
         "uk": "Змінив майстер-пароль, сер.",
     },
+    # Proactivity, agent and research panels (B-P1-12).
+    "initiative_up": {
+        "en": "I'll be more active, sir.",
+        "ru": "Буду активнее, сэр.",
+        "uk": "Буду активнішим, сер.",
+    },
+    "initiative_silent": {
+        "en": "I'll stay quiet until you ask, sir.",
+        "ru": "Буду молчать, пока не спросите, сэр.",
+        "uk": "Мовчатиму, доки не спитаєте, сер.",
+    },
+    "initiative_down": {
+        "en": "Understood, sir. I'll suggest less.",
+        "ru": "Понял, сэр. Буду предлагать реже.",
+        "uk": "Зрозумів, сер. Пропонуватиму рідше.",
+    },
+    "initiative_status": {
+        "en": "This session I made {n} suggestions, sir: {accepted} accepted, "
+              "{dismissed} dismissed.",
+        "ru": "За эту сессию предложений: {n}, сэр. Принято {accepted}, отклонено {dismissed}.",
+        "uk": "За цю сесію пропозицій: {n}, сер. Прийнято {accepted}, відхилено {dismissed}.",
+    },
+    "dismiss_forever": {
+        "en": "I won't bring that up again, sir.",
+        "ru": "Больше не буду об этом напоминать, сэр.",
+        "uk": "Більше не нагадуватиму про це, сер.",
+    },
+    "dismiss_now": {
+        "en": "Alright, not now, sir.",
+        "ru": "Хорошо, не сейчас, сэр.",
+        "uk": "Добре, не зараз, сер.",
+    },
+    "agent_panel_opened": {
+        "en": "Agent panel opened, sir.",
+        "ru": "Открыл панель агента, сэр.",
+        "uk": "Відкрив панель агента, сер.",
+    },
+    "agent_panel_closed": {
+        "en": "Agent panel closed, sir.",
+        "ru": "Закрыл панель агента, сэр.",
+        "uk": "Закрив панель агента, сер.",
+    },
+    "research_panel_closed": {
+        "en": "Research panel closed, sir.",
+        "ru": "Закрыл панель исследования, сэр.",
+        "uk": "Закрив панель дослідження, сер.",
+    },
+    "summary_end": {
+        "en": "That is the end of the summary, sir.",
+        "ru": "Это конец сводки, сэр.",
+        "uk": "Це кінець зведення, сер.",
+    },
+    "copied_to_clipboard": {
+        "en": "Copied to your clipboard, sir.",
+        "ru": "Скопировал в буфер обмена, сэр.",
+        "uk": "Скопіював у буфер обміну, сер.",
+    },
     "file_archived": {
         "en": "Packed {name} into {archive}, sir.",
         "ru": "Упаковал {name} в {archive}, сэр.",

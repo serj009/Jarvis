@@ -18,6 +18,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import say
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -100,13 +101,16 @@ class SetInitiativeLevelTool:
         if direction == "up":
             lvl = self._engine.raise_level()
             msg = f"I'll be more active, sir. Initiative: {lvl.value}."
+            key = "initiative_up"
         elif direction == "silent":
             self._engine.set_level(InitiativeLevel.SILENT)
             msg = "I'll stay quiet until you ask, sir."
+            key = "initiative_silent"
         else:  # down
             lvl = self._engine.lower_level()
             msg = f"Understood, sir. Initiative lowered to {lvl.value}."
-        return ToolResult(success=True, output=msg)
+            key = "initiative_down"
+        return ToolResult(success=True, output=msg, spoken=say(key))
 
 
 class ProactiveStatusTool:
@@ -144,6 +148,8 @@ class ProactiveStatusTool:
                 f"{st['suggested']} suggestions — {st['accepted']} accepted, "
                 f"{st['dismissed']} dismissed."
             ),
+            spoken=say("initiative_status", n=st["suggested"], accepted=st["accepted"],
+                       dismissed=st["dismissed"]),
         )
 
 
@@ -191,6 +197,8 @@ class DismissProactiveTool:
         self._engine.record_dismiss(key)
         if args.scope.strip().lower() == "forever":
             msg = "I won't bring that up again, sir."
+            key = "dismiss_forever"
         else:
             msg = "Alright, not now, sir."
-        return ToolResult(success=True, output=msg)
+            key = "dismiss_now"
+        return ToolResult(success=True, output=msg, spoken=say(key))

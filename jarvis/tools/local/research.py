@@ -15,6 +15,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import say
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -140,7 +141,8 @@ class CloseResearchTool:
 
     async def execute(self, args: EmptyArgs) -> ToolResult:  # noqa: ARG002
         self._close()
-        return ToolResult(success=True, output="Research panel closed.")
+        return ToolResult(success=True, output="Research panel closed.",
+                          spoken=say("research_panel_closed"))
 
 
 class ReadMoreTool:
@@ -170,6 +172,7 @@ class ReadMoreTool:
             return ToolResult(
                 success=True,
                 output="That is the end of the summary, sir.",
+                spoken=say("summary_end"),
             )
         return ToolResult(success=True, output=text)
 
@@ -194,4 +197,5 @@ class CopyResearchTool:
 
     async def execute(self, args: EmptyArgs) -> ToolResult:  # noqa: ARG002
         self._copy()
-        return ToolResult(success=True, output="Copied to your clipboard, sir.")
+        return ToolResult(success=True, output="Copied to your clipboard, sir.",
+                          spoken=say("copied_to_clipboard"))
