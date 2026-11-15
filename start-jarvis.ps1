@@ -22,7 +22,8 @@
 
 [CmdletBinding()]
 param(
-    [string]$ProjectDir  = 'C:\Users\serj\Jarvis',
+    # The folder this script is in (see register-task.ps1 for why).
+    [string]$ProjectDir  = $PSScriptRoot,
     [string]$OllamaApp   = 'C:\Users\serj\AppData\Local\Programs\Ollama\ollama app.exe',
     [string]$OllamaApi   = 'http://127.0.0.1:11434',
     # Empty = read llm.model from Jarvis config.json (single source of truth).

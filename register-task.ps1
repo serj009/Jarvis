@@ -28,7 +28,10 @@
 [CmdletBinding()]
 param(
     [string]$TaskName   = 'JarvisAutostart',
-    [string]$ProjectDir = 'C:\Users\serj\Jarvis',
+    # The folder this script is in. A hard-coded C:\Users\serj\Jarvis kept
+    # the task pointed at an old copy whose code could not read the newer
+    # config ("schema_version 41 is newer than supported 22").
+    [string]$ProjectDir = $PSScriptRoot,
     [string]$ScriptName = 'start-jarvis.ps1'
 )
 
