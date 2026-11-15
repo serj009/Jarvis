@@ -19,6 +19,7 @@ from typing import Any, ClassVar
 from pydantic import BaseModel, Field
 
 from jarvis.browser.browser_controller import UnsafeUrlError, _normalise_url
+from jarvis.core.phrases import quantity, say
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -155,6 +156,7 @@ class CloseOtherTabsTool:
         return ToolResult(
             success=True,
             output=f"Closed {closed} tab(s). Only the current tab remains.",
+            spoken=say("tabs_closed_others", n=closed, count=quantity(closed, "tab")),
         )
 
 
@@ -209,6 +211,7 @@ class CountTabsTool:
         return ToolResult(
             success=True,
             output=f"You have {count} tab(s) open, sir.",
+            spoken=say("tabs_open", n=count, count=quantity(count, "tab")),
         )
 
 
@@ -273,6 +276,8 @@ class FindTabTool:
                 return ToolResult(
                     success=True,
                     output=f"Found and switched to tab: \"{title}\" ({url})",
+                    spoken=(say("tab_switched", title=title) if title
+                            else say("tab_switched_unnamed")),
                 )
         # Not found — switch back
         driver.switch_to.window(original)
@@ -346,4 +351,5 @@ class DuplicateTabTool:
         return ToolResult(
             success=True,
             output=f"Duplicated tab: {url}",
+            spoken=say("tab_duplicated"),
         )

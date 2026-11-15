@@ -250,3 +250,32 @@ async def test_creating_a_folder_answers_in_russian(tmp_path):
                         {"action": "mkdir", "path": str(tmp_path / "проекты")},
                         "создай папку проекты")
     assert spoken.strip() == "Создал папку проекты, сэр."
+
+
+async def test_bookmarks_list_names_only_in_russian(tmp_path):
+    from jarvis.tools.local import bookmarks
+
+    saved = [{"name": "Почта", "url": "https://mail.example"},
+             {"name": "Новости", "url": "https://news.example"}]
+    with patch.object(bookmarks, "_load_bookmarks", return_value=saved):
+        spoken = await _say(_one_tool(bookmarks.BookmarksTool()), "bookmarks",
+                            {"action": "list"}, "покажи мои закладки")
+    assert spoken.strip() == "Закладок: 2, сэр: Почта, Новости."
+
+
+def test_tab_count_in_ukrainian_and_english():
+    from jarvis.tools.local.browser_tabs import BrowserTabsTool
+
+    token = current_user_transcription.set("скільки вкладок відкрито")
+    try:
+        assert BrowserTabsTool._said("list_tabs", {"count": 3}) == "Вкладок відкрито: 3, сер."
+    finally:
+        current_user_transcription.reset(token)
+    token = current_user_transcription.set("how many tabs are open")
+    try:
+        assert BrowserTabsTool._said("list_tabs", {"count": 1}) == "1 tab open, sir."
+        assert BrowserTabsTool._said("close_tab", {"remaining_tabs": 3}) == (
+            "Tab closed, sir. 3 tabs left."
+        )
+    finally:
+        current_user_transcription.reset(token)

@@ -343,6 +343,64 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Создал {name}, сэр.",
         "uk": "Створив {name}, сер.",
     },
+    # Browser tabs and bookmarks (B-P1-12). ru / uk put the number after a
+    # colon ("Вкладок открыто: 3") so no case agreement is needed; en uses
+    # phrases.quantity ("3 tabs").
+    "tab_opened": {
+        "en": "Opened a new tab, sir.",
+        "ru": "Открыл новую вкладку, сэр.",
+        "uk": "Відкрив нову вкладку, сер.",
+    },
+    "tab_closed": {
+        "en": "Tab closed, sir. {count} left.",
+        "ru": "Закрыл вкладку, сэр. Осталось вкладок: {n}.",
+        "uk": "Закрив вкладку, сер. Залишилось вкладок: {n}.",
+    },
+    "tab_switched": {
+        "en": "Switched to “{title}”, sir.",
+        "ru": "Переключился на «{title}», сэр.",
+        "uk": "Перемкнувся на «{title}», сер.",
+    },
+    "tab_switched_unnamed": {
+        "en": "Switched tab, sir.",
+        "ru": "Переключил вкладку, сэр.",
+        "uk": "Перемкнув вкладку, сер.",
+    },
+    "tabs_open": {
+        "en": "{count} open, sir.",
+        "ru": "Вкладок открыто: {n}, сэр.",
+        "uk": "Вкладок відкрито: {n}, сер.",
+    },
+    "tabs_closed_others": {
+        "en": "Closed {count}, sir. Only this one is left.",
+        "ru": "Закрыл вкладок: {n}, сэр. Осталась только текущая.",
+        "uk": "Закрив вкладок: {n}, сер. Лишилася тільки поточна.",
+    },
+    "tab_duplicated": {
+        "en": "Duplicated the tab, sir.",
+        "ru": "Продублировал вкладку, сэр.",
+        "uk": "Продублював вкладку, сер.",
+    },
+    "bookmark_saved": {
+        "en": "Bookmarked “{name}”, sir.",
+        "ru": "Добавил закладку «{name}», сэр.",
+        "uk": "Додав закладку «{name}», сер.",
+    },
+    "bookmarks_none": {
+        "en": "No bookmarks yet, sir.",
+        "ru": "Закладок пока нет, сэр.",
+        "uk": "Закладок поки немає, сер.",
+    },
+    "bookmarks_list": {
+        "en": "{count}, sir: {names}.",
+        "ru": "Закладок: {n}, сэр: {names}.",
+        "uk": "Закладок: {n}, сер: {names}.",
+    },
+    "bookmark_deleted": {
+        "en": "Deleted bookmark “{name}”, sir.",
+        "ru": "Удалил закладку «{name}», сэр.",
+        "uk": "Видалив закладку «{name}», сер.",
+    },
     "file_archived": {
         "en": "Packed {name} into {archive}, sir.",
         "ru": "Упаковал {name} в {archive}, сэр.",
@@ -960,6 +1018,12 @@ _UNITS: dict[str, dict[Lang, tuple[str, str, str]]] = {
     "file": {"ru": ("файл", "файла", "файлов"),
              "uk": ("файл", "файли", "файлів"),
              "en": ("file", "files", "files")},
+    "tab": {"ru": ("вкладка", "вкладки", "вкладок"),
+            "uk": ("вкладка", "вкладки", "вкладок"),
+            "en": ("tab", "tabs", "tabs")},
+    "bookmark": {"ru": ("закладка", "закладки", "закладок"),
+                 "uk": ("закладка", "закладки", "закладок"),
+                 "en": ("bookmark", "bookmarks", "bookmarks")},
     "item": {"ru": ("запись", "записи", "записей"),
              "uk": ("запис", "записи", "записів"),
              "en": ("item", "items", "items")},

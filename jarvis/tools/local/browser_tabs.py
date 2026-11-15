@@ -16,6 +16,7 @@ from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import quantity, say
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -171,7 +172,11 @@ class BrowserTabsTool:
                 success=False,
                 error=result.get("error", "Unknown browser error"),
             )
-        return ToolResult(success=True, output=self._spoken(action, result))
+        return ToolResult(
+            success=True,
+            output=self._spoken(action, result),
+            spoken=self._said(action, result),
+        )
 
     @staticmethod
     def _dispatch(
@@ -193,6 +198,24 @@ class BrowserTabsTool:
         if action == "list_tabs":
             return bc.list_tabs()
         return {"success": False, "error": f"Unknown action {action!r}"}
+
+    @staticmethod
+    def _said(action: str, result: dict[str, Any]) -> str | None:
+        """What the voice says, in the request's language (B-P1-12)."""
+        if action == "new_tab":
+            return say("tab_opened")
+        if action == "close_tab":
+            left = result.get("remaining_tabs")
+            if isinstance(left, int):
+                return say("tab_closed", n=left, count=quantity(left, "tab"))
+            return None
+        if action == "switch_tab":
+            title = result.get("title", "")
+            return say("tab_switched", title=title) if title else say("tab_switched_unnamed")
+        if action == "list_tabs":
+            n = int(result.get("count", 0))
+            return say("tabs_open", n=n, count=quantity(n, "tab"))
+        return None
 
     @staticmethod
     def _spoken(action: str, result: dict[str, Any]) -> str:

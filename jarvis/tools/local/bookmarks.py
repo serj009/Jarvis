@@ -14,6 +14,7 @@ from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import opening_phrase, quantity, say
 from jarvis.platform.encrypted_store import EncryptedJsonStore
 from jarvis.tools.registry import ToolResult, VoicePattern
 
@@ -213,17 +214,22 @@ class BookmarksTool:
         return ToolResult(
             success=True,
             output=f"Bookmarked \"{name}\", sir.",
+            spoken=say("bookmark_saved", name=name),
         )
 
     @staticmethod
     def _list() -> ToolResult:
         bm = _load_bookmarks()
         if not bm:
-            return ToolResult(success=True, output="No bookmarks saved yet, sir.")
+            return ToolResult(success=True, output="No bookmarks saved yet, sir.",
+                              spoken=say("bookmarks_none"))
         lines = [f"{i+1}. {b['name']} — {b['url']}" for i, b in enumerate(bm)]
         return ToolResult(
             success=True,
             output=f"{len(bm)} bookmark(s):\n" + "\n".join(lines),
+            # Names only: the URLs are for the model, not for the voice.
+            spoken=say("bookmarks_list", n=len(bm), count=quantity(len(bm), "bookmark"),
+                       names=", ".join(b["name"] for b in bm)),
         )
 
     async def _open(self, name: str) -> ToolResult:
@@ -244,6 +250,7 @@ class BookmarksTool:
         return ToolResult(
             success=True,
             output=f"Opening bookmark \"{match['name']}\", sir.",
+            spoken=opening_phrase(match["name"]),
         )
 
     @staticmethod
@@ -260,4 +267,5 @@ class BookmarksTool:
         return ToolResult(
             success=True,
             output=f"Deleted bookmark \"{name}\", sir.",
+            spoken=say("bookmark_deleted", name=name),
         )
