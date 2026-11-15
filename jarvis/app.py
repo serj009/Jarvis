@@ -1656,6 +1656,13 @@ async def _audio_main(
         _proactive_task.add_done_callback(_task_exception_handler)
         log.info("proactive engine started")
 
+    # One memory line a minute (B-P2-11: an out-of-memory moment left no
+    # trace of who used the RAM).
+    from jarvis.core import memory_log
+
+    _memory_log_task = asyncio.create_task(memory_log.run(), name="memory-log")
+    _memory_log_task.add_done_callback(_task_exception_handler)
+
     log.info('ready — say "hey jarvis".')
 
     # Pre-warm the other languages' Piper voices in the background so the
@@ -1744,6 +1751,12 @@ async def _audio_main(
         _proactive_task.cancel()
         try:
             await _proactive_task
+        except asyncio.CancelledError:
+            pass
+    if not _memory_log_task.done():
+        _memory_log_task.cancel()
+        try:
+            await _memory_log_task
         except asyncio.CancelledError:
             pass
     if reminder_store is not None:
