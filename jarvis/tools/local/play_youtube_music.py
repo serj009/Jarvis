@@ -100,6 +100,41 @@ class PlayYoutubeMusicTool:
             priority=100,
             args=lambda m: {"query": m.group(1)},
         ),
+        # "Включи на ютубе lofi hip hop" / "включи lofi на ютубе" (from the
+        # owner's control phrases): no music keyword, but "на ютубе" names
+        # the place, so it is not "включи хром". A bare "включи ютуб" (open
+        # the site) has no query and does not match.
+        VoicePattern(
+            regex=(
+                r"^(?:поставь|включи|запусти|воспроизведи)\s+"
+                r"на\s+(?:ютубе|youtube)\s+(.+)$"
+            ),
+            priority=100,
+            args=lambda m: {"query": m.group(1)},
+        ),
+        VoicePattern(
+            regex=(
+                r"^(?:поставь|включи|воспроизведи)\s+(.+?)\s+"
+                r"на\s+(?:ютубе|youtube)$"
+            ),
+            priority=100,
+            args=lambda m: {"query": m.group(1)},
+        ),
+        VoicePattern(
+            regex=r"^(?:постав|увімкни|запусти)\s+на\s+(?:ютубі|youtube)\s+(.+)$",
+            priority=100,
+            args=lambda m: {"query": m.group(1)},
+        ),
+        VoicePattern(
+            regex=r"^(?:постав|увімкни)\s+(.+?)\s+на\s+(?:ютубі|youtube)$",
+            priority=100,
+            args=lambda m: {"query": m.group(1)},
+        ),
+        VoicePattern(
+            regex=r"^play\s+(.+?)\s+on\s+youtube$",
+            priority=100,
+            args=lambda m: {"query": m.group(1)},
+        ),
     )
 
     async def execute(self, args: PlayYoutubeMusicArgs) -> ToolResult:

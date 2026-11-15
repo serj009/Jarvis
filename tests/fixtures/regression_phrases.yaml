@@ -253,6 +253,24 @@
   tool: "media_control"
   args: {action: "next_track"}
 
+- say: "включи музыку джаз"
+  tool: "play_youtube_music"
+  args: {query: "джаз"}
+- say: "Включи на ютубе Lofi hip hop"
+  tool: "play_youtube_music"
+  args: {query: "lofi hip hop"}
+- say: "включи lofi hip hop на ютубе"
+  tool: "play_youtube_music"
+  args: {query: "lofi hip hop"}
+- say: "увімкни на ютубі джаз"
+  tool: "play_youtube_music"
+  args: {query: "джаз"}
+- say: "play lofi hip hop on youtube"
+  tool: "play_youtube_music"
+  args: {query: "lofi hip hop"}
+- say: "включи ютуб"
+  model: true
+
 # ── Экран и окна ──────────────────────────────────────────────────────
 - say: "сделай скриншот"
   tool: "screenshot"
