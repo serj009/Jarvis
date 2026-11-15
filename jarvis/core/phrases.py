@@ -759,6 +759,37 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Навык «{name}», версия {version}, сэр. Изменений в истории: {n}.",
         "uk": "Навичка «{name}», версія {version}, сер. Змін в історії: {n}.",
     },
+    # Deep research (B-P1-12); the reports themselves come from the model.
+    "deep_research_pausing": {
+        "en": "Pausing deep research after the current step, sir.",
+        "ru": "Поставлю глубокое исследование на паузу после текущего шага, сэр.",
+        "uk": "Поставлю глибоке дослідження на паузу після поточного кроку, сер.",
+    },
+    "deep_research_resumed": {
+        "en": "Resumed deep research, sir. The panel shows the progress.",
+        "ru": "Продолжил глубокое исследование, сэр. Ход — на панели.",
+        "uk": "Продовжив глибоке дослідження, сер. Перебіг — на панелі.",
+    },
+    "deep_research_closed": {
+        "en": "Deep research panel closed, sir.",
+        "ru": "Закрыл панель глубокого исследования, сэр.",
+        "uk": "Закрив панель глибокого дослідження, сер.",
+    },
+    "deep_research_deleted": {
+        "en": "Deleted the deep research on {topic}, sir.",
+        "ru": "Удалил исследование «{topic}», сэр.",
+        "uk": "Видалив дослідження «{topic}», сер.",
+    },
+    "deep_research_none": {
+        "en": "There is no deep research to delete, sir.",
+        "ru": "Удалять нечего: исследований нет, сэр.",
+        "uk": "Видаляти нічого: досліджень немає, сер.",
+    },
+    "deep_research_deleted_all": {
+        "en": "Deleted {count}, sir.",
+        "ru": "Удалил исследований: {n}, сэр.",
+        "uk": "Видалив досліджень: {n}, сер.",
+    },
     "file_archived": {
         "en": "Packed {name} into {archive}, sir.",
         "ru": "Упаковал {name} в {archive}, сэр.",
@@ -1379,6 +1410,10 @@ _UNITS: dict[str, dict[Lang, tuple[str, str, str]]] = {
     "program": {"ru": ("программа", "программы", "программ"),
                 "uk": ("програма", "програми", "програм"),
                 "en": ("program", "programs", "programs")},
+    "research": {"ru": ("исследование", "исследования", "исследований"),
+                 "uk": ("дослідження", "дослідження", "досліджень"),
+                 "en": ("deep research session", "deep research sessions",
+                        "deep research sessions")},
     "skill": {"ru": ("навык", "навыка", "навыков"),
               "uk": ("навичка", "навички", "навичок"),
               "en": ("skill", "skills", "skills")},

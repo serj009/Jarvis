@@ -10,6 +10,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import quantity, say
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -132,6 +133,7 @@ class PauseDeepResearchTool:
         return ToolResult(
             success=True,
             output="Pausing deep research after the current step, sir.",
+            spoken=say("deep_research_pausing"),
         )
 
 
@@ -174,6 +176,7 @@ class ResumeDeepResearchTool:
             return ToolResult(
                 success=True,
                 output="Resumed deep research, sir. Check the panel for progress.",
+                spoken=say("deep_research_resumed"),
             )
 
         if isinstance(result, Exception):
@@ -204,7 +207,8 @@ class CloseDeepResearchTool:
 
     async def execute(self, args: EmptyArgs) -> ToolResult:  # noqa: ARG002
         self._close()
-        return ToolResult(success=True, output="Deep research panel closed.")
+        return ToolResult(success=True, output="Deep research panel closed.",
+                          spoken=say("deep_research_closed"))
 
 
 class DeleteDeepResearchArgs(BaseModel):
@@ -290,6 +294,7 @@ class DeleteDeepResearchTool:
             return ToolResult(
                 success=True,
                 output=f"Deleted the active deep research on {removed}, sir.",
+                spoken=say("deep_research_deleted", topic=removed),
             )
         removed = self._delete_by_query(topic)
         if removed is None:
@@ -300,6 +305,7 @@ class DeleteDeepResearchTool:
         return ToolResult(
             success=True,
             output=f"Deleted deep research on {removed}, sir.",
+            spoken=say("deep_research_deleted", topic=removed),
         )
 
 
@@ -339,8 +345,10 @@ class DeleteAllDeepResearchTool:
     async def execute(self, args: EmptyArgs) -> ToolResult:  # noqa: ARG002
         n = self._delete_all()
         if n == 0:
-            return ToolResult(success=True, output="No deep research sessions to delete, sir.")
+            return ToolResult(success=True, output="No deep research sessions to delete, sir.",
+                              spoken=say("deep_research_none"))
         return ToolResult(
             success=True,
             output=f"Deleted {n} deep research session{'s' if n != 1 else ''}, sir.",
+            spoken=say("deep_research_deleted_all", n=n, count=quantity(n, "research")),
         )

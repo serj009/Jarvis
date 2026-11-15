@@ -468,3 +468,19 @@ async def test_approving_a_skill_names_it_in_russian():
     spoken = await _say(_one_tool(ApproveSkillTool(forge=forge)), "approve_skill", {},
                         "одобри навык")
     assert spoken.strip() == "Одобрил навык «утро», сэр."
+
+
+async def test_deleting_all_deep_research_counts_in_russian():
+    from jarvis.tools.local.deep_research_tools import DeleteAllDeepResearchTool
+
+    spoken = await _say(_one_tool(DeleteAllDeepResearchTool(delete_all=lambda: 3)),
+                        "delete_all_deep_research", {}, "удали все исследования")
+    assert spoken.strip() == "Удалил исследований: 3, сэр."
+
+
+async def test_pausing_deep_research_in_ukrainian():
+    from jarvis.tools.local.deep_research_tools import PauseDeepResearchTool
+
+    spoken = await _say(_one_tool(PauseDeepResearchTool(on_pause=lambda: None)),
+                        "pause_deep_research", {}, "постав на паузу глибоке дослідження")
+    assert spoken.strip() == "Поставлю глибоке дослідження на паузу після поточного кроку, сер."
