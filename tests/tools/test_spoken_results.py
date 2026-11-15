@@ -279,3 +279,59 @@ def test_tab_count_in_ukrainian_and_english():
         )
     finally:
         current_user_transcription.reset(token)
+
+
+async def test_double_click_without_coordinates_in_russian():
+    from unittest.mock import MagicMock
+
+    from jarvis.tools.local import mouse_control
+
+    gui = MagicMock()
+    gui.size.return_value = (1920, 1080)
+    with patch.object(mouse_control, "_get_pyautogui", return_value=gui):
+        spoken = await _say(_one_tool(mouse_control.MouseClickTool()), "mouse_click",
+                            {"x": 100, "y": 200, "button": "double"}, "двойной клик по 100 200")
+    assert spoken.strip() == "Дважды кликнул, сэр."
+
+
+async def test_scroll_up_in_ukrainian():
+    from unittest.mock import MagicMock
+
+    from jarvis.tools.local import mouse_control
+
+    with patch.object(mouse_control, "_get_pyautogui", return_value=MagicMock()):
+        spoken = await _say(_one_tool(mouse_control.MouseScrollTool()), "mouse_scroll",
+                            {"direction": "up", "amount": 3}, "прокрути вгору сторінку")
+    assert spoken.strip() == "Прокрутив угору, сер."
+
+
+async def test_process_usage_in_russian():
+    from jarvis.tools.local import process_monitor
+
+    info = {"success": True, "process_count": 2, "total_memory_mb": 512, "total_cpu_percent": 3.4}
+    with patch.object(process_monitor, "_get_process_info", return_value=info):
+        spoken = await _say(_one_tool(process_monitor.ProcessInfoTool()), "process_info",
+                            {"name": "chrome"}, "сколько памяти ест chrome")
+    assert spoken.strip() == "chrome: 512 мегабайт памяти, процессор 3%, сэр."
+
+
+async def test_removing_a_missing_startup_entry_does_not_claim_success():
+    from jarvis.tools.local import startup_manager
+
+    with patch.object(startup_manager, "_remove_from_startup_impl",
+                      return_value="'spotify' not found in startup entries, sir."):
+        spoken = await _say(_one_tool(startup_manager.RemoveFromStartupTool()),
+                            "remove_from_startup", {"name": "spotify"},
+                            "убери spotify из автозагрузки")
+    assert spoken.strip() == "spotify нет в автозагрузке, сэр."
+
+
+async def test_startup_list_names_programs_in_russian():
+    from jarvis.tools.local import startup_manager
+
+    entries = [{"name": "Steam", "source": "HKCU Run", "command": "steam.exe", "removable": True},
+               {"name": "Ollama", "source": "Startup", "command": "ollama.exe"}]
+    with patch.object(startup_manager, "_list_startup_impl", return_value=entries):
+        spoken = await _say(_one_tool(startup_manager.ListStartupTool()), "list_startup", {},
+                            "покажи автозагрузку")
+    assert spoken.strip() == "В автозагрузке программ: 2, сэр: Steam, Ollama."

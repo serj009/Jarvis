@@ -25,6 +25,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import say
 from jarvis.tools.registry import ToolResult, VoicePattern
 from jarvis.tools.risk import RiskLevel
 
@@ -231,7 +232,14 @@ class MouseClickTool:
             "left": "Clicked", "right": "Right-clicked",
             "middle": "Middle-clicked", "double": "Double-clicked",
         }.get(button, "Clicked")
-        return ToolResult(success=True, output=f"{verb}{where} at {target_x}, {target_y}, sir.")
+        key = {"right": "mouse_right_clicked", "double": "mouse_double_clicked"}.get(
+            button, "mouse_clicked",
+        )
+        return ToolResult(
+            success=True,
+            output=f"{verb}{where} at {target_x}, {target_y}, sir.",
+            spoken=say(key),
+        )
 
     @staticmethod
     def _do_click(pyautogui, x: int, y: int, button: str, clicks: int) -> None:
@@ -314,7 +322,11 @@ class MouseMoveTool:
             log.exception("mouse_move failed")
             return ToolResult(success=False, error=f"Move failed: {e}")
         log.info("[mouse] move to (%s,%s)%s", tx, ty, where)
-        return ToolResult(success=True, output=f"Moved cursor{where} to {tx}, {ty}, sir.")
+        return ToolResult(
+            success=True,
+            output=f"Moved cursor{where} to {tx}, {ty}, sir.",
+            spoken=say("mouse_moved"),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -415,7 +427,15 @@ class MouseScrollTool:
             log.exception("mouse_scroll failed")
             return ToolResult(success=False, error=f"Scroll failed: {e}")
         log.info("[mouse] scroll %s x%d", direction, args.amount)
-        return ToolResult(success=True, output=f"Scrolled {direction}, sir.")
+        key = {
+            "up": "mouse_scrolled_up", "down": "mouse_scrolled_down",
+            "left": "mouse_scrolled_left", "right": "mouse_scrolled_right",
+        }.get(direction)
+        return ToolResult(
+            success=True,
+            output=f"Scrolled {direction}, sir.",
+            spoken=say(key) if key else None,
+        )
 
     @staticmethod
     def _do_scroll(pyautogui, direction: str, amount: int, x, y) -> None:
@@ -508,6 +528,7 @@ class MouseDragTool:
                 f"Dragged from {args.from_x},{args.from_y} to "
                 f"{args.to_x},{args.to_y}, sir."
             ),
+            spoken=say("mouse_dragged"),
         )
 
     @staticmethod
@@ -553,4 +574,8 @@ class MousePositionTool:
             pos = await asyncio.to_thread(pyautogui.position)
         except Exception as e:
             return ToolResult(success=False, error=f"Could not read position: {e}")
-        return ToolResult(success=True, output=f"The cursor is at {pos[0]}, {pos[1]}, sir.")
+        return ToolResult(
+            success=True,
+            output=f"The cursor is at {pos[0]}, {pos[1]}, sir.",
+            spoken=say("mouse_position", x=pos[0], y=pos[1]),
+        )

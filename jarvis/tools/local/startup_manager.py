@@ -15,6 +15,7 @@ from typing import ClassVar
 from pydantic import BaseModel, Field
 
 from jarvis import platform as platform_ops
+from jarvis.core.phrases import quantity, say
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -124,7 +125,8 @@ class ListStartupTool:
             return ToolResult(success=False, error=f"Failed to list startup: {e}")
 
         if not entries:
-            return ToolResult(success=True, output="No startup programs found, sir.")
+            return ToolResult(success=True, output="No startup programs found, sir.",
+                              spoken=say("startup_none"))
 
         lines = [f"Found {len(entries)} startup item(s), sir:"]
         for e in entries:
@@ -133,7 +135,12 @@ class ListStartupTool:
                 f"  • {e['name']} — {e['source']}{removable}\n"
                 f"    {e['command']}"
             )
-        return ToolResult(success=True, output="\n".join(lines))
+        return ToolResult(
+            success=True,
+            output="\n".join(lines),
+            spoken=say("startup_list", n=len(entries), count=quantity(len(entries), "program"),
+                       names=", ".join(e["name"] for e in entries)),
+        )
 
 
 class RemoveFromStartupTool:
@@ -170,7 +177,9 @@ class RemoveFromStartupTool:
     async def execute(self, args: RemoveFromStartupArgs) -> ToolResult:
         try:
             msg = await asyncio.to_thread(_remove_from_startup_impl, args.name)
-            return ToolResult(success=True, output=msg)
+            # "not found" also comes back as a plain message: say what happened.
+            key = "startup_removed" if msg.startswith("Removed") else "startup_not_found"
+            return ToolResult(success=True, output=msg, spoken=say(key, name=args.name))
         except NotImplementedError as e:
             return ToolResult(success=False, error=str(e))
         except PermissionError:
@@ -221,7 +230,8 @@ class AddToStartupTool:
             msg = await asyncio.to_thread(
                 _add_to_startup_impl, args.name, args.command,
             )
-            return ToolResult(success=True, output=msg)
+            return ToolResult(success=True, output=msg,
+                              spoken=say("startup_added", name=args.name))
         except NotImplementedError as e:
             return ToolResult(success=False, error=str(e))
         except PermissionError:

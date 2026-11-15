@@ -401,6 +401,84 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Удалил закладку «{name}», сэр.",
         "uk": "Видалив закладку «{name}», сер.",
     },
+    # Mouse (B-P1-12): no coordinates in the voice, except when asked.
+    "mouse_clicked": {"en": "Clicked, sir.", "ru": "Кликнул, сэр.", "uk": "Клацнув, сер."},
+    "mouse_right_clicked": {
+        "en": "Right-clicked, sir.",
+        "ru": "Кликнул правой кнопкой, сэр.",
+        "uk": "Клацнув правою кнопкою, сер.",
+    },
+    "mouse_double_clicked": {
+        "en": "Double-clicked, sir.",
+        "ru": "Дважды кликнул, сэр.",
+        "uk": "Двічі клацнув, сер.",
+    },
+    "mouse_moved": {
+        "en": "Moved the cursor, sir.",
+        "ru": "Переместил курсор, сэр.",
+        "uk": "Перемістив курсор, сер.",
+    },
+    "mouse_scrolled_up": {
+        "en": "Scrolled up, sir.", "ru": "Прокрутил вверх, сэр.", "uk": "Прокрутив угору, сер.",
+    },
+    "mouse_scrolled_down": {
+        "en": "Scrolled down, sir.", "ru": "Прокрутил вниз, сэр.", "uk": "Прокрутив донизу, сер.",
+    },
+    "mouse_scrolled_left": {
+        "en": "Scrolled left, sir.", "ru": "Прокрутил влево, сэр.", "uk": "Прокрутив ліворуч, сер.",
+    },
+    "mouse_scrolled_right": {
+        "en": "Scrolled right, sir.",
+        "ru": "Прокрутил вправо, сэр.",
+        "uk": "Прокрутив праворуч, сер.",
+    },
+    "mouse_dragged": {"en": "Dragged it, sir.", "ru": "Перетащил, сэр.", "uk": "Перетягнув, сер."},
+    "mouse_position": {
+        "en": "The cursor is at {x}, {y}, sir.",
+        "ru": "Курсор в точке {x}, {y}, сэр.",
+        "uk": "Курсор у точці {x}, {y}, сер.",
+    },
+    # Processes and startup programs (B-P1-12).
+    "process_usage": {
+        "en": "{name} uses {mem} of memory and {cpu}% of the processor, sir.",
+        "ru": "{name}: {mem} памяти, процессор {cpu}%, сэр.",
+        "uk": "{name}: {mem} пам'яті, процесор {cpu}%, сер.",
+    },
+    "top_processes": {
+        "en": "Using the most memory: {names}, sir.",
+        "ru": "Больше всего памяти занимают: {names}, сэр.",
+        "uk": "Найбільше пам'яті займають: {names}, сер.",
+    },
+    "process_finished": {
+        "en": "{name} has finished, sir.",
+        "ru": "{name} завершился, сэр.",
+        "uk": "{name} завершився, сер.",
+    },
+    "startup_none": {
+        "en": "Nothing starts with Windows, sir.",
+        "ru": "В автозагрузке ничего нет, сэр.",
+        "uk": "В автозавантаженні нічого немає, сер.",
+    },
+    "startup_list": {
+        "en": "{count} start with Windows, sir: {names}.",
+        "ru": "В автозагрузке программ: {n}, сэр: {names}.",
+        "uk": "В автозавантаженні програм: {n}, сер: {names}.",
+    },
+    "startup_added": {
+        "en": "Added {name} to startup, sir.",
+        "ru": "Добавил {name} в автозагрузку, сэр.",
+        "uk": "Додав {name} до автозавантаження, сер.",
+    },
+    "startup_removed": {
+        "en": "Removed {name} from startup, sir.",
+        "ru": "Убрал {name} из автозагрузки, сэр.",
+        "uk": "Прибрав {name} з автозавантаження, сер.",
+    },
+    "startup_not_found": {
+        "en": "{name} is not in startup, sir.",
+        "ru": "{name} нет в автозагрузке, сэр.",
+        "uk": "{name} немає в автозавантаженні, сер.",
+    },
     "file_archived": {
         "en": "Packed {name} into {archive}, sir.",
         "ru": "Упаковал {name} в {archive}, сэр.",
@@ -1018,6 +1096,9 @@ _UNITS: dict[str, dict[Lang, tuple[str, str, str]]] = {
     "file": {"ru": ("файл", "файла", "файлов"),
              "uk": ("файл", "файли", "файлів"),
              "en": ("file", "files", "files")},
+    "program": {"ru": ("программа", "программы", "программ"),
+                "uk": ("програма", "програми", "програм"),
+                "en": ("program", "programs", "programs")},
     "tab": {"ru": ("вкладка", "вкладки", "вкладок"),
             "uk": ("вкладка", "вкладки", "вкладок"),
             "en": ("tab", "tabs", "tabs")},

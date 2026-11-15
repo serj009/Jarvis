@@ -11,6 +11,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import quantity, say
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -232,7 +233,12 @@ class ProcessInfoTool:
             f"{args.name}: {count} process(es), "
             f"{mem} MB RAM, {cpu}% CPU, sir."
         )
-        return ToolResult(success=True, output=msg)
+        return ToolResult(
+            success=True,
+            output=msg,
+            spoken=say("process_usage", name=args.name,
+                       mem=quantity(float(mem), "megabyte"), cpu=round(float(cpu))),
+        )
 
 
 class HeavyProcessesTool:
@@ -279,7 +285,13 @@ class HeavyProcessesTool:
         for i, p in enumerate(procs, 1):
             lines.append(f"  {i}. {p['name']} — {p['memory_mb']} MB (PID {p['pid']})")
 
-        return ToolResult(success=True, output="\n".join(lines))
+        # The voice names the top three; PIDs and sizes are for the model.
+        top = ", ".join(p["name"] for p in procs[:3])
+        return ToolResult(
+            success=True,
+            output="\n".join(lines),
+            spoken=say("top_processes", names=top) if top else None,
+        )
 
 
 class WaitForProcessTool:
@@ -328,5 +340,6 @@ class WaitForProcessTool:
             return ToolResult(
                 success=True,
                 output=f"Process '{args.name}' has finished, sir.",
+                spoken=say("process_finished", name=args.name),
             )
         return ToolResult(success=False, error=result.get("error", "Wait failed."))
