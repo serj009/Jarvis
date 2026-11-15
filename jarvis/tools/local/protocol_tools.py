@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import quantity, say
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 if TYPE_CHECKING:
@@ -146,6 +147,8 @@ class CreateProtocolTool:
                     f"{len(protocol.steps)} step(s): {steps_desc}. "
                     f"Say '{protocol.name}' to run it."
                 ),
+                spoken=say("protocol_created", name=protocol.name, n=len(protocol.steps),
+                           count=quantity(len(protocol.steps), "step")),
             )
         except ValueError as e:
             return ToolResult(success=False, error=str(e))
@@ -199,6 +202,8 @@ class RunProtocolTool:
                     f"Protocol '{result.protocol_name}' executed: "
                     f"{result.steps_completed}/{result.steps_total} steps completed."
                 ),
+                spoken=say("protocol_done", done=result.steps_completed,
+                           total=result.steps_total),
             )
         return ToolResult(success=False, error=result.error or "Protocol execution failed.")
 
@@ -241,7 +246,8 @@ class ListProtocolsTool:
             return ToolResult(success=False, error="Protocol engine not available.")
         protocols = self._engine.list_protocols()
         if not protocols:
-            return ToolResult(success=True, output="No protocols defined yet.")
+            return ToolResult(success=True, output="No protocols defined yet.",
+                              spoken=say("protocols_none"))
         lines = []
         for p in protocols:
             status = "enabled" if p.enabled else "disabled"
@@ -250,6 +256,9 @@ class ListProtocolsTool:
         return ToolResult(
             success=True,
             output=f"{len(protocols)} protocol(s):\n" + "\n".join(lines),
+            spoken=say("protocols_list", n=len(protocols),
+                       count=quantity(len(protocols), "protocol"),
+                       names=", ".join(p.name for p in protocols)),
         )
 
 
@@ -290,6 +299,7 @@ class DeleteProtocolTool:
             return ToolResult(
                 success=True,
                 output=f"Protocol '{args.name}' deleted.",
+                spoken=say("protocol_deleted", name=args.name),
             )
         return ToolResult(
             success=False,
@@ -379,6 +389,8 @@ class EditProtocolTool:
                 f"Protocol '{args.name}' updated with "
                 f"{len(steps)} step(s): {steps_desc}."
             ),
+            spoken=say("protocol_updated", name=args.name, n=len(steps),
+                       count=quantity(len(steps), "step")),
         )
 
 
@@ -419,6 +431,7 @@ class EnableProtocolTool:
             return ToolResult(
                 success=True,
                 output=f"Protocol '{args.name}' enabled.",
+                spoken=say("protocol_enabled", name=args.name),
             )
         return ToolResult(
             success=False,
@@ -463,6 +476,7 @@ class DisableProtocolTool:
             return ToolResult(
                 success=True,
                 output=f"Protocol '{args.name}' disabled.",
+                spoken=say("protocol_disabled", name=args.name),
             )
         return ToolResult(
             success=False,

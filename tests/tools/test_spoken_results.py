@@ -412,3 +412,31 @@ async def test_end_of_summary_in_ukrainian():
     spoken = await _say(_one_tool(ReadMoreTool(get_next=lambda: None)), "read_more", {},
                         "читай далі")
     assert spoken.strip() == "Це кінець зведення, сер."
+
+
+async def test_protocol_run_is_counted_in_russian():
+    from types import SimpleNamespace
+    from unittest.mock import AsyncMock, MagicMock
+
+    from jarvis.tools.local.protocol_tools import RunProtocolTool
+
+    engine = MagicMock()
+    engine.execute_protocol = AsyncMock(return_value=SimpleNamespace(
+        success=True, protocol_name="вечеринка", steps_completed=3, steps_total=3, error=None,
+    ))
+    spoken = await _say(_one_tool(RunProtocolTool(engine)), "run_protocol",
+                        {"name": "вечеринка"}, "запусти протокол вечеринка")
+    assert spoken.strip() == "Готово, сэр: выполнено шагов 3 из 3."
+
+
+async def test_protocol_list_in_english_counts_with_quantity():
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    from jarvis.tools.local.protocol_tools import ListProtocolsTool
+
+    engine = MagicMock()
+    engine.list_protocols.return_value = [SimpleNamespace(name="party", enabled=True, steps=[])]
+    spoken = await _say(_one_tool(ListProtocolsTool(engine)), "list_protocols", {},
+                        "list my protocols")
+    assert spoken.strip() == "1 protocol, sir: party."

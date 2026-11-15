@@ -659,6 +659,47 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Скопировал в буфер обмена, сэр.",
         "uk": "Скопіював у буфер обміну, сер.",
     },
+    # Protocols (B-P1-12): names of steps are tool ids, not said aloud.
+    "protocol_created": {
+        "en": "Created the “{name}” protocol, sir: {count}. Say “{name}” to run it.",
+        "ru": "Создал протокол «{name}», сэр, шагов: {n}. Скажите «{name}», чтобы запустить.",
+        "uk": "Створив протокол «{name}», сер, кроків: {n}. Скажіть «{name}», щоб запустити.",
+    },
+    "protocol_done": {
+        "en": "Done, sir: {done} of {total} steps.",
+        "ru": "Готово, сэр: выполнено шагов {done} из {total}.",
+        "uk": "Готово, сер: виконано кроків {done} з {total}.",
+    },
+    "protocols_none": {
+        "en": "No protocols yet, sir.",
+        "ru": "Протоколов пока нет, сэр.",
+        "uk": "Протоколів поки немає, сер.",
+    },
+    "protocols_list": {
+        "en": "{count}, sir: {names}.",
+        "ru": "Протоколов: {n}, сэр: {names}.",
+        "uk": "Протоколів: {n}, сер: {names}.",
+    },
+    "protocol_updated": {
+        "en": "Updated the “{name}” protocol, sir: {count}.",
+        "ru": "Обновил протокол «{name}», сэр, шагов: {n}.",
+        "uk": "Оновив протокол «{name}», сер, кроків: {n}.",
+    },
+    "protocol_deleted": {
+        "en": "Deleted the “{name}” protocol, sir.",
+        "ru": "Удалил протокол «{name}», сэр.",
+        "uk": "Видалив протокол «{name}», сер.",
+    },
+    "protocol_enabled": {
+        "en": "The “{name}” protocol is on, sir.",
+        "ru": "Включил протокол «{name}», сэр.",
+        "uk": "Увімкнув протокол «{name}», сер.",
+    },
+    "protocol_disabled": {
+        "en": "The “{name}” protocol is off, sir.",
+        "ru": "Выключил протокол «{name}», сэр.",
+        "uk": "Вимкнув протокол «{name}», сер.",
+    },
     "file_archived": {
         "en": "Packed {name} into {archive}, sir.",
         "ru": "Упаковал {name} в {archive}, сэр.",
@@ -1279,6 +1320,12 @@ _UNITS: dict[str, dict[Lang, tuple[str, str, str]]] = {
     "program": {"ru": ("программа", "программы", "программ"),
                 "uk": ("програма", "програми", "програм"),
                 "en": ("program", "programs", "programs")},
+    "step": {"ru": ("шаг", "шага", "шагов"),
+             "uk": ("крок", "кроки", "кроків"),
+             "en": ("step", "steps", "steps")},
+    "protocol": {"ru": ("протокол", "протокола", "протоколов"),
+                 "uk": ("протокол", "протоколи", "протоколів"),
+                 "en": ("protocol", "protocols", "protocols")},
     "feed": {"ru": ("лента", "ленты", "лент"),
              "uk": ("стрічка", "стрічки", "стрічок"),
              "en": ("feed", "feeds", "feeds")},
