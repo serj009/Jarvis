@@ -36,7 +36,9 @@ param(
     # with a different context size makes Ollama reload the model on
     # Jarvis' first real request.
     [int]   $NumCtx = 8192,
-    [int]   $ReadyTimeoutSec = 30
+    [int]   $ReadyTimeoutSec = 30,
+    # How long to wait for the Ollama tray app's own server at logon.
+    [int]   $AppStartWaitSec = 90
 )
 
 $ErrorActionPreference = 'Stop'
@@ -106,10 +108,36 @@ function Test-OllamaReady {
     }
 }
 
+# --- Helper: will the Ollama tray app bring the server up by itself? --------
+# At logon the Ollama app starts from the Startup folder some 40 s after this
+# task. Starting our own "ollama serve" first left the app retrying its
+# server every second ("bind: Only one usage of each socket address", 1431
+# times on 2026-11-15, 39k on 2026-11-03). If the app runs or is about to,
+# wait for its server instead.
+function Test-OllamaAppStarts {
+    if (Get-Process -Name 'ollama app' -ErrorAction SilentlyContinue) { return $true }
+    $startup = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup\Ollama.lnk'
+    return (Test-Path $startup)
+}
+
+function Wait-OllamaReady([int]$Seconds) {
+    $until = (Get-Date).AddSeconds($Seconds)
+    while ((Get-Date) -lt $until) {
+        if (Test-OllamaReady) { return $true }
+        Start-Sleep -Seconds 1
+    }
+    return $false
+}
+
 # --- Step 1: ensure Ollama server is up ------------------------------------
 if (Test-OllamaReady) {
     Write-Log 'Ollama API already responding; skipping launch.'
+} elseif ((Test-OllamaAppStarts) -and (Wait-OllamaReady $AppStartWaitSec)) {
+    Write-Log ("Ollama app started its server (waited up to {0}s); not starting a second one." -f $AppStartWaitSec)
 } else {
+    if (Test-OllamaAppStarts) {
+        Write-Log ("Ollama app did not bring the server up within {0}s; starting it here." -f $AppStartWaitSec) 'WARN'
+    }
     Write-Log 'Ollama API not responding. Starting Ollama...'
 
     # Preferred: headless server (ollama.exe serve). It is a console program,
