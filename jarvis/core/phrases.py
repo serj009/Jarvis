@@ -287,6 +287,67 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "uk": "Закриваю {name}, сер.",
     },
     "closing_unnamed": {"en": "Closing it, sir.", "ru": "Закрываю, сэр.", "uk": "Закриваю, сер."},
+    # file_manager (B-P1-12): what the voice says; `output` keeps paths.
+    "files_none": {
+        "en": "No files matching “{query}”, sir.",
+        "ru": "Не нашёл файлов «{query}», сэр.",
+        "uk": "Не знайшов файлів «{query}», сер.",
+    },
+    "files_found_one": {
+        "en": "Found it, sir: {name}.",
+        "ru": "Нашёл, сэр: {name}.",
+        "uk": "Знайшов, сер: {name}.",
+    },
+    "files_found": {
+        "en": "Found {count}, sir: {names}.",
+        "ru": "Нашёл {count}, сэр: {names}.",
+        "uk": "Знайшов {count}, сер: {names}.",
+    },
+    "files_found_first": {
+        "en": "Found {count}, sir. The first {shown}: {names}.",
+        "ru": "Нашёл {count}, сэр. Первые {shown}: {names}.",
+        "uk": "Знайшов {count}, сер. Перші {shown}: {names}.",
+    },
+    "file_moved": {
+        "en": "Moved {name} to {folder}, sir.",
+        "ru": "Переместил {name} в {folder}, сэр.",
+        "uk": "Перемістив {name} до {folder}, сер.",
+    },
+    "file_copied": {
+        "en": "Copied {name} to {folder}, sir.",
+        "ru": "Скопировал {name} в {folder}, сэр.",
+        "uk": "Скопіював {name} до {folder}, сер.",
+    },
+    "file_renamed": {
+        "en": "Renamed {name} to {new}, sir.",
+        "ru": "Переименовал {name} в {new}, сэр.",
+        "uk": "Перейменував {name} на {new}, сер.",
+    },
+    "file_deleted": {
+        "en": "Deleted {name}, sir. Say “undo that” to bring it back.",
+        "ru": "Удалил {name}, сэр. Скажите «верни как было», чтобы вернуть.",
+        "uk": "Видалив {name}, сер. Скажіть «поверни як було», щоб повернути.",
+    },
+    "folder_exists": {
+        "en": "Folder {name} already exists, sir.",
+        "ru": "Папка {name} уже есть, сэр.",
+        "uk": "Тека {name} вже є, сер.",
+    },
+    "folder_created": {
+        "en": "Created folder {name}, sir.",
+        "ru": "Создал папку {name}, сэр.",
+        "uk": "Створив теку {name}, сер.",
+    },
+    "file_created": {
+        "en": "Created {name}, sir.",
+        "ru": "Создал {name}, сэр.",
+        "uk": "Створив {name}, сер.",
+    },
+    "file_archived": {
+        "en": "Packed {name} into {archive}, sir.",
+        "ru": "Упаковал {name} в {archive}, сэр.",
+        "uk": "Запакував {name} в {archive}, сер.",
+    },
     "timer_set": {
         "en": "Timer set for {duration}, sir.",
         "ru": "Таймер на {duration}, сэр.",

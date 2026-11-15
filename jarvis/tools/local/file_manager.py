@@ -53,6 +53,7 @@ from typing import ClassVar, Literal
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import opening_phrase, quantity, say
 from jarvis.tools.local.file_undo import UndoEntry, UndoStore
 from jarvis.tools.registry import ToolResult, VoicePattern
 from jarvis.tools.risk import RiskLevel
@@ -814,20 +815,26 @@ class FileManagerTool:
             return ToolResult(
                 success=True,
                 output=f"No files matching '{query}' found, sir.",
+                spoken=say("files_none", query=query),
             )
 
         names = [os.path.basename(p) for p in found]
         preview = ", ".join(names[:_SPOKEN_PREVIEW_COUNT])
+        count = quantity(len(found), "file")
         if len(found) > _SPOKEN_PREVIEW_COUNT:
             suffix = (
                 f"Found {len(found)} files, sir. "
                 f"First {_SPOKEN_PREVIEW_COUNT}: {preview}."
             )
+            spoken = say("files_found_first", count=count,
+                         shown=_SPOKEN_PREVIEW_COUNT, names=preview)
         elif len(found) == 1:
             suffix = f"Found it, sir: {found[0]}"
+            spoken = say("files_found_one", name=names[0])
         else:
             suffix = f"Found {len(found)} files, sir: {preview}."
-        return ToolResult(success=True, output=suffix)
+            spoken = say("files_found", count=count, names=preview)
+        return ToolResult(success=True, output=suffix, spoken=spoken)
 
     async def _open(self, args: FileManagerArgs) -> ToolResult:
         """Open a file in its default application.
@@ -894,6 +901,7 @@ class FileManagerTool:
         return ToolResult(
             success=True,
             output=f"Opened {target.name}, sir.",
+            spoken=opening_phrase(target.name),
         )
 
     @staticmethod
@@ -964,6 +972,7 @@ class FileManagerTool:
         return ToolResult(
             success=True,
             output=f"Moved {src.name} to {final.parent.name}, sir.",
+            spoken=say("file_moved", name=src.name, folder=final.parent.name),
         )
 
     async def _copy(self, args: FileManagerArgs) -> ToolResult:
@@ -1001,6 +1010,7 @@ class FileManagerTool:
         return ToolResult(
             success=True,
             output=f"Copied {src.name} to {final.parent.name}, sir.",
+            spoken=say("file_copied", name=src.name, folder=final.parent.name),
         )
 
     async def _rename(self, args: FileManagerArgs) -> ToolResult:
@@ -1051,6 +1061,7 @@ class FileManagerTool:
         return ToolResult(
             success=True,
             output=f"Renamed {src.name} to {new_path.name}, sir.",
+            spoken=say("file_renamed", name=src.name, new=new_path.name),
         )
 
     async def _delete(self, args: FileManagerArgs) -> ToolResult:
@@ -1079,6 +1090,7 @@ class FileManagerTool:
         return ToolResult(
             success=True,
             output=f"Deleted {kind} {target_name}, sir. Say \"undo that\" to bring it back.",
+            spoken=say("file_deleted", name=target_name),
         )
 
     async def _mkdir(self, args: FileManagerArgs) -> ToolResult:
@@ -1092,6 +1104,7 @@ class FileManagerTool:
                 return ToolResult(
                     success=True,
                     output=f"Folder {resolved.name} already exists, sir.",
+                    spoken=say("folder_exists", name=resolved.name),
                 )
             return ToolResult(
                 success=False,
@@ -1109,6 +1122,7 @@ class FileManagerTool:
         return ToolResult(
             success=True,
             output=f"Created folder {resolved.name}, sir.",
+            spoken=say("folder_created", name=resolved.name),
         )
 
 
@@ -1220,7 +1234,11 @@ class CreateFileTool:
             await asyncio.to_thread(_write)
         except OSError as e:
             return ToolResult(success=False, error=f"Could not create file: {e}")
-        return ToolResult(success=True, output=f"Created {resolved.name}, sir.")
+        return ToolResult(
+            success=True,
+            output=f"Created {resolved.name}, sir.",
+            spoken=say("file_created", name=resolved.name),
+        )
 
 
 class ArchiveArgs(BaseModel):
@@ -1335,4 +1353,6 @@ class ArchiveTool:
                 f"Archived {resolved.name} to "
                 f"{os.path.basename(archive_path)} ({size_str}), sir."
             ),
+            spoken=say("file_archived", name=resolved.name,
+                       archive=os.path.basename(archive_path)),
         )

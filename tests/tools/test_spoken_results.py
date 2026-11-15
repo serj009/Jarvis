@@ -217,3 +217,36 @@ async def test_logs_panel_answers_in_russian():
 
     reg = _one_tool(ShowLogsTool(on_open=lambda: None))
     assert (await _say(reg, "show_logs", {}, "покажи логи")).strip() == "Показываю логи, сэр."
+
+
+def _files(tmp_path):
+    from jarvis.tools.local.file_manager import FileManagerTool
+    from jarvis.tools.sandbox import PathValidator
+
+    validator = PathValidator(allowed_paths=[tmp_path], allow_home_fallback=False)
+    return _one_tool(FileManagerTool(path_validator=validator))
+
+
+async def test_file_search_is_counted_in_russian(tmp_path):
+    for name in ("отчет-1.txt", "отчет-2.txt", "отчет-3.txt"):
+        (tmp_path / name).write_text("x", encoding="utf-8")
+    spoken = await _say(_files(tmp_path), "file_manager",
+                        {"action": "find", "path": "отчет", "search_dir": str(tmp_path)},
+                        "найди файл отчет")
+    assert spoken.startswith("Нашёл 3 файла, сэр: ")
+    assert "sir" not in spoken
+
+
+async def test_deleting_a_file_says_how_to_undo_in_ukrainian(tmp_path):
+    (tmp_path / "test.txt").write_text("x", encoding="utf-8")
+    spoken = await _say(_files(tmp_path), "file_manager",
+                        {"action": "delete", "path": str(tmp_path / "test.txt")},
+                        "видали файл test.txt зі столу")
+    assert spoken.strip() == "Видалив test.txt, сер. Скажіть «поверни як було», щоб повернути."
+
+
+async def test_creating_a_folder_answers_in_russian(tmp_path):
+    spoken = await _say(_files(tmp_path), "file_manager",
+                        {"action": "mkdir", "path": str(tmp_path / "проекты")},
+                        "создай папку проекты")
+    assert spoken.strip() == "Создал папку проекты, сэр."
