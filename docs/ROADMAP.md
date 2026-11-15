@@ -62,7 +62,7 @@ Python 3.14, как дома. Модели и Ollama для тестов не н
 .venv\Scripts\python.exe -m pytest -q
 ```
 
-Эталон на 2026-11-03: **6766 passed, 14 skipped, 10 deselected**, около 3 минут. В CI (`.github/workflows/ci.yml`, Windows и Ubuntu) обязательны все три проверки. В `jarvis/` есть старые ошибки pyright (задача M2-1) — проверяй pyright только по своим файлам.
+Эталон (Windows, 2026-11-15): **7398 passed, 12 skipped, 10 deselected**, около 5 минут; pyright по `jarvis/` — 0 ошибок и на Windows, и на Linux. В CI (`.github/workflows/ci.yml`, Windows и Ubuntu) обязательны все три проверки. На Linux pyright не видит ветки кода только для Windows (`sys.platform == "win32"`), поэтому код в `jarvis/platform/` проверять pyright дома, на Windows.
 
 ### Запуск дома
 
@@ -245,6 +245,8 @@ $env:JARVIS_DUMP_LLM_REQUEST = "1"; .venv\Scripts\python.exe -m jarvis
 - **R14. Микрофон.** В Настройки → Голос выбрать микрофон, затем выключить его (или выдернуть USB) и перезапустить Jarvis → уведомление «Microphone "…" not available; using "…"», Jarvis работает с другим. Выдернуть микрофон во время работы — записать, что произошло (поведение пока не задано).
 
 ### Пункты отдельных задач
+
+- **Автозапуск при входе в Windows.** Задача `JarvisAutostart` запускала старую копию `C:\Users\serj\Jarvis` (код 1 октября), которая не читает новый конфиг (`schema_version 41 is newer than supported 22`), и при каждом входе показывала окно ошибки. Скрипты теперь берут папку, в которой лежат сами. Один раз перерегистрировать задачу из PowerShell **от администратора**: `powershell -ExecutionPolicy Bypass -File C:\Users\serj\Jarvis-AmazonQ\register-task.ps1` → выйти из Windows и войти снова → Jarvis стартует без окна ошибки; в `C:\Users\serj\Jarvis-AmazonQ\logs\autostart_*.log` строка `ProjectDir = C:\Users\serj\Jarvis-AmazonQ`.
 
 - **Таймер и напоминание на языке запроса (B-P2-9).** «Поставь таймер на одну минуту» → через минуту по-русски: «Таймер истёк, сэр.» (или «Таймер «…» истёк, сэр!», если модель дала таймеру имя). «Постав таймер на півхвилини» → по-украински («Таймер спрацював, сер.»). «Напомни через две минуты купить молоко» → «Напоминаю, сэр: купить молоко». Английских «Timer … is done, sir!» быть не должно.
 - **Погода (B-P1-9).** «Какая погода?» → по-русски, со шкалой: «Сейчас 7 градусов по Цельсию, пасмурно, сэр.»; «Яка погода?» → по-українськи. Сравнить с прогнозом за окном. В логе должна быть строка `weather: location from IP: <город>, ... (<широта>, <долгота>)` и `detected location saved to config`, а в `%APPDATA%\Jarvis\config.json` — `weather.unit = "celsius"` и заполненные `latitude` / `longitude`. Если город не тот (VPN, провайдер) — задать координаты в Настройки → Общие. Если строк `weather:` в логе нет совсем, значит, инструмент не вызывался и «86 градусов» модель придумала сама: записать в бэклог. Если есть `ipapi.co gave no location (reason: RateLimited)` — нужен другой способ определения места.
