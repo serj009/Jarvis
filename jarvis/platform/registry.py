@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from types import ModuleType
 from typing import Protocol, runtime_checkable
 
 log = logging.getLogger(__name__)
@@ -54,7 +55,9 @@ class RegistryReader(Protocol):
 class WindowsRegistryReader:
     """The real reader. Windows-only at call time; safe to import anywhere."""
 
-    def _winreg(self) -> object:
+    # ModuleType, not object: on Windows pyright analyses the callers and
+    # "object" has no HKEY_* / OpenKey (9 errors only a Windows run shows).
+    def _winreg(self) -> ModuleType:
         import winreg
 
         return winreg
