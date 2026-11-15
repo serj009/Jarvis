@@ -59,6 +59,12 @@ DEFAULT_TARGETS: tuple[OpenTarget, ...] = (
     OpenTarget("youtube", "YouTube",
                ("youtube", "ютуб", "ютюб", "ютуба"),
                url="https://www.youtube.com"),
+    # Its own target: names match whole, so "youtube music" never reaches
+    # the "youtube" entry, and without this it fell to open_app and failed.
+    OpenTarget("youtube_music", "YouTube Music",
+               ("youtube music", "ютуб мьюзик", "ютуб мюзик", "ютуб музик",
+                "ютуб музыка", "ютуб музыку", "ютуб музика", "ютуб музику"),
+               url="https://music.youtube.com"),
     OpenTarget("github", "GitHub",
                ("github", "гитхаб", "гітхаб", "гитхаба", "гітхабу"),
                apps=("github desktop",), url="https://github.com"),

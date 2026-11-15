@@ -40,6 +40,12 @@
 - say: "открой ютуб в браузере"
   tool: "open_url"
   args: {url: "https://www.youtube.com"}
+- say: "Открой YouTube Music"
+  tool: "open_url"
+  args: {url: "https://music.youtube.com"}
+- say: "відкрий ютуб музику"
+  tool: "open_url"
+  args: {url: "https://music.youtube.com"}
 - say: "відкрий стім у браузері"
   tool: "open_url"
   args: {url: "https://store.steampowered.com"}
