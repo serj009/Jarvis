@@ -364,3 +364,33 @@ async def test_game_saves_found_in_russian(tmp_path):
         spoken = await _say(_one_tool(game_saves.FindGameSavesTool()), "find_game_saves",
                             {"game": "dark souls 2"}, "где сохранения дарк соулс 2")
     assert spoken.strip() == "Нашёл сохранения Dark Souls II, сэр."
+
+
+async def test_vault_list_says_site_names_and_never_a_password():
+    from unittest.mock import MagicMock
+
+    from jarvis.tools.local.vault_manager import ListSavedSitesTool
+
+    vault = MagicMock()
+    vault.is_unlocked = True
+    vault.list_sites.return_value = ["steam", "github"]
+    spoken = await _say(_one_tool(ListSavedSitesTool(vault=vault)), "list_saved_sites", {},
+                        "какие пароли сохранены")
+    assert spoken.strip() == "Пароли сохранены для: github, steam, сэр."
+    vault.get_credential.assert_not_called()
+
+
+async def test_news_reads_three_headlines_without_links():
+    from jarvis.tools.local import rss_reader
+
+    feeds = [{"name": "Новости", "url": "https://news.example/rss"}]
+    items = [{"title": f"Заголовок {i}", "link": f"https://news.example/{i}"} for i in range(5)]
+    with (
+        patch.object(rss_reader, "_load_feeds", return_value=feeds),
+        patch.object(rss_reader, "_fetch_feed", return_value=("<rss/>", None)),
+        patch.object(rss_reader, "_parse_feed_xml", return_value=items),
+    ):
+        spoken = await _say(_one_tool(rss_reader.GetLatestNewsTool()), "get_latest_news",
+                            {"count": 5}, "какие новости")
+    assert spoken.strip() == "Вот новости, сэр: Заголовок 0; Заголовок 1; Заголовок 2."
+    assert "https://" not in spoken

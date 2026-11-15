@@ -22,6 +22,7 @@ from typing import ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import say
 from jarvis.tools.registry import ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -196,6 +197,7 @@ class GenerateQrTool:
         return ToolResult(
             success=True,
             output=f"QR code saved: {out_path}\nEncoded: {data[:100]}",
+            spoken=say("qr_made"),
         )
 
 
@@ -256,4 +258,5 @@ class ShareToPhoneTool:
         return ToolResult(
             success=True,
             output=f"QR code for your phone is on screen. URL: {url}",
+            spoken=say("qr_on_screen"),
         )

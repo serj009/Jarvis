@@ -525,6 +525,83 @@ PHRASES: dict[str, dict[Lang, str]] = {
         "ru": "Я знаю, где сохранения этих игр, сэр: {names}.",
         "uk": "Я знаю, де збереження цих ігор, сер: {names}.",
     },
+    # RSS, QR and the password vault (B-P1-12). The vault never says a
+    # password, only site names.
+    "rss_subscribed": {
+        "en": "Subscribed to “{name}”, sir.",
+        "ru": "Подписался на «{name}», сэр.",
+        "uk": "Підписався на «{name}», сер.",
+    },
+    "rss_none": {
+        "en": "No news subscriptions yet, sir.",
+        "ru": "Подписок на новости пока нет, сэр.",
+        "uk": "Підписок на новини поки немає, сер.",
+    },
+    "rss_list": {
+        "en": "{count}, sir: {names}.",
+        "ru": "Подписок: {n}, сэр: {names}.",
+        "uk": "Підписок: {n}, сер: {names}.",
+    },
+    "rss_news": {
+        "en": "Here is the news, sir: {titles}.",
+        "ru": "Вот новости, сэр: {titles}.",
+        "uk": "Ось новини, сер: {titles}.",
+    },
+    "rss_no_news": {
+        "en": "No news right now, sir.",
+        "ru": "Новостей пока нет, сэр.",
+        "uk": "Новин поки немає, сер.",
+    },
+    "qr_made": {
+        "en": "Made the QR code, sir.",
+        "ru": "Сделал QR-код, сэр.",
+        "uk": "Зробив QR-код, сер.",
+    },
+    "qr_on_screen": {
+        "en": "The QR code for your phone is on the screen, sir.",
+        "ru": "QR-код для телефона на экране, сэр.",
+        "uk": "QR-код для телефону на екрані, сер.",
+    },
+    "vault_saved": {
+        "en": "Saved the password for {site}, sir.",
+        "ru": "Сохранил пароль для {site}, сэр.",
+        "uk": "Зберіг пароль для {site}, сер.",
+    },
+    "vault_empty": {
+        "en": "No passwords are saved yet, sir.",
+        "ru": "Сохранённых паролей пока нет, сэр.",
+        "uk": "Збережених паролів поки немає, сер.",
+    },
+    "vault_list": {
+        "en": "Passwords are saved for: {sites}, sir.",
+        "ru": "Пароли сохранены для: {sites}, сэр.",
+        "uk": "Паролі збережено для: {sites}, сер.",
+    },
+    "vault_removed": {
+        "en": "Removed the password for {site}, sir.",
+        "ru": "Удалил пароль для {site}, сэр.",
+        "uk": "Видалив пароль для {site}, сер.",
+    },
+    "vault_unlocked": {
+        "en": "The password vault is unlocked, sir.",
+        "ru": "Хранилище паролей открыто, сэр.",
+        "uk": "Сховище паролів відкрито, сер.",
+    },
+    "vault_created": {
+        "en": "Created a new password vault and unlocked it, sir.",
+        "ru": "Создал новое хранилище паролей и открыл его, сэр.",
+        "uk": "Створив нове сховище паролів і відкрив його, сер.",
+    },
+    "vault_locked": {
+        "en": "The password vault is locked, sir.",
+        "ru": "Хранилище паролей закрыто, сэр.",
+        "uk": "Сховище паролів закрито, сер.",
+    },
+    "vault_master_changed": {
+        "en": "Changed the master password, sir.",
+        "ru": "Сменил мастер-пароль, сэр.",
+        "uk": "Змінив майстер-пароль, сер.",
+    },
     "file_archived": {
         "en": "Packed {name} into {archive}, sir.",
         "ru": "Упаковал {name} в {archive}, сэр.",
@@ -1145,6 +1222,9 @@ _UNITS: dict[str, dict[Lang, tuple[str, str, str]]] = {
     "program": {"ru": ("программа", "программы", "программ"),
                 "uk": ("програма", "програми", "програм"),
                 "en": ("program", "programs", "programs")},
+    "feed": {"ru": ("лента", "ленты", "лент"),
+             "uk": ("стрічка", "стрічки", "стрічок"),
+             "en": ("feed", "feeds", "feeds")},
     "tab": {"ru": ("вкладка", "вкладки", "вкладок"),
             "uk": ("вкладка", "вкладки", "вкладок"),
             "en": ("tab", "tabs", "tabs")},

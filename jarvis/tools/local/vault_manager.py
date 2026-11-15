@@ -19,6 +19,7 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import say
 from jarvis.tools.registry import EmptyArgs, ToolResult, VoicePattern
 
 log = logging.getLogger(__name__)
@@ -177,6 +178,7 @@ class SaveCredentialTool:
         return ToolResult(
             success=True,
             output=f"Credentials for '{args.site}' saved to vault, sir.",
+            spoken=say("vault_saved", site=args.site),
         )
 
 
@@ -240,12 +242,14 @@ class ListSavedSitesTool:
             return ToolResult(
                 success=True,
                 output="No saved credentials in the vault, sir.",
+                spoken=say("vault_empty"),
             )
 
         site_list = "\n".join(f"  • {s}" for s in sorted(sites))
         return ToolResult(
             success=True,
             output=f"Saved credentials for {len(sites)} sites:\n{site_list}",
+            spoken=say("vault_list", sites=", ".join(sorted(sites))),
         )
 
 
@@ -309,6 +313,7 @@ class RemoveCredentialTool:
         return ToolResult(
             success=True,
             output=f"Credentials for '{args.site}' removed from vault, sir.",
+            spoken=say("vault_removed", site=args.site),
         )
 
 
@@ -365,6 +370,7 @@ class UnlockVaultTool:
             return ToolResult(
                 success=True,
                 output="Vault is already unlocked, sir.",
+                spoken=say("vault_unlocked"),
             )
 
         if not args.master_password:
@@ -389,6 +395,7 @@ class UnlockVaultTool:
             return ToolResult(
                 success=True,
                 output="New password vault created and unlocked, sir.",
+                spoken=say("vault_created"),
             )
 
         # Unlock existing vault
@@ -402,6 +409,7 @@ class UnlockVaultTool:
         return ToolResult(
             success=True,
             output="Password vault unlocked, sir.",
+            spoken=say("vault_unlocked"),
         )
 
 
@@ -452,12 +460,14 @@ class LockVaultTool:
             return ToolResult(
                 success=True,
                 output="Vault is already locked, sir.",
+                spoken=say("vault_locked"),
             )
 
         vault.lock()
         return ToolResult(
             success=True,
             output="Password vault locked, sir. Master key wiped from memory.",
+            spoken=say("vault_locked"),
         )
 
 
@@ -525,4 +535,5 @@ class ChangeVaultPasswordTool:
         return ToolResult(
             success=True,
             output="Master password changed successfully, sir.",
+            spoken=say("vault_master_changed"),
         )

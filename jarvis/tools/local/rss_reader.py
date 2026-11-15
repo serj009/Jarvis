@@ -20,6 +20,7 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel, Field
 
+from jarvis.core.phrases import quantity, say
 from jarvis.platform.encrypted_store import EncryptedJsonStore
 from jarvis.tools.registry import ToolResult, VoicePattern
 
@@ -244,6 +245,7 @@ class SubscribeRssTool:
         return ToolResult(
             success=True,
             output=f"Subscribed to \"{name}\" ({url}). Found {len(items)} items.",
+            spoken=say("rss_subscribed", name=name),
         )
 
 
@@ -337,11 +339,17 @@ class ListRssFeedsTool:
             return ToolResult(
                 success=True,
                 output="No RSS subscriptions yet. Use subscribe_rss to add one.",
+                spoken=say("rss_none"),
             )
         lines = [f"📰 RSS Subscriptions ({len(feeds)}):"]
         for i, f in enumerate(feeds, 1):
             lines.append(f"  {i}. {f.get('name', '?')} — {f.get('url', '?')}")
-        return ToolResult(success=True, output="\n".join(lines))
+        return ToolResult(
+            success=True,
+            output="\n".join(lines),
+            spoken=say("rss_list", n=len(feeds), count=quantity(len(feeds), "feed"),
+                       names=", ".join(f.get("name", "?") for f in feeds)),
+        )
 
 
 class GetLatestNewsTool:
@@ -396,6 +404,7 @@ class GetLatestNewsTool:
             return ToolResult(
                 success=True,
                 output="No RSS subscriptions. Add one first with subscribe_rss.",
+                spoken=say("rss_none"),
             )
 
         # Filter by name if specified
@@ -410,6 +419,7 @@ class GetLatestNewsTool:
 
         all_items: list[str] = []
         errors: list[str] = []
+        titles: list[str] = []  # for the voice: headlines only, no links
 
         for feed in feeds:
             url = feed.get("url", "")
@@ -425,11 +435,13 @@ class GetLatestNewsTool:
                     title = item.get("title", "No title")
                     link = item.get("link", "")
                     all_items.append(f"  • {title}")
+                    titles.append(title)
                     if link:
                         all_items.append(f"    {link}")
 
         if not all_items and not errors:
-            return ToolResult(success=True, output="No news items found.")
+            return ToolResult(success=True, output="No news items found.",
+                              spoken=say("rss_no_news"))
 
         output_parts = []
         if all_items:
@@ -441,4 +453,9 @@ class GetLatestNewsTool:
         if errors:
             output_parts.append("Errors:\n" + "\n".join(errors))
 
-        return ToolResult(success=True, output="\n".join(output_parts))
+        # Read aloud: the first three headlines, never the links.
+        return ToolResult(
+            success=True,
+            output="\n".join(output_parts),
+            spoken=say("rss_news", titles="; ".join(titles[:3])) if titles else None,
+        )
