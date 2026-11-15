@@ -62,7 +62,7 @@ Python 3.14, как дома. Модели и Ollama для тестов не н
 .venv\Scripts\python.exe -m pytest -q
 ```
 
-Эталон (Windows, 2026-11-15): **7398 passed, 12 skipped, 10 deselected**, около 5 минут; pyright по `jarvis/` — 0 ошибок и на Windows, и на Linux. В CI (`.github/workflows/ci.yml`, Windows и Ubuntu) обязательны все три проверки. На Linux pyright не видит ветки кода только для Windows (`sys.platform == "win32"`), поэтому код в `jarvis/platform/` проверять pyright дома, на Windows.
+Эталон (Windows, 2026-11-15): **7571 passed, 12 skipped, 10 deselected**, около 5 минут; pyright по `jarvis/` — 0 ошибок и на Windows, и на Linux. В CI (`.github/workflows/ci.yml`, Windows и Ubuntu) обязательны все три проверки. На Linux pyright не видит ветки кода только для Windows (`sys.platform == "win32"`), поэтому код в `jarvis/platform/` проверять pyright дома, на Windows.
 
 ### Запуск дома
 
